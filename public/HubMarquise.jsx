@@ -107,10 +107,6 @@ const HUB_SYSTEMS = [
   preview: 'maintenance'
 }];
 
-const HUB_PROXIMOS = [
-{ nome: 'Inventário F&B', descricao: 'Controle de estoque dos bares, frigobares e cozinhas.', eta: 'Q3 · 2026' },
-{ nome: 'Onboarding do Colaborador', descricao: 'Trilha de integração para novos funcionários.', eta: 'Q4 · 2026' },
-{ nome: 'Acervo Burle Marx', descricao: 'Documentação digital do painel do lobby de 1992.', eta: 'Sem data' }];
 
 function HubBoot({ onDone }) {
   const [phase, setPhase] = useState('drawing');
@@ -357,66 +353,6 @@ function SectionLabel({ kicker, title, hint }) {
   );
 }
 
-function HubProximos() {
-  return (
-    <section style={{ maxWidth: 1400, margin: '0 auto', padding: '120px 48px 100px', borderTop: `1px solid ${HUB_PALETTE.areiaDim}1a` }}>
-      <SectionLabel kicker="Próximos da linha" title="Em concepção." hint="Pautas que estão na mesa, sem promessa de data — apenas direção." />
-      <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-        {HUB_PROXIMOS.map((item, i) => (
-          <li key={item.nome} style={{ display: 'grid', gridTemplateColumns: '60px 1.2fr 2fr 1fr', gap: 24, alignItems: 'baseline', padding: '28px 0', borderTop: i === 0 ? `1px solid ${HUB_PALETTE.areiaDim}2a` : 'none', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}2a` }}>
-            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.18em', color: HUB_PALETTE.areiaDim }}>{String(i + 5).padStart(2, '0')}</span>
-            <span style={{ fontFamily: 'Fraunces, serif', fontWeight: 300, fontSize: 26, letterSpacing: '-0.015em', color: HUB_PALETTE.marfim }}>{item.nome}</span>
-            <span style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontWeight: 300, fontSize: 16, lineHeight: 1.4, color: HUB_PALETTE.areia }}>{item.descricao}</span>
-            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.22em', color: HUB_PALETTE.champanhe, textAlign: 'right', textTransform: 'uppercase' }}>{item.eta}</span>
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
-
-function HelpCard({ kicker, value, entries, hint, link }) {
-  const Wrap = link ? 'a' : 'div';
-  const linkProps = link ? { href: link, target: '_blank', rel: 'noopener noreferrer' } : {};
-  return (
-    <Wrap {...linkProps} style={{ display: 'block', textDecoration: 'none', color: 'inherit' }}>
-      <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.28em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 8 }}>{kicker}</div>
-      {entries ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginBottom: 8 }}>
-          {entries.map((e) => (
-            <div key={e.nome} style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
-              <span style={{ fontFamily: 'Fraunces, serif', fontWeight: 300, fontSize: 22, lineHeight: 1.15, letterSpacing: '-0.015em', color: HUB_PALETTE.marfim }}>{e.nome}</span>
-              <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, letterSpacing: '0.06em', color: HUB_PALETTE.champanhe, fontVariantNumeric: 'tabular-nums' }}>{e.valor}</span>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div style={{ fontFamily: 'Fraunces, serif', fontWeight: 300, fontSize: 22, lineHeight: 1.15, letterSpacing: '-0.015em', color: link ? HUB_PALETTE.champanhe : HUB_PALETTE.marfim, marginBottom: 6, display: 'inline-flex', alignItems: 'baseline', gap: 8, borderBottom: link ? `1px solid ${HUB_PALETTE.champanhe}55` : 'none', paddingBottom: link ? 2 : 0 }}>
-          {value}{link && <span style={{ fontSize: 13 }}>↗</span>}
-        </div>
-      )}
-      <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 12.5, lineHeight: 1.45, color: HUB_PALETTE.areiaDim, margin: 0, maxWidth: 240 }}>{hint}</p>
-    </Wrap>
-  );
-}
-
-function HubAjuda() {
-  return (
-    <section style={{ maxWidth: 1400, margin: '0 auto', padding: '40px 48px 32px', borderTop: `1px solid ${HUB_PALETTE.areiaDim}1a` }}>
-      <div data-help-grid style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, 1fr) repeat(3, minmax(180px, 1fr))', gap: 40, alignItems: 'center' }}>
-        <div>
-          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9.5, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ width: 16, height: 1, background: HUB_PALETTE.champanhe }} />Precisa de ajuda?
-          </div>
-          <p style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontWeight: 300, fontSize: 18, lineHeight: 1.3, letterSpacing: '-0.01em', color: HUB_PALETTE.areia, margin: 0, maxWidth: 280 }}>Algo não funcionando? Fale com a gente.</p>
-        </div>
-        <HelpCard kicker="Ramal" entries={[{ nome: 'Richard', valor: '5051' }, { nome: 'Márcio', valor: '5061' }]} hint="Atendimento de segunda a sexta, 8h às 18h." />
-        <HelpCard kicker="Por chamado" value="Chamados TI" hint="O caminho mais rápido. Anexe fotos ou prints se ajudar a explicar." link="https://sistema-chamados-granmarquise.fly.dev" />
-        <HelpCard kicker="Pessoalmente" value="Sala da TI" hint="Sala dentro da controladoria." />
-      </div>
-    </section>
-  );
-}
 
 function HubFooter({ easterActive }) {
   return (
@@ -494,8 +430,6 @@ function HubMarquise() {
             ))}
           </div>
         </section>
-        <HubProximos />
-        <HubAjuda />
         <HubFooter easterActive={easter} />
       </main>
     </div>
