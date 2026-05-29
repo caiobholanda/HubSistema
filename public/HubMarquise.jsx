@@ -59,8 +59,24 @@ const HUB_SYSTEMS = [
   preview: 'tickets'
 },
 {
-  id: 'cardapio',
+  id: 'ramais',
   num: '02',
+  categoria: 'Comunicação · Interno',
+  nome: 'Lista de Ramais',
+  paraQuem: 'Todos os setores',
+  descricao: 'Diretório de ramais e contatos internos do hotel — consulte o ramal de qualquer setor ou colaborador sem precisar ligar para a recepção.',
+  detalhe: 'Acesso pelo navegador, sem login.',
+  status: 'no-ar',
+  statusLabel: 'Disponível',
+  statusHint: 'Pode usar agora',
+  url: 'https://diretorio-ramais-granmarquise.fly.dev',
+  repo: 'caiobholanda/ListaRamais',
+  stack: ['Busca por nome ou setor', 'Ramais e contatos', 'Sem login necessário'],
+  preview: 'directory'
+},
+{
+  id: 'cardapio',
+  num: '03',
   categoria: 'Restaurantes · F&B',
   nome: 'Cardápio Digital',
   paraQuem: 'Mangostin e Mucuripe Grill',
@@ -76,7 +92,7 @@ const HUB_SYSTEMS = [
 },
 {
   id: 'ocupacao',
-  num: '03',
+  num: '04',
   categoria: 'Operação · Hospedagem',
   nome: 'Painel de Ocupação',
   paraQuem: 'Recepção e Governança',
@@ -92,7 +108,7 @@ const HUB_SYSTEMS = [
 },
 {
   id: 'predial',
-  num: '04',
+  num: '05',
   categoria: 'Operação · Manutenção',
   nome: 'Manutenção Predial',
   paraQuem: 'Engenharia e Governança',
