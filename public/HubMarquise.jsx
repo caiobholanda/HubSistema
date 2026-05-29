@@ -438,7 +438,7 @@ function HubMarquise() {
         <HubHero revealed={revealed} easterActive={easter} />
         <section style={{ maxWidth: 1400, margin: '0 auto', padding: '24px 48px 48px' }}>
           <SectionLabel kicker="No ar" title="Pronto para usar." hint="Clique no painel para abrir o sistema em uma aba nova." />
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(580px, 1fr))', gap: 0, borderTop: `1px solid ${HUB_PALETTE.areiaDim}2a` }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(600px, 1fr))', gap: 0, borderTop: `1px solid ${HUB_PALETTE.areiaDim}2a` }}>
             {HUB_SYSTEMS.filter(s => s.status === 'no-ar').map((sys, i, arr) => (
               <div key={sys.id} style={{ borderBottom: `1px solid ${HUB_PALETTE.areiaDim}2a`, borderRight: arr.length > 1 && i % 2 === 0 ? `1px solid ${HUB_PALETTE.areiaDim}2a` : 'none' }}>
                 <SystemPanel system={sys} index={i} revealed={revealed} />
