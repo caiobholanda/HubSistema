@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hub de Sistemas — Gran Marquise TI</title>
+  <meta name="description" content="Central de acesso aos sistemas internos do Hotel Gran Marquise." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;1,9..144,300&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { background: #0A0E1A; }
+    #root { min-height: 100vh; }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(201,169,97,0.25); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(201,169,97,0.45); }
+    ::selection { background: rgba(201,169,97,0.25); }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script type="text/babel" src="./HubMarquise.jsx" data-presets="react"></script>
+  <script>
+    var _check = setInterval(function() {
+      if (typeof HubMarquise !== 'undefined') {
+        clearInterval(_check);
+        ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(HubMarquise));
+      }
+    }, 50);
+  </script>
+</body>
+</html>
