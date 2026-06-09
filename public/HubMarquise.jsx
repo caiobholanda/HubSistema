@@ -321,40 +321,46 @@ const STATUS_CORES = { 'no-ar': '#4CAF87', 'construcao': '#E0A85F', 'beta': '#5F
 
 // ─── Admin Panel helpers ──────────────────────────────────────────────────────
 
-const LINK_INPUT_STYLE = { width: '100%', boxSizing: 'border-box', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', color: '#F0E6D3', fontFamily: 'Inter, sans-serif', fontSize: 13, padding: '8px 12px', outline: 'none', marginBottom: 8 };
-const LINK_SELECT_STYLE = { ...LINK_INPUT_STYLE, background: '#0c1220', cursor: 'pointer' };
-const LINK_LABEL_STYLE = { fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 6 };
-
 function LinkForm({ form, setForm, onSave, onCancel, linkErro, linkSaving }) {
+  const inputStyle = {
+    width: '100%', boxSizing: 'border-box',
+    background: HUB_PALETTE.noiteAlt,
+    border: `1px solid ${HUB_PALETTE.areiaDim}44`,
+    color: HUB_PALETTE.marfim,
+    fontFamily: 'Inter, sans-serif', fontSize: 13,
+    padding: '8px 12px', outline: 'none', marginBottom: 8,
+  };
+  const labelStyle = { fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 6 };
+  const optStyle = { background: HUB_PALETTE.noiteAlt, color: HUB_PALETTE.marfim };
   return (
     <div style={{ background: `${HUB_PALETTE.areiaDim}08`, border: `1px solid ${HUB_PALETTE.areiaDim}22`, padding: 24, marginBottom: 2 }}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 2 }}>
         <div>
-          <div style={LINK_LABEL_STYLE}>Nome *</div>
-          <input value={form.nome} onChange={e => setForm(p => ({ ...p, nome: e.target.value }))} placeholder="Ex: Cardápio Digital" style={LINK_INPUT_STYLE} />
+          <div style={labelStyle}>Nome *</div>
+          <input value={form.nome} onChange={e => setForm(p => ({ ...p, nome: e.target.value }))} placeholder="Ex: Cardápio Digital" style={inputStyle} />
         </div>
         <div>
-          <div style={LINK_LABEL_STYLE}>Status *</div>
-          <select value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))} style={LINK_SELECT_STYLE}>
-            <option value="no-ar" style={{ background: '#0d1b2a', color: '#f0e6d3' }}>Ativo</option>
-            <option value="inativo" style={{ background: '#0d1b2a', color: '#f0e6d3' }}>Inativo</option>
+          <div style={labelStyle}>Status *</div>
+          <select value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))} style={{ ...inputStyle, cursor: 'pointer' }}>
+            <option value="no-ar" style={optStyle}>Ativo</option>
+            <option value="inativo" style={optStyle}>Inativo</option>
           </select>
         </div>
         <div style={{ gridColumn: '1 / -1' }}>
-          <div style={LINK_LABEL_STYLE}>URL</div>
-          <input value={form.url} onChange={e => setForm(p => ({ ...p, url: e.target.value }))} placeholder="https://..." style={LINK_INPUT_STYLE} />
+          <div style={labelStyle}>URL</div>
+          <input value={form.url} onChange={e => setForm(p => ({ ...p, url: e.target.value }))} placeholder="https://..." style={inputStyle} />
         </div>
         <div>
-          <div style={LINK_LABEL_STYLE}>Categoria</div>
-          <input value={form.categoria} onChange={e => setForm(p => ({ ...p, categoria: e.target.value }))} placeholder="Ex: Operação · Hospedagem" style={LINK_INPUT_STYLE} />
+          <div style={labelStyle}>Categoria</div>
+          <input value={form.categoria} onChange={e => setForm(p => ({ ...p, categoria: e.target.value }))} placeholder="Ex: Operação · Hospedagem" style={inputStyle} />
         </div>
         <div>
-          <div style={LINK_LABEL_STYLE}>Para quem</div>
-          <input value={form.paraQuem} onChange={e => setForm(p => ({ ...p, paraQuem: e.target.value }))} placeholder="Ex: Todos os setores" style={LINK_INPUT_STYLE} />
+          <div style={labelStyle}>Para quem</div>
+          <input value={form.paraQuem} onChange={e => setForm(p => ({ ...p, paraQuem: e.target.value }))} placeholder="Ex: Todos os setores" style={inputStyle} />
         </div>
         <div style={{ gridColumn: '1 / -1' }}>
-          <div style={LINK_LABEL_STYLE}>Descrição</div>
-          <input value={form.descricao} onChange={e => setForm(p => ({ ...p, descricao: e.target.value }))} placeholder="Breve descrição do sistema" style={LINK_INPUT_STYLE} />
+          <div style={labelStyle}>Descrição</div>
+          <input value={form.descricao} onChange={e => setForm(p => ({ ...p, descricao: e.target.value }))} placeholder="Breve descrição do sistema" style={inputStyle} />
         </div>
       </div>
       {linkErro && <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: '#E07A5F', marginBottom: 12 }}>{linkErro}</div>}
