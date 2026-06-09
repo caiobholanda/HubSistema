@@ -1114,16 +1114,18 @@ function HubMarquise() {
   }, [authed]);
 
   useEffect(() => {
+    if (!authed || showAdmin) return;
     const onScroll = () => sessionStorage.setItem('hub_scroll', String(window.scrollY));
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
-  }, []);
+  }, [authed, showAdmin]);
 
   useEffect(() => {
     if (!revealed) return;
+    history.scrollRestoration = 'manual';
     const saved = sessionStorage.getItem('hub_scroll');
-    if (saved) {
-      const t = setTimeout(() => window.scrollTo({ top: parseInt(saved, 10), behavior: 'instant' }), 100);
+    if (saved && parseInt(saved, 10) > 0) {
+      const t = setTimeout(() => window.scrollTo({ top: parseInt(saved, 10), behavior: 'instant' }), 300);
       return () => clearTimeout(t);
     }
   }, [revealed]);
