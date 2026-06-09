@@ -87,7 +87,7 @@ app.post('/api/auth/login', async (req, res) => {
       const data = await r.json();
       const token = jwt.sign({ nome: data.nome, email: emailNorm, tipo: 'usuario' }, SSO_SECRET, { expiresIn: '8h' });
       trackUser(emailNorm, data.nome, 'usuario');
-      return res.json({ ok: true, token, nome: data.nome, sistemas: getUserSistemas(emailNorm) });
+      return res.json({ ok: true, token, tipo: 'usuario', nome: data.nome, sistemas: getUserSistemas(emailNorm) });
     }
   } catch (_) {}
 
@@ -102,7 +102,7 @@ app.post('/api/auth/login', async (req, res) => {
       const data = await r.json();
       const token = jwt.sign({ nome: data.nome, email: emailNorm, tipo: 'admin', is_master: data.is_master }, SSO_SECRET, { expiresIn: '8h' });
       trackUser(emailNorm, data.nome, 'admin');
-      return res.json({ ok: true, token, nome: data.nome, sistemas: getUserSistemas(emailNorm) });
+      return res.json({ ok: true, token, tipo: 'admin', nome: data.nome, sistemas: getUserSistemas(emailNorm) });
     }
   } catch (_) {}
 

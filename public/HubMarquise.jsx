@@ -226,7 +226,8 @@ function HubLogin({ onLogin }) {
       if (data.ok) {
         localStorage.setItem('hub_sso_token', data.token);
         localStorage.setItem('hub_sistemas', JSON.stringify(data.sistemas));
-        onLogin(data.nome, data.sistemas);
+        localStorage.setItem('hub_tipo', data.tipo || 'usuario');
+        onLogin(data.nome, data.sistemas, data.tipo || 'usuario');
       } else {
         setErro(data.erro || 'Credenciais inválidas');
       }
@@ -828,7 +829,7 @@ function HubMarquise() {
             const sistemasStr = localStorage.getItem('hub_sistemas');
             const sis = sistemasStr ? JSON.parse(sistemasStr) : null;
             setUserName(payload.nome || '');
-            setUserTipo(payload.tipo || '');
+            setUserTipo(localStorage.getItem('hub_tipo') || payload.tipo || '');
             setSistemas(sis);
             setAuthed(true);
             const t = setTimeout(() => setRevealed(true), 80);
@@ -838,6 +839,7 @@ function HubMarquise() {
       }
       localStorage.removeItem('hub_sso_token');
       localStorage.removeItem('hub_sistemas');
+      localStorage.removeItem('hub_tipo');
     }
   }, [booting]);
 
@@ -852,17 +854,9 @@ function HubMarquise() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  function handleLogin(nome, sis) {
-    const token = localStorage.getItem('hub_sso_token');
-    let tipo = '';
-    try {
-      const [, b64] = token.split('.');
-      const padding = b64.length % 4 === 0 ? '' : '='.repeat(4 - (b64.length % 4));
-      const payload = JSON.parse(atob(b64.replace(/-/g, '+').replace(/_/g, '/') + padding));
-      tipo = payload.tipo || '';
-    } catch (_) {}
+  function handleLogin(nome, sis, tipo) {
     setUserName(nome);
-    setUserTipo(tipo);
+    setUserTipo(tipo || '');
     setSistemas(sis);
     setAuthed(true);
     setTimeout(() => setRevealed(true), 80);
@@ -871,6 +865,7 @@ function HubMarquise() {
   function handleLogout() {
     localStorage.removeItem('hub_sso_token');
     localStorage.removeItem('hub_sistemas');
+    localStorage.removeItem('hub_tipo');
     setAuthed(false);
     setRevealed(false);
     setUserName('');
