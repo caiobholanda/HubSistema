@@ -864,6 +864,17 @@ function HubMarquise() {
   }, [booting]);
 
   useEffect(() => {
+    if (!authed) return;
+    const token = localStorage.getItem('hub_sso_token');
+    const es = new EventSource(`/api/events?token=${encodeURIComponent(token)}`);
+    es.addEventListener('permissions', e => {
+      const { sistemas: s } = JSON.parse(e.data);
+      setSistemas(s);
+    });
+    return () => es.close();
+  }, [authed]);
+
+  useEffect(() => {
     const onKey = (e) => {
       if (e.key && e.key.length === 1) {
         seqRef.current = (seqRef.current + e.key.toUpperCase()).slice(-2);

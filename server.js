@@ -53,6 +53,15 @@ function getUserSistemas(email) {
     : null; // null = acesso total
 }
 
+// ─── SSE (notificações em tempo real) ───────────────────────────────────────
+
+const sseClients = new Map(); // email -> res
+
+function notifyUser(email, sistemas) {
+  const client = sseClients.get(email);
+  if (client) client.write(`event: permissions\ndata: ${JSON.stringify({ sistemas })}\n\n`);
+}
+
 // ─── Middleware admin ────────────────────────────────────────────────────────
 
 function requireAdmin(req, res, next) {
@@ -111,6 +120,22 @@ app.post('/api/auth/login', async (req, res) => {
 
 // ─── Admin API ───────────────────────────────────────────────────────────────
 
+app.get('/api/events', (req, res) => {
+  const token = req.query.token;
+  try {
+    const payload = jwt.verify(token, SSO_SECRET);
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders();
+    sseClients.set(payload.email, res);
+    const keepAlive = setInterval(() => res.write(': ping\n\n'), 25000);
+    req.on('close', () => { sseClients.delete(payload.email); clearInterval(keepAlive); });
+  } catch {
+    res.status(401).end();
+  }
+});
+
 app.get('/api/me/sistemas', (req, res) => {
   const auth = req.headers.authorization || '';
   const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
@@ -134,6 +159,7 @@ app.put('/api/admin/permissions', requireAdmin, (req, res) => {
   const data = readData();
   data.permissions[email] = sistemas;
   writeData(data);
+  notifyUser(email, sistemas);
   res.json({ ok: true });
 });
 
@@ -154,6 +180,7 @@ app.delete('/api/admin/permissions/:email', requireAdmin, (req, res) => {
   const data = readData();
   delete data.permissions[email];
   writeData(data);
+  notifyUser(email, null);
   res.json({ ok: true });
 });
 
