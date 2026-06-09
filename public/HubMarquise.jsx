@@ -322,6 +322,7 @@ const STATUS_CORES = { 'no-ar': '#4CAF87', 'construcao': '#E0A85F', 'beta': '#5F
 // ─── Admin Panel helpers ──────────────────────────────────────────────────────
 
 function LinkForm({ form, setForm, onSave, onCancel, linkErro, linkSaving }) {
+  const isMobile = useWindowWidth() < 768;
   const inputStyle = {
     width: '100%', boxSizing: 'border-box',
     background: HUB_PALETTE.noiteAlt,
@@ -334,7 +335,7 @@ function LinkForm({ form, setForm, onSave, onCancel, linkErro, linkSaving }) {
   const optStyle = { background: HUB_PALETTE.noiteAlt, color: HUB_PALETTE.marfim };
   return (
     <div style={{ background: `${HUB_PALETTE.areiaDim}08`, border: `1px solid ${HUB_PALETTE.areiaDim}22`, padding: 24, marginBottom: 2 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 2 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10, marginBottom: 2 }}>
         <div>
           <div style={labelStyle}>Nome *</div>
           <input value={form.nome} onChange={e => setForm(p => ({ ...p, nome: e.target.value }))} placeholder="Ex: Cardápio Digital" style={inputStyle} />
@@ -379,6 +380,7 @@ function LinkForm({ form, setForm, onSave, onCancel, linkErro, linkSaving }) {
 // ─── Admin Panel ──────────────────────────────────────────────────────────────
 
 function HubAdmin({ onClose, hubSystems, setHubSystems }) {
+  const isMobile = useWindowWidth() < 768;
   const [aba, setAba] = useState('usuarios');
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState([]);
@@ -509,7 +511,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
     <div style={{ position: 'fixed', inset: 0, zIndex: 95, background: HUB_PALETTE.noite, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
       {/* Header */}
       <div style={{ position: 'sticky', top: 0, zIndex: 10, background: HUB_PALETTE.headerBg, backdropFilter: 'blur(10px)', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, flexShrink: 0 }}>
-        <div style={{ padding: '20px 48px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ padding: isMobile ? '14px 18px' : '20px 48px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={HUB_PALETTE.champanhe} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
@@ -524,7 +526,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
           </button>
         </div>
         {/* Tabs */}
-        <div style={{ display: 'flex', paddingLeft: 48, gap: 0 }}>
+        <div style={{ display: 'flex', paddingLeft: isMobile ? 18 : 48, gap: 0, overflowX: 'auto' }}>
           {ABAS.map(a => (
             <button key={a.id} onClick={() => { setAba(a.id); setEditingId(null); setAddingNew(false); setLinkErro(''); }}
               style={{ background: 'transparent', border: 'none', borderBottom: `2px solid ${aba === a.id ? HUB_PALETTE.champanhe : 'transparent'}`, color: aba === a.id ? HUB_PALETTE.champanhe : HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', padding: '12px 20px 10px', cursor: 'pointer', transition: `color 200ms, border-color 200ms` }}>
@@ -535,7 +537,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
       </div>
 
       {/* Content */}
-      <div style={{ maxWidth: 900, margin: '0 auto', padding: '48px 48px 80px', width: '100%' }}>
+      <div style={{ maxWidth: 900, margin: '0 auto', padding: isMobile ? '24px 18px 80px' : '48px 48px 80px', width: '100%' }}>
 
         {/* ── Aba Usuários ── */}
         {aba === 'usuarios' && (<>
@@ -653,7 +655,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
                         <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: HUB_PALETTE.areiaDim, flexShrink: 0 }}>{sys.num}</span>
                         <div style={{ minWidth: 0 }}>
                           <div style={{ fontFamily: 'Fraunces, serif', fontWeight: 300, fontSize: 17, color: HUB_PALETTE.marfim, lineHeight: 1.2 }}>{sys.nome}</div>
-                          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: HUB_PALETTE.areiaDim, marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 300 }}>{sys.url}</div>
+                          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: HUB_PALETTE.areiaDim, marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: isMobile ? 140 : 300 }}>{sys.url}</div>
                         </div>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
@@ -863,7 +865,7 @@ function HubHero({ revealed, easterActive, isMobile, userName, sistemasVisiveis 
           </div>
         )}
       </div>
-      <div style={{ position: 'absolute', right: 48, top: 88, fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontSize: 12, color: HUB_PALETTE.champanhe, letterSpacing: '0.04em', opacity: easterActive ? 0.6 : 0, transform: easterActive ? 'translateY(0)' : 'translateY(-6px)', transition: `all 800ms ${HUB_EASE}`, pointerEvents: 'none' }}>
+      <div style={{ position: 'absolute', right: 48, top: 88, fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontSize: 12, color: HUB_PALETTE.champanhe, letterSpacing: '0.04em', opacity: easterActive ? 0.6 : 0, transform: easterActive ? 'translateY(0)' : 'translateY(-6px)', transition: `all 800ms ${HUB_EASE}`, pointerEvents: 'none', display: typeof window !== 'undefined' && window.innerWidth < 768 ? 'none' : 'block' }}>
         em homenagem ao painel de 1992
       </div>
     </section>
