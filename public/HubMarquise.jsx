@@ -175,7 +175,188 @@ function HubBoot({ onDone }) {
   );
 }
 
-function HubHeader({ theme, onToggleTheme, isMobile }) {
+function HubLogin({ onLogin }) {
+  const [email, setEmail] = useState('');
+  const [senha, setSenha] = useState('');
+  const [mostrarSenha, setMostrarSenha] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [erro, setErro] = useState('');
+  const [visible, setVisible] = useState(false);
+  const emailRef = useRef(null);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setVisible(true);
+      setTimeout(() => emailRef.current && emailRef.current.focus(), 300);
+    }, 60);
+    return () => clearTimeout(t);
+  }, []);
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setLoading(true);
+    setErro('');
+    try {
+      const r = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, senha }),
+      });
+      const data = await r.json();
+      if (data.ok) {
+        localStorage.setItem('hub_sso_token', data.token);
+        onLogin(data.nome);
+      } else {
+        setErro(data.erro || 'Credenciais inválidas');
+      }
+    } catch {
+      setErro('Erro de conexão. Tente novamente.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const inputBase = {
+    width: '100%',
+    background: `rgba(255,255,255,0.04)`,
+    border: `1px solid ${HUB_PALETTE.areiaDim}44`,
+    borderRadius: 0,
+    color: HUB_PALETTE.marfim,
+    fontFamily: 'Inter, sans-serif',
+    fontSize: 14,
+    padding: '14px 16px',
+    outline: 'none',
+    transition: `border-color 300ms ${HUB_EASE}`,
+    boxSizing: 'border-box',
+  };
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 90,
+      background: HUB_PALETTE.noite,
+      display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center',
+      opacity: visible ? 1 : 0,
+      transition: `opacity 700ms ${HUB_EASE}`,
+    }}>
+      {/* Linha decorativa lateral */}
+      <div style={{ position: 'absolute', right: 0, top: 0, width: 1, height: '60%', background: `linear-gradient(180deg, transparent 0%, ${HUB_PALETTE.champanhe}55 40%, transparent 100%)`, pointerEvents: 'none' }} />
+
+      <div style={{ width: '100%', maxWidth: 400, padding: '0 24px' }}>
+        {/* Logo */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 48 }}>
+          <svg width="52" height="38" viewBox="0 0 140 100" fill="none" style={{ marginBottom: 20 }}>
+            <path d="M 55 8 Q 8 8 8 50 Q 8 92 55 92 Q 70 92 70 80 L 70 55 L 40 55"
+              stroke={HUB_PALETTE.champanhe} strokeWidth="2.5" fill="none" strokeLinecap="round" />
+            <path d="M 80 92 L 80 8 L 102 60 L 124 8 L 124 92"
+              stroke={HUB_PALETTE.champanhe} strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.35em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
+            Gran Marquise
+            <span style={{ width: 4, height: 4, borderRadius: '50%', background: HUB_PALETTE.champanhe, display: 'inline-block' }} />
+            Hub
+          </div>
+          <h1 style={{ fontFamily: 'Fraunces, serif', fontWeight: 300, fontStyle: 'italic', fontSize: 36, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: 0, lineHeight: 1 }}>
+            Entrar.
+          </h1>
+        </div>
+
+        {/* Formulário */}
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div>
+            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 8 }}>
+              E-mail
+            </div>
+            <input
+              ref={emailRef}
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              placeholder="seu@granmarquise.com.br"
+              required
+              disabled={loading}
+              style={{
+                ...inputBase,
+                '::placeholder': { color: HUB_PALETTE.areiaDim },
+              }}
+              onFocus={e => e.target.style.borderColor = HUB_PALETTE.champanhe + '88'}
+              onBlur={e => e.target.style.borderColor = HUB_PALETTE.areiaDim + '44'}
+            />
+          </div>
+
+          <div>
+            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 8 }}>
+              Senha
+            </div>
+            <div style={{ position: 'relative' }}>
+              <input
+                type={mostrarSenha ? 'text' : 'password'}
+                value={senha}
+                onChange={e => setSenha(e.target.value)}
+                placeholder="••••••••"
+                required
+                disabled={loading}
+                style={{ ...inputBase, paddingRight: 48 }}
+                onFocus={e => e.target.style.borderColor = HUB_PALETTE.champanhe + '88'}
+                onBlur={e => e.target.style.borderColor = HUB_PALETTE.areiaDim + '44'}
+              />
+              <button
+                type="button"
+                onClick={() => setMostrarSenha(v => !v)}
+                style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: HUB_PALETTE.areiaDim, cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center' }}
+              >
+                {mostrarSenha
+                  ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                  : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                }
+              </button>
+            </div>
+          </div>
+
+          {erro && (
+            <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#E07A5F', paddingTop: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 16 }}>—</span> {erro}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading}
+            style={{
+              marginTop: 8,
+              width: '100%',
+              padding: '15px',
+              background: 'transparent',
+              border: `1px solid ${HUB_PALETTE.champanhe}`,
+              color: loading ? HUB_PALETTE.areiaDim : HUB_PALETTE.champanhe,
+              fontFamily: 'JetBrains Mono, monospace',
+              fontSize: 11,
+              letterSpacing: '0.3em',
+              textTransform: 'uppercase',
+              cursor: loading ? 'not-allowed' : 'pointer',
+              transition: `background 300ms ${HUB_EASE}, color 300ms ${HUB_EASE}`,
+            }}
+            onMouseEnter={e => { if (!loading) e.target.style.background = `rgba(201,169,97,0.1)`; }}
+            onMouseLeave={e => { e.target.style.background = 'transparent'; }}
+          >
+            {loading ? 'Verificando...' : 'Entrar'}
+          </button>
+        </form>
+
+        {/* Rodapé */}
+        <div style={{ marginTop: 40, display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ flex: 1, height: 1, background: `${HUB_PALETTE.areiaDim}22` }} />
+          <span style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontWeight: 300, fontSize: 13, color: HUB_PALETTE.areiaDim }}>
+            Quem é bem atendido, atende bem.
+          </span>
+          <div style={{ flex: 1, height: 1, background: `${HUB_PALETTE.areiaDim}22` }} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function HubHeader({ theme, onToggleTheme, isMobile, userName, onLogout }) {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 1000);
@@ -185,6 +366,8 @@ function HubHeader({ theme, onToggleTheme, isMobile }) {
     timeZone: 'America/Fortaleza',
     hour: '2-digit', minute: '2-digit', second: '2-digit'
   }).format(now);
+
+  const primeiroNome = userName ? userName.split(' ')[0] : '';
 
   return (
     <header style={{
@@ -203,8 +386,13 @@ function HubHeader({ theme, onToggleTheme, isMobile }) {
             Gran Marquise <span style={{ color: HUB_PALETTE.areiaDim, margin: '0 6px' }}>/</span> Hub
           </span>
         </a>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 22 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           {!isMobile && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, letterSpacing: '0.1em', color: HUB_PALETTE.marfim, fontVariantNumeric: 'tabular-nums' }}>{hora}</span>}
+          {!isMobile && primeiroNome && (
+            <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: HUB_PALETTE.areiaDim, letterSpacing: '0.01em' }}>
+              {primeiroNome}
+            </span>
+          )}
           <button type="button" onClick={onToggleTheme}
             aria-label={theme === 'dark' ? 'Mudar para modo claro' : 'Mudar para modo escuro'}
             style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 34, background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}44`, borderRadius: '50%', color: HUB_PALETTE.champanhe, cursor: 'pointer', padding: 0, transition: `border-color 500ms ${HUB_EASE}` }}>
@@ -214,15 +402,28 @@ function HubHeader({ theme, onToggleTheme, isMobile }) {
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><path d="M20 14.5A8 8 0 0 1 9.5 4a6.5 6.5 0 1 0 10.5 10.5z" /></svg>
             )}
           </button>
+          <button type="button" onClick={onLogout}
+            aria-label="Sair"
+            title="Sair"
+            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 34, background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}44`, borderRadius: '50%', color: HUB_PALETTE.areiaDim, cursor: 'pointer', padding: 0, transition: `color 300ms ${HUB_EASE}, border-color 300ms ${HUB_EASE}` }}
+            onMouseEnter={e => { e.currentTarget.style.color = '#E07A5F'; e.currentTarget.style.borderColor = '#E07A5F44'; }}
+            onMouseLeave={e => { e.currentTarget.style.color = HUB_PALETTE.areiaDim; e.currentTarget.style.borderColor = HUB_PALETTE.areiaDim + '44'; }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+            </svg>
+          </button>
         </div>
       </div>
     </header>
   );
 }
 
-function HubHero({ revealed, easterActive, isMobile }) {
+function HubHero({ revealed, easterActive, isMobile, userName }) {
   const horaFortaleza = parseInt(new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Fortaleza', hour: '2-digit', hour12: false }).format(new Date()), 10);
-  const saudacao = horaFortaleza < 5 ? 'Boa madrugada, equipe Gran Marquise' : horaFortaleza < 12 ? 'Bom dia, equipe Gran Marquise' : horaFortaleza < 18 ? 'Boa tarde, equipe Gran Marquise' : 'Boa noite, equipe Gran Marquise';
+  const primeiroNome = userName ? userName.split(' ')[0] : 'equipe Gran Marquise';
+  const periodo = horaFortaleza < 5 ? 'Boa madrugada' : horaFortaleza < 12 ? 'Bom dia' : horaFortaleza < 18 ? 'Boa tarde' : 'Boa noite';
+  const saudacao = `${periodo}, ${primeiroNome}`;
 
   return (
     <section style={{ maxWidth: 1400, margin: '0 auto', padding: isMobile ? '32px 18px 24px' : '56px 48px 40px', position: 'relative' }}>
@@ -293,6 +494,20 @@ function SystemPreview({ kind }) {
       </svg>
     );
   }
+  if (kind === 'directory') {
+    return (
+      <svg viewBox="0 0 240 140" width="100%" height="100%" preserveAspectRatio="none">
+        {[0,1,2,3,4].map((i) => (
+          <g key={i} transform={`translate(16 ${14 + i * 23})`}>
+            <circle cx="10" cy="10" r="7" fill={HUB_PALETTE.champanhe} fillOpacity="0.15" stroke={HUB_PALETTE.areiaDim} strokeOpacity="0.3" />
+            <rect x="26" y="5" width={80 + (i % 3) * 20} height="3" fill={HUB_PALETTE.areia} fillOpacity="0.5" />
+            <rect x="26" y="12" width={40 + (i % 2) * 15} height="2" fill={HUB_PALETTE.areiaDim} fillOpacity="0.35" />
+            <rect x="180" y="7" width="32" height="6" rx="1" fill={HUB_PALETTE.areiaDim} fillOpacity="0.2" />
+          </g>
+        ))}
+      </svg>
+    );
+  }
   if (kind === 'menu') {
     return (
       <svg viewBox="0 0 240 140" width="100%" height="100%" preserveAspectRatio="none">
@@ -333,10 +548,19 @@ function SystemPanel({ system, index, revealed, isMobile }) {
   const [hover, setHover] = useState(false);
   const disabled = system.url === '#';
 
+  function handleOpen(e) {
+    e.preventDefault();
+    if (disabled) return;
+    const token = localStorage.getItem('hub_sso_token');
+    const url = token
+      ? `${system.url}/sso?sso_token=${encodeURIComponent(token)}`
+      : system.url;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
+
   return (
-    <a href={system.url} target={disabled ? undefined : '_blank'} rel="noopener noreferrer"
+    <a href={system.url} onClick={handleOpen}
       onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
-      onClick={(e) => { if (disabled) e.preventDefault(); }}
       style={{ position: 'relative', display: 'block', padding: isMobile ? '20px 18px 22px' : '28px 32px 30px', textDecoration: 'none', color: 'inherit', opacity: revealed ? 1 : 0, transform: !revealed ? 'translateY(28px)' : hover && !disabled ? 'translateY(-4px)' : 'translateY(0)', transition: `opacity 900ms ${HUB_EASE} ${index * 110}ms, transform ${hover && revealed && !disabled ? 500 : 900}ms ${HUB_EASE} ${index * 110}ms, background 500ms ${HUB_EASE}, box-shadow 550ms ${HUB_EASE}`, background: hover && !disabled ? HUB_PALETTE.panelHover : 'transparent', boxShadow: hover && !disabled ? `0 20px 44px -10px rgba(0,0,0,0.38), 0 0 0 1px ${HUB_PALETTE.champanhe}28` : 'none', cursor: disabled ? 'not-allowed' : 'pointer', overflow: 'hidden', zIndex: hover && !disabled ? 2 : 1 }}>
       <span style={{ position: 'absolute', top: 0, left: 0, height: 1, width: hover ? '100%' : '0%', background: HUB_PALETTE.champanhe, transition: `width 900ms ${HUB_EASE}` }} />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px 20px', marginBottom: 18 }}>
@@ -407,6 +631,8 @@ function HubDecoration() {
 
 function HubMarquise() {
   const [booting, setBooting] = useState(true);
+  const [authed, setAuthed] = useState(false);
+  const [userName, setUserName] = useState('');
   const [revealed, setRevealed] = useState(false);
   const [easter, setEaster] = useState(false);
   const [theme, setTheme] = useState('light');
@@ -438,10 +664,24 @@ function HubMarquise() {
     document.body.style.setProperty('--grain-blend', HUB_PALETTE.grainBlend);
   }, [theme]);
 
+  // Após o boot, verifica token SSO existente
   useEffect(() => {
     if (!booting) {
-      const t = setTimeout(() => setRevealed(true), 80);
-      return () => clearTimeout(t);
+      const token = localStorage.getItem('hub_sso_token');
+      if (token) {
+        try {
+          const [, b64] = token.split('.');
+          const padding = b64.length % 4 === 0 ? '' : '='.repeat(4 - (b64.length % 4));
+          const payload = JSON.parse(atob(b64.replace(/-/g, '+').replace(/_/g, '/') + padding));
+          if (payload.exp && payload.exp * 1000 > Date.now()) {
+            setUserName(payload.nome || '');
+            setAuthed(true);
+            const t = setTimeout(() => setRevealed(true), 80);
+            return () => clearTimeout(t);
+          }
+        } catch (_) {}
+      }
+      localStorage.removeItem('hub_sso_token');
     }
   }, [booting]);
 
@@ -456,25 +696,49 @@ function HubMarquise() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  function handleLogin(nome) {
+    setUserName(nome);
+    setAuthed(true);
+    setTimeout(() => setRevealed(true), 80);
+  }
+
+  function handleLogout() {
+    localStorage.removeItem('hub_sso_token');
+    setAuthed(false);
+    setRevealed(false);
+    setUserName('');
+  }
+
   return (
     <div id="top" style={{ minHeight: '100vh', background: easter ? `radial-gradient(ellipse at 70% -10%, ${HUB_PALETTE.jangada}22, transparent 50%), ${HUB_PALETTE.noite}` : HUB_PALETTE.noite, color: HUB_PALETTE.marfim, fontFamily: 'Inter, sans-serif', transition: `background 1200ms ${HUB_EASE}`, position: 'relative', overflow: 'hidden' }}>
       {booting && <HubBoot onDone={() => setBooting(false)} />}
-      <HubHeader theme={theme} onToggleTheme={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} isMobile={isMobile} />
-      <main style={{ position: 'relative' }}>
-        <HubDecoration />
-        <HubHero revealed={revealed} easterActive={easter} isMobile={isMobile} />
-        <section style={{ maxWidth: 1400, margin: '0 auto', padding: isMobile ? '20px 18px 36px' : '24px 48px 48px' }}>
-          <SectionLabel kicker="No ar" title="Pronto para usar." hint={isMobile ? null : 'Clique no painel para abrir o sistema em uma aba nova.'} />
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(420px, 1fr))', gap: 0, borderTop: `1px solid ${HUB_PALETTE.areiaDim}2a` }}>
-            {HUB_SYSTEMS.filter(s => s.status === 'no-ar').map((sys, i, arr) => (
-              <div key={sys.id} style={{ borderBottom: `1px solid ${HUB_PALETTE.areiaDim}2a`, borderRight: !isMobile && arr.length > 1 && i % 2 === 0 ? `1px solid ${HUB_PALETTE.areiaDim}2a` : 'none' }}>
-                <SystemPanel system={sys} index={i} revealed={revealed} isMobile={isMobile} />
+      {!booting && !authed && <HubLogin onLogin={handleLogin} />}
+      {!booting && authed && (
+        <>
+          <HubHeader
+            theme={theme}
+            onToggleTheme={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
+            isMobile={isMobile}
+            userName={userName}
+            onLogout={handleLogout}
+          />
+          <main style={{ position: 'relative' }}>
+            <HubDecoration />
+            <HubHero revealed={revealed} easterActive={easter} isMobile={isMobile} userName={userName} />
+            <section style={{ maxWidth: 1400, margin: '0 auto', padding: isMobile ? '20px 18px 36px' : '24px 48px 48px' }}>
+              <SectionLabel kicker="No ar" title="Pronto para usar." hint={isMobile ? null : 'Clique no painel para abrir o sistema em uma aba nova.'} />
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(420px, 1fr))', gap: 0, borderTop: `1px solid ${HUB_PALETTE.areiaDim}2a` }}>
+                {HUB_SYSTEMS.filter(s => s.status === 'no-ar').map((sys, i, arr) => (
+                  <div key={sys.id} style={{ borderBottom: `1px solid ${HUB_PALETTE.areiaDim}2a`, borderRight: !isMobile && arr.length > 1 && i % 2 === 0 ? `1px solid ${HUB_PALETTE.areiaDim}2a` : 'none' }}>
+                    <SystemPanel system={sys} index={i} revealed={revealed} isMobile={isMobile} />
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </section>
-        <HubFooter easterActive={easter} isMobile={isMobile} />
-      </main>
+            </section>
+            <HubFooter easterActive={easter} isMobile={isMobile} />
+          </main>
+        </>
+      )}
     </div>
   );
 }
