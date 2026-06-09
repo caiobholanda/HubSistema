@@ -97,7 +97,7 @@ const HUB_SYSTEMS = [
   statusHint: 'Pode usar agora',
   url: 'https://pesquisa-satisfacao.fly.dev',
   adminUrl: 'https://pesquisa-satisfacao.fly.dev/admin',
-  adminEmails: ['qualidade@granmarquise.com.br', 'spa@granmarquise.com.br'],
+  adminEmails: ['estagio.ti@granmarquise.com.br', 'suporte.ti@granmarquise.com.br', 'richard@granmarquise.com.br', 'qualidade@granmarquise.com.br', 'spa@granmarquise.com.br'],
   repo: 'caiobholanda/PesquisaSatisfacao',
   stack: ['Avaliação pós-tratamento', 'Painel de relatórios', 'Gestão de massoterapeutas'],
   preview: 'tickets'
@@ -975,7 +975,7 @@ function SystemPanel({ system, index, revealed, isMobile, userEmail, userTipo })
     const token = localStorage.getItem('hub_sso_token');
     let destUrl = system.url;
     if (system.adminUrl) {
-      const isAdmin = userTipo === 'admin' || (system.adminEmails || []).includes(userEmail);
+      const isAdmin = (system.adminEmails || []).includes(userEmail);
       if (isAdmin) destUrl = system.adminUrl;
     }
     let url;
