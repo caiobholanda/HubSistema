@@ -96,6 +96,8 @@ const HUB_SYSTEMS = [
   statusLabel: 'Disponível',
   statusHint: 'Pode usar agora',
   url: 'https://pesquisa-satisfacao.fly.dev',
+  adminUrl: 'https://pesquisa-satisfacao.fly.dev/admin',
+  adminEmails: ['qualidade@granmarquise.com.br', 'spa@granmarquise.com.br'],
   repo: 'caiobholanda/PesquisaSatisfacao',
   stack: ['Avaliação pós-tratamento', 'Painel de relatórios', 'Gestão de massoterapeutas'],
   preview: 'tickets'
@@ -963,7 +965,7 @@ function SystemPreview({ kind }) {
 
 // ─── System Panel ─────────────────────────────────────────────────────────────
 
-function SystemPanel({ system, index, revealed, isMobile }) {
+function SystemPanel({ system, index, revealed, isMobile, userEmail, userTipo }) {
   const [hover, setHover] = useState(false);
   const disabled = system.url === '#';
 
@@ -971,7 +973,12 @@ function SystemPanel({ system, index, revealed, isMobile }) {
     e.preventDefault();
     if (disabled) return;
     const token = localStorage.getItem('hub_sso_token');
-    const url = token ? `${system.url}/sso?sso_token=${encodeURIComponent(token)}` : system.url;
+    let baseUrl = system.url;
+    if (system.adminUrl) {
+      const isAdmin = userTipo === 'admin' || (system.adminEmails || []).includes(userEmail);
+      if (isAdmin) baseUrl = system.adminUrl;
+    }
+    const url = token ? `${baseUrl}/sso?sso_token=${encodeURIComponent(token)}` : baseUrl;
     window.open(url, '_blank', 'noopener,noreferrer');
   }
 
@@ -1064,6 +1071,7 @@ function HubMarquise() {
   const [theme, setTheme] = useState('light');
   const [showAdmin, setShowAdmin] = useState(false);
   const [hubSystems, setHubSystems] = useState(HUB_SYSTEMS);
+  const [userEmail, setUserEmail] = useState('');
   const seqRef = useRef('');
   const isMobile = useWindowWidth() < 768;
 
@@ -1114,6 +1122,7 @@ function HubMarquise() {
           if (payload.exp && payload.exp * 1000 > Date.now()) {
             setUserName(payload.nome || '');
             setUserTipo(localStorage.getItem('hub_tipo') || payload.tipo || '');
+            setUserEmail(payload.email || '');
             setAuthed(true);
             fetch('/api/me/sistemas', { headers: { Authorization: `Bearer ${token}` } })
               .then(r => r.json())
@@ -1175,6 +1184,13 @@ function HubMarquise() {
     setSistemas(sis);
     setAuthed(true);
     setTimeout(() => setRevealed(true), 80);
+    try {
+      const token = localStorage.getItem('hub_sso_token');
+      const [, b64] = token.split('.');
+      const padding = b64.length % 4 === 0 ? '' : '='.repeat(4 - (b64.length % 4));
+      const payload = JSON.parse(atob(b64.replace(/-/g, '+').replace(/_/g, '/') + padding));
+      setUserEmail(payload.email || '');
+    } catch (_) {}
   }
 
   function handleLogout() {
@@ -1185,6 +1201,7 @@ function HubMarquise() {
     setRevealed(false);
     setUserName('');
     setUserTipo('');
+    setUserEmail('');
     setSistemas(null);
     setShowAdmin(false);
   }
@@ -1217,7 +1234,7 @@ function HubMarquise() {
               <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(420px, 1fr))', gap: 0, borderTop: `1px solid ${HUB_PALETTE.areiaDim}2a` }}>
                 {sistemasVisiveis.map((sys, i, arr) => (
                   <div key={sys.id} style={{ borderBottom: `1px solid ${HUB_PALETTE.areiaDim}2a`, borderRight: !isMobile && arr.length > 1 && i % 2 === 0 ? `1px solid ${HUB_PALETTE.areiaDim}2a` : 'none' }}>
-                    <SystemPanel system={sys} index={i} revealed={revealed} isMobile={isMobile} />
+                    <SystemPanel system={sys} index={i} revealed={revealed} isMobile={isMobile} userEmail={userEmail} userTipo={userTipo} />
                   </div>
                 ))}
               </div>
