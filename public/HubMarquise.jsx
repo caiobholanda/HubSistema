@@ -414,6 +414,14 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
     setLinkSaving(false);
   }
 
+  async function deleteLink(id) {
+    if (!confirm('Apagar este link definitivamente?')) return;
+    const token = localStorage.getItem('hub_sso_token');
+    await fetch(`/api/admin/sistemas/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+    setHubSystems(prev => prev.filter(s => s.id !== id));
+    if (expandedLink === id) setExpandedLink(null);
+  }
+
   async function saveNew() {
     if (!newForm.nome || !newForm.status) { setLinkErro('Nome e status são obrigatórios'); return; }
     setLinkSaving(true);
@@ -649,6 +657,12 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
                           onMouseEnter={e => { e.currentTarget.style.color = HUB_PALETTE.marfim; e.currentTarget.style.borderColor = HUB_PALETTE.areiaDim + '66'; }}
                           onMouseLeave={e => { e.currentTarget.style.color = HUB_PALETTE.areiaDim; e.currentTarget.style.borderColor = HUB_PALETTE.areiaDim + '33'; }}>
                           Editar
+                        </button>
+                        <button onClick={e => { e.stopPropagation(); deleteLink(sys.id); }}
+                          style={{ background: 'transparent', border: `1px solid #E07A5F33`, color: '#E07A5F99', fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', padding: '6px 14px', cursor: 'pointer' }}
+                          onMouseEnter={e => { e.currentTarget.style.color = '#E07A5F'; e.currentTarget.style.borderColor = '#E07A5F66'; }}
+                          onMouseLeave={e => { e.currentTarget.style.color = '#E07A5F99'; e.currentTarget.style.borderColor = '#E07A5F33'; }}>
+                          Apagar
                         </button>
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={HUB_PALETTE.areiaDim} strokeWidth="1.5" strokeLinecap="round" style={{ transform: isLinkOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: `transform 300ms ${HUB_EASE}`, flexShrink: 0 }}><polyline points="6 9 12 15 18 9"/></svg>
                       </div>

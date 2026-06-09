@@ -221,6 +221,14 @@ app.put('/api/admin/sistemas/:id', requireAdmin, (req, res) => {
   res.json({ ok: true, sistema: sistemas[idx] });
 });
 
+app.delete('/api/admin/sistemas/:id', requireAdmin, (req, res) => {
+  const data = readData();
+  const sistemas = getSistemas();
+  data.sistemas = sistemas.filter(s => s.id !== req.params.id);
+  writeData(data);
+  res.json({ ok: true });
+});
+
 app.delete('/api/admin/permissions/:email', requireAdmin, (req, res) => {
   const email = decodeURIComponent(req.params.email);
   const data = readData();
