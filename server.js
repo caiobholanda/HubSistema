@@ -53,6 +53,22 @@ function getUserSistemas(email) {
     : null; // null = acesso total
 }
 
+// ─── Sistemas (links do Hub) ─────────────────────────────────────────────────
+
+const DEFAULT_SISTEMAS = [
+  { id: 'chamados',  num: '01', nome: 'Chamados TI',           url: 'https://sistema-chamados-granmarquise.fly.dev', status: 'no-ar',     categoria: 'Suporte · Atendimento interno',    descricao: 'Para pedir ajuda da equipe de TI do hotel.',                        paraQuem: 'Todos os setores' },
+  { id: 'ramais',    num: '02', nome: 'Lista de Ramais',        url: 'https://diretorio-ramais-granmarquise.fly.dev', status: 'no-ar',     categoria: 'Comunicação · Interno',            descricao: 'Diretório de ramais e contatos internos do hotel.',                  paraQuem: 'Todos os setores' },
+  { id: 'spa',       num: '03', nome: 'Pesquisa de Satisfação', url: 'https://pesquisa-satisfacao.fly.dev',           status: 'no-ar',     categoria: 'Spa · Atendimento ao hóspede',     descricao: 'Coleta de feedback dos hóspedes após os tratamentos no Spa.',        paraQuem: 'Equipe do Spa' },
+  { id: 'cardapio',  num: '04', nome: 'Cardápio Digital',       url: '#',                                             status: 'construcao', categoria: 'Restaurantes · F&B',              descricao: 'Cardápio dos restaurantes acessado por QR Code na mesa.',           paraQuem: 'Mangostin e Mucuripe Grill' },
+  { id: 'ocupacao',  num: '05', nome: 'Painel de Ocupação',     url: '#',                                             status: 'beta',      categoria: 'Operação · Hospedagem',            descricao: 'Mapa visual dos 222 apartamentos do dia.',                          paraQuem: 'Recepção e Governança' },
+  { id: 'predial',   num: '06', nome: 'Manutenção Predial',     url: '#',                                             status: 'concept',   categoria: 'Operação · Manutenção',            descricao: 'Ordens de serviço para conserto e manutenção.',                     paraQuem: 'Engenharia e Governança' },
+];
+
+function getSistemas() {
+  const data = readData();
+  return data.sistemas || DEFAULT_SISTEMAS;
+}
+
 // ─── SSE (notificações em tempo real) ───────────────────────────────────────
 
 const sseClients = new Map(); // email -> res
@@ -77,6 +93,10 @@ function requireAdmin(req, res, next) {
     return res.status(401).json({ ok: false, erro: 'Token inválido' });
   }
 }
+
+app.get('/api/sistemas', (_req, res) => {
+  res.json({ ok: true, sistemas: getSistemas() });
+});
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
 
@@ -173,6 +193,32 @@ app.get('/api/admin/all-users', requireAdmin, async (_req, res) => {
   } catch {
     res.status(500).json({ ok: false, erro: 'Erro ao buscar usuários' });
   }
+});
+
+app.post('/api/admin/sistemas', requireAdmin, (req, res) => {
+  const { nome, url, status, categoria, descricao, paraQuem } = req.body || {};
+  if (!nome || !status) return res.status(400).json({ ok: false, erro: 'Nome e status são obrigatórios' });
+  const data = readData();
+  const sistemas = getSistemas();
+  const id = nome.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  if (sistemas.find(s => s.id === id)) return res.status(409).json({ ok: false, erro: 'Já existe um sistema com esse nome' });
+  const num = String(sistemas.length + 1).padStart(2, '0');
+  const novo = { id, num, nome, url: url || '#', status, categoria: categoria || '', descricao: descricao || '', paraQuem: paraQuem || '' };
+  data.sistemas = [...sistemas, novo];
+  writeData(data);
+  res.json({ ok: true, sistema: novo });
+});
+
+app.put('/api/admin/sistemas/:id', requireAdmin, (req, res) => {
+  const { nome, url, status, categoria, descricao, paraQuem } = req.body || {};
+  const data = readData();
+  const sistemas = getSistemas();
+  const idx = sistemas.findIndex(s => s.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ ok: false, erro: 'Sistema não encontrado' });
+  sistemas[idx] = { ...sistemas[idx], ...(nome && { nome }), url: url !== undefined ? url : sistemas[idx].url, ...(status && { status }), categoria: categoria !== undefined ? categoria : sistemas[idx].categoria, descricao: descricao !== undefined ? descricao : sistemas[idx].descricao, paraQuem: paraQuem !== undefined ? paraQuem : sistemas[idx].paraQuem };
+  data.sistemas = sistemas;
+  writeData(data);
+  res.json({ ok: true, sistema: sistemas[idx] });
 });
 
 app.delete('/api/admin/permissions/:email', requireAdmin, (req, res) => {

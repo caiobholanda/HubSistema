@@ -316,9 +316,13 @@ function HubLogin({ onLogin }) {
   );
 }
 
+const STATUS_LABELS = { 'no-ar': 'Disponível', 'construcao': 'Em desenvolvimento', 'beta': 'Em testes', 'concept': 'Em planejamento' };
+const STATUS_CORES = { 'no-ar': '#4CAF87', 'construcao': '#E0A85F', 'beta': '#5FA8E0', 'concept': '#9E9E9E' };
+
 // ─── Admin Panel ──────────────────────────────────────────────────────────────
 
-function HubAdmin({ onClose }) {
+function HubAdmin({ onClose, hubSystems, setHubSystems }) {
+  const [aba, setAba] = useState('usuarios');
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState([]);
   const [permissions, setPermissions] = useState({});
@@ -326,7 +330,15 @@ function HubAdmin({ onClose }) {
   const [expanded, setExpanded] = useState(null);
   const [filtro, setFiltro] = useState('');
 
-  const noArSystems = HUB_SYSTEMS.filter(s => s.status === 'no-ar');
+  // Links tab state
+  const [editingId, setEditingId] = useState(null);
+  const [editForm, setEditForm] = useState({});
+  const [addingNew, setAddingNew] = useState(false);
+  const [newForm, setNewForm] = useState({ nome: '', url: '', status: 'no-ar', categoria: '', descricao: '', paraQuem: '' });
+  const [linkSaving, setLinkSaving] = useState(false);
+  const [linkErro, setLinkErro] = useState('');
+
+  const noArSystems = hubSystems.filter(s => s.status === 'no-ar');
 
   useEffect(() => {
     const token = localStorage.getItem('hub_sso_token');
@@ -376,142 +388,282 @@ function HubAdmin({ onClose }) {
     });
   }
 
+  function startEdit(sys) {
+    setEditingId(sys.id);
+    setEditForm({ nome: sys.nome, url: sys.url, status: sys.status, categoria: sys.categoria || '', descricao: sys.descricao || '', paraQuem: sys.paraQuem || '' });
+    setLinkErro('');
+  }
+
+  async function saveEdit() {
+    if (!editForm.nome || !editForm.status) { setLinkErro('Nome e status são obrigatórios'); return; }
+    setLinkSaving(true);
+    const token = localStorage.getItem('hub_sso_token');
+    const r = await fetch(`/api/admin/sistemas/${editingId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify(editForm),
+    });
+    const d = await r.json();
+    if (d.ok) {
+      setHubSystems(prev => prev.map(s => s.id === editingId ? { ...s, ...d.sistema } : s));
+      setEditingId(null);
+    } else {
+      setLinkErro(d.erro || 'Erro ao salvar');
+    }
+    setLinkSaving(false);
+  }
+
+  async function saveNew() {
+    if (!newForm.nome || !newForm.status) { setLinkErro('Nome e status são obrigatórios'); return; }
+    setLinkSaving(true);
+    const token = localStorage.getItem('hub_sso_token');
+    const r = await fetch('/api/admin/sistemas', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify(newForm),
+    });
+    const d = await r.json();
+    if (d.ok) {
+      setHubSystems(prev => [...prev, d.sistema]);
+      setAddingNew(false);
+      setNewForm({ nome: '', url: '', status: 'no-ar', categoria: '', descricao: '', paraQuem: '' });
+    } else {
+      setLinkErro(d.erro || 'Erro ao salvar');
+    }
+    setLinkSaving(false);
+  }
+
+  const inputStyle = { width: '100%', boxSizing: 'border-box', background: `${HUB_PALETTE.areiaDim}0a`, border: `1px solid ${HUB_PALETTE.areiaDim}33`, color: HUB_PALETTE.marfim, fontFamily: 'Inter, sans-serif', fontSize: 13, padding: '8px 12px', outline: 'none', marginBottom: 8 };
+  const selectStyle = { ...inputStyle, background: HUB_PALETTE.noite, cursor: 'pointer' };
+
+  function LinkForm({ form, setForm, onSave, onCancel }) {
+    return (
+      <div style={{ background: `${HUB_PALETTE.areiaDim}08`, border: `1px solid ${HUB_PALETTE.areiaDim}22`, padding: 24, marginBottom: 2 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 2 }}>
+          <div>
+            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 6 }}>Nome *</div>
+            <input value={form.nome} onChange={e => setForm(p => ({ ...p, nome: e.target.value }))} placeholder="Ex: Cardápio Digital" style={inputStyle} />
+          </div>
+          <div>
+            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 6 }}>Status *</div>
+            <select value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))} style={selectStyle}>
+              <option value="no-ar">Disponível</option>
+              <option value="construcao">Em desenvolvimento</option>
+              <option value="beta">Em testes</option>
+              <option value="concept">Em planejamento</option>
+            </select>
+          </div>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 6 }}>URL</div>
+            <input value={form.url} onChange={e => setForm(p => ({ ...p, url: e.target.value }))} placeholder="https://..." style={inputStyle} />
+          </div>
+          <div>
+            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 6 }}>Categoria</div>
+            <input value={form.categoria} onChange={e => setForm(p => ({ ...p, categoria: e.target.value }))} placeholder="Ex: Operação · Hospedagem" style={inputStyle} />
+          </div>
+          <div>
+            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 6 }}>Para quem</div>
+            <input value={form.paraQuem} onChange={e => setForm(p => ({ ...p, paraQuem: e.target.value }))} placeholder="Ex: Todos os setores" style={inputStyle} />
+          </div>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 6 }}>Descrição</div>
+            <input value={form.descricao} onChange={e => setForm(p => ({ ...p, descricao: e.target.value }))} placeholder="Breve descrição do sistema" style={inputStyle} />
+          </div>
+        </div>
+        {linkErro && <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: '#E07A5F', marginBottom: 12 }}>{linkErro}</div>}
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button onClick={onSave} disabled={linkSaving} style={{ background: `${HUB_PALETTE.champanhe}18`, border: `1px solid ${HUB_PALETTE.champanhe}55`, color: HUB_PALETTE.champanhe, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.25em', textTransform: 'uppercase', padding: '8px 20px', cursor: linkSaving ? 'wait' : 'pointer' }}>
+            {linkSaving ? 'Salvando...' : 'Salvar'}
+          </button>
+          <button onClick={onCancel} style={{ background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}33`, color: HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.25em', textTransform: 'uppercase', padding: '8px 20px', cursor: 'pointer' }}>
+            Cancelar
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const ABAS = [
+    { id: 'usuarios', label: 'Usuários' },
+    { id: 'links', label: 'Links' },
+  ];
+
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 95, background: HUB_PALETTE.noite, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
       {/* Header */}
-      <div style={{ position: 'sticky', top: 0, zIndex: 10, background: HUB_PALETTE.headerBg, backdropFilter: 'blur(10px)', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, padding: '20px 48px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={HUB_PALETTE.champanhe} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-          </svg>
-          <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areia }}>Administração · Hub</span>
+      <div style={{ position: 'sticky', top: 0, zIndex: 10, background: HUB_PALETTE.headerBg, backdropFilter: 'blur(10px)', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, flexShrink: 0 }}>
+        <div style={{ padding: '20px 48px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={HUB_PALETTE.champanhe} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+            </svg>
+            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areia }}>Administração · Hub</span>
+          </div>
+          <button onClick={onClose} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}44`, color: HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', padding: '8px 16px', cursor: 'pointer' }}
+            onMouseEnter={e => { e.currentTarget.style.color = HUB_PALETTE.marfim; e.currentTarget.style.borderColor = HUB_PALETTE.areiaDim + '88'; }}
+            onMouseLeave={e => { e.currentTarget.style.color = HUB_PALETTE.areiaDim; e.currentTarget.style.borderColor = HUB_PALETTE.areiaDim + '44'; }}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            Fechar
+          </button>
         </div>
-        <button onClick={onClose} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}44`, color: HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', padding: '8px 16px', cursor: 'pointer', transition: `color 300ms, border-color 300ms` }}
-          onMouseEnter={e => { e.currentTarget.style.color = HUB_PALETTE.marfim; e.currentTarget.style.borderColor = HUB_PALETTE.areiaDim + '88'; }}
-          onMouseLeave={e => { e.currentTarget.style.color = HUB_PALETTE.areiaDim; e.currentTarget.style.borderColor = HUB_PALETTE.areiaDim + '44'; }}>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          Fechar
-        </button>
+        {/* Tabs */}
+        <div style={{ display: 'flex', paddingLeft: 48, gap: 0 }}>
+          {ABAS.map(a => (
+            <button key={a.id} onClick={() => { setAba(a.id); setEditingId(null); setAddingNew(false); setLinkErro(''); }}
+              style={{ background: 'transparent', border: 'none', borderBottom: `2px solid ${aba === a.id ? HUB_PALETTE.champanhe : 'transparent'}`, color: aba === a.id ? HUB_PALETTE.champanhe : HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', padding: '12px 20px 10px', cursor: 'pointer', transition: `color 200ms, border-color 200ms` }}>
+              {a.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Content */}
       <div style={{ maxWidth: 900, margin: '0 auto', padding: '48px 48px 80px', width: '100%' }}>
-        <div style={{ marginBottom: 40 }}>
-          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.35em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ width: 18, height: 1, background: HUB_PALETTE.champanhe }} />Usuários e Acesso
+
+        {/* ── Aba Usuários ── */}
+        {aba === 'usuarios' && (<>
+          <div style={{ marginBottom: 40 }}>
+            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.35em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
+              <span style={{ width: 18, height: 1, background: HUB_PALETTE.champanhe }} />Usuários e Acesso
+            </div>
+            <h2 style={{ fontFamily: 'Fraunces, serif', fontWeight: 300, fontStyle: 'italic', fontSize: 40, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: '0 0 10px' }}>Controle de acesso.</h2>
+            <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: HUB_PALETTE.areiaDim, lineHeight: 1.5, margin: 0 }}>
+              Defina quais sistemas cada colaborador pode visualizar no Hub. Por padrão, todos têm acesso a todos os sistemas.
+            </p>
           </div>
-          <h2 style={{ fontFamily: 'Fraunces, serif', fontWeight: 300, fontStyle: 'italic', fontSize: 40, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: '0 0 10px' }}>Controle de acesso.</h2>
-          <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: HUB_PALETTE.areiaDim, lineHeight: 1.5, margin: 0 }}>
-            Defina quais sistemas cada colaborador pode visualizar no Hub. Por padrão, todos têm acesso a todos os sistemas.
-          </p>
-        </div>
 
-        {!loading && users.length > 0 && (
-          <div style={{ marginBottom: 24, position: 'relative' }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={HUB_PALETTE.areiaDim} strokeWidth="1.5" strokeLinecap="round" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
-              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-            </svg>
-            <input
-              type="text"
-              placeholder="Filtrar por nome..."
-              value={filtro}
-              onChange={e => setFiltro(e.target.value)}
-              style={{ width: '100%', boxSizing: 'border-box', background: `${HUB_PALETTE.areiaDim}0a`, border: `1px solid ${HUB_PALETTE.areiaDim}33`, color: HUB_PALETTE.marfim, fontFamily: 'Inter, sans-serif', fontSize: 14, padding: '10px 14px 10px 38px', outline: 'none' }}
-            />
-          </div>
-        )}
+          {!loading && users.length > 0 && (
+            <div style={{ marginBottom: 24, position: 'relative' }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={HUB_PALETTE.areiaDim} strokeWidth="1.5" strokeLinecap="round" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+              <input type="text" placeholder="Filtrar por nome..." value={filtro} onChange={e => setFiltro(e.target.value)}
+                style={{ width: '100%', boxSizing: 'border-box', background: `${HUB_PALETTE.areiaDim}0a`, border: `1px solid ${HUB_PALETTE.areiaDim}33`, color: HUB_PALETTE.marfim, fontFamily: 'Inter, sans-serif', fontSize: 14, padding: '10px 14px 10px 38px', outline: 'none' }} />
+            </div>
+          )}
 
-        {loading ? (
-          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.2em', color: HUB_PALETTE.areiaDim, textTransform: 'uppercase', padding: '40px 0' }}>Carregando...</div>
-        ) : users.length === 0 ? (
-          <div style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontSize: 16, color: HUB_PALETTE.areiaDim, padding: '40px 0' }}>Nenhum usuário encontrado.</div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', borderTop: `1px solid ${HUB_PALETTE.areiaDim}22` }}>
-            {users.filter(u => u.nome.toLowerCase().includes(filtro.toLowerCase())).map((user, i) => {
-              const isOpen = expanded === user.email;
-              const perm = permissions[user.email];
-              const hasRestriction = perm !== undefined && perm !== null;
-              const restrictedCount = hasRestriction ? perm.length : noArSystems.length;
-
-              return (
-                <div key={user.email} style={{ borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22` }}>
-                  {/* Row */}
-                  <div
-                    onClick={() => setExpanded(isOpen ? null : user.email)}
-                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '22px 0', cursor: 'pointer', gap: 16, transition: `opacity 200ms` }}
-                    onMouseEnter={e => e.currentTarget.style.opacity = '0.82'}
-                    onMouseLeave={e => e.currentTarget.style.opacity = '1'}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 16, minWidth: 0 }}>
-                      {/* Avatar */}
-                      <div style={{ width: 36, height: 36, borderRadius: '50%', background: user.tipo === 'admin' ? `${HUB_PALETTE.champanhe}22` : `${HUB_PALETTE.areiaDim}18`, border: `1px solid ${user.tipo === 'admin' ? HUB_PALETTE.champanhe + '44' : HUB_PALETTE.areiaDim + '33'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontFamily: 'Fraunces, serif', fontWeight: 300, fontSize: 15, color: user.tipo === 'admin' ? HUB_PALETTE.champanhe : HUB_PALETTE.areiaDim }}>
-                        {user.nome.charAt(0).toUpperCase()}
+          {loading ? (
+            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.2em', color: HUB_PALETTE.areiaDim, textTransform: 'uppercase', padding: '40px 0' }}>Carregando...</div>
+          ) : users.length === 0 ? (
+            <div style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontSize: 16, color: HUB_PALETTE.areiaDim, padding: '40px 0' }}>Nenhum usuário encontrado.</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', borderTop: `1px solid ${HUB_PALETTE.areiaDim}22` }}>
+              {users.filter(u => u.nome.toLowerCase().includes(filtro.toLowerCase())).map(user => {
+                const isOpen = expanded === user.email;
+                const perm = permissions[user.email];
+                const hasRestriction = perm !== undefined && perm !== null;
+                const restrictedCount = hasRestriction ? perm.length : noArSystems.length;
+                return (
+                  <div key={user.email} style={{ borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22` }}>
+                    <div onClick={() => setExpanded(isOpen ? null : user.email)}
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '22px 0', cursor: 'pointer', gap: 16 }}
+                      onMouseEnter={e => e.currentTarget.style.opacity = '0.82'}
+                      onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 16, minWidth: 0 }}>
+                        <div style={{ width: 36, height: 36, borderRadius: '50%', background: user.tipo === 'admin' ? `${HUB_PALETTE.champanhe}22` : `${HUB_PALETTE.areiaDim}18`, border: `1px solid ${user.tipo === 'admin' ? HUB_PALETTE.champanhe + '44' : HUB_PALETTE.areiaDim + '33'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontFamily: 'Fraunces, serif', fontWeight: 300, fontSize: 15, color: user.tipo === 'admin' ? HUB_PALETTE.champanhe : HUB_PALETTE.areiaDim }}>
+                          {user.nome.charAt(0).toUpperCase()}
+                        </div>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontFamily: 'Fraunces, serif', fontWeight: 300, fontSize: 18, color: HUB_PALETTE.marfim, letterSpacing: '-0.01em', lineHeight: 1.2 }}>{user.nome}</div>
+                          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: HUB_PALETTE.areiaDim, letterSpacing: '0.05em', marginTop: 3 }}>{user.email}</div>
+                        </div>
                       </div>
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ fontFamily: 'Fraunces, serif', fontWeight: 300, fontSize: 18, color: HUB_PALETTE.marfim, letterSpacing: '-0.01em', lineHeight: 1.2 }}>{user.nome}</div>
-                        <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: HUB_PALETTE.areiaDim, letterSpacing: '0.05em', marginTop: 3 }}>{user.email}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0 }}>
+                        <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.25em', textTransform: 'uppercase', color: user.tipo === 'admin' ? HUB_PALETTE.champanhe : HUB_PALETTE.areiaDim, padding: '3px 8px', border: `1px solid ${user.tipo === 'admin' ? HUB_PALETTE.champanhe + '44' : HUB_PALETTE.areiaDim + '33'}` }}>{user.tipo}</span>
+                        <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: hasRestriction ? HUB_PALETTE.areia : HUB_PALETTE.areiaDim, letterSpacing: '0.05em' }}>{restrictedCount}/{noArSystems.length} sistemas</span>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={HUB_PALETTE.areiaDim} strokeWidth="1.5" strokeLinecap="round" style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: `transform 300ms ${HUB_EASE}` }}><polyline points="6 9 12 15 18 9"/></svg>
                       </div>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0 }}>
-                      <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.25em', textTransform: 'uppercase', color: user.tipo === 'admin' ? HUB_PALETTE.champanhe : HUB_PALETTE.areiaDim, padding: '3px 8px', border: `1px solid ${user.tipo === 'admin' ? HUB_PALETTE.champanhe + '44' : HUB_PALETTE.areiaDim + '33'}` }}>
-                        {user.tipo}
+                    {isOpen && (
+                      <div style={{ paddingBottom: 24, paddingLeft: 52 }}>
+                        <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 16 }}>Sistemas visíveis</div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                          {noArSystems.map(sys => {
+                            const allowed = isAllowed(user.email, sys.id);
+                            const isSavingThis = saving === user.email + sys.id;
+                            return (
+                              <button key={sys.id} onClick={() => toggleSystem(user.email, sys.id)} disabled={!!saving}
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 14px', background: allowed ? `${HUB_PALETTE.champanhe}15` : 'transparent', border: `1px solid ${allowed ? HUB_PALETTE.champanhe + '55' : HUB_PALETTE.areiaDim + '33'}`, color: allowed ? HUB_PALETTE.champanhe : HUB_PALETTE.areiaDim, fontFamily: 'Inter, sans-serif', fontSize: 13, cursor: saving ? 'wait' : 'pointer', opacity: isSavingThis ? 0.5 : 1, transition: `all 250ms ${HUB_EASE}` }}>
+                                <span style={{ width: 7, height: 7, borderRadius: '50%', background: allowed ? HUB_PALETTE.jangadaGlow : HUB_PALETTE.areiaDim + '66', transition: `background 250ms` }} />
+                                {sys.nome}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        {hasRestriction && (
+                          <button onClick={() => resetPermissions(user.email)}
+                            style={{ marginTop: 14, background: 'none', border: 'none', fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.25em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, cursor: 'pointer', padding: 0, textDecoration: 'underline', textDecorationColor: `${HUB_PALETTE.areiaDim}44` }}>
+                            Restaurar acesso total
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </>)}
+
+        {/* ── Aba Links ── */}
+        {aba === 'links' && (<>
+          <div style={{ marginBottom: 40 }}>
+            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.35em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
+              <span style={{ width: 18, height: 1, background: HUB_PALETTE.champanhe }} />Gerenciar Links
+            </div>
+            <h2 style={{ fontFamily: 'Fraunces, serif', fontWeight: 300, fontStyle: 'italic', fontSize: 40, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: '0 0 10px' }}>Links do Hub.</h2>
+            <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: HUB_PALETTE.areiaDim, lineHeight: 1.5, margin: 0 }}>
+              Edite os sistemas existentes ou adicione novos links ao Hub.
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', borderTop: `1px solid ${HUB_PALETTE.areiaDim}22` }}>
+            {hubSystems.map(sys => (
+              <div key={sys.id} style={{ borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22` }}>
+                {editingId === sys.id ? (
+                  <LinkForm form={editForm} setForm={setEditForm} onSave={saveEdit} onCancel={() => { setEditingId(null); setLinkErro(''); }} />
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 0', gap: 16 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 16, minWidth: 0 }}>
+                      <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: HUB_PALETTE.areiaDim, flexShrink: 0 }}>{sys.num}</span>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontFamily: 'Fraunces, serif', fontWeight: 300, fontSize: 17, color: HUB_PALETTE.marfim, lineHeight: 1.2 }}>{sys.nome}</div>
+                        <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: HUB_PALETTE.areiaDim, marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 300 }}>{sys.url}</div>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+                      <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: STATUS_CORES[sys.status] || HUB_PALETTE.areiaDim, padding: '3px 8px', border: `1px solid ${(STATUS_CORES[sys.status] || HUB_PALETTE.areiaDim) + '44'}` }}>
+                        {STATUS_LABELS[sys.status] || sys.status}
                       </span>
-                      <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: hasRestriction ? HUB_PALETTE.areia : HUB_PALETTE.areiaDim, letterSpacing: '0.05em' }}>
-                        {restrictedCount}/{noArSystems.length} sistemas
-                      </span>
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={HUB_PALETTE.areiaDim} strokeWidth="1.5" strokeLinecap="round" style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: `transform 300ms ${HUB_EASE}` }}>
-                        <polyline points="6 9 12 15 18 9"/>
-                      </svg>
+                      <button onClick={() => startEdit(sys)}
+                        style={{ background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}33`, color: HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', padding: '6px 14px', cursor: 'pointer' }}
+                        onMouseEnter={e => { e.currentTarget.style.color = HUB_PALETTE.marfim; e.currentTarget.style.borderColor = HUB_PALETTE.areiaDim + '66'; }}
+                        onMouseLeave={e => { e.currentTarget.style.color = HUB_PALETTE.areiaDim; e.currentTarget.style.borderColor = HUB_PALETTE.areiaDim + '33'; }}>
+                        Editar
+                      </button>
                     </div>
                   </div>
-
-                  {/* Expanded permissions */}
-                  {isOpen && (
-                    <div style={{ paddingBottom: 24, paddingLeft: 52 }}>
-                      <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 16 }}>Sistemas visíveis</div>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-                        {noArSystems.map(sys => {
-                          const allowed = isAllowed(user.email, sys.id);
-                          const isSavingThis = saving === user.email + sys.id;
-                          return (
-                            <button
-                              key={sys.id}
-                              onClick={() => toggleSystem(user.email, sys.id)}
-                              disabled={!!saving}
-                              style={{
-                                display: 'inline-flex', alignItems: 'center', gap: 8,
-                                padding: '8px 14px',
-                                background: allowed ? `${HUB_PALETTE.champanhe}15` : 'transparent',
-                                border: `1px solid ${allowed ? HUB_PALETTE.champanhe + '55' : HUB_PALETTE.areiaDim + '33'}`,
-                                color: allowed ? HUB_PALETTE.champanhe : HUB_PALETTE.areiaDim,
-                                fontFamily: 'Inter, sans-serif',
-                                fontSize: 13,
-                                cursor: saving ? 'wait' : 'pointer',
-                                opacity: isSavingThis ? 0.5 : 1,
-                                transition: `all 250ms ${HUB_EASE}`,
-                              }}
-                            >
-                              <span style={{ width: 7, height: 7, borderRadius: '50%', background: allowed ? HUB_PALETTE.jangadaGlow : HUB_PALETTE.areiaDim + '66', transition: `background 250ms` }} />
-                              {sys.nome}
-                            </button>
-                          );
-                        })}
-                      </div>
-                      {hasRestriction && (
-                        <button
-                          onClick={() => resetPermissions(user.email)}
-                          style={{ marginTop: 14, background: 'none', border: 'none', fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.25em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, cursor: 'pointer', padding: 0, textDecoration: 'underline', textDecorationColor: `${HUB_PALETTE.areiaDim}44` }}
-                        >
-                          Restaurar acesso total
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+                )}
+              </div>
+            ))}
           </div>
-        )}
+
+          {addingNew ? (
+            <div style={{ marginTop: 24 }}>
+              <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 16 }}>Novo link</div>
+              <LinkForm form={newForm} setForm={setNewForm} onSave={saveNew} onCancel={() => { setAddingNew(false); setLinkErro(''); }} />
+            </div>
+          ) : (
+            <button onClick={() => { setAddingNew(true); setEditingId(null); setLinkErro(''); }}
+              style={{ marginTop: 32, display: 'inline-flex', alignItems: 'center', gap: 8, background: 'transparent', border: `1px solid ${HUB_PALETTE.champanhe}44`, color: HUB_PALETTE.champanhe, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.25em', textTransform: 'uppercase', padding: '10px 20px', cursor: 'pointer' }}
+              onMouseEnter={e => e.currentTarget.style.borderColor = HUB_PALETTE.champanhe + '88'}
+              onMouseLeave={e => e.currentTarget.style.borderColor = HUB_PALETTE.champanhe + '44'}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Adicionar novo link
+            </button>
+          )}
+        </>)}
+
       </div>
     </div>
   );
@@ -812,10 +964,26 @@ function HubMarquise() {
   const [easter, setEaster] = useState(false);
   const [theme, setTheme] = useState('light');
   const [showAdmin, setShowAdmin] = useState(false);
+  const [hubSystems, setHubSystems] = useState(HUB_SYSTEMS);
   const seqRef = useRef('');
   const isMobile = useWindowWidth() < 768;
 
   applyHubTheme(theme);
+
+  useEffect(() => {
+    fetch('/api/sistemas')
+      .then(r => r.json())
+      .then(d => {
+        if (d.ok) {
+          const merged = d.sistemas.map(s => {
+            const base = HUB_SYSTEMS.find(h => h.id === s.id) || {};
+            return { ...base, ...s };
+          });
+          setHubSystems(merged);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (document.getElementById('hub-keyframes')) return;
@@ -920,7 +1088,7 @@ function HubMarquise() {
     setShowAdmin(false);
   }
 
-  const sistemasVisiveis = HUB_SYSTEMS
+  const sistemasVisiveis = hubSystems
     .filter(s => s.status === 'no-ar')
     .filter(s => !sistemas || sistemas.includes(s.id));
 
@@ -928,7 +1096,7 @@ function HubMarquise() {
     <div id="top" style={{ minHeight: '100vh', background: easter ? `radial-gradient(ellipse at 70% -10%, ${HUB_PALETTE.jangada}22, transparent 50%), ${HUB_PALETTE.noite}` : HUB_PALETTE.noite, color: HUB_PALETTE.marfim, fontFamily: 'Inter, sans-serif', transition: `background 1200ms ${HUB_EASE}`, position: 'relative', overflow: 'hidden' }}>
       {booting && <HubBoot onDone={() => setBooting(false)} />}
       {!booting && !authed && <HubLogin onLogin={handleLogin} />}
-      {!booting && authed && showAdmin && <HubAdmin onClose={() => setShowAdmin(false)} />}
+      {!booting && authed && showAdmin && <HubAdmin onClose={() => setShowAdmin(false)} hubSystems={hubSystems} setHubSystems={setHubSystems} />}
       {!booting && authed && !showAdmin && (
         <>
           <HubHeader
