@@ -321,8 +321,8 @@ const STATUS_CORES = { 'no-ar': '#4CAF87', 'construcao': '#E0A85F', 'beta': '#5F
 
 // ─── Admin Panel helpers ──────────────────────────────────────────────────────
 
-const LINK_INPUT_STYLE = { width: '100%', boxSizing: 'border-box', background: `${HUB_PALETTE.areiaDim}0a`, border: `1px solid ${HUB_PALETTE.areiaDim}33`, color: HUB_PALETTE.marfim, fontFamily: 'Inter, sans-serif', fontSize: 13, padding: '8px 12px', outline: 'none', marginBottom: 8 };
-const LINK_SELECT_STYLE = { ...LINK_INPUT_STYLE, background: '#0d1b2a', color: '#f0e6d3', cursor: 'pointer' };
+const LINK_INPUT_STYLE = { width: '100%', boxSizing: 'border-box', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', color: '#F0E6D3', fontFamily: 'Inter, sans-serif', fontSize: 13, padding: '8px 12px', outline: 'none', marginBottom: 8 };
+const LINK_SELECT_STYLE = { ...LINK_INPUT_STYLE, background: '#0c1220', cursor: 'pointer' };
 const LINK_LABEL_STYLE = { fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 6 };
 
 function LinkForm({ form, setForm, onSave, onCancel, linkErro, linkSaving }) {
