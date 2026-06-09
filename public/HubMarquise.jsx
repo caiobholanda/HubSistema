@@ -395,6 +395,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
   const [linkSaving, setLinkSaving] = useState(false);
   const [linkErro, setLinkErro] = useState('');
   const [expandedLink, setExpandedLink] = useState(null);
+  const [filtroSemAcesso, setFiltroSemAcesso] = useState('');
 
   const noArSystems = hubSystems.filter(s => s.status === 'no-ar');
 
@@ -644,7 +645,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
                     <LinkForm form={editForm} setForm={setEditForm} onSave={saveEdit} onCancel={() => { setEditingId(null); setLinkErro(''); }} linkErro={linkErro} linkSaving={linkSaving} />
                   ) : (
                     <div
-                      onClick={() => { if (editingId) return; setExpandedLink(isLinkOpen ? null : sys.id); }}
+                      onClick={() => { if (editingId) return; setExpandedLink(isLinkOpen ? null : sys.id); setFiltroSemAcesso(''); }}
                       style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 0', gap: 16, cursor: 'pointer' }}
                       onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
                       onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
@@ -706,21 +707,35 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
                         {semAcesso.length === 0 ? (
                           <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areiaDim, fontStyle: 'italic' }}>Todos têm acesso a este link.</span>
                         ) : (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                            {semAcesso.map(u => (
-                              <div key={u.email} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                                <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areiaDim }}>{u.nome}{u.setor ? <span style={{ fontSize: 11, marginLeft: 6 }}>{u.setor}</span> : null}</span>
-                                <button
-                                  onClick={() => toggleSystem(u.email, sys.id)}
-                                  disabled={!!saving}
-                                  style={{ background: `${HUB_PALETTE.champanhe}12`, border: `1px solid ${HUB_PALETTE.champanhe}44`, color: HUB_PALETTE.champanhe, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', padding: '5px 14px', cursor: saving ? 'wait' : 'pointer', flexShrink: 0 }}
-                                  onMouseEnter={e => e.currentTarget.style.borderColor = HUB_PALETTE.champanhe + '88'}
-                                  onMouseLeave={e => e.currentTarget.style.borderColor = HUB_PALETTE.champanhe + '44'}>
-                                  Liberar
-                                </button>
-                              </div>
-                            ))}
-                          </div>
+                          <>
+                            <div style={{ position: 'relative', marginBottom: 12 }}>
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={HUB_PALETTE.areiaDim} strokeWidth="1.5" strokeLinecap="round" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+                                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                              </svg>
+                              <input
+                                type="text"
+                                placeholder="Filtrar por nome..."
+                                value={filtroSemAcesso}
+                                onChange={e => setFiltroSemAcesso(e.target.value)}
+                                style={{ width: '100%', boxSizing: 'border-box', background: `${HUB_PALETTE.areiaDim}10`, border: `1px solid ${HUB_PALETTE.areiaDim}33`, color: HUB_PALETTE.marfim, fontFamily: 'Inter, sans-serif', fontSize: 13, padding: '7px 12px 7px 30px', outline: 'none' }}
+                              />
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                              {semAcesso.filter(u => u.nome.toLowerCase().includes(filtroSemAcesso.toLowerCase()) || (u.setor && u.setor.toLowerCase().includes(filtroSemAcesso.toLowerCase()))).map(u => (
+                                <div key={u.email} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                                  <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areiaDim }}>{u.nome}{u.setor ? <span style={{ fontSize: 11, marginLeft: 6 }}>{u.setor}</span> : null}</span>
+                                  <button
+                                    onClick={() => toggleSystem(u.email, sys.id)}
+                                    disabled={!!saving}
+                                    style={{ background: `${HUB_PALETTE.champanhe}12`, border: `1px solid ${HUB_PALETTE.champanhe}44`, color: HUB_PALETTE.champanhe, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', padding: '5px 14px', cursor: saving ? 'wait' : 'pointer', flexShrink: 0 }}
+                                    onMouseEnter={e => e.currentTarget.style.borderColor = HUB_PALETTE.champanhe + '88'}
+                                    onMouseLeave={e => e.currentTarget.style.borderColor = HUB_PALETTE.champanhe + '44'}>
+                                    Liberar
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </>
                         )}
                       </div>
                     </div>
