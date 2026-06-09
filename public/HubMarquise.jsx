@@ -117,8 +117,24 @@ const HUB_SYSTEMS = [
   preview: 'rooms'
 },
 {
-  id: 'predial',
+  id: 'spa',
   num: '05',
+  categoria: 'Spa · Atendimento ao hóspede',
+  nome: 'Pesquisa de Satisfação',
+  paraQuem: 'Equipe do Spa',
+  descricao: 'Coleta de feedback dos hóspedes após os tratamentos no Spa — avaliação dos serviços, instalações, massoterapeutas e experiência geral.',
+  detalhe: 'Acesso restrito à equipe do Spa e TI.',
+  status: 'no-ar',
+  statusLabel: 'Disponível',
+  statusHint: 'Pode usar agora',
+  url: 'https://pesquisa-satisfacao.fly.dev',
+  repo: 'caiobholanda/PesquisaSatisfacao',
+  stack: ['Avaliação pós-tratamento', 'Painel de relatórios', 'Gestão de massoterapeutas'],
+  preview: 'tickets'
+},
+{
+  id: 'predial',
+  num: '06',
   categoria: 'Operação · Manutenção',
   nome: 'Manutenção Predial',
   paraQuem: 'Engenharia e Governança',
