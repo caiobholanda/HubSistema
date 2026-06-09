@@ -875,6 +875,21 @@ function HubMarquise() {
   }, [authed]);
 
   useEffect(() => {
+    const onScroll = () => sessionStorage.setItem('hub_scroll', String(window.scrollY));
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  useEffect(() => {
+    if (!revealed) return;
+    const saved = sessionStorage.getItem('hub_scroll');
+    if (saved) {
+      const t = setTimeout(() => window.scrollTo({ top: parseInt(saved, 10), behavior: 'instant' }), 100);
+      return () => clearTimeout(t);
+    }
+  }, [revealed]);
+
+  useEffect(() => {
     const onKey = (e) => {
       if (e.key && e.key.length === 1) {
         seqRef.current = (seqRef.current + e.key.toUpperCase()).slice(-2);
