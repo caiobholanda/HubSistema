@@ -125,6 +125,18 @@ app.put('/api/admin/permissions', requireAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
+app.get('/api/admin/all-users', requireAdmin, async (_req, res) => {
+  try {
+    const r = await fetch(`${CHAMADOS_URL}/api/hub/usuarios`, {
+      headers: { Authorization: `Bearer ${SSO_SECRET}` },
+    });
+    const data = await r.json();
+    res.json(data);
+  } catch {
+    res.status(500).json({ ok: false, erro: 'Erro ao buscar usuários' });
+  }
+});
+
 app.delete('/api/admin/permissions/:email', requireAdmin, (req, res) => {
   const email = decodeURIComponent(req.params.email);
   const data = readData();

@@ -330,10 +330,14 @@ function HubAdmin({ onClose }) {
 
   useEffect(() => {
     const token = localStorage.getItem('hub_sso_token');
-    fetch('/api/admin/data', { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.json())
-      .then(d => { setUsers(d.users || []); setPermissions(d.permissions || {}); setLoading(false); })
-      .catch(() => setLoading(false));
+    Promise.all([
+      fetch('/api/admin/all-users', { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
+      fetch('/api/admin/data', { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
+    ]).then(([allUsers, hubData]) => {
+      setUsers(allUsers.users || []);
+      setPermissions(hubData.permissions || {});
+      setLoading(false);
+    }).catch(() => setLoading(false));
   }, []);
 
   function isAllowed(email, systemId) {
