@@ -316,13 +316,13 @@ function HubLogin({ onLogin }) {
   );
 }
 
-const STATUS_LABELS = { 'no-ar': 'Disponível', 'construcao': 'Em desenvolvimento', 'beta': 'Em testes', 'concept': 'Em planejamento' };
-const STATUS_CORES = { 'no-ar': '#4CAF87', 'construcao': '#E0A85F', 'beta': '#5FA8E0', 'concept': '#9E9E9E' };
+const STATUS_LABELS = { 'no-ar': 'Ativo', 'construcao': 'Em desenvolvimento', 'beta': 'Em testes', 'concept': 'Em planejamento', 'inativo': 'Inativo' };
+const STATUS_CORES = { 'no-ar': '#4CAF87', 'construcao': '#E0A85F', 'beta': '#5FA8E0', 'concept': '#9E9E9E', 'inativo': '#9E9E9E' };
 
 // ─── Admin Panel helpers ──────────────────────────────────────────────────────
 
 const LINK_INPUT_STYLE = { width: '100%', boxSizing: 'border-box', background: `${HUB_PALETTE.areiaDim}0a`, border: `1px solid ${HUB_PALETTE.areiaDim}33`, color: HUB_PALETTE.marfim, fontFamily: 'Inter, sans-serif', fontSize: 13, padding: '8px 12px', outline: 'none', marginBottom: 8 };
-const LINK_SELECT_STYLE = { ...LINK_INPUT_STYLE, background: HUB_PALETTE.noite, cursor: 'pointer' };
+const LINK_SELECT_STYLE = { ...LINK_INPUT_STYLE, background: '#0d1b2a', color: '#f0e6d3', cursor: 'pointer' };
 const LINK_LABEL_STYLE = { fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 6 };
 
 function LinkForm({ form, setForm, onSave, onCancel, linkErro, linkSaving }) {
@@ -336,10 +336,8 @@ function LinkForm({ form, setForm, onSave, onCancel, linkErro, linkSaving }) {
         <div>
           <div style={LINK_LABEL_STYLE}>Status *</div>
           <select value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))} style={LINK_SELECT_STYLE}>
-            <option value="no-ar">Disponível</option>
-            <option value="construcao">Em desenvolvimento</option>
-            <option value="beta">Em testes</option>
-            <option value="concept">Em planejamento</option>
+            <option value="no-ar" style={{ background: '#0d1b2a', color: '#f0e6d3' }}>Ativo</option>
+            <option value="inativo" style={{ background: '#0d1b2a', color: '#f0e6d3' }}>Inativo</option>
           </select>
         </div>
         <div style={{ gridColumn: '1 / -1' }}>
