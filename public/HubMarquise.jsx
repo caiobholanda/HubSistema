@@ -324,6 +324,7 @@ function HubAdmin({ onClose }) {
   const [permissions, setPermissions] = useState({});
   const [saving, setSaving] = useState(null);
   const [expanded, setExpanded] = useState(null);
+  const [filtro, setFiltro] = useState('');
 
   const noArSystems = HUB_SYSTEMS.filter(s => s.status === 'no-ar');
 
@@ -405,13 +406,28 @@ function HubAdmin({ onClose }) {
           </p>
         </div>
 
+        {!loading && users.length > 0 && (
+          <div style={{ marginBottom: 24, position: 'relative' }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={HUB_PALETTE.areiaDim} strokeWidth="1.5" strokeLinecap="round" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input
+              type="text"
+              placeholder="Filtrar por nome..."
+              value={filtro}
+              onChange={e => setFiltro(e.target.value)}
+              style={{ width: '100%', boxSizing: 'border-box', background: `${HUB_PALETTE.areiaDim}0a`, border: `1px solid ${HUB_PALETTE.areiaDim}33`, color: HUB_PALETTE.marfim, fontFamily: 'Inter, sans-serif', fontSize: 14, padding: '10px 14px 10px 38px', outline: 'none' }}
+            />
+          </div>
+        )}
+
         {loading ? (
           <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.2em', color: HUB_PALETTE.areiaDim, textTransform: 'uppercase', padding: '40px 0' }}>Carregando...</div>
         ) : users.length === 0 ? (
-          <div style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontSize: 16, color: HUB_PALETTE.areiaDim, padding: '40px 0' }}>Nenhum usuário logou ainda.</div>
+          <div style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontSize: 16, color: HUB_PALETTE.areiaDim, padding: '40px 0' }}>Nenhum usuário encontrado.</div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', borderTop: `1px solid ${HUB_PALETTE.areiaDim}22` }}>
-            {users.map((user, i) => {
+            {users.filter(u => u.nome.toLowerCase().includes(filtro.toLowerCase())).map((user, i) => {
               const isOpen = expanded === user.email;
               const perm = permissions[user.email];
               const hasRestriction = perm !== undefined && perm !== null;
