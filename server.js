@@ -111,6 +111,18 @@ app.post('/api/auth/login', async (req, res) => {
 
 // ─── Admin API ───────────────────────────────────────────────────────────────
 
+app.get('/api/me/sistemas', (req, res) => {
+  const auth = req.headers.authorization || '';
+  const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
+  if (!token) return res.status(401).json({ ok: false });
+  try {
+    const payload = jwt.verify(token, SSO_SECRET);
+    return res.json({ ok: true, sistemas: getUserSistemas(payload.email) });
+  } catch {
+    return res.status(401).json({ ok: false });
+  }
+});
+
 app.get('/api/admin/data', requireAdmin, (_req, res) => {
   const data = readData();
   res.json({ ok: true, users: data.users, permissions: data.permissions });

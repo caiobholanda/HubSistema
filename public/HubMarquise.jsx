@@ -225,7 +225,6 @@ function HubLogin({ onLogin }) {
       const data = await r.json();
       if (data.ok) {
         localStorage.setItem('hub_sso_token', data.token);
-        localStorage.setItem('hub_sistemas', JSON.stringify(data.sistemas));
         localStorage.setItem('hub_tipo', data.tipo || 'usuario');
         onLogin(data.nome, data.sistemas, data.tipo || 'usuario');
       } else {
@@ -830,12 +829,13 @@ function HubMarquise() {
           const padding = b64.length % 4 === 0 ? '' : '='.repeat(4 - (b64.length % 4));
           const payload = JSON.parse(atob(b64.replace(/-/g, '+').replace(/_/g, '/') + padding));
           if (payload.exp && payload.exp * 1000 > Date.now()) {
-            const sistemasStr = localStorage.getItem('hub_sistemas');
-            const sis = sistemasStr ? JSON.parse(sistemasStr) : null;
             setUserName(payload.nome || '');
             setUserTipo(localStorage.getItem('hub_tipo') || payload.tipo || '');
-            setSistemas(sis);
             setAuthed(true);
+            fetch('/api/me/sistemas', { headers: { Authorization: `Bearer ${token}` } })
+              .then(r => r.json())
+              .then(d => { if (d.ok) setSistemas(d.sistemas); })
+              .catch(() => {});
             const t = setTimeout(() => setRevealed(true), 80);
             return () => clearTimeout(t);
           }
