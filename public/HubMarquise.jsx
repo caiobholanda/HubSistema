@@ -319,6 +319,59 @@ function HubLogin({ onLogin }) {
 const STATUS_LABELS = { 'no-ar': 'Disponível', 'construcao': 'Em desenvolvimento', 'beta': 'Em testes', 'concept': 'Em planejamento' };
 const STATUS_CORES = { 'no-ar': '#4CAF87', 'construcao': '#E0A85F', 'beta': '#5FA8E0', 'concept': '#9E9E9E' };
 
+// ─── Admin Panel helpers ──────────────────────────────────────────────────────
+
+const LINK_INPUT_STYLE = { width: '100%', boxSizing: 'border-box', background: `${HUB_PALETTE.areiaDim}0a`, border: `1px solid ${HUB_PALETTE.areiaDim}33`, color: HUB_PALETTE.marfim, fontFamily: 'Inter, sans-serif', fontSize: 13, padding: '8px 12px', outline: 'none', marginBottom: 8 };
+const LINK_SELECT_STYLE = { ...LINK_INPUT_STYLE, background: HUB_PALETTE.noite, cursor: 'pointer' };
+const LINK_LABEL_STYLE = { fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 6 };
+
+function LinkForm({ form, setForm, onSave, onCancel, linkErro, linkSaving }) {
+  return (
+    <div style={{ background: `${HUB_PALETTE.areiaDim}08`, border: `1px solid ${HUB_PALETTE.areiaDim}22`, padding: 24, marginBottom: 2 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 2 }}>
+        <div>
+          <div style={LINK_LABEL_STYLE}>Nome *</div>
+          <input value={form.nome} onChange={e => setForm(p => ({ ...p, nome: e.target.value }))} placeholder="Ex: Cardápio Digital" style={LINK_INPUT_STYLE} />
+        </div>
+        <div>
+          <div style={LINK_LABEL_STYLE}>Status *</div>
+          <select value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))} style={LINK_SELECT_STYLE}>
+            <option value="no-ar">Disponível</option>
+            <option value="construcao">Em desenvolvimento</option>
+            <option value="beta">Em testes</option>
+            <option value="concept">Em planejamento</option>
+          </select>
+        </div>
+        <div style={{ gridColumn: '1 / -1' }}>
+          <div style={LINK_LABEL_STYLE}>URL</div>
+          <input value={form.url} onChange={e => setForm(p => ({ ...p, url: e.target.value }))} placeholder="https://..." style={LINK_INPUT_STYLE} />
+        </div>
+        <div>
+          <div style={LINK_LABEL_STYLE}>Categoria</div>
+          <input value={form.categoria} onChange={e => setForm(p => ({ ...p, categoria: e.target.value }))} placeholder="Ex: Operação · Hospedagem" style={LINK_INPUT_STYLE} />
+        </div>
+        <div>
+          <div style={LINK_LABEL_STYLE}>Para quem</div>
+          <input value={form.paraQuem} onChange={e => setForm(p => ({ ...p, paraQuem: e.target.value }))} placeholder="Ex: Todos os setores" style={LINK_INPUT_STYLE} />
+        </div>
+        <div style={{ gridColumn: '1 / -1' }}>
+          <div style={LINK_LABEL_STYLE}>Descrição</div>
+          <input value={form.descricao} onChange={e => setForm(p => ({ ...p, descricao: e.target.value }))} placeholder="Breve descrição do sistema" style={LINK_INPUT_STYLE} />
+        </div>
+      </div>
+      {linkErro && <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: '#E07A5F', marginBottom: 12 }}>{linkErro}</div>}
+      <div style={{ display: 'flex', gap: 10 }}>
+        <button onClick={onSave} disabled={linkSaving} style={{ background: `${HUB_PALETTE.champanhe}18`, border: `1px solid ${HUB_PALETTE.champanhe}55`, color: HUB_PALETTE.champanhe, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.25em', textTransform: 'uppercase', padding: '8px 20px', cursor: linkSaving ? 'wait' : 'pointer' }}>
+          {linkSaving ? 'Salvando...' : 'Salvar'}
+        </button>
+        <button onClick={onCancel} style={{ background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}33`, color: HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.25em', textTransform: 'uppercase', padding: '8px 20px', cursor: 'pointer' }}>
+          Cancelar
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Admin Panel ──────────────────────────────────────────────────────────────
 
 function HubAdmin({ onClose, hubSystems, setHubSystems }) {
@@ -440,56 +493,6 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
       setLinkErro(d.erro || 'Erro ao salvar');
     }
     setLinkSaving(false);
-  }
-
-  const inputStyle = { width: '100%', boxSizing: 'border-box', background: `${HUB_PALETTE.areiaDim}0a`, border: `1px solid ${HUB_PALETTE.areiaDim}33`, color: HUB_PALETTE.marfim, fontFamily: 'Inter, sans-serif', fontSize: 13, padding: '8px 12px', outline: 'none', marginBottom: 8 };
-  const selectStyle = { ...inputStyle, background: HUB_PALETTE.noite, cursor: 'pointer' };
-
-  function LinkForm({ form, setForm, onSave, onCancel }) {
-    return (
-      <div style={{ background: `${HUB_PALETTE.areiaDim}08`, border: `1px solid ${HUB_PALETTE.areiaDim}22`, padding: 24, marginBottom: 2 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 2 }}>
-          <div>
-            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 6 }}>Nome *</div>
-            <input value={form.nome} onChange={e => setForm(p => ({ ...p, nome: e.target.value }))} placeholder="Ex: Cardápio Digital" style={inputStyle} />
-          </div>
-          <div>
-            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 6 }}>Status *</div>
-            <select value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))} style={selectStyle}>
-              <option value="no-ar">Disponível</option>
-              <option value="construcao">Em desenvolvimento</option>
-              <option value="beta">Em testes</option>
-              <option value="concept">Em planejamento</option>
-            </select>
-          </div>
-          <div style={{ gridColumn: '1 / -1' }}>
-            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 6 }}>URL</div>
-            <input value={form.url} onChange={e => setForm(p => ({ ...p, url: e.target.value }))} placeholder="https://..." style={inputStyle} />
-          </div>
-          <div>
-            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 6 }}>Categoria</div>
-            <input value={form.categoria} onChange={e => setForm(p => ({ ...p, categoria: e.target.value }))} placeholder="Ex: Operação · Hospedagem" style={inputStyle} />
-          </div>
-          <div>
-            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 6 }}>Para quem</div>
-            <input value={form.paraQuem} onChange={e => setForm(p => ({ ...p, paraQuem: e.target.value }))} placeholder="Ex: Todos os setores" style={inputStyle} />
-          </div>
-          <div style={{ gridColumn: '1 / -1' }}>
-            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 6 }}>Descrição</div>
-            <input value={form.descricao} onChange={e => setForm(p => ({ ...p, descricao: e.target.value }))} placeholder="Breve descrição do sistema" style={inputStyle} />
-          </div>
-        </div>
-        {linkErro && <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: '#E07A5F', marginBottom: 12 }}>{linkErro}</div>}
-        <div style={{ display: 'flex', gap: 10 }}>
-          <button onClick={onSave} disabled={linkSaving} style={{ background: `${HUB_PALETTE.champanhe}18`, border: `1px solid ${HUB_PALETTE.champanhe}55`, color: HUB_PALETTE.champanhe, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.25em', textTransform: 'uppercase', padding: '8px 20px', cursor: linkSaving ? 'wait' : 'pointer' }}>
-            {linkSaving ? 'Salvando...' : 'Salvar'}
-          </button>
-          <button onClick={onCancel} style={{ background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}33`, color: HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.25em', textTransform: 'uppercase', padding: '8px 20px', cursor: 'pointer' }}>
-            Cancelar
-          </button>
-        </div>
-      </div>
-    );
   }
 
   const ABAS = [
@@ -634,7 +637,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
               return (
                 <div key={sys.id} style={{ borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22` }}>
                   {editingId === sys.id ? (
-                    <LinkForm form={editForm} setForm={setEditForm} onSave={saveEdit} onCancel={() => { setEditingId(null); setLinkErro(''); }} />
+                    <LinkForm form={editForm} setForm={setEditForm} onSave={saveEdit} onCancel={() => { setEditingId(null); setLinkErro(''); }} linkErro={linkErro} linkSaving={linkSaving} />
                   ) : (
                     <div
                       onClick={() => { if (editingId) return; setExpandedLink(isLinkOpen ? null : sys.id); }}
@@ -658,12 +661,6 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
                           onMouseLeave={e => { e.currentTarget.style.color = HUB_PALETTE.areiaDim; e.currentTarget.style.borderColor = HUB_PALETTE.areiaDim + '33'; }}>
                           Editar
                         </button>
-                        <button onClick={e => { e.stopPropagation(); deleteLink(sys.id); }}
-                          style={{ background: 'transparent', border: `1px solid #E07A5F33`, color: '#E07A5F99', fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', padding: '6px 14px', cursor: 'pointer' }}
-                          onMouseEnter={e => { e.currentTarget.style.color = '#E07A5F'; e.currentTarget.style.borderColor = '#E07A5F66'; }}
-                          onMouseLeave={e => { e.currentTarget.style.color = '#E07A5F99'; e.currentTarget.style.borderColor = '#E07A5F33'; }}>
-                          Apagar
-                        </button>
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={HUB_PALETTE.areiaDim} strokeWidth="1.5" strokeLinecap="round" style={{ transform: isLinkOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: `transform 300ms ${HUB_EASE}`, flexShrink: 0 }}><polyline points="6 9 12 15 18 9"/></svg>
                       </div>
                     </div>
@@ -684,7 +681,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                             {comAcesso.map(u => (
                               <span key={u.email} style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areia, background: `${HUB_PALETTE.areiaDim}10`, border: `1px solid ${HUB_PALETTE.areiaDim}22`, padding: '4px 12px' }}>
-                                {u.nome.split(' ')[0]}
+                                {u.nome.split(' ')[0]}{u.setor ? <span style={{ color: HUB_PALETTE.areiaDim, fontSize: 11, marginLeft: 6 }}>{u.setor}</span> : null}
                               </span>
                             ))}
                           </div>
@@ -703,7 +700,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                             {semAcesso.map(u => (
                               <div key={u.email} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                                <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areiaDim }}>{u.nome}</span>
+                                <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areiaDim }}>{u.nome}{u.setor ? <span style={{ fontSize: 11, marginLeft: 6 }}>{u.setor}</span> : null}</span>
                                 <button
                                   onClick={() => toggleSystem(u.email, sys.id)}
                                   disabled={!!saving}
@@ -727,7 +724,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
           {addingNew ? (
             <div style={{ marginTop: 24 }}>
               <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 16 }}>Novo link</div>
-              <LinkForm form={newForm} setForm={setNewForm} onSave={saveNew} onCancel={() => { setAddingNew(false); setLinkErro(''); }} />
+              <LinkForm form={newForm} setForm={setNewForm} onSave={saveNew} onCancel={() => { setAddingNew(false); setLinkErro(''); }} linkErro={linkErro} linkSaving={linkSaving} />
             </div>
           ) : (
             <button onClick={() => { setAddingNew(true); setEditingId(null); setLinkErro(''); }}
