@@ -684,8 +684,13 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
                         ) : (
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                             {comAcesso.map(u => (
-                              <span key={u.email} style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areia, background: `${HUB_PALETTE.areiaDim}10`, border: `1px solid ${HUB_PALETTE.areiaDim}22`, padding: '4px 12px' }}>
-                                {u.nome.split(' ')[0]}{u.setor ? <span style={{ color: HUB_PALETTE.areiaDim, fontSize: 11, marginLeft: 6 }}>{u.setor}</span> : null}
+                              <span key={u.email}
+                                onClick={() => toggleSystem(u.email, sys.id)}
+                                title="Clique para remover acesso"
+                                style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areia, background: `${HUB_PALETTE.areiaDim}10`, border: `1px solid ${HUB_PALETTE.areiaDim}22`, padding: '4px 12px', cursor: 'pointer', userSelect: 'none' }}
+                                onMouseEnter={e => { e.currentTarget.style.background = '#E07A5F18'; e.currentTarget.style.borderColor = '#E07A5F44'; e.currentTarget.style.color = '#E07A5F'; }}
+                                onMouseLeave={e => { e.currentTarget.style.background = `${HUB_PALETTE.areiaDim}10`; e.currentTarget.style.borderColor = `${HUB_PALETTE.areiaDim}22`; e.currentTarget.style.color = HUB_PALETTE.areia; }}>
+                                {u.nome.split(' ')[0]}{u.setor ? <span style={{ fontSize: 11, marginLeft: 6, opacity: 0.7 }}>{u.setor}</span> : null}
                               </span>
                             ))}
                           </div>
