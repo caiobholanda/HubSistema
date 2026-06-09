@@ -76,22 +76,7 @@ app.post('/api/auth/login', async (req, res) => {
   if (!email || !senha) return res.status(400).json({ ok: false, erro: 'Email e senha obrigatórios' });
   const emailNorm = email.trim().toLowerCase();
 
-  // Tenta login como usuário
-  try {
-    const r = await fetch(`${CHAMADOS_URL}/api/usuarios/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: emailNorm, senha }),
-    });
-    if (r.ok) {
-      const data = await r.json();
-      const token = jwt.sign({ nome: data.nome, email: emailNorm, tipo: 'usuario' }, SSO_SECRET, { expiresIn: '8h' });
-      trackUser(emailNorm, data.nome, 'usuario');
-      return res.json({ ok: true, token, tipo: 'usuario', nome: data.nome, sistemas: getUserSistemas(emailNorm) });
-    }
-  } catch (_) {}
-
-  // Tenta login como admin
+  // Tenta login como admin primeiro
   try {
     const r = await fetch(`${CHAMADOS_URL}/api/admin/login`, {
       method: 'POST',
@@ -103,6 +88,21 @@ app.post('/api/auth/login', async (req, res) => {
       const token = jwt.sign({ nome: data.nome, email: emailNorm, tipo: 'admin', is_master: data.is_master }, SSO_SECRET, { expiresIn: '8h' });
       trackUser(emailNorm, data.nome, 'admin');
       return res.json({ ok: true, token, tipo: 'admin', nome: data.nome, sistemas: getUserSistemas(emailNorm) });
+    }
+  } catch (_) {}
+
+  // Fallback: login como usuário
+  try {
+    const r = await fetch(`${CHAMADOS_URL}/api/usuarios/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: emailNorm, senha }),
+    });
+    if (r.ok) {
+      const data = await r.json();
+      const token = jwt.sign({ nome: data.nome, email: emailNorm, tipo: 'usuario' }, SSO_SECRET, { expiresIn: '8h' });
+      trackUser(emailNorm, data.nome, 'usuario');
+      return res.json({ ok: true, token, tipo: 'usuario', nome: data.nome, sistemas: getUserSistemas(emailNorm) });
     }
   } catch (_) {}
 
