@@ -973,12 +973,19 @@ function SystemPanel({ system, index, revealed, isMobile, userEmail, userTipo })
     e.preventDefault();
     if (disabled) return;
     const token = localStorage.getItem('hub_sso_token');
-    let baseUrl = system.url;
+    let destUrl = system.url;
     if (system.adminUrl) {
       const isAdmin = userTipo === 'admin' || (system.adminEmails || []).includes(userEmail);
-      if (isAdmin) baseUrl = system.adminUrl;
+      if (isAdmin) destUrl = system.adminUrl;
     }
-    const url = token ? `${baseUrl}/sso?sso_token=${encodeURIComponent(token)}` : baseUrl;
+    let url;
+    if (token) {
+      const destPath = destUrl.slice(system.url.length) || '/';
+      const nextParam = destPath !== '/' ? `&next=${encodeURIComponent(destPath)}` : '';
+      url = `${system.url}/sso?sso_token=${encodeURIComponent(token)}${nextParam}`;
+    } else {
+      url = destUrl;
+    }
     window.open(url, '_blank', 'noopener,noreferrer');
   }
 
