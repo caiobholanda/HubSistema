@@ -56,12 +56,9 @@ function getUserSistemas(email) {
 // ─── Sistemas (links do Hub) ─────────────────────────────────────────────────
 
 const DEFAULT_SISTEMAS = [
-  { id: 'chamados',  num: '01', nome: 'Chamados TI',           url: 'https://sistema-chamados-granmarquise.fly.dev', status: 'no-ar',     categoria: 'Suporte · Atendimento interno',    descricao: 'Para pedir ajuda da equipe de TI do hotel.',                        paraQuem: 'Todos os setores' },
-  { id: 'ramais',    num: '02', nome: 'Lista de Ramais',        url: 'https://diretorio-ramais-granmarquise.fly.dev', status: 'no-ar',     categoria: 'Comunicação · Interno',            descricao: 'Diretório de ramais e contatos internos do hotel.',                  paraQuem: 'Todos os setores' },
-  { id: 'spa',       num: '03', nome: 'Pesquisa de Satisfação', url: 'https://pesquisa-satisfacao.fly.dev',           status: 'no-ar',     categoria: 'Spa · Atendimento ao hóspede',     descricao: 'Coleta de feedback dos hóspedes após os tratamentos no Spa.',        paraQuem: 'Equipe do Spa' },
-  { id: 'cardapio',  num: '04', nome: 'Cardápio Digital',       url: '#',                                             status: 'construcao', categoria: 'Restaurantes · F&B',              descricao: 'Cardápio dos restaurantes acessado por QR Code na mesa.',           paraQuem: 'Mangostin e Mucuripe Grill' },
-  { id: 'ocupacao',  num: '05', nome: 'Painel de Ocupação',     url: '#',                                             status: 'beta',      categoria: 'Operação · Hospedagem',            descricao: 'Mapa visual dos 222 apartamentos do dia.',                          paraQuem: 'Recepção e Governança' },
-  { id: 'predial',   num: '06', nome: 'Manutenção Predial',     url: '#',                                             status: 'concept',   categoria: 'Operação · Manutenção',            descricao: 'Ordens de serviço para conserto e manutenção.',                     paraQuem: 'Engenharia e Governança' },
+  { id: 'chamados',  num: '01', nome: 'Chamados TI',           url: 'https://sistema-chamados-granmarquise.fly.dev', status: 'no-ar', categoria: 'Suporte · Atendimento interno', descricao: 'Para pedir ajuda da equipe de TI do hotel.',                 paraQuem: 'Todos os setores' },
+  { id: 'ramais',    num: '02', nome: 'Lista de Ramais',        url: 'https://diretorio-ramais-granmarquise.fly.dev', status: 'no-ar', categoria: 'Comunicação · Interno',         descricao: 'Diretório de ramais e contatos internos do hotel.',           paraQuem: 'Todos os setores' },
+  { id: 'spa',       num: '03', nome: 'Pesquisa de Satisfação', url: 'https://pesquisa-satisfacao.fly.dev',           status: 'no-ar', categoria: 'Spa · Atendimento ao hóspede',  descricao: 'Coleta de feedback dos hóspedes após os tratamentos no Spa.', paraQuem: 'Equipe do Spa' },
 ];
 
 function getSistemas() {

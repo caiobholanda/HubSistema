@@ -101,54 +101,6 @@ const HUB_SYSTEMS = [
   repo: 'caiobholanda/PesquisaSatisfacao',
   stack: ['Avaliação pós-tratamento', 'Painel de relatórios', 'Gestão de massoterapeutas'],
   preview: 'tickets'
-},
-{
-  id: 'cardapio',
-  num: '04',
-  categoria: 'Restaurantes · F&B',
-  nome: 'Cardápio Digital',
-  paraQuem: 'Mangostin e Mucuripe Grill',
-  descricao: 'Cardápio dos restaurantes acessado por QR Code na mesa. A gerência atualiza preços e disponibilidade de pratos, e o hóspede vê tudo em tempo real, em três idiomas.',
-  detalhe: 'Conectado ao sistema de gestão de alimentos e bebidas.',
-  status: 'construcao',
-  statusLabel: 'Em desenvolvimento',
-  statusHint: 'Ainda não pronto para uso',
-  url: '#',
-  repo: null,
-  stack: ['QR Code na mesa', 'Três idiomas', 'Atualização em tempo real'],
-  preview: 'menu'
-},
-{
-  id: 'ocupacao',
-  num: '05',
-  categoria: 'Operação · Hospedagem',
-  nome: 'Painel de Ocupação',
-  paraQuem: 'Recepção e Governança',
-  descricao: 'Mapa visual dos 222 apartamentos do dia — quem fez check-in, quem sai hoje, quais estão em limpeza e quais estão bloqueados para manutenção. Tudo numa tela só.',
-  detalhe: 'Conversa com o sistema de reservas atual automaticamente.',
-  status: 'beta',
-  statusLabel: 'Em testes',
-  statusHint: 'Disponível só para a equipe-piloto',
-  url: '#',
-  repo: null,
-  stack: ['Mapa visual dos quartos', 'Status em tempo real', 'Filtro por andar'],
-  preview: 'rooms'
-},
-{
-  id: 'predial',
-  num: '06',
-  categoria: 'Operação · Manutenção',
-  nome: 'Manutenção Predial',
-  paraQuem: 'Engenharia e Governança',
-  descricao: 'Ordens de serviço para conserto e manutenção dos quartos, áreas comuns e instalações. Quem viu o problema registra; quem conserta recebe a ordem direto.',
-  detalhe: 'Em conversa com o time de operações para definir o escopo.',
-  status: 'concept',
-  statusLabel: 'Em planejamento',
-  statusHint: 'Ainda em estudo',
-  url: '#',
-  repo: null,
-  stack: ['Ordens de serviço', 'Foto do problema', 'Histórico por quarto'],
-  preview: 'maintenance'
 }];
 
 
@@ -383,7 +335,7 @@ function LinkForm({ form, setForm, onSave, onCancel, linkErro, linkSaving }) {
 
 function HubAdmin({ onClose, hubSystems, setHubSystems }) {
   const isMobile = useWindowWidth() < 768;
-  const [aba, setAba] = useState('usuarios');
+  const [aba, setAba] = useState('links');
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState([]);
   const [permissions, setPermissions] = useState({});
@@ -505,8 +457,8 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
   }
 
   const ABAS = [
-    { id: 'usuarios', label: 'Usuários' },
     { id: 'links', label: 'Links' },
+    { id: 'usuarios', label: 'Usuários' },
   ];
 
   return (
