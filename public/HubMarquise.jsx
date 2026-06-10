@@ -677,7 +677,15 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
                               />
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                              {semAcesso.filter(u => u.nome.toLowerCase().includes(filtroSemAcesso.toLowerCase()) || (u.setor && u.setor.toLowerCase().includes(filtroSemAcesso.toLowerCase()))).map(u => (
+                              {semAcesso
+                                .filter(u => u.nome.toLowerCase().includes(filtroSemAcesso.toLowerCase()) || (u.setor && u.setor.toLowerCase().includes(filtroSemAcesso.toLowerCase())))
+                                .sort((a, b) => {
+                                  const sa = (a.setor || '￿').toLowerCase();
+                                  const sb = (b.setor || '￿').toLowerCase();
+                                  if (sa !== sb) return sa.localeCompare(sb, 'pt');
+                                  return (a.nome || '').toLowerCase().localeCompare((b.nome || '').toLowerCase(), 'pt');
+                                })
+                                .map(u => (
                                 <div key={u.email} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
                                   <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areiaDim }}>{u.nome}{u.setor ? <span style={{ fontSize: 11, marginLeft: 6 }}>{u.setor}</span> : null}</span>
                                   <button
