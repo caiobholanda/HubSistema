@@ -97,7 +97,7 @@ const HUB_SYSTEMS = [
   statusHint: 'Pode usar agora',
   url: 'https://pesquisa-satisfacao.fly.dev',
   adminUrl: 'https://pesquisa-satisfacao.fly.dev/admin',
-  adminEmails: ['estagio.ti@granmarquise.com.br', 'suporte.ti@granmarquise.com.br', 'richard@granmarquise.com.br', 'qualidade@granmarquise.com.br', 'spa@granmarquise.com.br'],
+  adminEmails: ['estagio.ti@granmarquise.com.br', 'suporte.ti@granmarquise.com.br', 'richard@granmarquise.com.br'],
   repo: 'caiobholanda/PesquisaSatisfacao',
   stack: ['Avaliação pós-tratamento', 'Painel de relatórios', 'Gestão de massoterapeutas'],
   preview: 'tickets'
