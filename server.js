@@ -53,6 +53,17 @@ function getUserSistemas(email) {
     : null; // null = acesso total
 }
 
+// Garante que usuario nao-admin tenha permissoes explicitas no primeiro login.
+// Assim, links novos criados depois nao aparecem automaticamente para ele.
+function snapshotPermissoesSeNaoTiver(email, tipo) {
+  if (tipo === 'admin') return;
+  const data = readData();
+  if (!data.permissions) data.permissions = {};
+  if (Object.prototype.hasOwnProperty.call(data.permissions, email)) return;
+  data.permissions[email] = (data.sistemas || DEFAULT_SISTEMAS).map(s => s.id);
+  writeData(data);
+}
+
 // ─── Sistemas (links do Hub) ─────────────────────────────────────────────────
 
 const DEFAULT_SISTEMAS = [
@@ -128,6 +139,7 @@ app.post('/api/auth/login', async (req, res) => {
       const data = await r.json();
       const token = jwt.sign({ nome: data.nome, email: emailNorm, tipo: 'usuario' }, SSO_SECRET, { expiresIn: '8h' });
       trackUser(emailNorm, data.nome, 'usuario');
+      snapshotPermissoesSeNaoTiver(emailNorm, 'usuario');
       return res.json({ ok: true, token, tipo: 'usuario', nome: data.nome, sistemas: getUserSistemas(emailNorm) });
     }
   } catch (_) {}
@@ -202,6 +214,21 @@ app.post('/api/admin/sistemas', requireAdmin, (req, res) => {
   const num = String(sistemas.length + 1).padStart(2, '0');
   const novo = { id, num, nome, url: url || '#', status, categoria: categoria || '', descricao: descricao || '', paraQuem: paraQuem || '' };
   data.sistemas = [...sistemas, novo];
+
+  // Novo link aparece apenas para admins por padrão. Snapshot dos sistemas
+  // atuais para todo usuario sem permissao explicita, preservando o acesso
+  // que ja tinham mas excluindo o novo link.
+  const sistemasAtuaisIds = sistemas.map(s => s.id);
+  data.permissions = data.permissions || {};
+  for (const u of (data.users || [])) {
+    if (u.tipo === 'admin') continue;
+    const atual = data.permissions[u.email];
+    if (atual === undefined || atual === null) {
+      data.permissions[u.email] = sistemasAtuaisIds;
+      notifyUser(u.email, sistemasAtuaisIds);
+    }
+  }
+
   writeData(data);
   res.json({ ok: true, sistema: novo });
 });
