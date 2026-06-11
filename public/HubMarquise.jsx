@@ -820,8 +820,8 @@ function ContasPanel({ isMobile }) {
     border: HUB_PALETTE.areiaDim + '33',
     input: { width: '100%', boxSizing: 'border-box', background: HUB_PALETTE.areiaDim + '0a', border: `1px solid ${HUB_PALETTE.areiaDim}33`, color: HUB_PALETTE.marfim, fontFamily: 'Inter, sans-serif', fontSize: 14, padding: '10px 14px', outline: 'none' },
     label: { fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 6, display: 'block' },
-    btnPrim: { background: HUB_PALETTE.champanhe, color: HUB_PALETTE.noite, border: 'none', padding: '10px 18px', fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase', cursor: 'pointer' },
-    btnGhost: { background: 'transparent', color: HUB_PALETTE.areiaDim, border: `1px solid ${HUB_PALETTE.areiaDim}55`, padding: '10px 18px', fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase', cursor: 'pointer' },
+    btnPrim: { background: HUB_PALETTE.champanhe, color: HUB_PALETTE.noite, border: 'none', padding: '12px 22px', fontFamily: 'JetBrains Mono, monospace', fontSize: 12, fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase', cursor: 'pointer' },
+    btnGhost: { background: 'transparent', color: HUB_PALETTE.marfim, border: `1px solid ${HUB_PALETTE.areiaDim}77`, padding: '12px 22px', fontFamily: 'JetBrains Mono, monospace', fontSize: 12, fontWeight: 500, letterSpacing: '0.2em', textTransform: 'uppercase', cursor: 'pointer' },
   };
 
   return (<>
@@ -876,25 +876,30 @@ function ContasPanel({ isMobile }) {
           const key = (isAdmin ? 'a' : 'u') + row.id;
           const showSenha = revelado[key];
           return (
-            <div key={row.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 0', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, opacity: ativo ? 1 : 0.55, flexWrap: 'wrap' }}>
-              <div style={{ flex: 1, minWidth: 220 }}>
-                <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: HUB_PALETTE.marfim, fontWeight: 500 }}>
+            <div key={row.id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '22px 4px', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, opacity: ativo ? 1 : 0.55, flexWrap: 'wrap' }}>
+              <div style={{ flex: 1, minWidth: 260 }}>
+                <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 17, color: HUB_PALETTE.marfim, fontWeight: 600, lineHeight: 1.3 }}>
                   {isAdmin ? row.nome_completo : row.nome}
-                  {isAdmin && row.is_master ? <span style={{ marginLeft: 8, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, padding: '2px 8px', border: `1px solid ${HUB_PALETTE.champanhe}66` }}>Master</span> : null}
-                  {!ativo ? <span style={{ marginLeft: 8, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: '#E07A5F' }}>Inativo</span> : null}
+                  {isAdmin && row.is_master ? <span style={{ marginLeft: 10, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, padding: '3px 10px', border: `1px solid ${HUB_PALETTE.champanhe}88`, verticalAlign: 'middle' }}>Master</span> : null}
+                  {!ativo ? <span style={{ marginLeft: 10, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#E07A5F', padding: '3px 10px', border: '1px solid #E07A5F66', verticalAlign: 'middle' }}>Inativo</span> : null}
                 </div>
-                <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 12.5, color: HUB_PALETTE.areiaDim, marginTop: 2 }}>
-                  {row.email || '—'}
-                  {row.setor ? <span> · {row.setor}</span> : null}
-                  {row.ramal ? <span> · ramal {row.ramal}</span> : null}
+                <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: HUB_PALETTE.areia, marginTop: 6, lineHeight: 1.5 }}>
+                  {row.email ? <span style={{ color: HUB_PALETTE.marfim }}>{row.email}</span> : '—'}
+                  {row.setor ? <span style={{ color: HUB_PALETTE.areiaDim }}> · </span> : null}
+                  {row.setor ? <span><span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginRight: 6 }}>setor</span>{row.setor}</span> : null}
+                  {row.ramal ? <span style={{ color: HUB_PALETTE.areiaDim }}> · </span> : null}
+                  {row.ramal ? <span><span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginRight: 6 }}>ramal</span>{row.ramal}</span> : null}
+                  {isAdmin && row.usuario ? <span style={{ color: HUB_PALETTE.areiaDim }}> · </span> : null}
+                  {isAdmin && row.usuario ? <span><span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginRight: 6 }}>login</span>{row.usuario}</span> : null}
                 </div>
                 {row.senha_plain && (
-                  <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: HUB_PALETTE.champanhe, background: HUB_PALETTE.champanhe + '12', padding: '2px 8px', userSelect: 'all' }}>
+                  <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim }}>senha</span>
+                    <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 14, color: HUB_PALETTE.champanhe, background: HUB_PALETTE.champanhe + '15', padding: '4px 12px', userSelect: 'all', borderRadius: 2 }}>
                       {showSenha ? row.senha_plain : '••••••••'}
                     </span>
                     <button onClick={() => toggleRevelar(key)}
-                      style={{ background: 'transparent', border: 'none', color: HUB_PALETTE.areiaDim, fontSize: 10, fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.18em', textTransform: 'uppercase', cursor: 'pointer', padding: 0 }}>
+                      style={{ background: 'transparent', border: 'none', color: HUB_PALETTE.champanhe, fontSize: 11, fontFamily: 'JetBrains Mono, monospace', fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase', cursor: 'pointer', padding: 0 }}>
                       {showSenha ? 'ocultar' : 'revelar'}
                     </button>
                   </div>
