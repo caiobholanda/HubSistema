@@ -1059,6 +1059,31 @@ function HubMarquise() {
       .catch(() => {});
   }, []);
 
+  // Whitelist de origens aceitas em ?next=<url>. Evita open redirect.
+  const NEXT_ALLOWED_ORIGINS = [
+    'https://sistema-chamados-granmarquise.fly.dev',
+    'https://diretorio-ramais-granmarquise.fly.dev',
+    'https://pesquisa-satisfacao.fly.dev',
+  ];
+
+  // Se a URL atual tem ?next=<url-completa> e o token esta valido, redireciona
+  // o usuario para <origin>/sso?sso_token=<token>&next=<path> e devolve true.
+  function redirectToNextIfAny() {
+    try {
+      const token = localStorage.getItem('hub_sso_token');
+      if (!token) return false;
+      const params = new URLSearchParams(window.location.search);
+      const next = params.get('next');
+      if (!next) return false;
+      const u = new URL(next, window.location.origin);
+      if (!NEXT_ALLOWED_ORIGINS.includes(u.origin)) return false;
+      const destPath = (u.pathname || '/') + (u.search || '') + (u.hash || '');
+      const url = `${u.origin}/sso?sso_token=${encodeURIComponent(token)}&next=${encodeURIComponent(destPath)}`;
+      window.location.replace(url);
+      return true;
+    } catch (_) { return false; }
+  }
+
   useEffect(() => {
     if (document.getElementById('hub-keyframes')) return;
     const s = document.createElement('style');
@@ -1087,6 +1112,8 @@ function HubMarquise() {
           const padding = b64.length % 4 === 0 ? '' : '='.repeat(4 - (b64.length % 4));
           const payload = JSON.parse(atob(b64.replace(/-/g, '+').replace(/_/g, '/') + padding));
           if (payload.exp && payload.exp * 1000 > Date.now()) {
+            // Ja autenticado: se veio com ?next=, redireciona direto pro sistema destino.
+            if (redirectToNextIfAny()) return;
             setUserName(payload.nome || '');
             setUserTipo(localStorage.getItem('hub_tipo') || payload.tipo || '');
             setUserEmail(payload.email || '');
@@ -1146,6 +1173,8 @@ function HubMarquise() {
   }, []);
 
   function handleLogin(nome, sis, tipo) {
+    // Login concluido: se veio com ?next=, redireciona direto para o sistema destino.
+    if (redirectToNextIfAny()) return;
     setUserName(nome);
     setUserTipo(tipo || '');
     setSistemas(sis);
