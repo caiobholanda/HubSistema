@@ -738,7 +738,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
 
 // ─── Contas (CRUD de admins do TI e usuarios do portal) ─────────────────────
 function ContasPanel({ isMobile }) {
-  const [subAba, setSubAba] = useState('admins');
+  const [subAba, setSubAba] = useState('usuarios');
   const [statusAba, setStatusAba] = useState('ativos'); // ativos | inativos
   const [admins, setAdmins] = useState(null);
   const [usuarios, setUsuarios] = useState(null);
