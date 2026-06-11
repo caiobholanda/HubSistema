@@ -35,13 +35,23 @@ function writeData(data) {
   fs.writeFileSync(HUB_DATA_FILE, JSON.stringify(data, null, 2), 'utf8');
 }
 
-function trackUser(email, nome, tipo) {
+function trackUser(email, nome, tipo, extras = {}) {
   const data = readData();
   const idx = data.users.findIndex(u => u.email === email);
+  const registro = {
+    email,
+    nome,
+    tipo,
+    setor: extras.setor || '',
+    ramal: extras.ramal || '',
+    is_master: !!extras.is_master,
+    usuario: extras.usuario || '',
+    ultimo_login: new Date().toISOString(),
+  };
   if (idx === -1) {
-    data.users.push({ email, nome, tipo });
+    data.users.push(registro);
   } else {
-    data.users[idx] = { email, nome, tipo };
+    data.users[idx] = { ...data.users[idx], ...registro };
   }
   writeData(data);
 }
@@ -123,7 +133,12 @@ app.post('/api/auth/login', async (req, res) => {
     if (r.ok) {
       const data = await r.json();
       const token = jwt.sign({ nome: data.nome, email: emailNorm, tipo: 'admin', is_master: data.is_master }, SSO_SECRET, { expiresIn: '8h' });
-      trackUser(emailNorm, data.nome, 'admin');
+      trackUser(emailNorm, data.nome, 'admin', {
+        setor: data.setor,
+        ramal: data.ramal,
+        is_master: data.is_master,
+        usuario: data.usuario,
+      });
       return res.json({ ok: true, token, tipo: 'admin', nome: data.nome, sistemas: getUserSistemas(emailNorm) });
     }
   } catch (_) {}
@@ -138,7 +153,10 @@ app.post('/api/auth/login', async (req, res) => {
     if (r.ok) {
       const data = await r.json();
       const token = jwt.sign({ nome: data.nome, email: emailNorm, tipo: 'usuario' }, SSO_SECRET, { expiresIn: '8h' });
-      trackUser(emailNorm, data.nome, 'usuario');
+      trackUser(emailNorm, data.nome, 'usuario', {
+        setor: data.setor,
+        ramal: data.ramal,
+      });
       snapshotPermissoesSeNaoTiver(emailNorm, 'usuario');
       return res.json({ ok: true, token, tipo: 'usuario', nome: data.nome, sistemas: getUserSistemas(emailNorm) });
     }
