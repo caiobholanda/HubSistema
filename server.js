@@ -35,6 +35,39 @@ function writeData(data) {
   fs.writeFileSync(HUB_DATA_FILE, JSON.stringify(data, null, 2), 'utf8');
 }
 
+// Append-only audit log persistido em hub_data.json (cap 5000 entradas).
+// Cada entrada: { id, at, by_email, by_nome, action, target_tipo, target_id, target_nome, campos }
+function appendAudit(entry) {
+  const data = readData();
+  if (!Array.isArray(data.audit_log)) data.audit_log = [];
+  data.audit_log.push({
+    id: Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+    at: new Date().toISOString(),
+    ...entry,
+  });
+  if (data.audit_log.length > 5000) data.audit_log = data.audit_log.slice(-5000);
+  writeData(data);
+}
+
+// Sanitiza body: remove senhas e campos vazios; marca se houve troca de senha
+function _campos(body) {
+  if (!body || typeof body !== 'object') return {};
+  const out = {};
+  for (const k of Object.keys(body)) {
+    if (k === 'senha') { if (body[k]) out._trocou_senha = true; continue; }
+    if (k === 'senha_hash' || k === 'senha_plain') continue;
+    if (body[k] === undefined || body[k] === null || body[k] === '') continue;
+    out[k] = body[k];
+  }
+  return out;
+}
+
+async function _buscarAdminAlvo(id) {
+  const r = await proxyChamados('/admins');
+  if (r.status !== 200 || !r.data || !r.data.ok) return null;
+  return (r.data.admins || []).find(a => Number(a.id) === Number(id)) || null;
+}
+
 function trackUser(email, nome, tipo, extras = {}) {
   const data = readData();
   const idx = data.users.findIndex(u => u.email === email);
@@ -288,21 +321,58 @@ async function proxyChamados(path, { method = 'GET', body = null } = {}) {
   }
 }
 
-// Admins (CRUD)
+// Admins (CRUD) — operacoes que alteram dados gravam audit log
 app.get('/api/admin/chamados-admins', requireAdmin, async (_req, res) => {
   const r = await proxyChamados('/admins');
   res.status(r.status).json(r.data);
 });
 app.post('/api/admin/chamados-admins', requireAdmin, async (req, res) => {
   const r = await proxyChamados('/admins', { method: 'POST', body: req.body });
+  if (r.status >= 200 && r.status < 300 && r.data && r.data.ok) {
+    appendAudit({
+      by_email: req.hubUser.email, by_nome: req.hubUser.nome,
+      action: 'criar', target_tipo: 'admin',
+      target_id: r.data.id, target_nome: req.body && req.body.nome_completo,
+      campos: _campos(req.body),
+    });
+  }
   res.status(r.status).json(r.data);
 });
 app.patch('/api/admin/chamados-admins/:id', requireAdmin, async (req, res) => {
-  const r = await proxyChamados(`/admins/${encodeURIComponent(req.params.id)}`, { method: 'PATCH', body: req.body });
+  const id = req.params.id;
+  const antes = await _buscarAdminAlvo(id);
+  const r = await proxyChamados(`/admins/${encodeURIComponent(id)}`, { method: 'PATCH', body: req.body });
+  if (r.status >= 200 && r.status < 300 && r.data && r.data.ok) {
+    const b = req.body || {};
+    // Distingue acoes (so-ativo, so-master, etc) das edicoes genericas
+    const onlyKeys = Object.keys(b).filter(k => b[k] !== undefined);
+    let action = 'editar';
+    if (onlyKeys.length === 1 && 'ativo' in b) action = b.ativo ? 'ativar' : 'inativar';
+    else if (onlyKeys.length === 1 && 'is_master' in b) action = b.is_master ? 'promover_master' : 'rebaixar_master';
+    else if (onlyKeys.length === 1 && 'senha' in b) action = 'trocar_senha';
+    appendAudit({
+      by_email: req.hubUser.email, by_nome: req.hubUser.nome,
+      action, target_tipo: 'admin',
+      target_id: Number(id),
+      target_nome: (antes && antes.nome_completo) || null,
+      campos: _campos(b),
+    });
+  }
   res.status(r.status).json(r.data);
 });
 app.delete('/api/admin/chamados-admins/:id', requireAdmin, async (req, res) => {
-  const r = await proxyChamados(`/admins/${encodeURIComponent(req.params.id)}`, { method: 'DELETE' });
+  const id = req.params.id;
+  const antes = await _buscarAdminAlvo(id);
+  const r = await proxyChamados(`/admins/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  if (r.status >= 200 && r.status < 300 && r.data && r.data.ok) {
+    appendAudit({
+      by_email: req.hubUser.email, by_nome: req.hubUser.nome,
+      action: 'excluir', target_tipo: 'admin',
+      target_id: Number(id),
+      target_nome: (antes && antes.nome_completo) || null,
+      campos: {},
+    });
+  }
   res.status(r.status).json(r.data);
 });
 
@@ -330,7 +400,18 @@ app.get('/api/admin/chamados-admins/:id/etiquetas', requireAdmin, async (req, re
   res.status(r.status).json(r.data);
 });
 app.put('/api/admin/chamados-admins/:id/etiquetas', requireAdmin, async (req, res) => {
-  const r = await proxyChamados(`/admins/${encodeURIComponent(req.params.id)}/etiquetas`, { method: 'PUT', body: req.body });
+  const id = req.params.id;
+  const antes = await _buscarAdminAlvo(id);
+  const r = await proxyChamados(`/admins/${encodeURIComponent(id)}/etiquetas`, { method: 'PUT', body: req.body });
+  if (r.status >= 200 && r.status < 300 && r.data && r.data.ok) {
+    appendAudit({
+      by_email: req.hubUser.email, by_nome: req.hubUser.nome,
+      action: 'etiquetas', target_tipo: 'admin',
+      target_id: Number(id),
+      target_nome: (antes && antes.nome_completo) || null,
+      campos: { slugs: Array.isArray(req.body && req.body.slugs) ? req.body.slugs : [] },
+    });
+  }
   res.status(r.status).json(r.data);
 });
 
@@ -358,6 +439,18 @@ app.get('/api/admin/chamados-usuarios/:id/logs', requireAdmin, async (req, res) 
 app.get('/api/admin/chamados-usuarios/:id/chamados', requireAdmin, async (req, res) => {
   const r = await proxyChamados(`/portal-usuarios/${encodeURIComponent(req.params.id)}/chamados`);
   res.status(r.status).json(r.data);
+});
+
+// Audit log — historico de alteracoes em admins (e futuramente usuarios) feitas pelo Hub.
+app.get('/api/admin/audit-log', requireAdmin, (req, res) => {
+  const data = readData();
+  const limit = Math.max(1, Math.min(parseInt(req.query.limit, 10) || 500, 5000));
+  const tipo = req.query.target_tipo; // opcional: 'admin' | 'usuario'
+  let log = Array.isArray(data.audit_log) ? data.audit_log : [];
+  if (tipo) log = log.filter(e => e.target_tipo === tipo);
+  // Mais recentes primeiro
+  log = log.slice().reverse().slice(0, limit);
+  res.json({ ok: true, log });
 });
 
 app.delete('/api/admin/permissions/:email', requireAdmin, (req, res) => {

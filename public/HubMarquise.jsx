@@ -461,6 +461,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
     { id: 'contas', label: 'Usuários' },
     { id: 'setores', label: 'Setores' },
     { id: 'links', label: 'Links' },
+    { id: 'historico', label: 'Histórico' },
   ];
 
   return (
@@ -649,9 +650,167 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
         {/* ── Aba Setores ── */}
         {aba === 'setores' && <SetoresPanel isMobile={isMobile} />}
 
+        {/* ── Aba Historico ── */}
+        {aba === 'historico' && <HistoricoPanel isMobile={isMobile} />}
+
       </div>
     </div>
   );
+}
+
+// ─── Historico (audit log de Administracao Hub) ─────────────────────────────
+function HistoricoPanel({ isMobile }) {
+  const [log, setLog] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [filterDate, setFilterDate] = useState('');
+
+  function token() { return localStorage.getItem('hub_sso_token'); }
+
+  async function carregar() {
+    setLoading(true);
+    try {
+      const r = await fetch('/api/admin/audit-log?target_tipo=admin&limit=500', {
+        headers: { Authorization: `Bearer ${token()}` },
+      });
+      const d = await r.json();
+      setLog(r.ok && d.ok ? (d.log || []) : []);
+    } catch { setLog([]); }
+    finally { setLoading(false); }
+  }
+  useEffect(() => { carregar(); }, []);
+
+  function localDateStr(iso) {
+    const d = new Date(iso);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+  function fmtHora(iso) {
+    return new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  }
+  function fmtDateHeader(iso) {
+    const d = new Date(iso);
+    const hoje = new Date(); const ontem = new Date(hoje); ontem.setDate(hoje.getDate() - 1);
+    const sameDay = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+    if (sameDay(d, hoje)) return 'Hoje · ' + d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+    if (sameDay(d, ontem)) return 'Ontem · ' + d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+    return d.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+  }
+
+  const ACTION_LABEL = {
+    criar: 'Criado', editar: 'Editado',
+    ativar: 'Ativado', inativar: 'Inativado',
+    promover_master: 'Promovido a master', rebaixar_master: 'Rebaixado de master',
+    trocar_senha: 'Senha alterada', etiquetas: 'Etiquetas atualizadas',
+    excluir: 'Excluído',
+  };
+  const ACTION_COR = {
+    criar: '#3E8497', editar: HUB_PALETTE.champanhe,
+    ativar: '#7cb342', inativar: '#9E6B43',
+    promover_master: HUB_PALETTE.champanhe, rebaixar_master: '#9E6B43',
+    trocar_senha: '#A1814E', etiquetas: HUB_PALETTE.champanhe,
+    excluir: '#E07A5F',
+  };
+  const FIELD_LABEL = {
+    nome_completo: 'Nome', email: 'E-mail', ramal: 'Ramal',
+    is_master: 'Master', ativo: 'Ativo', _trocou_senha: 'Senha',
+    slugs: 'Etiquetas',
+  };
+  function fmtVal(k, v) {
+    if (k === 'is_master' || k === 'ativo' || k === '_trocou_senha') return v ? 'Sim' : 'Não';
+    if (Array.isArray(v)) return v.length ? v.join(', ') : '—';
+    return String(v ?? '—');
+  }
+
+  const filtrado = (log || []).filter(e => !filterDate || localDateStr(e.at) === filterDate);
+
+  // Agrupa por dia mantendo ordem (log ja vem reverse: mais recente primeiro)
+  const grupos = (() => {
+    if (!log) return null;
+    const g = []; let atualKey = null; let atualLista = null;
+    for (const e of filtrado) {
+      const k = localDateStr(e.at);
+      if (k !== atualKey) { atualKey = k; atualLista = []; g.push({ key: k, label: fmtDateHeader(e.at), itens: atualLista }); }
+      atualLista.push(e);
+    }
+    return g;
+  })();
+
+  const cs = {
+    input: { background: HUB_PALETTE.areiaDim + '0a', border: `1px solid ${HUB_PALETTE.areiaDim}33`, color: HUB_PALETTE.marfim, fontFamily: 'Inter, sans-serif', fontSize: 14, padding: '10px 14px', outline: 'none' },
+    btnGhost: { background: 'transparent', color: HUB_PALETTE.marfim, border: `1px solid ${HUB_PALETTE.areiaDim}77`, padding: '10px 18px', fontFamily: 'JetBrains Mono, monospace', fontSize: 11, fontWeight: 500, letterSpacing: '0.2em', textTransform: 'uppercase', cursor: 'pointer' },
+  };
+
+  return (<>
+    <div style={{ marginBottom: 28 }}>
+      <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.35em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
+        <span style={{ width: 18, height: 1, background: HUB_PALETTE.champanhe }} />Histórico
+      </div>
+      <h2 style={{ fontFamily: 'Fraunces, serif', fontWeight: 300, fontStyle: 'italic', fontSize: 40, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: '0 0 10px' }}>Alterações no painel.</h2>
+      <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: HUB_PALETTE.areiaDim, lineHeight: 1.5, margin: 0 }}>
+        Toda criação, edição, ativação/inativação ou exclusão de admin feita por aqui fica registrada. Mostrando os {(log && log.length) || 0} eventos mais recentes.
+      </p>
+    </div>
+
+    {/* Toolbar */}
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 0', borderTop: `1px solid ${HUB_PALETTE.areiaDim}22`, borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, marginBottom: 0, flexWrap: 'wrap' }}>
+      <input type="date" value={filterDate} onChange={e => setFilterDate(e.target.value)}
+        style={{ ...cs.input, padding: '8px 12px', width: 170, fontSize: 13 }} title="Filtrar por dia" />
+      {filterDate && (
+        <button onClick={() => setFilterDate('')} style={{ ...cs.btnGhost, padding: '8px 14px', fontSize: 10 }}>× Limpar</button>
+      )}
+      <button onClick={carregar} disabled={loading} style={{ ...cs.btnGhost, padding: '8px 14px', fontSize: 10, marginLeft: 'auto' }}>
+        {loading ? '…' : '↻ Atualizar'}
+      </button>
+    </div>
+
+    {/* Conteudo */}
+    {log === null ? (
+      <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.2em', color: HUB_PALETTE.areiaDim, textTransform: 'uppercase', padding: '40px 0' }}>Carregando...</div>
+    ) : filtrado.length === 0 && !filterDate ? (
+      <div style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontSize: 16, color: HUB_PALETTE.areiaDim, padding: '40px 0' }}>Nenhum registro ainda.</div>
+    ) : filtrado.length === 0 ? (
+      <div style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontSize: 16, color: HUB_PALETTE.areiaDim, padding: '40px 0' }}>Nenhum registro neste dia.</div>
+    ) : (
+      <div>
+        {grupos.map((gr, gi) => (
+          <div key={gr.key} style={{ marginTop: gi === 0 ? 0 : 24 }}>
+            <div style={{ position: 'sticky', top: 0, zIndex: 1, display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, padding: '12px 0', background: `linear-gradient(${HUB_PALETTE.noite}, ${HUB_PALETTE.noite} 80%, ${HUB_PALETTE.noite}00)`, borderBottom: `1px solid ${HUB_PALETTE.champanhe}44`, fontFamily: 'Fraunces, serif', fontStyle: 'italic' }}>
+              <span style={{ fontSize: 17, fontWeight: 500, color: HUB_PALETTE.marfim, textTransform: 'capitalize' }}>{gr.label}</span>
+              <span style={{ fontFamily: 'JetBrains Mono, monospace', fontStyle: 'normal', fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim }}>
+                {gr.itens.length} {gr.itens.length === 1 ? 'registro' : 'registros'}
+              </span>
+            </div>
+            {gr.itens.map(e => {
+              const cor = ACTION_COR[e.action] || HUB_PALETTE.areiaDim;
+              const label = ACTION_LABEL[e.action] || e.action;
+              const camposKeys = Object.keys(e.campos || {}).filter(k => k in FIELD_LABEL);
+              return (
+                <div key={e.id} style={{ padding: '14px 0', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22` }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                    <span style={{ display: 'inline-flex', padding: '3px 10px', fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', background: cor + '22', color: cor, border: `1px solid ${cor}55` }}>{label}</span>
+                    <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13.5, color: HUB_PALETTE.marfim, fontWeight: 500, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {e.target_nome || `Admin #${e.target_id}`}
+                    </span>
+                    <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 12.5, color: HUB_PALETTE.areia }}>por <strong style={{ color: HUB_PALETTE.champanhe, fontWeight: 600 }}>{e.by_nome || e.by_email}</strong></span>
+                    <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: HUB_PALETTE.areiaDim, fontVariantNumeric: 'tabular-nums' }}>{fmtHora(e.at)}</span>
+                  </div>
+                  {camposKeys.length > 0 && (
+                    <div style={{ marginTop: 8, paddingLeft: 12, display: 'flex', flexWrap: 'wrap', gap: '4px 14px' }}>
+                      {camposKeys.map(k => (
+                        <span key={k} style={{ fontFamily: 'Inter, sans-serif', fontSize: 12.5, color: HUB_PALETTE.areia }}>
+                          <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.16em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginRight: 5 }}>{FIELD_LABEL[k]}</span>
+                          {fmtVal(k, e.campos[k])}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+    )}
+  </>);
 }
 
 // ─── Setores (CRUD) ─────────────────────────────────────────────────────────
