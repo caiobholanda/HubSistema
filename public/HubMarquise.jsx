@@ -459,6 +459,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
 
   const ABAS = [
     { id: 'contas', label: 'Usuários' },
+    { id: 'setores', label: 'Setores' },
     { id: 'links', label: 'Links' },
   ];
 
@@ -645,6 +646,208 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
         {/* ── Aba Contas ── */}
         {aba === 'contas' && <ContasPanel isMobile={isMobile} />}
 
+        {/* ── Aba Setores ── */}
+        {aba === 'setores' && <SetoresPanel isMobile={isMobile} />}
+
+      </div>
+    </div>
+  );
+}
+
+// ─── Setores (CRUD) ─────────────────────────────────────────────────────────
+function SetoresPanel({ isMobile }) {
+  const [lista, setLista] = useState(null);
+  const [busca, setBusca] = useState('');
+  const [buscaDebounced, setBuscaDebounced] = useState('');
+  const [editing, setEditing] = useState(null); // { id, nome } | null
+  const [creating, setCreating] = useState(false);
+  const [confirmar, setConfirmar] = useState(null); // { id, nome }
+  const [saving, setSaving] = useState(false);
+  const [erro, setErro] = useState('');
+  const [toast, setToast] = useState('');
+
+  useEffect(() => {
+    const t = setTimeout(() => setBuscaDebounced(busca), 150);
+    return () => clearTimeout(t);
+  }, [busca]);
+
+  function token() { return localStorage.getItem('hub_sso_token'); }
+  function notify(msg, isErr) { setToast({ msg, err: !!isErr }); setTimeout(() => setToast(''), 2800); }
+
+  async function carregar() {
+    try {
+      const r = await fetch('/api/admin/chamados-setores', { headers: { Authorization: `Bearer ${token()}` } });
+      const d = await r.json();
+      if (r.ok && d.ok) setLista(d.setores || []);
+      else { setLista([]); notify(d.erro || 'Erro ao carregar setores', true); }
+    } catch { setLista([]); notify('Erro de conexão', true); }
+  }
+  useEffect(() => { carregar(); }, []);
+
+  function startNovo() { setErro(''); setCreating(true); }
+  function startEdit(s) { setErro(''); setEditing({ id: s.id, nome: s.nome }); }
+  function fechar() { setEditing(null); setCreating(false); setErro(''); }
+
+  async function salvar(nome, id) {
+    nome = (nome || '').trim();
+    if (!nome) { setErro('Nome obrigatório'); return; }
+    setSaving(true); setErro('');
+    const url = id ? `/api/admin/chamados-setores/${id}` : '/api/admin/chamados-setores';
+    const method = id ? 'PUT' : 'POST';
+    try {
+      const r = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
+        body: JSON.stringify({ nome }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.ok) { setErro(d.erro || `Erro ${r.status}`); setSaving(false); return; }
+      notify(id ? 'Setor atualizado' : 'Setor criado');
+      fechar();
+      await carregar();
+    } catch { setErro('Erro de conexão'); }
+    setSaving(false);
+  }
+
+  async function confirmarExclusao() {
+    if (!confirmar) return;
+    const id = confirmar.id;
+    setConfirmar(null);
+    try {
+      const r = await fetch(`/api/admin/chamados-setores/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token()}` },
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.ok) { notify(d.erro || 'Erro ao excluir', true); return; }
+      notify('Setor excluído');
+      await carregar();
+    } catch { notify('Erro de conexão', true); }
+  }
+
+  const q = buscaDebounced.trim().toLowerCase();
+  const filtrada = (lista || []).filter(s => !q || (s.nome || '').toLowerCase().includes(q));
+
+  const cs = {
+    input: { width: '100%', boxSizing: 'border-box', background: HUB_PALETTE.areiaDim + '0a', border: `1px solid ${HUB_PALETTE.areiaDim}33`, color: HUB_PALETTE.marfim, fontFamily: 'Inter, sans-serif', fontSize: 14, padding: '10px 14px', outline: 'none' },
+    label: { fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 6, display: 'block' },
+    btnPrim: { background: HUB_PALETTE.champanhe, color: HUB_PALETTE.noite, border: 'none', padding: '12px 22px', fontFamily: 'JetBrains Mono, monospace', fontSize: 12, fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase', cursor: 'pointer' },
+    btnGhost: { background: 'transparent', color: HUB_PALETTE.marfim, border: `1px solid ${HUB_PALETTE.areiaDim}77`, padding: '12px 22px', fontFamily: 'JetBrains Mono, monospace', fontSize: 12, fontWeight: 500, letterSpacing: '0.2em', textTransform: 'uppercase', cursor: 'pointer' },
+    btnDanger: { background: 'transparent', color: '#E07A5F', border: '1px solid #E07A5F88', padding: '12px 22px', fontFamily: 'JetBrains Mono, monospace', fontSize: 12, fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase', cursor: 'pointer' },
+  };
+
+  return (<>
+    <div style={{ marginBottom: 28 }}>
+      <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.35em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
+        <span style={{ width: 18, height: 1, background: HUB_PALETTE.champanhe }} />Setores
+      </div>
+      <h2 style={{ fontFamily: 'Fraunces, serif', fontWeight: 300, fontStyle: 'italic', fontSize: 40, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: '0 0 10px' }}>Setores do hotel.</h2>
+      <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: HUB_PALETTE.areiaDim, lineHeight: 1.5, margin: 0 }}>
+        Gerencie os setores disponíveis para seleção em chamados e cadastros de usuários. Os dados ficam no sistema-chamados; aqui é só a interface.
+      </p>
+    </div>
+
+    {/* Toolbar */}
+    <div style={{ display: 'flex', gap: 12, marginBottom: 18, flexWrap: 'wrap' }}>
+      <input type="text" placeholder="Filtrar por nome..." value={busca} onChange={e => setBusca(e.target.value)}
+        autoComplete="off" name="setores-busca-livre" spellCheck={false}
+        style={{ ...cs.input, flex: 1, minWidth: 260 }} />
+      <button onClick={startNovo} style={cs.btnPrim}>+ Novo setor</button>
+    </div>
+
+    {/* Lista */}
+    {lista === null ? (
+      <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.2em', color: HUB_PALETTE.areiaDim, textTransform: 'uppercase', padding: '40px 0' }}>Carregando...</div>
+    ) : filtrada.length === 0 ? (
+      <div style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontSize: 16, color: HUB_PALETTE.areiaDim, padding: '40px 0' }}>
+        {q ? 'Nenhum setor encontrado.' : 'Nenhum setor cadastrado ainda.'}
+      </div>
+    ) : (
+      <div style={{ display: 'flex', flexDirection: 'column', borderTop: `1px solid ${HUB_PALETTE.areiaDim}22` }}>
+        {filtrada.map(s => (
+          <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '20px 4px', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, flexWrap: 'wrap' }}>
+            <div style={{ flex: 1, minWidth: 220, fontFamily: 'Inter, sans-serif', fontSize: 17, color: HUB_PALETTE.marfim, fontWeight: 600 }}>
+              {s.nome}
+            </div>
+            <button onClick={() => startEdit(s)} style={cs.btnGhost}>Editar</button>
+            <button onClick={() => setConfirmar({ id: s.id, nome: s.nome })} style={cs.btnDanger}>Excluir</button>
+          </div>
+        ))}
+      </div>
+    )}
+
+    {/* Modal Criar/Editar */}
+    {(creating || editing) && (
+      <SetorForm isMobile={isMobile} cs={cs} erro={erro} saving={saving}
+        initialNome={editing ? editing.nome : ''}
+        isEdit={!!editing}
+        onCancel={fechar}
+        onSave={(nome) => salvar(nome, editing ? editing.id : null)} />
+    )}
+
+    {/* Modal Confirmar exclusão */}
+    {confirmar && (
+      <div onClick={e => e.target === e.currentTarget && setConfirmar(null)}
+        style={{ position: 'fixed', inset: 0, zIndex: 160, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+        <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, maxWidth: 420, width: '100%', padding: isMobile ? '24px 20px' : '32px 36px' }}>
+          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: '#E07A5F', marginBottom: 6 }}>Confirmar exclusão</div>
+          <h3 style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontWeight: 300, fontSize: 22, color: HUB_PALETTE.marfim, margin: '0 0 14px', lineHeight: 1.25 }}>
+            Excluir o setor "{confirmar.nome}"?
+          </h3>
+          <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areia, margin: '0 0 22px', lineHeight: 1.5 }}>
+            Esta ação não pode ser desfeita.
+          </p>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+            <button onClick={() => setConfirmar(null)} style={cs.btnGhost}>Cancelar</button>
+            <button onClick={confirmarExclusao} style={cs.btnDanger}>Excluir</button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {toast && (
+      <div style={{ position: 'fixed', bottom: 32, left: '50%', transform: 'translateX(-50%)', zIndex: 200, background: toast.err ? '#E07A5F' : HUB_PALETTE.champanhe, color: toast.err ? '#fff' : HUB_PALETTE.noite, fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase', padding: '12px 22px' }}>
+        {toast.msg}
+      </div>
+    )}
+  </>);
+}
+
+function SetorForm({ isMobile, cs, erro, saving, initialNome, isEdit, onCancel, onSave }) {
+  const [nome, setNome] = useState(initialNome || '');
+  const inputRef = useRef(null);
+  useEffect(() => {
+    const t = setTimeout(() => { if (inputRef.current) inputRef.current.focus(); }, 60);
+    return () => clearTimeout(t);
+  }, []);
+  function handleKey(e) {
+    if (e.key === 'Enter' && !saving) { e.preventDefault(); onSave(nome); }
+    if (e.key === 'Escape' && !saving) { e.preventDefault(); onCancel(); }
+  }
+  return (
+    <div onClick={e => e.target === e.currentTarget && !saving && onCancel()}
+      style={{ position: 'fixed', inset: 0, zIndex: 150, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, maxWidth: 460, width: '100%', padding: isMobile ? '24px 20px' : '32px 36px' }}>
+        <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 6 }}>Setor</div>
+        <h3 style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontWeight: 300, fontSize: 26, color: HUB_PALETTE.marfim, margin: '0 0 22px' }}>
+          {isEdit ? 'Editar setor' : 'Informar novo setor'}
+        </h3>
+        <form autoComplete="off" onSubmit={e => { e.preventDefault(); onSave(nome); }}>
+          <label style={cs.label}>Nome do setor *</label>
+          <input ref={inputRef} style={cs.input} value={nome} maxLength={80}
+            autoComplete="off" name="setor-nome-randomx1" spellCheck={false}
+            onChange={e => setNome(e.target.value)} onKeyDown={handleKey}
+            placeholder="Ex: Recepção, Financeiro, TI…" />
+          {erro && (
+            <div style={{ marginTop: 14, padding: '10px 12px', border: '1px solid #E07A5F66', color: '#E07A5F', fontSize: 13, fontFamily: 'Inter, sans-serif' }}>
+              {erro}
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: 10, marginTop: 22, justifyContent: 'flex-end' }}>
+            <button type="button" onClick={onCancel} disabled={saving} style={cs.btnGhost}>Cancelar</button>
+            <button type="submit" disabled={saving} style={cs.btnPrim}>{saving ? '...' : (isEdit ? 'Salvar' : 'Criar')}</button>
+          </div>
+        </form>
       </div>
     </div>
   );

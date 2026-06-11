@@ -313,6 +313,18 @@ app.get('/api/admin/chamados-etiquetas', requireAdmin, async (_req, res) => {
 app.get('/api/admin/chamados-setores', requireAdmin, async (_req, res) => {
   const r = await proxyChamados('/setores'); res.status(r.status).json(r.data);
 });
+app.post('/api/admin/chamados-setores', requireAdmin, async (req, res) => {
+  const r = await proxyChamados('/setores', { method: 'POST', body: req.body });
+  res.status(r.status).json(r.data);
+});
+app.put('/api/admin/chamados-setores/:id', requireAdmin, async (req, res) => {
+  const r = await proxyChamados(`/setores/${encodeURIComponent(req.params.id)}`, { method: 'PUT', body: req.body });
+  res.status(r.status).json(r.data);
+});
+app.delete('/api/admin/chamados-setores/:id', requireAdmin, async (req, res) => {
+  const r = await proxyChamados(`/setores/${encodeURIComponent(req.params.id)}`, { method: 'DELETE' });
+  res.status(r.status).json(r.data);
+});
 app.get('/api/admin/chamados-admins/:id/etiquetas', requireAdmin, async (req, res) => {
   const r = await proxyChamados(`/admins/${encodeURIComponent(req.params.id)}/etiquetas`);
   res.status(r.status).json(r.data);
