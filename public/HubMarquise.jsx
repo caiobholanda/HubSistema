@@ -1083,6 +1083,23 @@ function ContasPanel({ isMobile }) {
   const [confirmAtivo, setConfirmAtivo] = useState(null); // { tipo, row, ativar:boolean }
   const [togglingAtivo, setTogglingAtivo] = useState(false);
 
+  // Email do admin logado (extraido do JWT em localStorage). Usado para impedir
+  // que ele ative/desative a propria conta.
+  const meuEmail = (() => {
+    try {
+      const t = localStorage.getItem('hub_sso_token');
+      if (!t) return '';
+      const [, b64] = t.split('.');
+      const padding = b64.length % 4 === 0 ? '' : '='.repeat(4 - (b64.length % 4));
+      const payload = JSON.parse(atob(b64.replace(/-/g, '+').replace(/_/g, '/') + padding));
+      return (payload.email || '').toLowerCase();
+    } catch { return ''; }
+  })();
+  function ehEuMesmo(tipo, row) {
+    if (tipo !== 'admin' || !meuEmail || !row || !row.email) return false;
+    return String(row.email).toLowerCase() === meuEmail;
+  }
+
   function token() { return localStorage.getItem('hub_sso_token'); }
   function notify(msg) { setToast(msg); setTimeout(() => setToast(''), 2600); }
   function toggleRevelar(key) { setRevelado(p => ({ ...p, [key]: !p[key] })); }
@@ -1192,6 +1209,11 @@ function ContasPanel({ isMobile }) {
   }
   // Toggle agora passa por modal de confirmacao (definido no JSX abaixo).
   function pedirConfirmacaoToggle(tipo, row) {
+    // Salvaguarda no front: admin nao pode ativar/inativar a si mesmo
+    if (ehEuMesmo(tipo, row)) {
+      notify('Você não pode ativar/desativar sua própria conta.');
+      return;
+    }
     const estaAtivo = tipo === 'admin' ? row.ativo === 1 : row.ativo !== 0;
     setConfirmAtivo({ tipo, row, ativar: !estaAtivo });
   }
@@ -1339,10 +1361,17 @@ function ContasPanel({ isMobile }) {
                 <button onClick={() => setHistoricoUsuario({ id: row.id, nome: row.nome })} style={cs.btnGhost}>Histórico</button>
               )}
               <button onClick={() => startEdit(isAdmin ? 'admin' : 'usuario', row)} style={cs.btnGhost}>Editar</button>
-              <button onClick={() => pedirConfirmacaoToggle(isAdmin ? 'admin' : 'usuario', row)}
-                style={{ ...cs.btnGhost, color: ativo ? '#E07A5F' : HUB_PALETTE.champanhe, borderColor: (ativo ? '#E07A5F' : HUB_PALETTE.champanhe) + '66' }}>
-                {ativo ? 'Inativar' : 'Ativar'}
-              </button>
+              {ehEuMesmo(isAdmin ? 'admin' : 'usuario', row) ? (
+                <span title="Você não pode ativar/desativar sua própria conta"
+                  style={{ ...cs.btnGhost, color: HUB_PALETTE.areiaDim, borderColor: HUB_PALETTE.areiaDim + '33', cursor: 'not-allowed', fontStyle: 'italic' }}>
+                  Você
+                </span>
+              ) : (
+                <button onClick={() => pedirConfirmacaoToggle(isAdmin ? 'admin' : 'usuario', row)}
+                  style={{ ...cs.btnGhost, color: ativo ? '#E07A5F' : HUB_PALETTE.champanhe, borderColor: (ativo ? '#E07A5F' : HUB_PALETTE.champanhe) + '66' }}>
+                  {ativo ? 'Inativar' : 'Ativar'}
+                </button>
+              )}
             </div>
           );
         })}

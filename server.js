@@ -422,6 +422,11 @@ app.post('/api/admin/chamados-admins', requireAdmin, async (req, res) => {
 app.patch('/api/admin/chamados-admins/:id', requireAdmin, async (req, res) => {
   const id = req.params.id;
   const antes = await _buscarAdminAlvo(id);
+  // Salvaguarda: admin nao pode ativar/inativar a propria conta pelo Hub.
+  if (antes && 'ativo' in (req.body || {}) && req.hubUser.email && antes.email
+      && antes.email.toLowerCase() === String(req.hubUser.email).toLowerCase()) {
+    return res.status(403).json({ ok: false, erro: 'Você não pode ativar/desativar sua própria conta.' });
+  }
   const r = await proxyChamados(`/admins/${encodeURIComponent(id)}`, { method: 'PATCH', body: req.body });
   if (r.status >= 200 && r.status < 300 && r.data && r.data.ok) {
     const b = req.body || {};
