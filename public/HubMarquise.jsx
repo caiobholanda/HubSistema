@@ -1080,6 +1080,8 @@ function ContasPanel({ isMobile }) {
   const [toast, setToast] = useState('');
   const [historicoUsuario, setHistoricoUsuario] = useState(null); // { id, nome }
   const [revelado, setRevelado] = useState({}); // { tipo-id: true }
+  const [confirmAtivo, setConfirmAtivo] = useState(null); // { tipo, row, ativar:boolean }
+  const [togglingAtivo, setTogglingAtivo] = useState(false);
 
   function token() { return localStorage.getItem('hub_sso_token'); }
   function notify(msg) { setToast(msg); setTimeout(() => setToast(''), 2600); }
@@ -1188,21 +1190,32 @@ function ContasPanel({ isMobile }) {
     } catch { setErro('Erro de conexão'); }
     setSaving(false);
   }
-  async function toggleAtivo(tipo, row) {
+  // Toggle agora passa por modal de confirmacao (definido no JSX abaixo).
+  function pedirConfirmacaoToggle(tipo, row) {
+    const estaAtivo = tipo === 'admin' ? row.ativo === 1 : row.ativo !== 0;
+    setConfirmAtivo({ tipo, row, ativar: !estaAtivo });
+  }
+  async function executarToggleAtivo() {
+    if (!confirmAtivo) return;
+    const { tipo, row, ativar } = confirmAtivo;
+    setTogglingAtivo(true);
     const rota = tipo === 'admin' ? `/api/admin/chamados-admins/${row.id}` : `/api/admin/chamados-usuarios/${row.id}`;
-    const novoAtivo = row.ativo ? 0 : 1;
-    const r = await fetch(rota, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
-      body: JSON.stringify({ ativo: novoAtivo }),
-    });
-    const d = await r.json();
-    if (r.ok && d.ok) {
-      notify(novoAtivo ? 'Ativado.' : 'Desativado.');
-      if (tipo === 'admin') loadAdmins(); else loadUsuarios();
-    } else {
-      notify(d.erro || 'Falha ao atualizar.');
-    }
+    try {
+      const r = await fetch(rota, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
+        body: JSON.stringify({ ativo: ativar ? 1 : 0 }),
+      });
+      const d = await r.json();
+      if (r.ok && d.ok) {
+        notify(ativar ? 'Conta ativada.' : 'Conta desativada.');
+        setConfirmAtivo(null);
+        if (tipo === 'admin') loadAdmins(); else loadUsuarios();
+      } else {
+        notify(d.erro || 'Falha ao atualizar.');
+      }
+    } catch { notify('Erro de conexão.'); }
+    setTogglingAtivo(false);
   }
 
   const isAdmin = subAba === 'admins';
@@ -1326,7 +1339,7 @@ function ContasPanel({ isMobile }) {
                 <button onClick={() => setHistoricoUsuario({ id: row.id, nome: row.nome })} style={cs.btnGhost}>Histórico</button>
               )}
               <button onClick={() => startEdit(isAdmin ? 'admin' : 'usuario', row)} style={cs.btnGhost}>Editar</button>
-              <button onClick={() => toggleAtivo(isAdmin ? 'admin' : 'usuario', row)}
+              <button onClick={() => pedirConfirmacaoToggle(isAdmin ? 'admin' : 'usuario', row)}
                 style={{ ...cs.btnGhost, color: ativo ? '#E07A5F' : HUB_PALETTE.champanhe, borderColor: (ativo ? '#E07A5F' : HUB_PALETTE.champanhe) + '66' }}>
                 {ativo ? 'Inativar' : 'Ativar'}
               </button>
@@ -1358,6 +1371,41 @@ function ContasPanel({ isMobile }) {
       <HistoricoUsuarioModal usuarioId={historicoUsuario.id} nome={historicoUsuario.nome} isMobile={isMobile} cs={cs}
         onClose={() => setHistoricoUsuario(null)} />
     )}
+
+    {/* Modal Confirmar ativar/inativar */}
+    {confirmAtivo && (() => {
+      const { tipo, row, ativar } = confirmAtivo;
+      const nome = tipo === 'admin' ? row.nome_completo : row.nome;
+      const acaoLabel = ativar ? 'ATIVAR' : 'DESATIVAR';
+      const cor = ativar ? HUB_PALETTE.champanhe : '#E07A5F';
+      return (
+        <div onClick={e => e.target === e.currentTarget && !togglingAtivo && setConfirmAtivo(null)}
+          style={{ position: 'fixed', inset: 0, zIndex: 170, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, maxWidth: 460, width: '100%', padding: isMobile ? '24px 20px' : '32px 36px' }}>
+            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: cor, marginBottom: 6 }}>
+              Confirmar {acaoLabel}
+            </div>
+            <h3 style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontWeight: 300, fontSize: 22, color: HUB_PALETTE.marfim, margin: '0 0 14px', lineHeight: 1.3 }}>
+              {ativar ? 'Ativar' : 'Desativar'} {tipo === 'admin' ? 'o admin' : 'o usuário'} <span style={{ color: HUB_PALETTE.champanhe }}>"{nome}"</span>?
+            </h3>
+            <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13.5, color: HUB_PALETTE.areia, margin: '0 0 22px', lineHeight: 1.5 }}>
+              {ativar
+                ? 'A conta voltará a funcionar normalmente. A pessoa poderá logar e ser referenciada em chamados.'
+                : 'A conta deixará de funcionar. A pessoa não conseguirá mais logar até ser reativada. Os dados não são apagados.'}
+            </p>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button onClick={() => setConfirmAtivo(null)} disabled={togglingAtivo} style={cs.btnGhost}>Cancelar</button>
+              <button onClick={executarToggleAtivo} disabled={togglingAtivo}
+                style={ativar
+                  ? cs.btnPrim
+                  : { ...cs.btnGhost, color: '#E07A5F', borderColor: '#E07A5F88', fontWeight: 600 }}>
+                {togglingAtivo ? '...' : (ativar ? 'Ativar' : 'Desativar')}
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    })()}
 
     {toast && (
       <div style={{ position: 'fixed', bottom: 32, left: '50%', transform: 'translateX(-50%)', zIndex: 200, background: HUB_PALETTE.champanhe, color: HUB_PALETTE.noite, fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase', padding: '12px 22px' }}>
