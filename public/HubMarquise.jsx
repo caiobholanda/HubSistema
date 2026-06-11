@@ -459,6 +459,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
   const ABAS = [
     { id: 'links', label: 'Links' },
     { id: 'usuarios', label: 'Usuários' },
+    { id: 'contas', label: 'Contas' },
   ];
 
   return (
@@ -725,6 +726,281 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
           )}
         </>)}
 
+        {/* ── Aba Contas ── */}
+        {aba === 'contas' && <ContasPanel isMobile={isMobile} />}
+
+      </div>
+    </div>
+  );
+}
+
+// ─── Contas (CRUD de admins do TI e usuarios do portal) ─────────────────────
+function ContasPanel({ isMobile }) {
+  const [subAba, setSubAba] = useState('admins');
+  const [admins, setAdmins] = useState(null);
+  const [usuarios, setUsuarios] = useState(null);
+  const [busca, setBusca] = useState('');
+  const [editing, setEditing] = useState(null); // { tipo, id, dados }
+  const [creating, setCreating] = useState(null); // 'admin' | 'usuario'
+  const [saving, setSaving] = useState(false);
+  const [erro, setErro] = useState('');
+  const [toast, setToast] = useState('');
+
+  function token() { return localStorage.getItem('hub_sso_token'); }
+  function notify(msg) { setToast(msg); setTimeout(() => setToast(''), 2600); }
+
+  async function loadAdmins() {
+    try {
+      const r = await fetch('/api/admin/chamados-admins', { headers: { Authorization: `Bearer ${token()}` } });
+      const d = await r.json();
+      if (d.ok) setAdmins(d.admins || []);
+      else setAdmins([]);
+    } catch { setAdmins([]); }
+  }
+  async function loadUsuarios() {
+    try {
+      const r = await fetch('/api/admin/chamados-usuarios', { headers: { Authorization: `Bearer ${token()}` } });
+      const d = await r.json();
+      if (d.ok) setUsuarios(d.usuarios || []);
+      else setUsuarios([]);
+    } catch { setUsuarios([]); }
+  }
+  useEffect(() => { loadAdmins(); loadUsuarios(); }, []);
+
+  function startEdit(tipo, row) {
+    setErro('');
+    if (tipo === 'admin') {
+      setEditing({ tipo, id: row.id, dados: {
+        nome_completo: row.nome_completo, email: row.email || '',
+        ramal: row.ramal || '', is_master: !!row.is_master,
+        senha: '', ativo: !!row.ativo,
+      }});
+    } else {
+      setEditing({ tipo, id: row.id, dados: {
+        nome: row.nome, email: row.email || '', setor: row.setor || '',
+        ramal: row.ramal || '', senha: '', ativo: row.ativo !== 0,
+      }});
+    }
+  }
+  function startNew(tipo) {
+    setErro('');
+    if (tipo === 'admin') setCreating('admin');
+    else setCreating('usuario');
+  }
+  function fecharModal() { setEditing(null); setCreating(null); setErro(''); }
+
+  async function salvarNovo(tipo, dados) {
+    setSaving(true); setErro('');
+    const rota = tipo === 'admin' ? '/api/admin/chamados-admins' : '/api/admin/chamados-usuarios';
+    try {
+      const r = await fetch(rota, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
+        body: JSON.stringify(dados),
+      });
+      const d = await r.json();
+      if (!r.ok || !d.ok) { setErro(d.erro || `Erro ${r.status}`); setSaving(false); return; }
+      notify(tipo === 'admin' ? 'Admin criado.' : 'Usuário criado.');
+      fecharModal();
+      if (tipo === 'admin') loadAdmins(); else loadUsuarios();
+    } catch { setErro('Erro de conexão'); }
+    setSaving(false);
+  }
+  async function salvarEdit(tipo, id, dados) {
+    setSaving(true); setErro('');
+    const rota = tipo === 'admin' ? `/api/admin/chamados-admins/${id}` : `/api/admin/chamados-usuarios/${id}`;
+    // Remove senha se vazia (nao alterar)
+    const body = { ...dados };
+    if (!body.senha) delete body.senha;
+    try {
+      const r = await fetch(rota, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
+        body: JSON.stringify(body),
+      });
+      const d = await r.json();
+      if (!r.ok || !d.ok) { setErro(d.erro || `Erro ${r.status}`); setSaving(false); return; }
+      notify('Salvo.');
+      fecharModal();
+      if (tipo === 'admin') loadAdmins(); else loadUsuarios();
+    } catch { setErro('Erro de conexão'); }
+    setSaving(false);
+  }
+  async function toggleAtivo(tipo, row) {
+    const rota = tipo === 'admin' ? `/api/admin/chamados-admins/${row.id}` : `/api/admin/chamados-usuarios/${row.id}`;
+    const novoAtivo = row.ativo ? 0 : 1;
+    const r = await fetch(rota, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
+      body: JSON.stringify({ ativo: novoAtivo }),
+    });
+    const d = await r.json();
+    if (r.ok && d.ok) {
+      notify(novoAtivo ? 'Ativado.' : 'Desativado.');
+      if (tipo === 'admin') loadAdmins(); else loadUsuarios();
+    } else {
+      notify(d.erro || 'Falha ao atualizar.');
+    }
+  }
+
+  const isAdmin = subAba === 'admins';
+  const lista = isAdmin ? admins : usuarios;
+  const q = busca.trim().toLowerCase();
+  const filtrada = (lista || []).filter(r => {
+    if (!q) return true;
+    const nome = isAdmin ? r.nome_completo : r.nome;
+    return (nome || '').toLowerCase().includes(q) || (r.email || '').toLowerCase().includes(q);
+  });
+
+  const cs = {
+    bg: HUB_PALETTE.areiaDim + '0a',
+    border: HUB_PALETTE.areiaDim + '33',
+    input: { width: '100%', boxSizing: 'border-box', background: HUB_PALETTE.areiaDim + '0a', border: `1px solid ${HUB_PALETTE.areiaDim}33`, color: HUB_PALETTE.marfim, fontFamily: 'Inter, sans-serif', fontSize: 14, padding: '10px 14px', outline: 'none' },
+    label: { fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 6, display: 'block' },
+    btnPrim: { background: HUB_PALETTE.champanhe, color: HUB_PALETTE.noite, border: 'none', padding: '10px 18px', fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase', cursor: 'pointer' },
+    btnGhost: { background: 'transparent', color: HUB_PALETTE.areiaDim, border: `1px solid ${HUB_PALETTE.areiaDim}55`, padding: '10px 18px', fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase', cursor: 'pointer' },
+  };
+
+  return (<>
+    <div style={{ marginBottom: 28 }}>
+      <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.35em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
+        <span style={{ width: 18, height: 1, background: HUB_PALETTE.champanhe }} />Contas
+      </div>
+      <h2 style={{ fontFamily: 'Fraunces, serif', fontWeight: 300, fontStyle: 'italic', fontSize: 40, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: '0 0 10px' }}>Gerenciar contas.</h2>
+      <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: HUB_PALETTE.areiaDim, lineHeight: 1.5, margin: 0 }}>
+        Crie, edite ou desative admins do TI e usuários do portal de chamados. Os dados ficam no sistema-chamados; aqui é só a interface.
+      </p>
+    </div>
+
+    {/* Sub-tabs */}
+    <div style={{ display: 'flex', gap: 0, borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, marginBottom: 20 }}>
+      {[{ id: 'admins', label: 'Admins do TI' }, { id: 'usuarios', label: 'Usuários do portal' }].map(s => (
+        <button key={s.id} onClick={() => { setSubAba(s.id); setBusca(''); }}
+          style={{ background: 'transparent', border: 'none', borderBottom: `2px solid ${subAba === s.id ? HUB_PALETTE.champanhe : 'transparent'}`, color: subAba === s.id ? HUB_PALETTE.champanhe : HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', padding: '10px 18px 8px', cursor: 'pointer' }}>
+          {s.label}
+        </button>
+      ))}
+    </div>
+
+    {/* Toolbar */}
+    <div style={{ display: 'flex', gap: 12, marginBottom: 18, flexWrap: 'wrap' }}>
+      <input type="text" placeholder="Filtrar por nome ou e-mail..." value={busca} onChange={e => setBusca(e.target.value)}
+        style={{ ...cs.input, flex: 1, minWidth: 220 }} />
+      <button onClick={() => startNew(isAdmin ? 'admin' : 'usuario')} style={cs.btnPrim}>
+        + Novo {isAdmin ? 'admin' : 'usuário'}
+      </button>
+    </div>
+
+    {/* Lista */}
+    {lista === null ? (
+      <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.2em', color: HUB_PALETTE.areiaDim, textTransform: 'uppercase', padding: '40px 0' }}>Carregando...</div>
+    ) : filtrada.length === 0 ? (
+      <div style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontSize: 16, color: HUB_PALETTE.areiaDim, padding: '40px 0' }}>Nenhum registro.</div>
+    ) : (
+      <div style={{ display: 'flex', flexDirection: 'column', borderTop: `1px solid ${HUB_PALETTE.areiaDim}22` }}>
+        {filtrada.map(row => (
+          <div key={row.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 0', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, opacity: row.ativo ? 1 : 0.55 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: HUB_PALETTE.marfim, fontWeight: 500 }}>
+                {isAdmin ? row.nome_completo : row.nome}
+                {isAdmin && row.is_master ? <span style={{ marginLeft: 8, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, padding: '2px 8px', border: `1px solid ${HUB_PALETTE.champanhe}66` }}>Master</span> : null}
+                {!row.ativo ? <span style={{ marginLeft: 8, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: '#E07A5F' }}>Inativo</span> : null}
+              </div>
+              <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 12.5, color: HUB_PALETTE.areiaDim, marginTop: 2 }}>
+                {row.email || '—'}
+                {row.setor ? <span> · {row.setor}</span> : null}
+                {row.ramal ? <span> · ramal {row.ramal}</span> : null}
+              </div>
+            </div>
+            <button onClick={() => startEdit(isAdmin ? 'admin' : 'usuario', row)} style={cs.btnGhost}>Editar</button>
+            <button onClick={() => toggleAtivo(isAdmin ? 'admin' : 'usuario', row)}
+              style={{ ...cs.btnGhost, color: row.ativo ? '#E07A5F' : HUB_PALETTE.champanhe, borderColor: (row.ativo ? '#E07A5F' : HUB_PALETTE.champanhe) + '66' }}>
+              {row.ativo ? 'Inativar' : 'Ativar'}
+            </button>
+          </div>
+        ))}
+      </div>
+    )}
+
+    {/* Modal Criar */}
+    {creating && (
+      <ContaForm tipo={creating} isMobile={isMobile} cs={cs} erro={erro} saving={saving}
+        onCancel={fecharModal}
+        onSave={(dados) => salvarNovo(creating, dados)} />
+    )}
+
+    {/* Modal Editar */}
+    {editing && (
+      <ContaForm tipo={editing.tipo} isMobile={isMobile} cs={cs} erro={erro} saving={saving}
+        initial={editing.dados} isEdit
+        onCancel={fecharModal}
+        onSave={(dados) => salvarEdit(editing.tipo, editing.id, dados)} />
+    )}
+
+    {toast && (
+      <div style={{ position: 'fixed', bottom: 32, left: '50%', transform: 'translateX(-50%)', zIndex: 200, background: HUB_PALETTE.champanhe, color: HUB_PALETTE.noite, fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase', padding: '12px 22px' }}>
+        {toast}
+      </div>
+    )}
+  </>);
+}
+
+function ContaForm({ tipo, isMobile, cs, erro, saving, initial, isEdit, onCancel, onSave }) {
+  const [d, setD] = useState(initial || (tipo === 'admin'
+    ? { nome_completo: '', email: '', ramal: '', is_master: false, senha: '' }
+    : { nome: '', email: '', setor: '', ramal: '', senha: '' }));
+  const set = (k, v) => setD(p => ({ ...p, [k]: v }));
+  const isAdmin = tipo === 'admin';
+  return (
+    <div onClick={e => e.target === e.currentTarget && onCancel()}
+      style={{ position: 'fixed', inset: 0, zIndex: 150, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, maxWidth: 460, width: '100%', padding: isMobile ? '24px 20px' : '32px 36px' }}>
+        <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 6 }}>
+          {isAdmin ? 'Admin do TI' : 'Usuário do portal'}
+        </div>
+        <h3 style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontWeight: 300, fontSize: 26, color: HUB_PALETTE.marfim, margin: '0 0 22px' }}>
+          {isEdit ? 'Editar' : 'Novo'}
+        </h3>
+
+        <label style={cs.label}>Nome</label>
+        <input style={cs.input} value={isAdmin ? d.nome_completo : d.nome}
+          onChange={e => set(isAdmin ? 'nome_completo' : 'nome', e.target.value)} />
+
+        <label style={{ ...cs.label, marginTop: 14 }}>E-mail</label>
+        <input style={cs.input} type="email" value={d.email}
+          onChange={e => set('email', e.target.value)} placeholder="usuario@granmarquise.com.br" />
+
+        {!isAdmin && (<>
+          <label style={{ ...cs.label, marginTop: 14 }}>Setor</label>
+          <input style={cs.input} value={d.setor} onChange={e => set('setor', e.target.value)} />
+        </>)}
+
+        <label style={{ ...cs.label, marginTop: 14 }}>Ramal {!isAdmin && <span style={{ textTransform: 'none', letterSpacing: 0, opacity: .6 }}>(4 dígitos)</span>}</label>
+        <input style={cs.input} value={d.ramal} onChange={e => set('ramal', e.target.value)} maxLength={isAdmin ? 20 : 4} />
+
+        <label style={{ ...cs.label, marginTop: 14 }}>Senha {isEdit && <span style={{ textTransform: 'none', letterSpacing: 0, opacity: .6 }}>(deixe em branco para não alterar)</span>}</label>
+        <input style={cs.input} type="password" value={d.senha} onChange={e => set('senha', e.target.value)}
+          placeholder="Mín. 8 com maiúscula, minúscula, número e especial" />
+
+        {isAdmin && (
+          <label style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 18, fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areia, cursor: 'pointer' }}>
+            <input type="checkbox" checked={!!d.is_master} onChange={e => set('is_master', e.target.checked)} />
+            Admin master (acesso total)
+          </label>
+        )}
+
+        {erro && (
+          <div style={{ marginTop: 16, padding: '10px 12px', border: '1px solid #E07A5F66', color: '#E07A5F', fontSize: 13, fontFamily: 'Inter, sans-serif' }}>
+            {erro}
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: 10, marginTop: 24, justifyContent: 'flex-end' }}>
+          <button onClick={onCancel} disabled={saving} style={cs.btnGhost}>Cancelar</button>
+          <button onClick={() => onSave(d)} disabled={saving} style={cs.btnPrim}>
+            {saving ? '...' : (isEdit ? 'Salvar' : 'Criar')}
+          </button>
+        </div>
       </div>
     </div>
   );
