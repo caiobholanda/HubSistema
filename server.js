@@ -271,6 +271,59 @@ app.delete('/api/admin/sistemas/:id', requireAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
+// ─── Proxy de CRUD de admins/usuarios para o sistema-chamados ──────────────
+// Hub valida JWT do admin do Hub; proxia com Bearer SSO_SECRET para /api/hub/*
+async function proxyChamados(path, { method = 'GET', body = null } = {}) {
+  try {
+    const r = await fetch(`${CHAMADOS_URL}/api/hub${path}`, {
+      method,
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${SSO_SECRET}` },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    const data = await r.json().catch(() => ({}));
+    return { status: r.status, data };
+  } catch (err) {
+    console.error('[proxyChamados]', path, err.message);
+    return { status: 502, data: { ok: false, erro: 'Sistema de chamados offline' } };
+  }
+}
+
+// Admins (CRUD)
+app.get('/api/admin/chamados-admins', requireAdmin, async (_req, res) => {
+  const r = await proxyChamados('/admins');
+  res.status(r.status).json(r.data);
+});
+app.post('/api/admin/chamados-admins', requireAdmin, async (req, res) => {
+  const r = await proxyChamados('/admins', { method: 'POST', body: req.body });
+  res.status(r.status).json(r.data);
+});
+app.patch('/api/admin/chamados-admins/:id', requireAdmin, async (req, res) => {
+  const r = await proxyChamados(`/admins/${encodeURIComponent(req.params.id)}`, { method: 'PATCH', body: req.body });
+  res.status(r.status).json(r.data);
+});
+app.delete('/api/admin/chamados-admins/:id', requireAdmin, async (req, res) => {
+  const r = await proxyChamados(`/admins/${encodeURIComponent(req.params.id)}`, { method: 'DELETE' });
+  res.status(r.status).json(r.data);
+});
+
+// Usuarios do portal (CRUD)
+app.get('/api/admin/chamados-usuarios', requireAdmin, async (_req, res) => {
+  const r = await proxyChamados('/portal-usuarios');
+  res.status(r.status).json(r.data);
+});
+app.post('/api/admin/chamados-usuarios', requireAdmin, async (req, res) => {
+  const r = await proxyChamados('/portal-usuarios', { method: 'POST', body: req.body });
+  res.status(r.status).json(r.data);
+});
+app.patch('/api/admin/chamados-usuarios/:id', requireAdmin, async (req, res) => {
+  const r = await proxyChamados(`/portal-usuarios/${encodeURIComponent(req.params.id)}`, { method: 'PATCH', body: req.body });
+  res.status(r.status).json(r.data);
+});
+app.delete('/api/admin/chamados-usuarios/:id', requireAdmin, async (req, res) => {
+  const r = await proxyChamados(`/portal-usuarios/${encodeURIComponent(req.params.id)}`, { method: 'DELETE' });
+  res.status(r.status).json(r.data);
+});
+
 app.delete('/api/admin/permissions/:email', requireAdmin, (req, res) => {
   const email = decodeURIComponent(req.params.email);
   const data = readData();
