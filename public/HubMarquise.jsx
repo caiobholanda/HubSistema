@@ -335,7 +335,10 @@ function LinkForm({ form, setForm, onSave, onCancel, linkErro, linkSaving }) {
 
 function HubAdmin({ onClose, hubSystems, setHubSystems }) {
   const isMobile = useWindowWidth() < 768;
-  const [aba, setAba] = useState('contas');
+  const [aba, _setAba] = useState(() => {
+    try { return sessionStorage.getItem('hub_admin_aba') || 'contas'; } catch { return 'contas'; }
+  });
+  const setAba = (v) => { try { sessionStorage.setItem('hub_admin_aba', v); } catch {} _setAba(v); };
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState([]);
   const [permissions, setPermissions] = useState({});
@@ -649,8 +652,14 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
 
 // ─── Contas (CRUD de admins do TI e usuarios do portal) ─────────────────────
 function ContasPanel({ isMobile }) {
-  const [subAba, setSubAba] = useState('usuarios');
-  const [statusAba, setStatusAba] = useState('ativos'); // ativos | inativos
+  const [subAba, _setSubAba] = useState(() => {
+    try { return sessionStorage.getItem('hub_contas_subaba') || 'usuarios'; } catch { return 'usuarios'; }
+  });
+  const setSubAba = (v) => { try { sessionStorage.setItem('hub_contas_subaba', v); } catch {} _setSubAba(v); };
+  const [statusAba, _setStatusAba] = useState(() => {
+    try { return sessionStorage.getItem('hub_contas_status') || 'ativos'; } catch { return 'ativos'; }
+  });
+  const setStatusAba = (v) => { try { sessionStorage.setItem('hub_contas_status', v); } catch {} _setStatusAba(v); };
   const [admins, setAdmins] = useState(null);
   const [usuarios, setUsuarios] = useState(null);
   const [setoresLista, setSetoresLista] = useState([]);
@@ -1474,7 +1483,14 @@ function HubDecoration() {
 // ─── Root ─────────────────────────────────────────────────────────────────────
 
 function HubMarquise() {
-  const [booting, setBooting] = useState(true);
+  // Mostra a animacao de boot apenas no primeiro carregamento da sessao.
+  // F5/Ctrl+Shift+R nao re-exibe a animacao se ja foi vista nesta sessao.
+  const [booting, setBooting] = useState(() => {
+    try { return sessionStorage.getItem('hub_boot_seen') !== '1'; } catch { return true; }
+  });
+  useEffect(() => {
+    if (!booting) { try { sessionStorage.setItem('hub_boot_seen', '1'); } catch {} }
+  }, [booting]);
   const [authed, setAuthed] = useState(false);
   const [userName, setUserName] = useState('');
   const [userTipo, setUserTipo] = useState('');
@@ -1482,7 +1498,13 @@ function HubMarquise() {
   const [revealed, setRevealed] = useState(false);
   const [easter, setEaster] = useState(false);
   const [theme, setTheme] = useState('light');
-  const [showAdmin, setShowAdmin] = useState(false);
+  // Estado persistido entre reloads (F5 / Ctrl+Shift+R nao volta para a tela inicial)
+  const [showAdmin, setShowAdmin] = useState(() => {
+    try { return sessionStorage.getItem('hub_show_admin') === '1'; } catch { return false; }
+  });
+  useEffect(() => {
+    try { sessionStorage.setItem('hub_show_admin', showAdmin ? '1' : '0'); } catch {}
+  }, [showAdmin]);
   const [hubSystems, setHubSystems] = useState(HUB_SYSTEMS);
   const [userEmail, setUserEmail] = useState('');
   const seqRef = useRef('');
@@ -1639,6 +1661,14 @@ function HubMarquise() {
     localStorage.removeItem('hub_sso_token');
     localStorage.removeItem('hub_sistemas');
     localStorage.removeItem('hub_tipo');
+    // Limpa estado de navegacao persistido (proximo login comeca limpo)
+    try {
+      sessionStorage.removeItem('hub_show_admin');
+      sessionStorage.removeItem('hub_admin_aba');
+      sessionStorage.removeItem('hub_contas_subaba');
+      sessionStorage.removeItem('hub_contas_status');
+      sessionStorage.removeItem('hub_boot_seen');
+    } catch {}
     setAuthed(false);
     setRevealed(false);
     setUserName('');
