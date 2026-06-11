@@ -1,4 +1,4 @@
-﻿const { useState, useEffect, useRef } = React;
+const { useState, useEffect, useRef } = React;
 
 function useWindowWidth() {
   const [w, setW] = useState(window.innerWidth);
@@ -55,29 +55,29 @@ const HUB_SYSTEMS = [
 {
   id: 'chamados',
   num: '01',
-  categoria: 'Suporte Â· Atendimento interno',
+  categoria: 'Suporte · Atendimento interno',
   nome: 'Chamados TI',
   paraQuem: 'Todos os setores',
-  descricao: 'Para pedir ajuda da equipe de TI do hotel â€” VocÃª abre o chamado, anexa fotos se quiser, e acompanha o atendimento.',
+  descricao: 'Para pedir ajuda da equipe de TI do hotel — Você abre o chamado, anexa fotos se quiser, e acompanha o atendimento.',
   detalhe: 'Em uso por todos os setores do hotel.',
   status: 'no-ar',
-  statusLabel: 'DisponÃ­vel',
+  statusLabel: 'Disponível',
   statusHint: 'Pode usar agora',
   url: 'https://sistema-chamados-granmarquise.fly.dev',
   repo: 'caiobholanda/sistema-chamados',
-  stack: ['Anexar fotos e prints', 'Acompanhar atendimento', 'HistÃ³rico de chamados', 'Acesso pelo navegador'],
+  stack: ['Anexar fotos e prints', 'Acompanhar atendimento', 'Histórico de chamados', 'Acesso pelo navegador'],
   preview: 'tickets'
 },
 {
   id: 'ramais',
   num: '02',
-  categoria: 'ComunicaÃ§Ã£o Â· Interno',
+  categoria: 'Comunicação · Interno',
   nome: 'Lista de Ramais',
   paraQuem: 'Todos os setores',
-  descricao: 'DiretÃ³rio de ramais e contatos internos do hotel â€” consulte o ramal de qualquer setor ou colaborador sem precisar ligar para a recepÃ§Ã£o.',
+  descricao: 'Diretório de ramais e contatos internos do hotel — consulte o ramal de qualquer setor ou colaborador sem precisar ligar para a recepção.',
   detalhe: 'Acesso pelo navegador.',
   status: 'no-ar',
-  statusLabel: 'DisponÃ­vel',
+  statusLabel: 'Disponível',
   statusHint: 'Pode usar agora',
   url: 'https://diretorio-ramais-granmarquise.fly.dev',
   repo: 'caiobholanda/ListaRamais',
@@ -87,24 +87,24 @@ const HUB_SYSTEMS = [
 {
   id: 'spa',
   num: '03',
-  categoria: 'Spa Â· Atendimento ao hÃ³spede',
-  nome: 'Pesquisa de SatisfaÃ§Ã£o',
+  categoria: 'Spa · Atendimento ao hóspede',
+  nome: 'Pesquisa de Satisfação',
   paraQuem: 'Equipe do Spa',
-  descricao: 'Coleta de feedback dos hÃ³spedes apÃ³s os tratamentos no Spa â€” avaliaÃ§Ã£o dos serviÃ§os, instalaÃ§Ãµes, massoterapeutas e experiÃªncia geral.',
-  detalhe: 'Acesso restrito Ã  equipe do Spa e TI.',
+  descricao: 'Coleta de feedback dos hóspedes após os tratamentos no Spa — avaliação dos serviços, instalações, massoterapeutas e experiência geral.',
+  detalhe: 'Acesso restrito à equipe do Spa e TI.',
   status: 'no-ar',
-  statusLabel: 'DisponÃ­vel',
+  statusLabel: 'Disponível',
   statusHint: 'Pode usar agora',
   url: 'https://pesquisa-satisfacao.fly.dev',
   adminUrl: 'https://pesquisa-satisfacao.fly.dev/admin',
   adminEmails: ['estagio.ti@granmarquise.com.br', 'suporte.ti@granmarquise.com.br', 'richard@granmarquise.com.br'],
   repo: 'caiobholanda/PesquisaSatisfacao',
-  stack: ['AvaliaÃ§Ã£o pÃ³s-tratamento', 'Painel de relatÃ³rios', 'GestÃ£o de massoterapeutas'],
+  stack: ['Avaliação pós-tratamento', 'Painel de relatórios', 'Gestão de massoterapeutas'],
   preview: 'tickets'
 }];
 
 
-// â”€â”€â”€ Boot â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Boot ─────────────────────────────────────────────────────────────────────
 
 function HubBoot({ onDone }) {
   const [phase, setPhase] = useState('drawing');
@@ -141,13 +141,13 @@ function HubBoot({ onDone }) {
         opacity: 0,
         animation: `hubFadeIn 600ms ${HUB_EASE} 900ms forwards`
       }}>
-        Gran Marquise Â· Sistemas
+        Gran Marquise · Sistemas
       </div>
     </div>
   );
 }
 
-// â”€â”€â”€ Login â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Login ────────────────────────────────────────────────────────────────────
 
 function HubLogin({ onLogin }) {
   const [email, setEmail] = useState('');
@@ -182,10 +182,10 @@ function HubLogin({ onLogin }) {
         localStorage.setItem('hub_tipo', data.tipo || 'usuario');
         onLogin(data.nome, data.sistemas, data.tipo || 'usuario');
       } else {
-        setErro(data.erro || 'Credenciais invÃ¡lidas');
+        setErro(data.erro || 'Credenciais inválidas');
       }
     } catch {
-      setErro('Erro de conexÃ£o. Tente novamente.');
+      setErro('Erro de conexão. Tente novamente.');
     } finally {
       setLoading(false);
     }
@@ -239,7 +239,7 @@ function HubLogin({ onLogin }) {
           <div>
             <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 8 }}>Senha</div>
             <div style={{ position: 'relative' }}>
-              <input type={mostrarSenha ? 'text' : 'password'} value={senha} onChange={e => setSenha(e.target.value)} placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" required disabled={loading}
+              <input type={mostrarSenha ? 'text' : 'password'} value={senha} onChange={e => setSenha(e.target.value)} placeholder="••••••••" required disabled={loading}
                 style={{ ...inputBase, paddingRight: 48 }}
                 onFocus={e => e.target.style.borderColor = HUB_PALETTE.champanhe + '88'}
                 onBlur={e => e.target.style.borderColor = HUB_PALETTE.areiaDim + '44'} />
@@ -251,7 +251,7 @@ function HubLogin({ onLogin }) {
               </button>
             </div>
           </div>
-          {erro && <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#E07A5F', paddingTop: 4, display: 'flex', alignItems: 'center', gap: 8 }}><span>â€”</span> {erro}</div>}
+          {erro && <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#E07A5F', paddingTop: 4, display: 'flex', alignItems: 'center', gap: 8 }}><span>—</span> {erro}</div>}
           <button type="submit" disabled={loading}
             style={{ marginTop: 8, width: '100%', padding: '15px', background: 'transparent', border: `1px solid ${HUB_PALETTE.champanhe}`, color: loading ? HUB_PALETTE.areiaDim : HUB_PALETTE.champanhe, fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.3em', textTransform: 'uppercase', cursor: loading ? 'not-allowed' : 'pointer', transition: `background 300ms ${HUB_EASE}` }}
             onMouseEnter={e => { if (!loading) e.target.style.background = 'rgba(201,169,97,0.1)'; }}
@@ -262,7 +262,7 @@ function HubLogin({ onLogin }) {
 
         <div style={{ marginTop: 40, display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{ flex: 1, height: 1, background: `${HUB_PALETTE.areiaDim}22` }} />
-          <span style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontWeight: 300, fontSize: 13, color: HUB_PALETTE.areiaDim }}>Quem Ã© bem atendido, atende bem.</span>
+          <span style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontWeight: 300, fontSize: 13, color: HUB_PALETTE.areiaDim }}>Quem é bem atendido, atende bem.</span>
           <div style={{ flex: 1, height: 1, background: `${HUB_PALETTE.areiaDim}22` }} />
         </div>
       </div>
@@ -273,7 +273,7 @@ function HubLogin({ onLogin }) {
 const STATUS_LABELS = { 'no-ar': 'Ativo', 'construcao': 'Em desenvolvimento', 'beta': 'Em testes', 'concept': 'Em planejamento', 'inativo': 'Inativo' };
 const STATUS_CORES = { 'no-ar': '#4CAF87', 'construcao': '#E0A85F', 'beta': '#5FA8E0', 'concept': '#9E9E9E', 'inativo': '#9E9E9E' };
 
-// â”€â”€â”€ Admin Panel helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Admin Panel helpers ──────────────────────────────────────────────────────
 
 function LinkForm({ form, setForm, onSave, onCancel, linkErro, linkSaving }) {
   const isMobile = useWindowWidth() < 768;
@@ -292,7 +292,7 @@ function LinkForm({ form, setForm, onSave, onCancel, linkErro, linkSaving }) {
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10, marginBottom: 2 }}>
         <div>
           <div style={labelStyle}>Nome *</div>
-          <input value={form.nome} onChange={e => setForm(p => ({ ...p, nome: e.target.value }))} placeholder="Ex: CardÃ¡pio Digital" style={inputStyle} />
+          <input value={form.nome} onChange={e => setForm(p => ({ ...p, nome: e.target.value }))} placeholder="Ex: Cardápio Digital" style={inputStyle} />
         </div>
         <div>
           <div style={labelStyle}>Status *</div>
@@ -307,15 +307,15 @@ function LinkForm({ form, setForm, onSave, onCancel, linkErro, linkSaving }) {
         </div>
         <div>
           <div style={labelStyle}>Categoria</div>
-          <input value={form.categoria} onChange={e => setForm(p => ({ ...p, categoria: e.target.value }))} placeholder="Ex: OperaÃ§Ã£o Â· Hospedagem" style={inputStyle} />
+          <input value={form.categoria} onChange={e => setForm(p => ({ ...p, categoria: e.target.value }))} placeholder="Ex: Operação · Hospedagem" style={inputStyle} />
         </div>
         <div>
           <div style={labelStyle}>Para quem</div>
           <input value={form.paraQuem} onChange={e => setForm(p => ({ ...p, paraQuem: e.target.value }))} placeholder="Ex: Todos os setores" style={inputStyle} />
         </div>
         <div style={{ gridColumn: '1 / -1' }}>
-          <div style={labelStyle}>DescriÃ§Ã£o</div>
-          <input value={form.descricao} onChange={e => setForm(p => ({ ...p, descricao: e.target.value }))} placeholder="Breve descriÃ§Ã£o do sistema" style={inputStyle} />
+          <div style={labelStyle}>Descrição</div>
+          <input value={form.descricao} onChange={e => setForm(p => ({ ...p, descricao: e.target.value }))} placeholder="Breve descrição do sistema" style={inputStyle} />
         </div>
       </div>
       {linkErro && <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: '#E07A5F', marginBottom: 12 }}>{linkErro}</div>}
@@ -331,7 +331,7 @@ function LinkForm({ form, setForm, onSave, onCancel, linkErro, linkSaving }) {
   );
 }
 
-// â”€â”€â”€ Admin Panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Admin Panel ──────────────────────────────────────────────────────────────
 
 function HubAdmin({ onClose, hubSystems, setHubSystems }) {
   const isMobile = useWindowWidth() < 768;
@@ -408,7 +408,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
   }
 
   async function saveEdit() {
-    if (!editForm.nome || !editForm.status) { setLinkErro('Nome e status sÃ£o obrigatÃ³rios'); return; }
+    if (!editForm.nome || !editForm.status) { setLinkErro('Nome e status são obrigatórios'); return; }
     setLinkSaving(true);
     const token = localStorage.getItem('hub_sso_token');
     const r = await fetch(`/api/admin/sistemas/${editingId}`, {
@@ -435,7 +435,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
   }
 
   async function saveNew() {
-    if (!newForm.nome || !newForm.status) { setLinkErro('Nome e status sÃ£o obrigatÃ³rios'); return; }
+    if (!newForm.nome || !newForm.status) { setLinkErro('Nome e status são obrigatórios'); return; }
     setLinkSaving(true);
     const token = localStorage.getItem('hub_sso_token');
     const r = await fetch('/api/admin/sistemas', {
@@ -456,7 +456,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
 
   const ABAS = [
     { id: 'links', label: 'Links' },
-    { id: 'contas', label: 'UsuÃ¡rios' },
+    { id: 'contas', label: 'Usuários' },
   ];
 
   return (
@@ -468,7 +468,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={HUB_PALETTE.champanhe} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
             </svg>
-            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areia }}>AdministraÃ§Ã£o Â· Hub</span>
+            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areia }}>Administração · Hub</span>
           </div>
           <button onClick={onClose} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}44`, color: HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', padding: '8px 16px', cursor: 'pointer' }}
             onMouseEnter={e => { e.currentTarget.style.color = HUB_PALETTE.marfim; e.currentTarget.style.borderColor = HUB_PALETTE.areiaDim + '88'; }}
@@ -491,7 +491,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
       {/* Content */}
       <div style={{ maxWidth: 900, margin: '0 auto', padding: isMobile ? '24px 18px 80px' : '48px 48px 80px', width: '100%' }}>
 
-        {/* -- Aba Links -- */}
+        {/* ── Aba Links ── */}
         {aba === 'links' && (<>
           <div style={{ marginBottom: 40 }}>
             <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.35em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -540,7 +540,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
                     </div>
                   )}
 
-                  {/* Expanded: usuÃ¡rios com e sem acesso */}
+                  {/* Expanded: usuários com e sem acesso */}
                   {isLinkOpen && !editingId && (
                     <div style={{ paddingBottom: 28, paddingLeft: 36 }}>
                       {/* Com acesso */}
@@ -550,7 +550,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
                           Com acesso ({comAcesso.length})
                         </div>
                         {comAcesso.length === 0 ? (
-                          <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areiaDim, fontStyle: 'italic' }}>Nenhum usuÃ¡rio com acesso.</span>
+                          <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areiaDim, fontStyle: 'italic' }}>Nenhum usuário com acesso.</span>
                         ) : (
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                             {comAcesso.map(u => (
@@ -574,7 +574,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
                           Sem acesso ({semAcesso.length})
                         </div>
                         {semAcesso.length === 0 ? (
-                          <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areiaDim, fontStyle: 'italic' }}>Todos tÃªm acesso a este link.</span>
+                          <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areiaDim, fontStyle: 'italic' }}>Todos têm acesso a este link.</span>
                         ) : (
                           <>
                             <div style={{ position: 'relative', marginBottom: 12 }}>
@@ -594,8 +594,8 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
                               {semAcesso
                                 .filter(u => u.nome.toLowerCase().includes(filtroSemAcesso.toLowerCase()) || (u.setor && u.setor.toLowerCase().includes(filtroSemAcesso.toLowerCase())))
                                 .sort((a, b) => {
-                                  const sa = (a.setor || 'ï¿¿').toLowerCase();
-                                  const sb = (b.setor || 'ï¿¿').toLowerCase();
+                                  const sa = (a.setor || '￿').toLowerCase();
+                                  const sb = (b.setor || '￿').toLowerCase();
                                   if (sa !== sb) return sa.localeCompare(sb, 'pt');
                                   return (a.nome || '').toLowerCase().localeCompare((b.nome || '').toLowerCase(), 'pt');
                                 })
@@ -639,7 +639,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
           )}
         </>)}
 
-        {/* -- Aba Usuarios -- */}
+        {/* ── Aba Contas ── */}
         {aba === 'contas' && <ContasPanel isMobile={isMobile} />}
 
       </div>
@@ -647,7 +647,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
   );
 }
 
-// â”€â”€â”€ Contas (CRUD de admins do TI e usuarios do portal) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Contas (CRUD de admins do TI e usuarios do portal) ─────────────────────
 function ContasPanel({ isMobile }) {
   const [subAba, setSubAba] = useState('usuarios');
   const [statusAba, setStatusAba] = useState('ativos'); // ativos | inativos
@@ -736,10 +736,10 @@ function ContasPanel({ isMobile }) {
       });
       const d = await r.json();
       if (!r.ok || !d.ok) { setErro(d.erro || `Erro ${r.status}`); setSaving(false); return; }
-      notify(tipo === 'admin' ? 'Admin criado.' : 'UsuÃ¡rio criado.');
+      notify(tipo === 'admin' ? 'Admin criado.' : 'Usuário criado.');
       fecharModal();
       if (tipo === 'admin') loadAdmins(); else loadUsuarios();
-    } catch { setErro('Erro de conexÃ£o'); }
+    } catch { setErro('Erro de conexão'); }
     setSaving(false);
   }
   async function salvarEdit(tipo, id, dados, etiquetas) {
@@ -768,7 +768,7 @@ function ContasPanel({ isMobile }) {
       notify('Salvo.');
       fecharModal();
       if (tipo === 'admin') loadAdmins(); else loadUsuarios();
-    } catch { setErro('Erro de conexÃ£o'); }
+    } catch { setErro('Erro de conexão'); }
     setSaving(false);
   }
   async function toggleAtivo(tipo, row) {
@@ -831,13 +831,13 @@ function ContasPanel({ isMobile }) {
       </div>
       <h2 style={{ fontFamily: 'Fraunces, serif', fontWeight: 300, fontStyle: 'italic', fontSize: 40, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: '0 0 10px' }}>Gerenciar contas.</h2>
       <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: HUB_PALETTE.areiaDim, lineHeight: 1.5, margin: 0 }}>
-        Crie, edite ou desative admins do TI e usuÃ¡rios do portal de chamados. Os dados ficam no sistema-chamados; aqui Ã© sÃ³ a interface.
+        Crie, edite ou desative admins do TI e usuários do portal de chamados. Os dados ficam no sistema-chamados; aqui é só a interface.
       </p>
     </div>
 
     {/* Sub-tabs tipo */}
     <div style={{ display: 'flex', gap: 0, borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, marginBottom: 14 }}>
-      {[{ id: 'admins', label: 'Admins do TI' }, { id: 'usuarios', label: 'UsuÃ¡rios do portal' }].map(s => (
+      {[{ id: 'admins', label: 'Admins do TI' }, { id: 'usuarios', label: 'Usuários do portal' }].map(s => (
         <button key={s.id} onClick={() => { setSubAba(s.id); setBusca(''); setStatusAba('ativos'); }}
           style={{ background: 'transparent', border: 'none', borderBottom: `2px solid ${subAba === s.id ? HUB_PALETTE.champanhe : 'transparent'}`, color: subAba === s.id ? HUB_PALETTE.champanhe : HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', padding: '10px 18px 8px', cursor: 'pointer' }}>
           {s.label}
@@ -858,9 +858,9 @@ function ContasPanel({ isMobile }) {
     <div style={{ display: 'flex', gap: 12, marginBottom: 18, flexWrap: 'wrap' }}>
       <input type="text" placeholder="Filtrar por nome, email, login, ramal, setor..." value={busca} onChange={e => setBusca(e.target.value)}
         autoComplete="off" name="contas-busca-livre"
-        style={{ ...cs.input, flex: 1, minWidth: 260 }} title="Aceita mÃºltiplas palavras (AND) e flags 'master' / 'inativo'" />
+        style={{ ...cs.input, flex: 1, minWidth: 260 }} title="Aceita múltiplas palavras (AND) e flags 'master' / 'inativo'" />
       <button onClick={() => startNew(isAdmin ? 'admin' : 'usuario')} style={cs.btnPrim}>
-        + Novo {isAdmin ? 'admin' : 'usuÃ¡rio'}
+        + Novo {isAdmin ? 'admin' : 'usuário'}
       </button>
     </div>
 
@@ -884,14 +884,14 @@ function ContasPanel({ isMobile }) {
                   {!ativo ? <span style={{ marginLeft: 8, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: '#E07A5F' }}>Inativo</span> : null}
                 </div>
                 <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 12.5, color: HUB_PALETTE.areiaDim, marginTop: 2 }}>
-                  {row.email || 'â€”'}
-                  {row.setor ? <span> Â· {row.setor}</span> : null}
-                  {row.ramal ? <span> Â· ramal {row.ramal}</span> : null}
+                  {row.email || '—'}
+                  {row.setor ? <span> · {row.setor}</span> : null}
+                  {row.ramal ? <span> · ramal {row.ramal}</span> : null}
                 </div>
                 {row.senha_plain && (
                   <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: HUB_PALETTE.champanhe, background: HUB_PALETTE.champanhe + '12', padding: '2px 8px', userSelect: 'all' }}>
-                      {showSenha ? row.senha_plain : 'â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢'}
+                      {showSenha ? row.senha_plain : '••••••••'}
                     </span>
                     <button onClick={() => toggleRevelar(key)}
                       style={{ background: 'transparent', border: 'none', color: HUB_PALETTE.areiaDim, fontSize: 10, fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.18em', textTransform: 'uppercase', cursor: 'pointer', padding: 0 }}>
@@ -901,7 +901,7 @@ function ContasPanel({ isMobile }) {
                 )}
               </div>
               {!isAdmin && (
-                <button onClick={() => setHistoricoUsuario({ id: row.id, nome: row.nome })} style={cs.btnGhost}>HistÃ³rico</button>
+                <button onClick={() => setHistoricoUsuario({ id: row.id, nome: row.nome })} style={cs.btnGhost}>Histórico</button>
               )}
               <button onClick={() => startEdit(isAdmin ? 'admin' : 'usuario', row)} style={cs.btnGhost}>Editar</button>
               <button onClick={() => toggleAtivo(isAdmin ? 'admin' : 'usuario', row)}
@@ -968,7 +968,7 @@ function ContaForm({ tipo, isMobile, cs, erro, saving, initial, initialEtiquetas
     return n;
   })();
   const senhaCor = senhaScore == null ? null : ['#e53935', '#e53935', '#fb8c00', '#fdd835', '#7cb342', '#43a047'][senhaScore];
-  const senhaLabel = senhaScore == null ? null : ['Muito fraca', 'Fraca', 'MÃ©dia', 'Boa', 'Forte', 'Excelente'][senhaScore];
+  const senhaLabel = senhaScore == null ? null : ['Muito fraca', 'Fraca', 'Média', 'Boa', 'Forte', 'Excelente'][senhaScore];
 
   function toggleEt(slug) {
     setEtSel(p => { const n = new Set(p); n.has(slug) ? n.delete(slug) : n.add(slug); return n; });
@@ -980,14 +980,14 @@ function ContaForm({ tipo, isMobile, cs, erro, saving, initial, initialEtiquetas
       style={{ position: 'fixed', inset: 0, zIndex: 150, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, overflowY: 'auto' }}>
       <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, maxWidth: 520, width: '100%', padding: isMobile ? '24px 20px' : '32px 36px', maxHeight: '90vh', overflowY: 'auto' }}>
         <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 6 }}>
-          {isAdmin ? 'Admin do TI' : 'UsuÃ¡rio do portal'}
+          {isAdmin ? 'Admin do TI' : 'Usuário do portal'}
         </div>
         <h3 style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontWeight: 300, fontSize: 26, color: HUB_PALETTE.marfim, margin: '0 0 22px' }}>
           {isEdit ? 'Editar' : 'Novo'}
         </h3>
 
         {/* "honeypot" para o autofill do Chrome/Edge: ele preenche estes dois e ignora os reais.
-            Ficam fora da tela (off-screen, nao display:none â€” display:none faz alguns browsers
+            Ficam fora da tela (off-screen, nao display:none — display:none faz alguns browsers
             ignorarem o honeypot). Os usuarios nunca veem nem tabulam ate eles. */}
         <div aria-hidden="true" style={{ position: 'absolute', left: '-9999px', top: 'auto', width: 1, height: 1, overflow: 'hidden' }}>
           <input type="text" name="username" tabIndex={-1} autoComplete="username" />
@@ -1016,17 +1016,17 @@ function ContaForm({ tipo, isMobile, cs, erro, saving, initial, initialEtiquetas
           </datalist>
         </>)}
 
-        <label style={{ ...cs.label, marginTop: 14 }}>Ramal {!isAdmin && <span style={{ textTransform: 'none', letterSpacing: 0, opacity: .6 }}>(4 dÃ­gitos)</span>}</label>
+        <label style={{ ...cs.label, marginTop: 14 }}>Ramal {!isAdmin && <span style={{ textTransform: 'none', letterSpacing: 0, opacity: .6 }}>(4 dígitos)</span>}</label>
         <input style={cs.input} value={d.ramal}
           autoComplete="off" name="conta-ramal-randomg7h8" inputMode="numeric"
           onChange={e => set('ramal', e.target.value)} maxLength={isAdmin ? 20 : 4} />
 
-        <label style={{ ...cs.label, marginTop: 14 }}>Senha {isEdit && <span style={{ textTransform: 'none', letterSpacing: 0, opacity: .6 }}>(em branco = nÃ£o altera)</span>}</label>
+        <label style={{ ...cs.label, marginTop: 14 }}>Senha {isEdit && <span style={{ textTransform: 'none', letterSpacing: 0, opacity: .6 }}>(em branco = não altera)</span>}</label>
         <div style={{ position: 'relative' }}>
           <input style={{ ...cs.input, paddingRight: 56 }} type={showSenha ? 'text' : 'password'} value={d.senha}
             autoComplete="new-password" name="conta-senha-randomi9j0" spellCheck={false}
             onChange={e => set('senha', e.target.value)}
-            placeholder="MÃ­n. 8 com maiÃºscula, minÃºscula, nÃºmero e especial" />
+            placeholder="Mín. 8 com maiúscula, minúscula, número e especial" />
           <button type="button" onClick={() => setShowSenha(v => !v)}
             style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', cursor: 'pointer' }}>
             {showSenha ? 'ocultar' : 'ver'}
@@ -1048,7 +1048,7 @@ function ContaForm({ tipo, isMobile, cs, erro, saving, initial, initialEtiquetas
           </label>
 
           {(etiquetas || []).length > 0 && (<>
-            <label style={{ ...cs.label, marginTop: 18 }}>Etiquetas (Ã¡reas de atuaÃ§Ã£o)</label>
+            <label style={{ ...cs.label, marginTop: 18 }}>Etiquetas (áreas de atuação)</label>
             <input style={{ ...cs.input, marginBottom: 8 }} value={etBusca} onChange={e => setEtBusca(e.target.value)} placeholder="Buscar etiqueta..." />
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, maxHeight: 160, overflowY: 'auto', border: `1px solid ${HUB_PALETTE.areiaDim}22`, padding: 10 }}>
               {etFiltradas.map(e => {
@@ -1084,7 +1084,7 @@ function ContaForm({ tipo, isMobile, cs, erro, saving, initial, initialEtiquetas
   );
 }
 
-// â”€â”€â”€ Historico do usuario do portal (chamados + atividade) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Historico do usuario do portal (chamados + atividade) ──────────────────
 function HistoricoUsuarioModal({ usuarioId, nome, isMobile, cs, onClose }) {
   const [aba, setAba] = useState('chamados');
   const [chamados, setChamados] = useState(null);
@@ -1102,7 +1102,7 @@ function HistoricoUsuarioModal({ usuarioId, nome, isMobile, cs, onClose }) {
   }, [usuarioId]);
 
   function fmtData(s) {
-    if (!s) return 'â€”';
+    if (!s) return '—';
     const iso = s.includes('T') ? s : s.replace(' ', 'T');
     return new Date(iso.endsWith('Z') ? iso : iso + 'Z').toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short', timeZone: 'America/Fortaleza' });
   }
@@ -1110,7 +1110,7 @@ function HistoricoUsuarioModal({ usuarioId, nome, isMobile, cs, onClose }) {
     login_sucesso: 'Login realizado', login_falha: 'Tentativa de login (senha incorreta)',
     logout: 'Logout', reset_solicitado: 'Reset de senha solicitado',
     reset_email_enviado: 'E-mail de reset enviado', reset_concluido: 'Senha redefinida',
-    reset_link_expirado: 'Link de reset expirado', reset_link_ja_usado: 'Link de reset jÃ¡ utilizado',
+    reset_link_expirado: 'Link de reset expirado', reset_link_ja_usado: 'Link de reset já utilizado',
   };
 
   return (
@@ -1118,7 +1118,7 @@ function HistoricoUsuarioModal({ usuarioId, nome, isMobile, cs, onClose }) {
       <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, width: '100%', maxWidth: 820, maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
         <div style={{ padding: '18px 24px', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
           <div>
-            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe }}>HistÃ³rico</div>
+            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe }}>Histórico</div>
             <div style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontSize: 22, color: HUB_PALETTE.marfim, marginTop: 4 }}>{nome}</div>
           </div>
           <button onClick={onClose} style={cs.btnGhost}>Fechar</button>
@@ -1133,17 +1133,17 @@ function HistoricoUsuarioModal({ usuarioId, nome, isMobile, cs, onClose }) {
         </div>
         <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '16px 20px' : '20px 24px' }}>
           {aba === 'chamados' && (chamados === null ? <Carregando /> :
-            chamados.length === 0 ? <Vazio msg="Sem chamados deste usuÃ¡rio." /> :
+            chamados.length === 0 ? <Vazio msg="Sem chamados deste usuário." /> :
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               {chamados.map(c => (
                 <div key={c.id} style={{ display: 'flex', flexDirection: 'column', padding: '12px 0', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22` }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                     <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: HUB_PALETTE.champanhe }}>#{c.id}</span>
-                    <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.marfim, fontWeight: 500 }}>{c.descricao ? c.descricao.slice(0, 80) : 'Sem descriÃ§Ã£o'}{c.descricao && c.descricao.length > 80 ? 'â€¦' : ''}</span>
+                    <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.marfim, fontWeight: 500 }}>{c.descricao ? c.descricao.slice(0, 80) : 'Sem descrição'}{c.descricao && c.descricao.length > 80 ? '…' : ''}</span>
                     <span style={{ marginLeft: 'auto', fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, border: `1px solid ${HUB_PALETTE.areiaDim}44`, padding: '2px 8px' }}>{c.status}</span>
                   </div>
                   <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: HUB_PALETTE.areiaDim, marginTop: 4 }}>
-                    Criado em {fmtData(c.criado_em)}{c.categoria ? ` Â· ${c.categoria}` : ''}
+                    Criado em {fmtData(c.criado_em)}{c.categoria ? ` · ${c.categoria}` : ''}
                   </div>
                 </div>
               ))}
@@ -1168,10 +1168,10 @@ function HistoricoUsuarioModal({ usuarioId, nome, isMobile, cs, onClose }) {
   );
 }
 
-function Carregando() { return <div style={{ padding: '40px 0', textAlign: 'center', fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim }}>Carregandoâ€¦</div>; }
+function Carregando() { return <div style={{ padding: '40px 0', textAlign: 'center', fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim }}>Carregando…</div>; }
 function Vazio({ msg }) { return <div style={{ padding: '40px 0', textAlign: 'center', fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontSize: 15, color: HUB_PALETTE.areiaDim }}>{msg}</div>; }
 
-// â”€â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Header ───────────────────────────────────────────────────────────────────
 
 function HubHeader({ theme, onToggleTheme, isMobile, userName, userTipo, onLogout, onOpenAdmin }) {
   const [now, setNow] = useState(() => new Date());
@@ -1198,9 +1198,9 @@ function HubHeader({ theme, onToggleTheme, isMobile, userName, userTipo, onLogou
           {!isMobile && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, letterSpacing: '0.1em', color: HUB_PALETTE.marfim, fontVariantNumeric: 'tabular-nums' }}>{hora}</span>}
           {!isMobile && primeiroNome && <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: HUB_PALETTE.areiaDim }}>{primeiroNome}</span>}
 
-          {/* Engrenagem â€” sÃ³ para admins */}
+          {/* Engrenagem — só para admins */}
           {userTipo === 'admin' && (
-            <button type="button" onClick={onOpenAdmin} title="AdministraÃ§Ã£o"
+            <button type="button" onClick={onOpenAdmin} title="Administração"
               style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 34, background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}44`, borderRadius: '50%', color: HUB_PALETTE.areiaDim, cursor: 'pointer', padding: 0, transition: `color 300ms, border-color 300ms` }}
               onMouseEnter={e => { e.currentTarget.style.color = HUB_PALETTE.champanhe; e.currentTarget.style.borderColor = HUB_PALETTE.champanhe + '55'; }}
               onMouseLeave={e => { e.currentTarget.style.color = HUB_PALETTE.areiaDim; e.currentTarget.style.borderColor = HUB_PALETTE.areiaDim + '44'; }}>
@@ -1232,7 +1232,7 @@ function HubHeader({ theme, onToggleTheme, isMobile, userName, userTipo, onLogou
   );
 }
 
-// â”€â”€â”€ Hero â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Hero ─────────────────────────────────────────────────────────────────────
 
 function HubHero({ revealed, easterActive, isMobile, userName, sistemasVisiveis }) {
   const horaFortaleza = parseInt(new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Fortaleza', hour: '2-digit', hour12: false }).format(new Date()), 10);
@@ -1252,7 +1252,7 @@ function HubHero({ revealed, easterActive, isMobile, userName, sistemasVisiveis 
             <span style={{ display: 'block', fontStyle: 'italic', fontWeight: 300, color: HUB_PALETTE.marfim }}>Gran Marquise.</span>
           </h1>
           <p style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontWeight: 300, fontSize: isMobile ? 16 : 19, lineHeight: 1.4, color: HUB_PALETTE.areia, maxWidth: 460, margin: '28px 0 0', letterSpacing: '-0.005em', opacity: revealed ? 1 : 0, transform: revealed ? 'translateY(0)' : 'translateY(16px)', transition: `all 1100ms ${HUB_EASE} 320ms` }}>
-            Bem-vindo. Aqui ficam os sistemas que a equipe do hotel jÃ¡ pode usar no dia a dia.
+            Bem-vindo. Aqui ficam os sistemas que a equipe do hotel já pode usar no dia a dia.
           </p>
         </div>
         {!isMobile && (
@@ -1261,9 +1261,9 @@ function HubHero({ revealed, easterActive, isMobile, userName, sistemasVisiveis 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
                 <span style={{ width: 7, height: 7, borderRadius: '50%', background: HUB_PALETTE.jangadaGlow, animation: `hubPulse 2200ms ${HUB_EASE} infinite` }} />
-                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.jangadaGlow }}>Em operaÃ§Ã£o</span>
+                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.jangadaGlow }}>Em operação</span>
               </div>
-              <span style={{ fontFamily: 'Fraunces, serif', fontWeight: 300, fontStyle: 'italic', fontSize: 16, lineHeight: 1.3, color: HUB_PALETTE.areia, letterSpacing: '-0.005em', maxWidth: 200 }}>DisponÃ­vel para toda a equipe.</span>
+              <span style={{ fontFamily: 'Fraunces, serif', fontWeight: 300, fontStyle: 'italic', fontSize: 16, lineHeight: 1.3, color: HUB_PALETTE.areia, letterSpacing: '-0.005em', maxWidth: 200 }}>Disponível para toda a equipe.</span>
             </div>
           </div>
         )}
@@ -1275,7 +1275,7 @@ function HubHero({ revealed, easterActive, isMobile, userName, sistemasVisiveis 
   );
 }
 
-// â”€â”€â”€ Status Badge â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Status Badge ─────────────────────────────────────────────────────────────
 
 function StatusBadge({ status, label }) {
   if (status === 'no-ar') {
@@ -1287,7 +1287,7 @@ function StatusBadge({ status, label }) {
     );
   }
   const color = status === 'construcao' ? HUB_PALETTE.champanhe : status === 'beta' ? HUB_PALETTE.areia : HUB_PALETTE.areiaDim;
-  const glyph = status === 'construcao' ? 'â—‹' : status === 'beta' ? 'â—' : 'â—‡';
+  const glyph = status === 'construcao' ? '○' : status === 'beta' ? '◐' : '◇';
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
       <span style={{ color, fontSize: 11 }}>{glyph}</span>
@@ -1296,7 +1296,7 @@ function StatusBadge({ status, label }) {
   );
 }
 
-// â”€â”€â”€ System Preview â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── System Preview ───────────────────────────────────────────────────────────
 
 function SystemPreview({ kind }) {
   if (kind === 'tickets') {
@@ -1333,7 +1333,7 @@ function SystemPreview({ kind }) {
       <svg viewBox="0 0 240 140" width="100%" height="100%" preserveAspectRatio="none">
         <text x="20" y="30" fontFamily="Fraunces, serif" fontStyle="italic" fontSize="13" fill={HUB_PALETTE.champanhe}>Mangostin</text>
         <line x1="20" y1="38" x2="220" y2="38" stroke={HUB_PALETTE.areiaDim} strokeOpacity="0.3" />
-        {[['Pad Thai tradicional','R$ 96'],['Curry verde de camarÃ£o','R$ 124'],['Bao de pato pequim','R$ 78'],['Mochi de coco','R$ 38']].map(([n,p],i) => (
+        {[['Pad Thai tradicional','R$ 96'],['Curry verde de camarão','R$ 124'],['Bao de pato pequim','R$ 78'],['Mochi de coco','R$ 38']].map(([n,p],i) => (
           <g key={i} transform={`translate(0 ${56 + i * 18})`}>
             <text x="20" y="0" fontFamily="Inter, sans-serif" fontSize="9" fill={HUB_PALETTE.areia} fillOpacity="0.8">{n}</text>
             <text x="220" y="0" textAnchor="end" fontFamily="JetBrains Mono, monospace" fontSize="8" fill={HUB_PALETTE.areiaDim}>{p}</text>
@@ -1358,13 +1358,13 @@ function SystemPreview({ kind }) {
     <svg viewBox="0 0 240 140" width="100%" height="100%" preserveAspectRatio="none">
       <g stroke={HUB_PALETTE.areiaDim} strokeOpacity="0.25" fill="none"><path d="M 20 110 L 60 80 L 100 95 L 150 50 L 200 65 L 220 40" /></g>
       <g fill={HUB_PALETTE.champanhe}>{[[60,80],[100,95],[150,50],[200,65]].map(([x,y],i) => <circle key={i} cx={x} cy={y} r="2.5" fillOpacity="0.7" />)}</g>
-      <text x="20" y="30" fontFamily="JetBrains Mono, monospace" fontSize="8" fill={HUB_PALETTE.areiaDim} letterSpacing="2">ORDENS Â· ÃšLTIMOS 7 DIAS</text>
-      <text x="20" y="130" fontFamily="JetBrains Mono, monospace" fontSize="7" fill={HUB_PALETTE.areiaDim} opacity="0.5" letterSpacing="2">SEG Â· TER Â· QUA Â· QUI Â· SEX Â· SAB Â· DOM</text>
+      <text x="20" y="30" fontFamily="JetBrains Mono, monospace" fontSize="8" fill={HUB_PALETTE.areiaDim} letterSpacing="2">ORDENS · ÚLTIMOS 7 DIAS</text>
+      <text x="20" y="130" fontFamily="JetBrains Mono, monospace" fontSize="7" fill={HUB_PALETTE.areiaDim} opacity="0.5" letterSpacing="2">SEG · TER · QUA · QUI · SEX · SAB · DOM</text>
     </svg>
   );
 }
 
-// â”€â”€â”€ System Panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── System Panel ─────────────────────────────────────────────────────────────
 
 function SystemPanel({ system, index, revealed, isMobile, userEmail, userTipo }) {
   const [hover, setHover] = useState(false);
@@ -1414,14 +1414,14 @@ function SystemPanel({ system, index, revealed, isMobile, userEmail, userTipo })
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
         <span style={{ fontFamily: 'Fraunces, serif', fontWeight: 300, fontSize: 19, lineHeight: 1.2, letterSpacing: '-0.01em', color: disabled ? HUB_PALETTE.areiaDim : HUB_PALETTE.champanhe, display: 'inline-flex', alignItems: 'baseline', gap: 12, paddingBottom: 5, borderBottom: `1px solid ${disabled ? HUB_PALETTE.areiaDim + '33' : (hover ? HUB_PALETTE.champanhe : HUB_PALETTE.champanhe + '40')}`, transition: `border-color 600ms ${HUB_EASE}` }}>
           {disabled ? 'Em breve' : `Abrir ${system.nome}`}
-          {!disabled && <span style={{ display: 'inline-block', fontFamily: 'Inter, sans-serif', fontSize: 15, transform: hover ? 'translateX(10px)' : 'translateX(0)', transition: `transform 700ms ${HUB_EASE}` }}>â†’</span>}
+          {!disabled && <span style={{ display: 'inline-block', fontFamily: 'Inter, sans-serif', fontSize: 15, transform: hover ? 'translateX(10px)' : 'translateX(0)', transition: `transform 700ms ${HUB_EASE}` }}>→</span>}
         </span>
       </div>
     </a>
   );
 }
 
-// â”€â”€â”€ Section Label â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Section Label ────────────────────────────────────────────────────────────
 
 function SectionLabel({ kicker, title, hint }) {
   return (
@@ -1437,24 +1437,24 @@ function SectionLabel({ kicker, title, hint }) {
   );
 }
 
-// â”€â”€â”€ Footer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Footer ───────────────────────────────────────────────────────────────────
 
 function HubFooter({ easterActive, isMobile }) {
   return (
     <footer style={{ maxWidth: 1400, margin: '0 auto', padding: isMobile ? '28px 18px 28px' : '40px 48px 48px', display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', gap: isMobile ? 12 : 32, flexWrap: 'wrap', borderTop: `1px solid ${HUB_PALETTE.areiaDim}1a` }}>
       <span style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontWeight: 300, fontSize: 16, color: HUB_PALETTE.areiaDim, letterSpacing: '0.005em' }}>
-        {easterActive ? 'Trinta e trÃªs anos depois de Burle Marx, uma nova porta â€” em cÃ³digo.' : 'Quem Ã© bem atendido, atende bem.'}
+        {easterActive ? 'Trinta e três anos depois de Burle Marx, uma nova porta — em código.' : 'Quem é bem atendido, atende bem.'}
       </span>
       <div style={{ display: 'flex', alignItems: 'center', gap: 18, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.28em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim }}>
         <span style={{ color: HUB_PALETTE.areia }}>Equipe de TI</span>
         <span style={{ width: 4, height: 4, borderRadius: '50%', background: HUB_PALETTE.champanhe, display: 'inline-block' }} />
-        <span>Gran Marquise Â· 2026</span>
+        <span>Gran Marquise · 2026</span>
       </div>
     </footer>
   );
 }
 
-// â”€â”€â”€ Decoration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Decoration ───────────────────────────────────────────────────────────────
 
 function HubDecoration() {
   const ref = useRef(null);
@@ -1466,7 +1466,7 @@ function HubDecoration() {
   return <div ref={ref} style={{ position: 'absolute', right: 0, top: 0, width: 1, height: 600, background: `linear-gradient(180deg, transparent 0%, ${HUB_PALETTE.champanhe}66 30%, ${HUB_PALETTE.champanhe}10 100%)`, pointerEvents: 'none' }} />;
 }
 
-// â”€â”€â”€ Root â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Root ─────────────────────────────────────────────────────────────────────
 
 function HubMarquise() {
   const [booting, setBooting] = useState(true);
