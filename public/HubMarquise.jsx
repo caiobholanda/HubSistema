@@ -737,17 +737,34 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
 // ─── Contas (CRUD de admins do TI e usuarios do portal) ─────────────────────
 function ContasPanel({ isMobile }) {
   const [subAba, setSubAba] = useState('admins');
+  const [statusAba, setStatusAba] = useState('ativos'); // ativos | inativos
   const [admins, setAdmins] = useState(null);
   const [usuarios, setUsuarios] = useState(null);
+  const [setoresLista, setSetoresLista] = useState([]);
+  const [etiquetasLista, setEtiquetasLista] = useState([]);
   const [busca, setBusca] = useState('');
-  const [editing, setEditing] = useState(null); // { tipo, id, dados }
+  const [editing, setEditing] = useState(null); // { tipo, id, dados, etiquetas? }
   const [creating, setCreating] = useState(null); // 'admin' | 'usuario'
   const [saving, setSaving] = useState(false);
   const [erro, setErro] = useState('');
   const [toast, setToast] = useState('');
+  const [historicoUsuario, setHistoricoUsuario] = useState(null); // { id, nome }
+  const [revelado, setRevelado] = useState({}); // { tipo-id: true }
 
   function token() { return localStorage.getItem('hub_sso_token'); }
   function notify(msg) { setToast(msg); setTimeout(() => setToast(''), 2600); }
+  function toggleRevelar(key) { setRevelado(p => ({ ...p, [key]: !p[key] })); }
+
+  async function loadSetoresEEtiquetas() {
+    try {
+      const [s, e] = await Promise.all([
+        fetch('/api/admin/chamados-setores', { headers: { Authorization: `Bearer ${token()}` } }).then(r => r.json()),
+        fetch('/api/admin/chamados-etiquetas', { headers: { Authorization: `Bearer ${token()}` } }).then(r => r.json()),
+      ]);
+      if (s.ok) setSetoresLista(s.setores || []);
+      if (e.ok) setEtiquetasLista(e.etiquetas || []);
+    } catch {}
+  }
 
   async function loadAdmins() {
     try {
@@ -765,12 +782,18 @@ function ContasPanel({ isMobile }) {
       else setUsuarios([]);
     } catch { setUsuarios([]); }
   }
-  useEffect(() => { loadAdmins(); loadUsuarios(); }, []);
+  useEffect(() => { loadAdmins(); loadUsuarios(); loadSetoresEEtiquetas(); }, []);
 
-  function startEdit(tipo, row) {
+  async function startEdit(tipo, row) {
     setErro('');
     if (tipo === 'admin') {
-      setEditing({ tipo, id: row.id, dados: {
+      let slugs = [];
+      try {
+        const r = await fetch(`/api/admin/chamados-admins/${row.id}/etiquetas`, { headers: { Authorization: `Bearer ${token()}` } });
+        const d = await r.json();
+        if (d.ok) slugs = d.slugs || [];
+      } catch {}
+      setEditing({ tipo, id: row.id, etiquetas: slugs, dados: {
         nome_completo: row.nome_completo, email: row.email || '',
         ramal: row.ramal || '', is_master: !!row.is_master,
         senha: '', ativo: !!row.ativo,
@@ -806,10 +829,9 @@ function ContasPanel({ isMobile }) {
     } catch { setErro('Erro de conexão'); }
     setSaving(false);
   }
-  async function salvarEdit(tipo, id, dados) {
+  async function salvarEdit(tipo, id, dados, etiquetas) {
     setSaving(true); setErro('');
     const rota = tipo === 'admin' ? `/api/admin/chamados-admins/${id}` : `/api/admin/chamados-usuarios/${id}`;
-    // Remove senha se vazia (nao alterar)
     const body = { ...dados };
     if (!body.senha) delete body.senha;
     try {
@@ -820,6 +842,16 @@ function ContasPanel({ isMobile }) {
       });
       const d = await r.json();
       if (!r.ok || !d.ok) { setErro(d.erro || `Erro ${r.status}`); setSaving(false); return; }
+      // Sincroniza etiquetas do admin (se houve mudanca)
+      if (tipo === 'admin' && Array.isArray(etiquetas)) {
+        try {
+          await fetch(`/api/admin/chamados-admins/${id}/etiquetas`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
+            body: JSON.stringify({ slugs: etiquetas }),
+          });
+        } catch {}
+      }
       notify('Salvo.');
       fecharModal();
       if (tipo === 'admin') loadAdmins(); else loadUsuarios();
@@ -846,11 +878,16 @@ function ContasPanel({ isMobile }) {
   const isAdmin = subAba === 'admins';
   const lista = isAdmin ? admins : usuarios;
   const q = busca.trim().toLowerCase();
+  const wantAtivo = statusAba === 'ativos';
   const filtrada = (lista || []).filter(r => {
+    const ativo = isAdmin ? r.ativo === 1 : r.ativo !== 0;
+    if (wantAtivo !== ativo) return false;
     if (!q) return true;
     const nome = isAdmin ? r.nome_completo : r.nome;
     return (nome || '').toLowerCase().includes(q) || (r.email || '').toLowerCase().includes(q);
   });
+  const totalAtivos = (lista || []).filter(r => isAdmin ? r.ativo === 1 : r.ativo !== 0).length;
+  const totalInativos = (lista || []).filter(r => isAdmin ? r.ativo === 0 : r.ativo === 0).length;
 
   const cs = {
     bg: HUB_PALETTE.areiaDim + '0a',
@@ -872,12 +909,21 @@ function ContasPanel({ isMobile }) {
       </p>
     </div>
 
-    {/* Sub-tabs */}
-    <div style={{ display: 'flex', gap: 0, borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, marginBottom: 20 }}>
+    {/* Sub-tabs tipo */}
+    <div style={{ display: 'flex', gap: 0, borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, marginBottom: 14 }}>
       {[{ id: 'admins', label: 'Admins do TI' }, { id: 'usuarios', label: 'Usuários do portal' }].map(s => (
-        <button key={s.id} onClick={() => { setSubAba(s.id); setBusca(''); }}
+        <button key={s.id} onClick={() => { setSubAba(s.id); setBusca(''); setStatusAba('ativos'); }}
           style={{ background: 'transparent', border: 'none', borderBottom: `2px solid ${subAba === s.id ? HUB_PALETTE.champanhe : 'transparent'}`, color: subAba === s.id ? HUB_PALETTE.champanhe : HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', padding: '10px 18px 8px', cursor: 'pointer' }}>
           {s.label}
+        </button>
+      ))}
+    </div>
+    {/* Sub-tabs status */}
+    <div style={{ display: 'flex', gap: 18, marginBottom: 18 }}>
+      {[{ id: 'ativos', label: 'Ativos', total: totalAtivos }, { id: 'inativos', label: 'Inativos', total: totalInativos }].map(s => (
+        <button key={s.id} onClick={() => setStatusAba(s.id)}
+          style={{ background: 'transparent', border: 'none', color: statusAba === s.id ? HUB_PALETTE.marfim : HUB_PALETTE.areiaDim, fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: statusAba === s.id ? 600 : 400, padding: '4px 0', cursor: 'pointer', borderBottom: `1px solid ${statusAba === s.id ? HUB_PALETTE.champanhe + '88' : 'transparent'}` }}>
+          {s.label} <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: HUB_PALETTE.areiaDim, marginLeft: 4 }}>{s.total}</span>
         </button>
       ))}
     </div>
@@ -898,33 +944,53 @@ function ContasPanel({ isMobile }) {
       <div style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontSize: 16, color: HUB_PALETTE.areiaDim, padding: '40px 0' }}>Nenhum registro.</div>
     ) : (
       <div style={{ display: 'flex', flexDirection: 'column', borderTop: `1px solid ${HUB_PALETTE.areiaDim}22` }}>
-        {filtrada.map(row => (
-          <div key={row.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 0', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, opacity: row.ativo ? 1 : 0.55 }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: HUB_PALETTE.marfim, fontWeight: 500 }}>
-                {isAdmin ? row.nome_completo : row.nome}
-                {isAdmin && row.is_master ? <span style={{ marginLeft: 8, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, padding: '2px 8px', border: `1px solid ${HUB_PALETTE.champanhe}66` }}>Master</span> : null}
-                {!row.ativo ? <span style={{ marginLeft: 8, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: '#E07A5F' }}>Inativo</span> : null}
+        {filtrada.map(row => {
+          const ativo = isAdmin ? row.ativo === 1 : row.ativo !== 0;
+          const key = (isAdmin ? 'a' : 'u') + row.id;
+          const showSenha = revelado[key];
+          return (
+            <div key={row.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 0', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, opacity: ativo ? 1 : 0.55, flexWrap: 'wrap' }}>
+              <div style={{ flex: 1, minWidth: 220 }}>
+                <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: HUB_PALETTE.marfim, fontWeight: 500 }}>
+                  {isAdmin ? row.nome_completo : row.nome}
+                  {isAdmin && row.is_master ? <span style={{ marginLeft: 8, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, padding: '2px 8px', border: `1px solid ${HUB_PALETTE.champanhe}66` }}>Master</span> : null}
+                  {!ativo ? <span style={{ marginLeft: 8, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: '#E07A5F' }}>Inativo</span> : null}
+                </div>
+                <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 12.5, color: HUB_PALETTE.areiaDim, marginTop: 2 }}>
+                  {row.email || '—'}
+                  {row.setor ? <span> · {row.setor}</span> : null}
+                  {row.ramal ? <span> · ramal {row.ramal}</span> : null}
+                </div>
+                {row.senha_plain && (
+                  <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: HUB_PALETTE.champanhe, background: HUB_PALETTE.champanhe + '12', padding: '2px 8px', userSelect: 'all' }}>
+                      {showSenha ? row.senha_plain : '••••••••'}
+                    </span>
+                    <button onClick={() => toggleRevelar(key)}
+                      style={{ background: 'transparent', border: 'none', color: HUB_PALETTE.areiaDim, fontSize: 10, fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.18em', textTransform: 'uppercase', cursor: 'pointer', padding: 0 }}>
+                      {showSenha ? 'ocultar' : 'revelar'}
+                    </button>
+                  </div>
+                )}
               </div>
-              <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 12.5, color: HUB_PALETTE.areiaDim, marginTop: 2 }}>
-                {row.email || '—'}
-                {row.setor ? <span> · {row.setor}</span> : null}
-                {row.ramal ? <span> · ramal {row.ramal}</span> : null}
-              </div>
+              {!isAdmin && (
+                <button onClick={() => setHistoricoUsuario({ id: row.id, nome: row.nome })} style={cs.btnGhost}>Histórico</button>
+              )}
+              <button onClick={() => startEdit(isAdmin ? 'admin' : 'usuario', row)} style={cs.btnGhost}>Editar</button>
+              <button onClick={() => toggleAtivo(isAdmin ? 'admin' : 'usuario', row)}
+                style={{ ...cs.btnGhost, color: ativo ? '#E07A5F' : HUB_PALETTE.champanhe, borderColor: (ativo ? '#E07A5F' : HUB_PALETTE.champanhe) + '66' }}>
+                {ativo ? 'Inativar' : 'Ativar'}
+              </button>
             </div>
-            <button onClick={() => startEdit(isAdmin ? 'admin' : 'usuario', row)} style={cs.btnGhost}>Editar</button>
-            <button onClick={() => toggleAtivo(isAdmin ? 'admin' : 'usuario', row)}
-              style={{ ...cs.btnGhost, color: row.ativo ? '#E07A5F' : HUB_PALETTE.champanhe, borderColor: (row.ativo ? '#E07A5F' : HUB_PALETTE.champanhe) + '66' }}>
-              {row.ativo ? 'Inativar' : 'Ativar'}
-            </button>
-          </div>
-        ))}
+          );
+        })}
       </div>
     )}
 
     {/* Modal Criar */}
     {creating && (
       <ContaForm tipo={creating} isMobile={isMobile} cs={cs} erro={erro} saving={saving}
+        setores={setoresLista} etiquetas={etiquetasLista}
         onCancel={fecharModal}
         onSave={(dados) => salvarNovo(creating, dados)} />
     )}
@@ -932,9 +998,16 @@ function ContasPanel({ isMobile }) {
     {/* Modal Editar */}
     {editing && (
       <ContaForm tipo={editing.tipo} isMobile={isMobile} cs={cs} erro={erro} saving={saving}
-        initial={editing.dados} isEdit
+        setores={setoresLista} etiquetas={etiquetasLista}
+        initial={editing.dados} initialEtiquetas={editing.etiquetas} isEdit
         onCancel={fecharModal}
-        onSave={(dados) => salvarEdit(editing.tipo, editing.id, dados)} />
+        onSave={(dados, et) => salvarEdit(editing.tipo, editing.id, dados, et)} />
+    )}
+
+    {/* Modal Historico do usuario */}
+    {historicoUsuario && (
+      <HistoricoUsuarioModal usuarioId={historicoUsuario.id} nome={historicoUsuario.nome} isMobile={isMobile} cs={cs}
+        onClose={() => setHistoricoUsuario(null)} />
     )}
 
     {toast && (
@@ -945,16 +1018,40 @@ function ContasPanel({ isMobile }) {
   </>);
 }
 
-function ContaForm({ tipo, isMobile, cs, erro, saving, initial, isEdit, onCancel, onSave }) {
+function ContaForm({ tipo, isMobile, cs, erro, saving, initial, initialEtiquetas, isEdit, setores, etiquetas, onCancel, onSave }) {
   const [d, setD] = useState(initial || (tipo === 'admin'
     ? { nome_completo: '', email: '', ramal: '', is_master: false, senha: '' }
     : { nome: '', email: '', setor: '', ramal: '', senha: '' }));
+  const [showSenha, setShowSenha] = useState(false);
+  const [etSel, setEtSel] = useState(new Set(initialEtiquetas || []));
+  const [etBusca, setEtBusca] = useState('');
   const set = (k, v) => setD(p => ({ ...p, [k]: v }));
   const isAdmin = tipo === 'admin';
+
+  // Forca de senha (5 criterios)
+  const senhaScore = (() => {
+    const s = d.senha || '';
+    if (!s) return null;
+    let n = 0;
+    if (s.length >= 8) n++;
+    if (/[A-Z]/.test(s)) n++;
+    if (/[a-z]/.test(s)) n++;
+    if (/[0-9]/.test(s)) n++;
+    if (/[^A-Za-z0-9]/.test(s)) n++;
+    return n;
+  })();
+  const senhaCor = senhaScore == null ? null : ['#e53935', '#e53935', '#fb8c00', '#fdd835', '#7cb342', '#43a047'][senhaScore];
+  const senhaLabel = senhaScore == null ? null : ['Muito fraca', 'Fraca', 'Média', 'Boa', 'Forte', 'Excelente'][senhaScore];
+
+  function toggleEt(slug) {
+    setEtSel(p => { const n = new Set(p); n.has(slug) ? n.delete(slug) : n.add(slug); return n; });
+  }
+  const etFiltradas = (etiquetas || []).filter(e => !etBusca.trim() || (e.nome || '').toLowerCase().includes(etBusca.trim().toLowerCase()) || (e.slug || '').includes(etBusca.trim().toLowerCase()));
+
   return (
     <div onClick={e => e.target === e.currentTarget && onCancel()}
-      style={{ position: 'fixed', inset: 0, zIndex: 150, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-      <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, maxWidth: 460, width: '100%', padding: isMobile ? '24px 20px' : '32px 36px' }}>
+      style={{ position: 'fixed', inset: 0, zIndex: 150, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, overflowY: 'auto' }}>
+      <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, maxWidth: 520, width: '100%', padding: isMobile ? '24px 20px' : '32px 36px', maxHeight: '90vh', overflowY: 'auto' }}>
         <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 6 }}>
           {isAdmin ? 'Admin do TI' : 'Usuário do portal'}
         </div>
@@ -967,27 +1064,63 @@ function ContaForm({ tipo, isMobile, cs, erro, saving, initial, isEdit, onCancel
           onChange={e => set(isAdmin ? 'nome_completo' : 'nome', e.target.value)} />
 
         <label style={{ ...cs.label, marginTop: 14 }}>E-mail</label>
-        <input style={cs.input} type="email" value={d.email}
+        <input style={cs.input} type="email" value={d.email} list="contas-setores-emails"
           onChange={e => set('email', e.target.value)} placeholder="usuario@granmarquise.com.br" />
 
         {!isAdmin && (<>
           <label style={{ ...cs.label, marginTop: 14 }}>Setor</label>
-          <input style={cs.input} value={d.setor} onChange={e => set('setor', e.target.value)} />
+          <input style={cs.input} value={d.setor} list="contas-setores"
+            onChange={e => set('setor', e.target.value)} placeholder="Digite ou selecione" />
+          <datalist id="contas-setores">
+            {(setores || []).map(s => <option key={s.id} value={s.name} />)}
+          </datalist>
         </>)}
 
         <label style={{ ...cs.label, marginTop: 14 }}>Ramal {!isAdmin && <span style={{ textTransform: 'none', letterSpacing: 0, opacity: .6 }}>(4 dígitos)</span>}</label>
         <input style={cs.input} value={d.ramal} onChange={e => set('ramal', e.target.value)} maxLength={isAdmin ? 20 : 4} />
 
-        <label style={{ ...cs.label, marginTop: 14 }}>Senha {isEdit && <span style={{ textTransform: 'none', letterSpacing: 0, opacity: .6 }}>(deixe em branco para não alterar)</span>}</label>
-        <input style={cs.input} type="password" value={d.senha} onChange={e => set('senha', e.target.value)}
-          placeholder="Mín. 8 com maiúscula, minúscula, número e especial" />
+        <label style={{ ...cs.label, marginTop: 14 }}>Senha {isEdit && <span style={{ textTransform: 'none', letterSpacing: 0, opacity: .6 }}>(em branco = não altera)</span>}</label>
+        <div style={{ position: 'relative' }}>
+          <input style={{ ...cs.input, paddingRight: 56 }} type={showSenha ? 'text' : 'password'} value={d.senha}
+            onChange={e => set('senha', e.target.value)}
+            placeholder="Mín. 8 com maiúscula, minúscula, número e especial" />
+          <button type="button" onClick={() => setShowSenha(v => !v)}
+            style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', cursor: 'pointer' }}>
+            {showSenha ? 'ocultar' : 'ver'}
+          </button>
+        </div>
+        {senhaScore != null && (
+          <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ flex: 1, height: 3, background: HUB_PALETTE.areiaDim + '33', borderRadius: 2, overflow: 'hidden' }}>
+              <div style={{ width: `${(senhaScore / 5) * 100}%`, height: '100%', background: senhaCor, transition: 'width 200ms, background 200ms' }} />
+            </div>
+            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.16em', textTransform: 'uppercase', color: senhaCor }}>{senhaLabel}</span>
+          </div>
+        )}
 
-        {isAdmin && (
+        {isAdmin && (<>
           <label style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 18, fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areia, cursor: 'pointer' }}>
             <input type="checkbox" checked={!!d.is_master} onChange={e => set('is_master', e.target.checked)} />
             Admin master (acesso total)
           </label>
-        )}
+
+          {(etiquetas || []).length > 0 && (<>
+            <label style={{ ...cs.label, marginTop: 18 }}>Etiquetas (áreas de atuação)</label>
+            <input style={{ ...cs.input, marginBottom: 8 }} value={etBusca} onChange={e => setEtBusca(e.target.value)} placeholder="Buscar etiqueta..." />
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, maxHeight: 160, overflowY: 'auto', border: `1px solid ${HUB_PALETTE.areiaDim}22`, padding: 10 }}>
+              {etFiltradas.map(e => {
+                const on = etSel.has(e.slug);
+                return (
+                  <button key={e.slug} type="button" onClick={() => toggleEt(e.slug)}
+                    style={{ background: on ? HUB_PALETTE.champanhe + '22' : 'transparent', border: `1px solid ${on ? HUB_PALETTE.champanhe : HUB_PALETTE.areiaDim + '55'}`, color: on ? HUB_PALETTE.champanhe : HUB_PALETTE.areia, fontFamily: 'Inter, sans-serif', fontSize: 12, padding: '4px 10px', borderRadius: 999, cursor: 'pointer' }}>
+                    {e.nome || e.slug}
+                  </button>
+                );
+              })}
+              {etFiltradas.length === 0 && <span style={{ fontSize: 12, color: HUB_PALETTE.areiaDim, fontFamily: 'Inter, sans-serif' }}>Nenhuma etiqueta corresponde.</span>}
+            </div>
+          </>)}
+        </>)}
 
         {erro && (
           <div style={{ marginTop: 16, padding: '10px 12px', border: '1px solid #E07A5F66', color: '#E07A5F', fontSize: 13, fontFamily: 'Inter, sans-serif' }}>
@@ -997,7 +1130,7 @@ function ContaForm({ tipo, isMobile, cs, erro, saving, initial, isEdit, onCancel
 
         <div style={{ display: 'flex', gap: 10, marginTop: 24, justifyContent: 'flex-end' }}>
           <button onClick={onCancel} disabled={saving} style={cs.btnGhost}>Cancelar</button>
-          <button onClick={() => onSave(d)} disabled={saving} style={cs.btnPrim}>
+          <button onClick={() => onSave(d, isAdmin ? Array.from(etSel) : null)} disabled={saving} style={cs.btnPrim}>
             {saving ? '...' : (isEdit ? 'Salvar' : 'Criar')}
           </button>
         </div>
@@ -1005,6 +1138,93 @@ function ContaForm({ tipo, isMobile, cs, erro, saving, initial, isEdit, onCancel
     </div>
   );
 }
+
+// ─── Historico do usuario do portal (chamados + atividade) ──────────────────
+function HistoricoUsuarioModal({ usuarioId, nome, isMobile, cs, onClose }) {
+  const [aba, setAba] = useState('chamados');
+  const [chamados, setChamados] = useState(null);
+  const [logs, setLogs] = useState(null);
+
+  useEffect(() => {
+    const lock = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const token = localStorage.getItem('hub_sso_token');
+    fetch(`/api/admin/chamados-usuarios/${usuarioId}/chamados`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json()).then(d => setChamados(d.ok ? (d.chamados || []) : [])).catch(() => setChamados([]));
+    fetch(`/api/admin/chamados-usuarios/${usuarioId}/logs`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json()).then(d => setLogs(d.ok ? (d.logs || []) : [])).catch(() => setLogs([]));
+    return () => { document.body.style.overflow = lock; };
+  }, [usuarioId]);
+
+  function fmtData(s) {
+    if (!s) return '—';
+    const iso = s.includes('T') ? s : s.replace(' ', 'T');
+    return new Date(iso.endsWith('Z') ? iso : iso + 'Z').toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short', timeZone: 'America/Fortaleza' });
+  }
+  const EVENTO_LABEL = {
+    login_sucesso: 'Login realizado', login_falha: 'Tentativa de login (senha incorreta)',
+    logout: 'Logout', reset_solicitado: 'Reset de senha solicitado',
+    reset_email_enviado: 'E-mail de reset enviado', reset_concluido: 'Senha redefinida',
+    reset_link_expirado: 'Link de reset expirado', reset_link_ja_usado: 'Link de reset já utilizado',
+  };
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.68)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, width: '100%', maxWidth: 820, maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ padding: '18px 24px', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+          <div>
+            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe }}>Histórico</div>
+            <div style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontSize: 22, color: HUB_PALETTE.marfim, marginTop: 4 }}>{nome}</div>
+          </div>
+          <button onClick={onClose} style={cs.btnGhost}>Fechar</button>
+        </div>
+        <div style={{ display: 'flex', gap: 0, borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, padding: '0 24px' }}>
+          {[{ id: 'chamados', label: 'Chamados', count: chamados?.length }, { id: 'atividade', label: 'Atividade de acesso', count: logs?.length }].map(t => (
+            <button key={t.id} onClick={() => setAba(t.id)}
+              style={{ background: 'transparent', border: 'none', borderBottom: `2px solid ${aba === t.id ? HUB_PALETTE.champanhe : 'transparent'}`, color: aba === t.id ? HUB_PALETTE.champanhe : HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', padding: '12px 18px 10px', cursor: 'pointer' }}>
+              {t.label}{t.count != null ? <span style={{ marginLeft: 6, fontSize: 9 }}>{t.count}</span> : null}
+            </button>
+          ))}
+        </div>
+        <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '16px 20px' : '20px 24px' }}>
+          {aba === 'chamados' && (chamados === null ? <Carregando /> :
+            chamados.length === 0 ? <Vazio msg="Sem chamados deste usuário." /> :
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              {chamados.map(c => (
+                <div key={c.id} style={{ display: 'flex', flexDirection: 'column', padding: '12px 0', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22` }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                    <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: HUB_PALETTE.champanhe }}>#{c.id}</span>
+                    <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.marfim, fontWeight: 500 }}>{c.descricao ? c.descricao.slice(0, 80) : 'Sem descrição'}{c.descricao && c.descricao.length > 80 ? '…' : ''}</span>
+                    <span style={{ marginLeft: 'auto', fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, border: `1px solid ${HUB_PALETTE.areiaDim}44`, padding: '2px 8px' }}>{c.status}</span>
+                  </div>
+                  <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: HUB_PALETTE.areiaDim, marginTop: 4 }}>
+                    Criado em {fmtData(c.criado_em)}{c.categoria ? ` · ${c.categoria}` : ''}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {aba === 'atividade' && (logs === null ? <Carregando /> :
+            logs.length === 0 ? <Vazio msg="Sem atividade registrada." /> :
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              {logs.map((l, i) => (
+                <div key={i} style={{ display: 'flex', flexDirection: 'column', padding: '10px 0', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22` }}>
+                  <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.marfim, fontWeight: 500 }}>{EVENTO_LABEL[l.evento] || l.evento}</div>
+                  <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: HUB_PALETTE.areiaDim, marginTop: 2 }}>
+                    {fmtData(l.criado_em)}{l.ip ? <span style={{ marginLeft: 10, fontFamily: 'JetBrains Mono, monospace' }}>{l.ip}</span> : null}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Carregando() { return <div style={{ padding: '40px 0', textAlign: 'center', fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim }}>Carregando…</div>; }
+function Vazio({ msg }) { return <div style={{ padding: '40px 0', textAlign: 'center', fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontSize: 15, color: HUB_PALETTE.areiaDim }}>{msg}</div>; }
 
 // ─── Header ───────────────────────────────────────────────────────────────────
 

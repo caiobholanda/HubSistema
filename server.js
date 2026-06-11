@@ -306,6 +306,22 @@ app.delete('/api/admin/chamados-admins/:id', requireAdmin, async (req, res) => {
   res.status(r.status).json(r.data);
 });
 
+// Etiquetas e setor cache (no chamados)
+app.get('/api/admin/chamados-etiquetas', requireAdmin, async (_req, res) => {
+  const r = await proxyChamados('/etiquetas'); res.status(r.status).json(r.data);
+});
+app.get('/api/admin/chamados-setores', requireAdmin, async (_req, res) => {
+  const r = await proxyChamados('/setores'); res.status(r.status).json(r.data);
+});
+app.get('/api/admin/chamados-admins/:id/etiquetas', requireAdmin, async (req, res) => {
+  const r = await proxyChamados(`/admins/${encodeURIComponent(req.params.id)}/etiquetas`);
+  res.status(r.status).json(r.data);
+});
+app.put('/api/admin/chamados-admins/:id/etiquetas', requireAdmin, async (req, res) => {
+  const r = await proxyChamados(`/admins/${encodeURIComponent(req.params.id)}/etiquetas`, { method: 'PUT', body: req.body });
+  res.status(r.status).json(r.data);
+});
+
 // Usuarios do portal (CRUD)
 app.get('/api/admin/chamados-usuarios', requireAdmin, async (_req, res) => {
   const r = await proxyChamados('/portal-usuarios');
@@ -321,6 +337,14 @@ app.patch('/api/admin/chamados-usuarios/:id', requireAdmin, async (req, res) => 
 });
 app.delete('/api/admin/chamados-usuarios/:id', requireAdmin, async (req, res) => {
   const r = await proxyChamados(`/portal-usuarios/${encodeURIComponent(req.params.id)}`, { method: 'DELETE' });
+  res.status(r.status).json(r.data);
+});
+app.get('/api/admin/chamados-usuarios/:id/logs', requireAdmin, async (req, res) => {
+  const r = await proxyChamados(`/portal-usuarios/${encodeURIComponent(req.params.id)}/logs`);
+  res.status(r.status).json(r.data);
+});
+app.get('/api/admin/chamados-usuarios/:id/chamados', requireAdmin, async (req, res) => {
+  const r = await proxyChamados(`/portal-usuarios/${encodeURIComponent(req.params.id)}/chamados`);
   res.status(r.status).json(r.data);
 });
 
