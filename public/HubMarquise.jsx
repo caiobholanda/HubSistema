@@ -663,13 +663,14 @@ function HistoricoPanel({ isMobile }) {
   const [log, setLog] = useState(null);
   const [loading, setLoading] = useState(false);
   const [filterDate, setFilterDate] = useState('');
+  const [filterTipo, setFilterTipo] = useState('todos'); // todos | admin | usuario | setor | link | permissao
 
   function token() { return localStorage.getItem('hub_sso_token'); }
 
   async function carregar() {
     setLoading(true);
     try {
-      const r = await fetch('/api/admin/audit-log?target_tipo=admin&limit=500', {
+      const r = await fetch('/api/admin/audit-log?limit=1000', {
         headers: { Authorization: `Bearer ${token()}` },
       });
       const d = await r.json();
@@ -701,6 +702,8 @@ function HistoricoPanel({ isMobile }) {
     promover_master: 'Promovido a master', rebaixar_master: 'Rebaixado de master',
     trocar_senha: 'Senha alterada', etiquetas: 'Etiquetas atualizadas',
     excluir: 'Excluído',
+    liberar_link: 'Liberou link', bloquear_link: 'Bloqueou link',
+    resetar_permissoes: 'Permissões resetadas',
   };
   const ACTION_COR = {
     criar: '#3E8497', editar: HUB_PALETTE.champanhe,
@@ -708,11 +711,20 @@ function HistoricoPanel({ isMobile }) {
     promover_master: HUB_PALETTE.champanhe, rebaixar_master: '#9E6B43',
     trocar_senha: '#A1814E', etiquetas: HUB_PALETTE.champanhe,
     excluir: '#E07A5F',
+    liberar_link: '#7cb342', bloquear_link: '#9E6B43',
+    resetar_permissoes: '#3E8497',
+  };
+  const TARGET_LABEL = {
+    admin: 'Admin', usuario: 'Usuário', setor: 'Setor', link: 'Link', permissao: 'Permissão',
   };
   const FIELD_LABEL = {
-    nome_completo: 'Nome', email: 'E-mail', ramal: 'Ramal',
+    nome_completo: 'Nome', nome: 'Nome', email: 'E-mail', ramal: 'Ramal', setor: 'Setor',
     is_master: 'Master', ativo: 'Ativo', _trocou_senha: 'Senha',
     slugs: 'Etiquetas',
+    url: 'URL', status: 'Status', categoria: 'Categoria', descricao: 'Descrição',
+    paraQuem: 'Para quem',
+    nome_anterior: 'Nome antigo',
+    link: 'Link',
   };
   function fmtVal(k, v) {
     if (k === 'is_master' || k === 'ativo' || k === '_trocou_senha') return v ? 'Sim' : 'Não';
@@ -720,7 +732,18 @@ function HistoricoPanel({ isMobile }) {
     return String(v ?? '—');
   }
 
-  const filtrado = (log || []).filter(e => !filterDate || localDateStr(e.at) === filterDate);
+  const filtrado = (log || []).filter(e => {
+    if (filterDate && localDateStr(e.at) !== filterDate) return false;
+    if (filterTipo !== 'todos' && e.target_tipo !== filterTipo) return false;
+    return true;
+  });
+
+  // Contagens por tipo (no log inteiro, nao no filtrado por data)
+  const contagemPorTipo = (log || []).reduce((acc, e) => {
+    acc[e.target_tipo] = (acc[e.target_tipo] || 0) + 1;
+    return acc;
+  }, {});
+  const totalGeral = (log || []).length;
 
   // Agrupa por dia mantendo ordem (log ja vem reverse: mais recente primeiro)
   const grupos = (() => {
@@ -746,8 +769,28 @@ function HistoricoPanel({ isMobile }) {
       </div>
       <h2 style={{ fontFamily: 'Fraunces, serif', fontWeight: 300, fontStyle: 'italic', fontSize: 40, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: '0 0 10px' }}>Alterações no painel.</h2>
       <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: HUB_PALETTE.areiaDim, lineHeight: 1.5, margin: 0 }}>
-        Toda criação, edição, ativação/inativação ou exclusão de admin feita por aqui fica registrada. Mostrando os {(log && log.length) || 0} eventos mais recentes.
+        Toda mudança em admins, usuários, setores, links e permissões fica registrada — quem fez e quando. Mostrando os {totalGeral} eventos mais recentes.
       </p>
+    </div>
+
+    {/* Filtros por tipo (chips) */}
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
+      {[
+        { id: 'todos', label: 'Todos', total: totalGeral },
+        { id: 'admin', label: 'Admins', total: contagemPorTipo.admin || 0 },
+        { id: 'usuario', label: 'Usuários', total: contagemPorTipo.usuario || 0 },
+        { id: 'setor', label: 'Setores', total: contagemPorTipo.setor || 0 },
+        { id: 'link', label: 'Links', total: contagemPorTipo.link || 0 },
+        { id: 'permissao', label: 'Permissões', total: contagemPorTipo.permissao || 0 },
+      ].map(t => {
+        const on = filterTipo === t.id;
+        return (
+          <button key={t.id} onClick={() => setFilterTipo(t.id)}
+            style={{ background: on ? HUB_PALETTE.champanhe + '22' : 'transparent', border: `1px solid ${on ? HUB_PALETTE.champanhe : HUB_PALETTE.areiaDim + '55'}`, color: on ? HUB_PALETTE.champanhe : HUB_PALETTE.areia, fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: on ? 600 : 400, padding: '6px 12px', borderRadius: 999, cursor: 'pointer' }}>
+            {t.label} <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: on ? HUB_PALETTE.champanhe : HUB_PALETTE.areiaDim, marginLeft: 4 }}>{t.total}</span>
+          </button>
+        );
+      })}
     </div>
 
     {/* Toolbar */}
@@ -787,8 +830,11 @@ function HistoricoPanel({ isMobile }) {
                 <div key={e.id} style={{ padding: '14px 0', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22` }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                     <span style={{ display: 'inline-flex', padding: '3px 10px', fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', background: cor + '22', color: cor, border: `1px solid ${cor}55` }}>{label}</span>
+                    <span style={{ display: 'inline-flex', padding: '3px 8px', fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 500, letterSpacing: '0.18em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, border: `1px solid ${HUB_PALETTE.areiaDim}55` }}>
+                      {TARGET_LABEL[e.target_tipo] || e.target_tipo}
+                    </span>
                     <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13.5, color: HUB_PALETTE.marfim, fontWeight: 500, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {e.target_nome || `Admin #${e.target_id}`}
+                      {e.target_nome || `${TARGET_LABEL[e.target_tipo] || e.target_tipo} #${e.target_id || ''}`}
                     </span>
                     <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 12.5, color: HUB_PALETTE.areia }}>por <strong style={{ color: HUB_PALETTE.champanhe, fontWeight: 600 }}>{e.by_nome || e.by_email}</strong></span>
                     <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: HUB_PALETTE.areiaDim, fontVariantNumeric: 'tabular-nums' }}>{fmtHora(e.at)}</span>

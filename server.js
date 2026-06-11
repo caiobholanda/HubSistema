@@ -68,6 +68,35 @@ async function _buscarAdminAlvo(id) {
   return (r.data.admins || []).find(a => Number(a.id) === Number(id)) || null;
 }
 
+// Resolve nome do alvo para qualquer tipo de audit log
+async function _resolverNomeAlvo(tipo, id) {
+  try {
+    if (tipo === 'admin') {
+      const a = await _buscarAdminAlvo(id);
+      return a && a.nome_completo || null;
+    }
+    if (tipo === 'usuario') {
+      const r = await proxyChamados('/portal-usuarios');
+      if (r.status === 200 && r.data && r.data.ok) {
+        const u = (r.data.usuarios || []).find(x => Number(x.id) === Number(id));
+        return u && u.nome || null;
+      }
+    }
+    if (tipo === 'setor') {
+      const r = await proxyChamados('/setores');
+      if (r.status === 200 && r.data && r.data.ok) {
+        const s = (r.data.setores || []).find(x => Number(x.id) === Number(id));
+        return s && s.nome || null;
+      }
+    }
+    if (tipo === 'link') {
+      const sis = (readData().sistemas || DEFAULT_SISTEMAS).find(s => s.id === id);
+      return sis && sis.nome || null;
+    }
+  } catch (e) { /* ignore */ }
+  return null;
+}
+
 function trackUser(email, nome, tipo, extras = {}) {
   const data = readData();
   const idx = data.users.findIndex(u => u.email === email);
@@ -237,6 +266,33 @@ app.put('/api/admin/permissions', requireAdmin, (req, res) => {
   const { email, sistemas } = req.body || {};
   if (!email || !Array.isArray(sistemas)) return res.status(400).json({ ok: false, erro: 'Dados inválidos' });
   const data = readData();
+  // Diff: para cada toggle de link gera um evento granular (liberar_link/bloquear_link)
+  const antes = data.permissions[email];
+  const sistemasAtuaisIds = (data.sistemas || DEFAULT_SISTEMAS).map(s => s.id);
+  const tinhaAntes = (antes === undefined || antes === null) ? sistemasAtuaisIds : antes;
+  const setAntes = new Set(tinhaAntes);
+  const setDepois = new Set(sistemas);
+  const liberados = [...setDepois].filter(x => !setAntes.has(x));
+  const bloqueados = [...setAntes].filter(x => !setDepois.has(x));
+  const alvo = (data.users || []).find(u => u.email === email);
+  const targetNome = (alvo && alvo.nome) || email;
+  const sistemasMap = Object.fromEntries((data.sistemas || DEFAULT_SISTEMAS).map(s => [s.id, s.nome]));
+  for (const sid of liberados) {
+    appendAudit({
+      by_email: req.hubUser.email, by_nome: req.hubUser.nome,
+      action: 'liberar_link', target_tipo: 'permissao',
+      target_id: null, target_nome: targetNome,
+      campos: { email, link: sistemasMap[sid] || sid },
+    });
+  }
+  for (const sid of bloqueados) {
+    appendAudit({
+      by_email: req.hubUser.email, by_nome: req.hubUser.nome,
+      action: 'bloquear_link', target_tipo: 'permissao',
+      target_id: null, target_nome: targetNome,
+      campos: { email, link: sistemasMap[sid] || sid },
+    });
+  }
   data.permissions[email] = sistemas;
   writeData(data);
   notifyUser(email, sistemas);
@@ -281,6 +337,12 @@ app.post('/api/admin/sistemas', requireAdmin, (req, res) => {
   }
 
   writeData(data);
+  appendAudit({
+    by_email: req.hubUser.email, by_nome: req.hubUser.nome,
+    action: 'criar', target_tipo: 'link',
+    target_id: id, target_nome: nome,
+    campos: { nome, url: url || '#', status, categoria: categoria || '', paraQuem: paraQuem || '' },
+  });
   res.json({ ok: true, sistema: novo });
 });
 
@@ -290,17 +352,36 @@ app.put('/api/admin/sistemas/:id', requireAdmin, (req, res) => {
   const sistemas = getSistemas();
   const idx = sistemas.findIndex(s => s.id === req.params.id);
   if (idx === -1) return res.status(404).json({ ok: false, erro: 'Sistema não encontrado' });
+  const antes = { ...sistemas[idx] };
   sistemas[idx] = { ...sistemas[idx], ...(nome && { nome }), url: url !== undefined ? url : sistemas[idx].url, ...(status && { status }), categoria: categoria !== undefined ? categoria : sistemas[idx].categoria, descricao: descricao !== undefined ? descricao : sistemas[idx].descricao, paraQuem: paraQuem !== undefined ? paraQuem : sistemas[idx].paraQuem };
   data.sistemas = sistemas;
   writeData(data);
+  // So loga campos efetivamente alterados
+  const diff = {};
+  for (const k of ['nome', 'url', 'status', 'categoria', 'descricao', 'paraQuem']) {
+    if (antes[k] !== sistemas[idx][k]) diff[k] = sistemas[idx][k];
+  }
+  appendAudit({
+    by_email: req.hubUser.email, by_nome: req.hubUser.nome,
+    action: 'editar', target_tipo: 'link',
+    target_id: req.params.id, target_nome: sistemas[idx].nome,
+    campos: diff,
+  });
   res.json({ ok: true, sistema: sistemas[idx] });
 });
 
 app.delete('/api/admin/sistemas/:id', requireAdmin, (req, res) => {
   const data = readData();
   const sistemas = getSistemas();
+  const antes = sistemas.find(s => s.id === req.params.id);
   data.sistemas = sistemas.filter(s => s.id !== req.params.id);
   writeData(data);
+  appendAudit({
+    by_email: req.hubUser.email, by_nome: req.hubUser.nome,
+    action: 'excluir', target_tipo: 'link',
+    target_id: req.params.id, target_nome: antes && antes.nome || req.params.id,
+    campos: {},
+  });
   res.json({ ok: true });
 });
 
@@ -385,14 +466,43 @@ app.get('/api/admin/chamados-setores', requireAdmin, async (_req, res) => {
 });
 app.post('/api/admin/chamados-setores', requireAdmin, async (req, res) => {
   const r = await proxyChamados('/setores', { method: 'POST', body: req.body });
+  if (r.status >= 200 && r.status < 300 && r.data && r.data.ok) {
+    appendAudit({
+      by_email: req.hubUser.email, by_nome: req.hubUser.nome,
+      action: 'criar', target_tipo: 'setor',
+      target_id: r.data.id, target_nome: r.data.nome || (req.body && req.body.nome),
+      campos: { nome: r.data.nome || (req.body && req.body.nome) },
+    });
+  }
   res.status(r.status).json(r.data);
 });
 app.put('/api/admin/chamados-setores/:id', requireAdmin, async (req, res) => {
-  const r = await proxyChamados(`/setores/${encodeURIComponent(req.params.id)}`, { method: 'PUT', body: req.body });
+  const id = req.params.id;
+  const nomeAntigo = await _resolverNomeAlvo('setor', id);
+  const r = await proxyChamados(`/setores/${encodeURIComponent(id)}`, { method: 'PUT', body: req.body });
+  if (r.status >= 200 && r.status < 300 && r.data && r.data.ok) {
+    const nomeNovo = req.body && req.body.nome;
+    appendAudit({
+      by_email: req.hubUser.email, by_nome: req.hubUser.nome,
+      action: 'editar', target_tipo: 'setor',
+      target_id: Number(id), target_nome: nomeNovo || nomeAntigo,
+      campos: { nome_anterior: nomeAntigo, nome: nomeNovo },
+    });
+  }
   res.status(r.status).json(r.data);
 });
 app.delete('/api/admin/chamados-setores/:id', requireAdmin, async (req, res) => {
-  const r = await proxyChamados(`/setores/${encodeURIComponent(req.params.id)}`, { method: 'DELETE' });
+  const id = req.params.id;
+  const nome = await _resolverNomeAlvo('setor', id);
+  const r = await proxyChamados(`/setores/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  if (r.status >= 200 && r.status < 300 && r.data && r.data.ok) {
+    appendAudit({
+      by_email: req.hubUser.email, by_nome: req.hubUser.nome,
+      action: 'excluir', target_tipo: 'setor',
+      target_id: Number(id), target_nome: nome,
+      campos: {},
+    });
+  }
   res.status(r.status).json(r.data);
 });
 app.get('/api/admin/chamados-admins/:id/etiquetas', requireAdmin, async (req, res) => {
@@ -422,14 +532,47 @@ app.get('/api/admin/chamados-usuarios', requireAdmin, async (_req, res) => {
 });
 app.post('/api/admin/chamados-usuarios', requireAdmin, async (req, res) => {
   const r = await proxyChamados('/portal-usuarios', { method: 'POST', body: req.body });
+  if (r.status >= 200 && r.status < 300 && r.data && r.data.ok) {
+    appendAudit({
+      by_email: req.hubUser.email, by_nome: req.hubUser.nome,
+      action: 'criar', target_tipo: 'usuario',
+      target_id: r.data.id, target_nome: req.body && req.body.nome,
+      campos: _campos(req.body),
+    });
+  }
   res.status(r.status).json(r.data);
 });
 app.patch('/api/admin/chamados-usuarios/:id', requireAdmin, async (req, res) => {
-  const r = await proxyChamados(`/portal-usuarios/${encodeURIComponent(req.params.id)}`, { method: 'PATCH', body: req.body });
+  const id = req.params.id;
+  const nome = await _resolverNomeAlvo('usuario', id);
+  const r = await proxyChamados(`/portal-usuarios/${encodeURIComponent(id)}`, { method: 'PATCH', body: req.body });
+  if (r.status >= 200 && r.status < 300 && r.data && r.data.ok) {
+    const b = req.body || {};
+    const onlyKeys = Object.keys(b).filter(k => b[k] !== undefined);
+    let action = 'editar';
+    if (onlyKeys.length === 1 && 'ativo' in b) action = b.ativo ? 'ativar' : 'inativar';
+    else if (onlyKeys.length === 1 && 'senha' in b) action = 'trocar_senha';
+    appendAudit({
+      by_email: req.hubUser.email, by_nome: req.hubUser.nome,
+      action, target_tipo: 'usuario',
+      target_id: Number(id), target_nome: nome,
+      campos: _campos(b),
+    });
+  }
   res.status(r.status).json(r.data);
 });
 app.delete('/api/admin/chamados-usuarios/:id', requireAdmin, async (req, res) => {
-  const r = await proxyChamados(`/portal-usuarios/${encodeURIComponent(req.params.id)}`, { method: 'DELETE' });
+  const id = req.params.id;
+  const nome = await _resolverNomeAlvo('usuario', id);
+  const r = await proxyChamados(`/portal-usuarios/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  if (r.status >= 200 && r.status < 300 && r.data && r.data.ok) {
+    appendAudit({
+      by_email: req.hubUser.email, by_nome: req.hubUser.nome,
+      action: 'excluir', target_tipo: 'usuario',
+      target_id: Number(id), target_nome: nome,
+      campos: {},
+    });
+  }
   res.status(r.status).json(r.data);
 });
 app.get('/api/admin/chamados-usuarios/:id/logs', requireAdmin, async (req, res) => {
@@ -459,6 +602,13 @@ app.delete('/api/admin/permissions/:email', requireAdmin, (req, res) => {
   delete data.permissions[email];
   writeData(data);
   notifyUser(email, null);
+  const alvo = (data.users || []).find(u => u.email === email);
+  appendAudit({
+    by_email: req.hubUser.email, by_nome: req.hubUser.nome,
+    action: 'resetar_permissoes', target_tipo: 'permissao',
+    target_id: null, target_nome: (alvo && alvo.nome) || email,
+    campos: { email },
+  });
   res.json({ ok: true });
 });
 
