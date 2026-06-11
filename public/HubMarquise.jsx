@@ -1258,12 +1258,19 @@ function ContasPanel({ isMobile }) {
     ].filter(Boolean).map(s => String(s).toLowerCase());
     return campos.some(c => c.includes(t));
   }
-  const filtrada = (lista || []).filter(r => {
-    const ativo = isAdmin ? r.ativo === 1 : r.ativo !== 0;
-    if (wantAtivo !== ativo) return false;
-    if (!tokens.length) return true;
-    return tokens.every(t => matchToken(r, t));
-  });
+  const filtrada = (lista || [])
+    .filter(r => {
+      const ativo = isAdmin ? r.ativo === 1 : r.ativo !== 0;
+      if (wantAtivo !== ativo) return false;
+      if (!tokens.length) return true;
+      return tokens.every(t => matchToken(r, t));
+    })
+    .slice()
+    .sort((a, b) => {
+      const nomeA = (isAdmin ? a.nome_completo : a.nome) || '';
+      const nomeB = (isAdmin ? b.nome_completo : b.nome) || '';
+      return nomeA.localeCompare(nomeB, 'pt-BR', { sensitivity: 'base' });
+    });
   const totalAtivos = (lista || []).filter(r => isAdmin ? r.ativo === 1 : r.ativo !== 0).length;
   const totalInativos = (lista || []).filter(r => isAdmin ? r.ativo === 0 : r.ativo === 0).length;
 
