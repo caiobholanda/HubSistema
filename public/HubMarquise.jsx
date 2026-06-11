@@ -511,7 +511,8 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={HUB_PALETTE.areiaDim} strokeWidth="1.5" strokeLinecap="round" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
                 <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
               </svg>
-              <input type="text" placeholder="Filtrar por nome..." value={filtro} onChange={e => setFiltro(e.target.value)}
+              <input type="text" placeholder="Filtrar por nome, email, setor..." value={filtro} onChange={e => setFiltro(e.target.value)}
+                autoComplete="off" name="usuarios-busca-livre" spellCheck={false}
                 style={{ width: '100%', boxSizing: 'border-box', background: `${HUB_PALETTE.areiaDim}0a`, border: `1px solid ${HUB_PALETTE.areiaDim}33`, color: HUB_PALETTE.marfim, fontFamily: 'Inter, sans-serif', fontSize: 14, padding: '10px 14px 10px 38px', outline: 'none' }} />
             </div>
           )}
@@ -671,9 +672,10 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
                               </svg>
                               <input
                                 type="text"
-                                placeholder="Filtrar por nome..."
+                                placeholder="Filtrar por nome ou setor..."
                                 value={filtroSemAcesso}
                                 onChange={e => setFiltroSemAcesso(e.target.value)}
+                                autoComplete="off" name="sem-acesso-busca" spellCheck={false}
                                 style={{ width: '100%', boxSizing: 'border-box', background: `${HUB_PALETTE.areiaDim}10`, border: `1px solid ${HUB_PALETTE.areiaDim}33`, color: HUB_PALETTE.marfim, fontFamily: 'Inter, sans-serif', fontSize: 13, padding: '7px 12px 7px 30px', outline: 'none' }}
                               />
                             </div>
@@ -877,14 +879,27 @@ function ContasPanel({ isMobile }) {
 
   const isAdmin = subAba === 'admins';
   const lista = isAdmin ? admins : usuarios;
-  const q = busca.trim().toLowerCase();
+  // Filtro de busca: nome, email, login, ramal, setor + flags (master, inativo).
+  // Multiplas palavras separadas por espaco viram AND (toda token precisa bater).
+  const tokens = busca.trim().toLowerCase().split(/\s+/).filter(Boolean);
   const wantAtivo = statusAba === 'ativos';
+  function matchToken(r, t) {
+    if (t === 'master' && isAdmin) return !!r.is_master;
+    if (t === 'inativo') return !(isAdmin ? r.ativo === 1 : r.ativo !== 0);
+    const campos = [
+      isAdmin ? r.nome_completo : r.nome,
+      r.email,
+      r.usuario,
+      r.ramal,
+      r.setor,
+    ].filter(Boolean).map(s => String(s).toLowerCase());
+    return campos.some(c => c.includes(t));
+  }
   const filtrada = (lista || []).filter(r => {
     const ativo = isAdmin ? r.ativo === 1 : r.ativo !== 0;
     if (wantAtivo !== ativo) return false;
-    if (!q) return true;
-    const nome = isAdmin ? r.nome_completo : r.nome;
-    return (nome || '').toLowerCase().includes(q) || (r.email || '').toLowerCase().includes(q);
+    if (!tokens.length) return true;
+    return tokens.every(t => matchToken(r, t));
   });
   const totalAtivos = (lista || []).filter(r => isAdmin ? r.ativo === 1 : r.ativo !== 0).length;
   const totalInativos = (lista || []).filter(r => isAdmin ? r.ativo === 0 : r.ativo === 0).length;
@@ -930,8 +945,9 @@ function ContasPanel({ isMobile }) {
 
     {/* Toolbar */}
     <div style={{ display: 'flex', gap: 12, marginBottom: 18, flexWrap: 'wrap' }}>
-      <input type="text" placeholder="Filtrar por nome ou e-mail..." value={busca} onChange={e => setBusca(e.target.value)}
-        style={{ ...cs.input, flex: 1, minWidth: 220 }} />
+      <input type="text" placeholder="Filtrar por nome, email, login, ramal, setor..." value={busca} onChange={e => setBusca(e.target.value)}
+        autoComplete="off" name="contas-busca-livre"
+        style={{ ...cs.input, flex: 1, minWidth: 260 }} title="Aceita múltiplas palavras (AND) e flags 'master' / 'inativo'" />
       <button onClick={() => startNew(isAdmin ? 'admin' : 'usuario')} style={cs.btnPrim}>
         + Novo {isAdmin ? 'admin' : 'usuário'}
       </button>
@@ -1059,17 +1075,30 @@ function ContaForm({ tipo, isMobile, cs, erro, saving, initial, initialEtiquetas
           {isEdit ? 'Editar' : 'Novo'}
         </h3>
 
+        {/* "honeypot" para o autofill do Chrome/Edge: ele preenche estes dois e ignora os reais.
+            Ficam fora da tela (off-screen, nao display:none — display:none faz alguns browsers
+            ignorarem o honeypot). Os usuarios nunca veem nem tabulam ate eles. */}
+        <div aria-hidden="true" style={{ position: 'absolute', left: '-9999px', top: 'auto', width: 1, height: 1, overflow: 'hidden' }}>
+          <input type="text" name="username" tabIndex={-1} autoComplete="username" />
+          <input type="password" name="password" tabIndex={-1} autoComplete="current-password" />
+        </div>
+
+        <form autoComplete="off" onSubmit={e => e.preventDefault()}>
+
         <label style={cs.label}>Nome</label>
         <input style={cs.input} value={isAdmin ? d.nome_completo : d.nome}
+          autoComplete="off" name="conta-nome-randoma1b2" spellCheck={false}
           onChange={e => set(isAdmin ? 'nome_completo' : 'nome', e.target.value)} />
 
         <label style={{ ...cs.label, marginTop: 14 }}>E-mail</label>
-        <input style={cs.input} type="email" value={d.email} list="contas-setores-emails"
+        <input style={cs.input} type="text" value={d.email}
+          autoComplete="off" name="conta-email-randomc3d4" spellCheck={false} inputMode="email"
           onChange={e => set('email', e.target.value)} placeholder="usuario@granmarquise.com.br" />
 
         {!isAdmin && (<>
           <label style={{ ...cs.label, marginTop: 14 }}>Setor</label>
           <input style={cs.input} value={d.setor} list="contas-setores"
+            autoComplete="off" name="conta-setor-randome5f6" spellCheck={false}
             onChange={e => set('setor', e.target.value)} placeholder="Digite ou selecione" />
           <datalist id="contas-setores">
             {(setores || []).map(s => <option key={s.id} value={s.name} />)}
@@ -1077,11 +1106,14 @@ function ContaForm({ tipo, isMobile, cs, erro, saving, initial, initialEtiquetas
         </>)}
 
         <label style={{ ...cs.label, marginTop: 14 }}>Ramal {!isAdmin && <span style={{ textTransform: 'none', letterSpacing: 0, opacity: .6 }}>(4 dígitos)</span>}</label>
-        <input style={cs.input} value={d.ramal} onChange={e => set('ramal', e.target.value)} maxLength={isAdmin ? 20 : 4} />
+        <input style={cs.input} value={d.ramal}
+          autoComplete="off" name="conta-ramal-randomg7h8" inputMode="numeric"
+          onChange={e => set('ramal', e.target.value)} maxLength={isAdmin ? 20 : 4} />
 
         <label style={{ ...cs.label, marginTop: 14 }}>Senha {isEdit && <span style={{ textTransform: 'none', letterSpacing: 0, opacity: .6 }}>(em branco = não altera)</span>}</label>
         <div style={{ position: 'relative' }}>
           <input style={{ ...cs.input, paddingRight: 56 }} type={showSenha ? 'text' : 'password'} value={d.senha}
+            autoComplete="new-password" name="conta-senha-randomi9j0" spellCheck={false}
             onChange={e => set('senha', e.target.value)}
             placeholder="Mín. 8 com maiúscula, minúscula, número e especial" />
           <button type="button" onClick={() => setShowSenha(v => !v)}
@@ -1129,11 +1161,13 @@ function ContaForm({ tipo, isMobile, cs, erro, saving, initial, initialEtiquetas
         )}
 
         <div style={{ display: 'flex', gap: 10, marginTop: 24, justifyContent: 'flex-end' }}>
-          <button onClick={onCancel} disabled={saving} style={cs.btnGhost}>Cancelar</button>
-          <button onClick={() => onSave(d, isAdmin ? Array.from(etSel) : null)} disabled={saving} style={cs.btnPrim}>
+          <button type="button" onClick={onCancel} disabled={saving} style={cs.btnGhost}>Cancelar</button>
+          <button type="button" onClick={() => onSave(d, isAdmin ? Array.from(etSel) : null)} disabled={saving} style={cs.btnPrim}>
             {saving ? '...' : (isEdit ? 'Salvar' : 'Criar')}
           </button>
         </div>
+
+        </form>
       </div>
     </div>
   );
