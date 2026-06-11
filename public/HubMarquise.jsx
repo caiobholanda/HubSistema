@@ -335,7 +335,7 @@ function LinkForm({ form, setForm, onSave, onCancel, linkErro, linkSaving }) {
 
 function HubAdmin({ onClose, hubSystems, setHubSystems }) {
   const isMobile = useWindowWidth() < 768;
-  const [aba, setAba] = useState('links');
+  const [aba, setAba] = useState('contas');
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState([]);
   const [permissions, setPermissions] = useState({});
@@ -455,8 +455,8 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
   }
 
   const ABAS = [
-    { id: 'links', label: 'Links' },
     { id: 'contas', label: 'Usuários' },
+    { id: 'links', label: 'Links' },
   ];
 
   return (
