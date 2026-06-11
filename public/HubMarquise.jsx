@@ -1325,7 +1325,7 @@ function ContasPanel({ isMobile }) {
                 {row.senha_plain && (
                   <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 12 }}>
                     <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim }}>senha</span>
-                    <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 14, color: HUB_PALETTE.champanhe, background: HUB_PALETTE.champanhe + '15', padding: '4px 12px', userSelect: 'all', borderRadius: 2 }}>
+                    <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 15, fontWeight: 500, color: HUB_PALETTE.champanhe, background: HUB_PALETTE.champanhe + '15', padding: '4px 12px', userSelect: 'all', borderRadius: 2, letterSpacing: showSenha ? 0 : '0.15em' }}>
                       {showSenha ? row.senha_plain : '••••••••'}
                     </span>
                     <button onClick={() => toggleRevelar(key)}
