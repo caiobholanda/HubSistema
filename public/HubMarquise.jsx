@@ -1114,7 +1114,7 @@ function SetoresPanel({ isMobile }) {
 
     {/* Modal Confirmar exclusão */}
     {confirmar && (
-      <div onClick={e => e.target === e.currentTarget && setConfirmar(null)}
+      <div
         style={{ position: 'fixed', inset: 0, zIndex: 160, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
         <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, maxWidth: 420, width: '100%', padding: isMobile ? '24px 20px' : '32px 36px' }}>
           <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: '#E07A5F', marginBottom: 6 }}>Confirmar exclusão</div>
@@ -1152,7 +1152,7 @@ function SetorForm({ isMobile, cs, erro, saving, initialNome, isEdit, onCancel, 
     if (e.key === 'Escape' && !saving) { e.preventDefault(); onCancel(); }
   }
   return (
-    <div onClick={e => e.target === e.currentTarget && !saving && onCancel()}
+    <div
       style={{ position: 'fixed', inset: 0, zIndex: 150, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
       <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, maxWidth: 460, width: '100%', padding: isMobile ? '24px 20px' : '32px 36px' }}>
         <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 6 }}>Setor</div>
@@ -1257,6 +1257,10 @@ function ContasPanel({ isMobile }) {
 
   async function startEdit(tipo, row) {
     setErro('');
+    // senhaInicial = senha em texto plano salva no banco (pode ser vazia se ainda
+    // nao foi capturada). O modal pre-preenche; salvarEdit so envia "senha" se
+    // o valor for diferente do inicial (evita PATCH desnecessario).
+    const senhaInicial = row.senha_plain || '';
     if (tipo === 'admin') {
       let slugs = [];
       try {
@@ -1264,15 +1268,15 @@ function ContasPanel({ isMobile }) {
         const d = await r.json();
         if (d.ok) slugs = d.slugs || [];
       } catch {}
-      setEditing({ tipo, id: row.id, etiquetas: slugs, dados: {
+      setEditing({ tipo, id: row.id, etiquetas: slugs, senhaInicial, dados: {
         nome_completo: row.nome_completo, email: row.email || '',
         ramal: row.ramal || '', is_master: !!row.is_master,
-        senha: '', ativo: !!row.ativo,
+        senha: senhaInicial, ativo: !!row.ativo,
       }});
     } else {
-      setEditing({ tipo, id: row.id, dados: {
+      setEditing({ tipo, id: row.id, senhaInicial, dados: {
         nome: row.nome, email: row.email || '', setor: row.setor || '',
-        ramal: row.ramal || '', senha: '', ativo: row.ativo !== 0,
+        ramal: row.ramal || '', senha: senhaInicial, ativo: row.ativo !== 0,
       }});
     }
   }
@@ -1304,7 +1308,9 @@ function ContasPanel({ isMobile }) {
     setSaving(true); setErro('');
     const rota = tipo === 'admin' ? `/api/admin/chamados-admins/${id}` : `/api/admin/chamados-usuarios/${id}`;
     const body = { ...dados };
-    if (!body.senha) delete body.senha;
+    // Envia "senha" so se foi efetivamente alterada (comparar com senhaInicial do startEdit)
+    const senhaInicial = (editing && editing.senhaInicial) || '';
+    if (!body.senha || body.senha === senhaInicial) delete body.senha;
     try {
       const r = await fetch(rota, {
         method: 'PATCH',
@@ -1537,7 +1543,7 @@ function ContasPanel({ isMobile }) {
       const acaoLabel = ativar ? 'ATIVAR' : 'DESATIVAR';
       const cor = ativar ? HUB_PALETTE.champanhe : '#E07A5F';
       return (
-        <div onClick={e => e.target === e.currentTarget && !togglingAtivo && setConfirmAtivo(null)}
+        <div
           style={{ position: 'fixed', inset: 0, zIndex: 170, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
           <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, maxWidth: 460, width: '100%', padding: isMobile ? '24px 20px' : '32px 36px' }}>
             <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: cor, marginBottom: 6 }}>
@@ -1604,7 +1610,7 @@ function ContaForm({ tipo, isMobile, cs, erro, saving, initial, initialEtiquetas
   const etFiltradas = (etiquetas || []).filter(e => !etBusca.trim() || (e.nome || '').toLowerCase().includes(etBusca.trim().toLowerCase()) || (e.slug || '').includes(etBusca.trim().toLowerCase()));
 
   return (
-    <div onClick={e => e.target === e.currentTarget && onCancel()}
+    <div
       style={{ position: 'fixed', inset: 0, zIndex: 150, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, overflowY: 'auto' }}>
       <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, maxWidth: 520, width: '100%', padding: isMobile ? '24px 20px' : '32px 36px', maxHeight: '90vh', overflowY: 'auto' }}>
         <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 6 }}>
@@ -1649,7 +1655,7 @@ function ContaForm({ tipo, isMobile, cs, erro, saving, initial, initialEtiquetas
           autoComplete="off" name="conta-ramal-randomg7h8" inputMode="numeric"
           onChange={e => set('ramal', e.target.value)} maxLength={isAdmin ? 20 : 4} />
 
-        <label style={{ ...cs.label, marginTop: 14 }}>Senha {isEdit && <span style={{ textTransform: 'none', letterSpacing: 0, opacity: .6 }}>(em branco = não altera)</span>}</label>
+        <label style={{ ...cs.label, marginTop: 14 }}>Senha {isEdit && <span style={{ textTransform: 'none', letterSpacing: 0, opacity: .6 }}>(altere para definir uma nova)</span>}</label>
         <div style={{ position: 'relative' }}>
           <input style={{ ...cs.input, paddingRight: 56 }} type={showSenha ? 'text' : 'password'} value={d.senha}
             autoComplete="new-password" name="conta-senha-randomi9j0" spellCheck={false}
