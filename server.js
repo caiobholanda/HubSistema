@@ -219,52 +219,38 @@ app.post('/api/auth/login', async (req, res) => {
   if (!email || !senha) return res.status(400).json({ ok: false, erro: 'Email e senha obrigatórios' });
   const emailNorm = email.trim().toLowerCase();
 
-  // Tenta login como admin primeiro
+  // Usa endpoint server-to-server (Bearer SSO_SECRET) que resolve admin vs
+  // usuario num unico passo, SEM rate limit por IP. Antes este handler fazia
+  // 2 requests (admin + usuario) — como o Hub e um unico IP, saturava o rate
+  // limit do chamados rapidamente e travava login para todos.
   try {
-    const r = await fetch(`${CHAMADOS_URL}/api/admin/login`, {
+    const r = await fetch(`${CHAMADOS_URL}/api/hub/login`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${SSO_SECRET}` },
       body: JSON.stringify({ email: emailNorm, senha }),
     });
-    if (r.ok) {
-      const data = await r.json();
-      if (data.precisa_trocar_senha) {
-        return res.json({ ok: true, precisa_trocar_senha: true, email: emailNorm, tipo: 'admin' });
-      }
-      const token = jwt.sign({ nome: data.nome, email: emailNorm, tipo: 'admin', is_master: data.is_master }, SSO_SECRET, { expiresIn: '8h' });
-      trackUser(emailNorm, data.nome, 'admin', {
-        setor: data.setor,
-        ramal: data.ramal,
-        is_master: data.is_master,
-        usuario: data.usuario,
-      });
-      return res.json({ ok: true, token, tipo: 'admin', nome: data.nome, sistemas: getUserSistemas(emailNorm) });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok || !data.ok) {
+      return res.status(r.status || 401).json({ ok: false, erro: data.erro || 'Credenciais inválidas' });
     }
-  } catch (_) {}
-
-  // Fallback: login como usuário
-  try {
-    const r = await fetch(`${CHAMADOS_URL}/api/usuarios/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: emailNorm, senha }),
+    if (data.precisa_trocar_senha) {
+      return res.json({ ok: true, precisa_trocar_senha: true, email: emailNorm, tipo: data.tipo });
+    }
+    const payload = { nome: data.nome, email: emailNorm, tipo: data.tipo };
+    if (data.tipo === 'admin') payload.is_master = !!data.is_master;
+    const token = jwt.sign(payload, SSO_SECRET, { expiresIn: '8h' });
+    trackUser(emailNorm, data.nome, data.tipo, {
+      setor: data.setor,
+      ramal: data.ramal,
+      is_master: data.is_master,
+      usuario: data.usuario,
     });
-    if (r.ok) {
-      const data = await r.json();
-      if (data.precisa_trocar_senha) {
-        return res.json({ ok: true, precisa_trocar_senha: true, email: emailNorm, tipo: 'usuario' });
-      }
-      const token = jwt.sign({ nome: data.nome, email: emailNorm, tipo: 'usuario' }, SSO_SECRET, { expiresIn: '8h' });
-      trackUser(emailNorm, data.nome, 'usuario', {
-        setor: data.setor,
-        ramal: data.ramal,
-      });
-      snapshotPermissoesSeNaoTiver(emailNorm, 'usuario');
-      return res.json({ ok: true, token, tipo: 'usuario', nome: data.nome, sistemas: getUserSistemas(emailNorm) });
-    }
-  } catch (_) {}
-
-  return res.status(401).json({ ok: false, erro: 'Credenciais inválidas' });
+    if (data.tipo === 'usuario') snapshotPermissoesSeNaoTiver(emailNorm, 'usuario');
+    return res.json({ ok: true, token, tipo: data.tipo, nome: data.nome, sistemas: getUserSistemas(emailNorm) });
+  } catch (err) {
+    console.error('[auth/login proxy]', err);
+    return res.status(502).json({ ok: false, erro: 'Serviço de autenticação indisponível.' });
+  }
 });
 
 // Esqueci a senha: encaminha para o sistema-chamados, que envia o e-mail
