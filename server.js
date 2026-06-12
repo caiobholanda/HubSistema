@@ -194,6 +194,9 @@ app.post('/api/auth/login', async (req, res) => {
     });
     if (r.ok) {
       const data = await r.json();
+      if (data.precisa_trocar_senha) {
+        return res.json({ ok: true, precisa_trocar_senha: true, email: emailNorm, tipo: 'admin' });
+      }
       const token = jwt.sign({ nome: data.nome, email: emailNorm, tipo: 'admin', is_master: data.is_master }, SSO_SECRET, { expiresIn: '8h' });
       trackUser(emailNorm, data.nome, 'admin', {
         setor: data.setor,
@@ -214,6 +217,9 @@ app.post('/api/auth/login', async (req, res) => {
     });
     if (r.ok) {
       const data = await r.json();
+      if (data.precisa_trocar_senha) {
+        return res.json({ ok: true, precisa_trocar_senha: true, email: emailNorm, tipo: 'usuario' });
+      }
       const token = jwt.sign({ nome: data.nome, email: emailNorm, tipo: 'usuario' }, SSO_SECRET, { expiresIn: '8h' });
       trackUser(emailNorm, data.nome, 'usuario', {
         setor: data.setor,
@@ -229,6 +235,27 @@ app.post('/api/auth/login', async (req, res) => {
 
 // Esqueci a senha: encaminha para o sistema-chamados, que envia o e-mail
 // (mesmo endpoint serve admins e usuarios do portal).
+// Troca obrigatoria de senha no primeiro login (publico, sem auth).
+// O usuario ja provou a senha_atual no /login imediatamente antes.
+app.post('/api/auth/trocar-primeira-senha', async (req, res) => {
+  const email = (req.body && req.body.email || '').trim().toLowerCase();
+  const senha_atual = (req.body && req.body.senha_atual || '').trim();
+  const senha_nova = (req.body && req.body.senha_nova || '').trim();
+  if (!email || !senha_atual || !senha_nova) return res.status(400).json({ ok: false, erro: 'Dados incompletos' });
+  try {
+    const r = await fetch(`${CHAMADOS_URL}/api/hub/trocar-primeira-senha`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${SSO_SECRET}` },
+      body: JSON.stringify({ email, senha_atual, senha_nova }),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) return res.status(r.status).json({ ok: false, erro: data.erro || 'Não foi possível trocar a senha.' });
+    return res.json({ ok: true, tipo: data.tipo });
+  } catch {
+    return res.status(502).json({ ok: false, erro: 'Sistema de chamados offline. Tente novamente em instantes.' });
+  }
+});
+
 app.post('/api/auth/esqueci-senha', async (req, res) => {
   const email = (req.body && req.body.email || '').trim().toLowerCase();
   if (!email) return res.status(400).json({ ok: false, erro: 'E-mail obrigatório' });

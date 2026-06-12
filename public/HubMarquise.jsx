@@ -156,6 +156,14 @@ function HubLogin({ onLogin }) {
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState('');
   const [visible, setVisible] = useState(false);
+  // Troca obrigatoria de senha no primeiro login. Quando definido:
+  // { email, senha_atual, tipo } — substitui o form de login pela tela de troca.
+  const [trocaForcada, setTrocaForcada] = useState(null);
+  const [novaSenha, setNovaSenha] = useState('');
+  const [confirmarSenha, setConfirmarSenha] = useState('');
+  const [mostrarNovaSenha, setMostrarNovaSenha] = useState(false);
+  const [trocaLoading, setTrocaLoading] = useState(false);
+  const [trocaErro, setTrocaErro] = useState('');
   // Esqueci senha (painel inline) — replica o comportamento da tela antiga do sistema-chamados
   const [esqOpen, setEsqOpen] = useState(false);
   const [esqEmail, setEsqEmail] = useState('');
@@ -241,9 +249,14 @@ function HubLogin({ onLogin }) {
       });
       const data = await r.json();
       if (data.ok) {
-        localStorage.setItem('hub_sso_token', data.token);
-        localStorage.setItem('hub_tipo', data.tipo || 'usuario');
-        onLogin(data.nome, data.sistemas, data.tipo || 'usuario');
+        if (data.precisa_trocar_senha) {
+          setTrocaForcada({ email: data.email || email.trim().toLowerCase(), senha_atual: senha, tipo: data.tipo });
+          setNovaSenha(''); setConfirmarSenha(''); setTrocaErro('');
+        } else {
+          localStorage.setItem('hub_sso_token', data.token);
+          localStorage.setItem('hub_tipo', data.tipo || 'usuario');
+          onLogin(data.nome, data.sistemas, data.tipo || 'usuario');
+        }
       } else {
         setErro(data.erro || 'Credenciais inválidas');
       }
@@ -251,6 +264,61 @@ function HubLogin({ onLogin }) {
       setErro('Erro de conexão. Tente novamente.');
     } finally {
       setLoading(false);
+    }
+  }
+
+  function validarSenhaForte(s) {
+    return s && s.length >= 8 && /[A-Z]/.test(s) && /[a-z]/.test(s) && /[0-9]/.test(s) && /[^A-Za-z0-9]/.test(s);
+  }
+
+  async function handleTrocarSenha(e) {
+    e.preventDefault();
+    setTrocaErro('');
+    if (!validarSenhaForte(novaSenha)) {
+      setTrocaErro('Senha fraca. Use ao menos 8 caracteres com maiúscula, minúscula, número e caractere especial.');
+      return;
+    }
+    if (novaSenha !== confirmarSenha) {
+      setTrocaErro('A confirmação não confere com a nova senha.');
+      return;
+    }
+    if (novaSenha === trocaForcada.senha_atual) {
+      setTrocaErro('A nova senha deve ser diferente da atual.');
+      return;
+    }
+    setTrocaLoading(true);
+    try {
+      const r1 = await fetch('/api/auth/trocar-primeira-senha', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: trocaForcada.email, senha_atual: trocaForcada.senha_atual, senha_nova: novaSenha }),
+      });
+      const d1 = await r1.json().catch(() => ({}));
+      if (!r1.ok || !d1.ok) {
+        setTrocaErro(d1.erro || 'Não foi possível trocar a senha.');
+        setTrocaLoading(false);
+        return;
+      }
+      // Login automatico com a senha nova.
+      const r2 = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: trocaForcada.email, senha: novaSenha }),
+      });
+      const d2 = await r2.json().catch(() => ({}));
+      if (r2.ok && d2.ok && d2.token) {
+        localStorage.setItem('hub_sso_token', d2.token);
+        localStorage.setItem('hub_tipo', d2.tipo || 'usuario');
+        onLogin(d2.nome, d2.sistemas, d2.tipo || 'usuario');
+      } else {
+        setTrocaErro('Senha trocada, mas o login falhou. Tente entrar novamente.');
+        setTrocaForcada(null);
+        setSenha('');
+      }
+    } catch {
+      setTrocaErro('Erro de conexão. Tente novamente.');
+    } finally {
+      setTrocaLoading(false);
     }
   }
 
@@ -288,9 +356,61 @@ function HubLogin({ onLogin }) {
           <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.35em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
             Gran Marquise <span style={{ width: 4, height: 4, borderRadius: '50%', background: HUB_PALETTE.champanhe, display: 'inline-block' }} /> Hub
           </div>
-          <h1 style={{ fontFamily: 'Fraunces, serif', fontWeight: 300, fontStyle: 'italic', fontSize: 36, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: 0, lineHeight: 1 }}>Entrar.</h1>
+          <h1 style={{ fontFamily: 'Fraunces, serif', fontWeight: 300, fontStyle: 'italic', fontSize: 36, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: 0, lineHeight: 1 }}>{trocaForcada ? 'Defina sua nova senha.' : 'Entrar.'}</h1>
+          {trocaForcada && (
+            <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 12.5, color: HUB_PALETTE.areia, marginTop: 14, textAlign: 'center', lineHeight: 1.55 }}>
+              É o seu primeiro acesso. Por segurança, troque a senha temporária<br />que você recebeu antes de continuar.
+            </div>
+          )}
         </div>
 
+        {trocaForcada ? (
+          <form onSubmit={handleTrocarSenha} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div>
+              <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 8 }}>E-mail</div>
+              <input type="email" value={trocaForcada.email} disabled readOnly
+                style={{ ...inputBase, opacity: 0.65, cursor: 'not-allowed' }} />
+            </div>
+            <div>
+              <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 8 }}>Nova senha</div>
+              <div style={{ position: 'relative' }}>
+                <input type={mostrarNovaSenha ? 'text' : 'password'} value={novaSenha} onChange={e => setNovaSenha(e.target.value)} placeholder="••••••••" required disabled={trocaLoading} autoFocus
+                  style={{ ...inputBase, paddingRight: 48 }}
+                  onFocus={e => e.target.style.borderColor = HUB_PALETTE.champanhe + '88'}
+                  onBlur={e => e.target.style.borderColor = HUB_PALETTE.areiaDim + '44'} />
+                <button type="button" onClick={() => setMostrarNovaSenha(v => !v)} style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: HUB_PALETTE.areiaDim, cursor: 'pointer', padding: 0, display: 'flex' }}>
+                  {mostrarNovaSenha
+                    ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                    : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  }
+                </button>
+              </div>
+              <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 11.5, color: HUB_PALETTE.areiaDim, marginTop: 6, lineHeight: 1.5 }}>
+                Mínimo 8 caracteres, com maiúscula, minúscula, número e caractere especial.
+              </div>
+            </div>
+            <div>
+              <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 8 }}>Confirmar nova senha</div>
+              <input type={mostrarNovaSenha ? 'text' : 'password'} value={confirmarSenha} onChange={e => setConfirmarSenha(e.target.value)} placeholder="••••••••" required disabled={trocaLoading}
+                style={inputBase}
+                onFocus={e => e.target.style.borderColor = HUB_PALETTE.champanhe + '88'}
+                onBlur={e => e.target.style.borderColor = HUB_PALETTE.areiaDim + '44'} />
+            </div>
+            {trocaErro && <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#E07A5F', paddingTop: 4, display: 'flex', alignItems: 'center', gap: 8 }}><span>—</span> {trocaErro}</div>}
+            <button type="submit" disabled={trocaLoading}
+              style={{ marginTop: 8, width: '100%', padding: '15px', background: 'transparent', border: `1px solid ${HUB_PALETTE.champanhe}`, color: trocaLoading ? HUB_PALETTE.areiaDim : HUB_PALETTE.champanhe, fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.3em', textTransform: 'uppercase', cursor: trocaLoading ? 'not-allowed' : 'pointer', transition: `background 300ms ${HUB_EASE}` }}
+              onMouseEnter={e => { if (!trocaLoading) e.target.style.background = 'rgba(201,169,97,0.1)'; }}
+              onMouseLeave={e => { e.target.style.background = 'transparent'; }}>
+              {trocaLoading ? 'Salvando...' : 'Salvar e entrar'}
+            </button>
+            <div style={{ textAlign: 'center', marginTop: 4 }}>
+              <button type="button" onClick={() => { setTrocaForcada(null); setSenha(''); setNovaSenha(''); setConfirmarSenha(''); setTrocaErro(''); }}
+                style={{ background: 'transparent', border: 'none', color: HUB_PALETTE.areiaDim, fontFamily: 'Inter, sans-serif', fontSize: 12.5, textDecoration: 'underline', textUnderlineOffset: 3, cursor: 'pointer', padding: '6px 4px' }}>
+                Cancelar e voltar
+              </button>
+            </div>
+          </form>
+        ) : (
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div>
             <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 8 }}>E-mail</div>
@@ -381,6 +501,7 @@ function HubLogin({ onLogin }) {
             </div>
           )}
         </form>
+        )}
 
         <div style={{ marginTop: 40, display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{ flex: 1, height: 1, background: `${HUB_PALETTE.areiaDim}22` }} />
