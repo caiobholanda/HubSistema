@@ -20,11 +20,14 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // ─── Helpers de persistência ────────────────────────────────────────────────
 
+const { migrarSlugs } = require('./src/migrations');
+
 function readData() {
   try {
     if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
     if (!fs.existsSync(HUB_DATA_FILE)) return { users: [], permissions: {} };
-    return JSON.parse(fs.readFileSync(HUB_DATA_FILE, 'utf8'));
+    const data = JSON.parse(fs.readFileSync(HUB_DATA_FILE, 'utf8'));
+    return migrarSlugs(data);
   } catch {
     return { users: [], permissions: {} };
   }
@@ -172,7 +175,7 @@ function snapshotPermissoesSeNaoTiver(email, tipo) {
 const DEFAULT_SISTEMAS = [
   { id: 'chamados',  num: '01', nome: 'Chamados TI',           url: 'https://sistema-chamados-granmarquise.fly.dev', status: 'no-ar', categoria: 'Suporte · Atendimento interno', descricao: 'Para pedir ajuda da equipe de TI do hotel.',                 paraQuem: 'Todos os setores' },
   { id: 'ramais',    num: '02', nome: 'Lista de Ramais',        url: 'https://diretorio-ramais-granmarquise.fly.dev', status: 'no-ar', categoria: 'Comunicação · Interno',         descricao: 'Diretório de ramais e contatos internos do hotel.',           paraQuem: 'Todos os setores' },
-  { id: 'spa',       num: '03', nome: 'Pesquisa de Satisfação', url: 'https://pesquisa-satisfacao.fly.dev',           status: 'no-ar', categoria: 'Spa · Atendimento ao hóspede',  descricao: 'Coleta de feedback dos hóspedes após os tratamentos no Spa.', paraQuem: 'Equipe do Spa' },
+  { id: 'pesquisa-satisfacao', num: '03', nome: 'Pesquisa de Satisfação', url: 'https://pesquisa-satisfacao.fly.dev', status: 'no-ar', categoria: 'Spa · Atendimento ao hóspede', descricao: 'Coleta de feedback dos hóspedes após os tratamentos no Spa.', paraQuem: 'Equipe do Spa' },
 ];
 
 function getSistemas() {

@@ -127,7 +127,7 @@ const HUB_SYSTEMS = [
   preview: 'directory'
 },
 {
-  id: 'spa',
+  id: 'pesquisa-satisfacao',
   num: '03',
   categoria: 'Spa · Atendimento ao hóspede',
   nome: 'Pesquisa de Satisfação',
@@ -669,6 +669,9 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
   const [linkErro, setLinkErro] = useState('');
   const [expandedLink, setExpandedLink] = useState(null);
   const [filtroSemAcesso, setFiltroSemAcesso] = useState('');
+  // Toast simples para feedback de Links (sucesso/erro). Auto-some em 2.6s.
+  const [linkToast, setLinkToast] = useState(null); // { msg, err: boolean }
+  function notifyLink(msg, err) { setLinkToast({ msg, err: !!err }); setTimeout(() => setLinkToast(null), 2600); }
 
   const noArSystems = hubSystems.filter(s => s.status === 'no-ar');
 
@@ -752,11 +755,19 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
         body: JSON.stringify(editForm),
       });
       const d = await r.json().catch(() => ({}));
-      if (!r.ok || !d.ok) { setLinkErro(d.erro || 'Erro ao salvar'); return; }
+      if (!r.ok || !d.ok) {
+        const msg = d.erro || `Erro ao salvar (${r.status})`;
+        setLinkErro(msg);
+        notifyLink(msg, true);
+        return;
+      }
       setHubSystems(prev => prev.map(s => s.id === editingId ? { ...s, ...d.sistema } : s));
       setEditingId(null);
+      notifyLink('Link atualizado.');
     } catch {
-      setLinkErro('Erro de conexão');
+      const msg = 'Erro de conexão';
+      setLinkErro(msg);
+      notifyLink(msg, true);
     } finally {
       setLinkSaving(false);
     }
@@ -779,21 +790,30 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
   async function saveNew() {
     if (!newForm.nome || !newForm.status) { setLinkErro('Nome e status são obrigatórios'); return; }
     setLinkSaving(true);
-    const token = localStorage.getItem('hub_sso_token');
-    const r = await fetch('/api/admin/sistemas', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify(newForm),
-    });
-    const d = await r.json();
-    if (d.ok) {
+    try {
+      const r = await hubFetch('/api/admin/sistemas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newForm),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.ok) {
+        const msg = d.erro || `Erro ao salvar (${r.status})`;
+        setLinkErro(msg);
+        notifyLink(msg, true);
+        return;
+      }
       setHubSystems(prev => [...prev, d.sistema]);
       setAddingNew(false);
       setNewForm({ nome: '', url: '', status: 'no-ar', categoria: '', descricao: '', paraQuem: '' });
-    } else {
-      setLinkErro(d.erro || 'Erro ao salvar');
+      notifyLink('Link criado.');
+    } catch {
+      const msg = 'Erro de conexão';
+      setLinkErro(msg);
+      notifyLink(msg, true);
+    } finally {
+      setLinkSaving(false);
     }
-    setLinkSaving(false);
   }
 
   const ABAS = [
@@ -993,6 +1013,11 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
         {aba === 'historico' && <HistoricoPanel isMobile={isMobile} />}
 
       </div>
+      {linkToast && (
+        <div style={{ position: 'fixed', bottom: 32, left: '50%', transform: 'translateX(-50%)', zIndex: 200, background: linkToast.err ? '#E07A5F' : HUB_PALETTE.champanhe, color: linkToast.err ? '#fff' : HUB_PALETTE.noite, fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase', padding: '12px 22px' }}>
+          {linkToast.msg}
+        </div>
+      )}
     </div>
   );
 }
@@ -1004,15 +1029,11 @@ function HistoricoPanel({ isMobile }) {
   const [filterDate, setFilterDate] = useState('');
   const [filterTipo, setFilterTipo] = useState('todos'); // todos | admin | usuario | setor | link | permissao
 
-  function token() { return localStorage.getItem('hub_sso_token'); }
-
   async function carregar() {
     setLoading(true);
     try {
-      const r = await fetch('/api/admin/audit-log?limit=1000', {
-        headers: { Authorization: `Bearer ${token()}` },
-      });
-      const d = await r.json();
+      const r = await hubFetch('/api/admin/audit-log?limit=1000');
+      const d = await r.json().catch(() => ({}));
       setLog(r.ok && d.ok ? (d.log || []) : []);
     } catch { setLog([]); }
     finally { setLoading(false); }
@@ -1123,18 +1144,20 @@ function HistoricoPanel({ isMobile }) {
     }
   }
 
-  const filtrado = (log || []).filter(e => {
-    if (filterDate && localDateStr(e.at) !== filterDate) return false;
-    if (filterTipo !== 'todos' && e.target_tipo !== filterTipo) return false;
-    return true;
-  });
+  // Fonte unica de verdade para filtros:
+  // 1) logPorData aplica APENAS o filtro de data — usado para os contadores
+  //    dos chips por tipo (Admins, Usuarios, Setores, Links, Permissoes).
+  // 2) filtrado adiciona o filtro de tipo — usado para renderizar a lista.
+  // Sem isso, os badges mostravam o total geral ignorando a data selecionada.
+  const logPorData = (log || []).filter(e => !filterDate || localDateStr(e.at) === filterDate);
+  const filtrado = logPorData.filter(e => filterTipo === 'todos' || e.target_tipo === filterTipo);
 
-  // Contagens por tipo (no log inteiro, nao no filtrado por data)
-  const contagemPorTipo = (log || []).reduce((acc, e) => {
+  const contagemPorTipo = logPorData.reduce((acc, e) => {
     acc[e.target_tipo] = (acc[e.target_tipo] || 0) + 1;
     return acc;
   }, {});
-  const totalGeral = (log || []).length;
+  const totalGeral = logPorData.length;
+  const totalSemFiltro = (log || []).length;
 
   // Agrupa por dia mantendo ordem (log ja vem reverse: mais recente primeiro)
   const grupos = (() => {
@@ -1160,7 +1183,10 @@ function HistoricoPanel({ isMobile }) {
       </div>
       <h2 style={{ fontFamily: 'Fraunces, serif', fontWeight: 300, fontStyle: 'italic', fontSize: 40, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: '0 0 10px' }}>Alterações no painel.</h2>
       <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: HUB_PALETTE.areiaDim, lineHeight: 1.5, margin: 0 }}>
-        Toda mudança em admins, usuários, setores, links e permissões fica registrada — quem fez e quando. Mostrando os {totalGeral} eventos mais recentes.
+        Toda mudança em admins, usuários, setores, links e permissões fica registrada — quem fez e quando.
+        {filterDate || filterTipo !== 'todos'
+          ? ` Mostrando ${filtrado.length} de ${totalSemFiltro} eventos.`
+          : ` ${totalSemFiltro} eventos no total.`}
       </p>
     </div>
 
