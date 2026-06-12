@@ -469,9 +469,14 @@ app.patch('/api/admin/chamados-admins/:id', requireAdmin, async (req, res) => {
   const id = req.params.id;
   const antes = await _buscarAdminAlvo(id);
   // Salvaguarda: admin nao pode ativar/inativar a propria conta pelo Hub.
-  if (antes && 'ativo' in (req.body || {}) && req.hubUser.email && antes.email
-      && antes.email.toLowerCase() === String(req.hubUser.email).toLowerCase()) {
+  const ehEuMesmo = antes && req.hubUser.email && antes.email
+      && antes.email.toLowerCase() === String(req.hubUser.email).toLowerCase();
+  if (ehEuMesmo && 'ativo' in (req.body || {})) {
     return res.status(403).json({ ok: false, erro: 'Você não pode ativar/desativar sua própria conta.' });
+  }
+  // Salvaguarda: admin nao pode mudar o proprio nivel master (promocao/rebaixamento).
+  if (ehEuMesmo && 'is_master' in (req.body || {}) && (!!req.body.is_master) !== (antes.is_master === 1)) {
+    return res.status(403).json({ ok: false, erro: 'Você não pode alterar o próprio nível master.' });
   }
   const r = await proxyChamados(`/admins/${encodeURIComponent(id)}`, { method: 'PATCH', body: req.body });
   if (r.status >= 200 && r.status < 300 && r.data && r.data.ok) {

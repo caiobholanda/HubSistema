@@ -1647,6 +1647,7 @@ function ContasPanel({ isMobile }) {
       <ContaForm tipo={editing.tipo} isMobile={isMobile} cs={cs} erro={erro} saving={saving}
         setores={setoresLista} etiquetas={etiquetasLista}
         initial={editing.dados} initialEtiquetas={editing.etiquetas} isEdit
+        ehEuMesmo={editing.tipo === 'admin' && !!editing.dados && (editing.dados.email || '').toLowerCase() === meuEmail}
         onCancel={fecharModal}
         onSave={(dados, et) => salvarEdit(editing.tipo, editing.id, dados, et)} />
     )}
@@ -1700,7 +1701,7 @@ function ContasPanel({ isMobile }) {
   </>);
 }
 
-function ContaForm({ tipo, isMobile, cs, erro, saving, initial, initialEtiquetas, isEdit, setores, etiquetas, onCancel, onSave }) {
+function ContaForm({ tipo, isMobile, cs, erro, saving, initial, initialEtiquetas, isEdit, ehEuMesmo, setores, etiquetas, onCancel, onSave }) {
   const [d, setD] = useState(initial || (tipo === 'admin'
     ? { nome_completo: '', email: '', ramal: '', is_master: false, senha: '' }
     : { nome: '', email: '', setor: '', ramal: '', senha: '' }));
@@ -1797,9 +1798,10 @@ function ContaForm({ tipo, isMobile, cs, erro, saving, initial, initialEtiquetas
         )}
 
         {isAdmin && (<>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 18, fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areia, cursor: 'pointer' }}>
-            <input type="checkbox" checked={!!d.is_master} onChange={e => set('is_master', e.target.checked)} />
-            Admin master (acesso total)
+          <label style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 18, fontFamily: 'Inter, sans-serif', fontSize: 13, color: ehEuMesmo ? HUB_PALETTE.areiaDim : HUB_PALETTE.areia, cursor: ehEuMesmo ? 'not-allowed' : 'pointer' }}
+            title={ehEuMesmo ? 'Você não pode alterar o seu próprio nível master.' : undefined}>
+            <input type="checkbox" checked={!!d.is_master} disabled={ehEuMesmo} onChange={e => set('is_master', e.target.checked)} />
+            Admin master (acesso total){ehEuMesmo ? ' — bloqueado para a própria conta' : ''}
           </label>
 
           {(etiquetas || []).length > 0 && (<>
