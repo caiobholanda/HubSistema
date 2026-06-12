@@ -156,19 +156,27 @@ function HubLogin({ onLogin }) {
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState('');
   const [visible, setVisible] = useState(false);
-  // Esqueci senha (painel inline)
+  // Esqueci senha (painel inline) — replica o comportamento da tela antiga do sistema-chamados
   const [esqOpen, setEsqOpen] = useState(false);
   const [esqEmail, setEsqEmail] = useState('');
   const [esqLoading, setEsqLoading] = useState(false);
-  const [esqMsg, setEsqMsg] = useState(null); // { tipo: 'ok'|'erro', texto }
+  // { tipo: 'ok'|'erro', titulo, texto }
+  const [esqMsg, setEsqMsg] = useState(null);
   const [esqEnviado, setEsqEnviado] = useState(false);
+  const [esqShakeKey, setEsqShakeKey] = useState(0);
   const emailRef = useRef(null);
+  const esqEmailRef = useRef(null);
+
+  function _esqErro(titulo, texto) {
+    setEsqMsg({ tipo: 'erro', titulo, texto });
+    setEsqShakeKey(k => k + 1);
+  }
 
   async function handleEsqueci(e) {
     e.preventDefault();
-    setEsqLoading(true); setEsqMsg(null);
     const e_ = (esqEmail || '').trim().toLowerCase();
-    if (!e_) { setEsqMsg({ tipo: 'erro', texto: 'Informe seu e-mail.' }); setEsqLoading(false); return; }
+    if (!e_) { _esqErro('Campo obrigatório', 'Informe o e-mail cadastrado.'); return; }
+    setEsqLoading(true); setEsqMsg(null);
     try {
       const r = await fetch('/api/auth/esqueci-senha', {
         method: 'POST',
@@ -177,14 +185,41 @@ function HubLogin({ onLogin }) {
       });
       const d = await r.json().catch(() => ({}));
       if (r.ok && d.ok) {
-        setEsqMsg({ tipo: 'ok', texto: d.mensagem || 'Enviamos um link para seu e-mail.' });
+        setEsqMsg({ tipo: 'ok', titulo: 'E-mail enviado!', texto: 'Verifique sua caixa de entrada (e o spam) e clique no link para redefinir sua senha.' });
         setEsqEnviado(true);
+      } else if (r.status === 404) {
+        _esqErro('E-mail não encontrado', 'Este endereço não está cadastrado no sistema. Verifique e tente novamente.');
       } else {
-        setEsqMsg({ tipo: 'erro', texto: d.erro || `Erro ${r.status}` });
+        _esqErro('Algo deu errado', d.erro || 'Tente novamente em instantes.');
       }
-    } catch { setEsqMsg({ tipo: 'erro', texto: 'Erro de conexão.' }); }
+    } catch { _esqErro('Sem conexão', 'Verifique sua conexão com a internet e tente novamente.'); }
     setEsqLoading(false);
   }
+
+  function resetEsqueci() {
+    setEsqEnviado(false); setEsqMsg(null); setEsqEmail('');
+    setTimeout(() => { if (esqEmailRef.current) esqEmailRef.current.focus(); }, 60);
+  }
+
+  // Foco automatico ao abrir o painel
+  useEffect(() => {
+    if (esqOpen && !esqEnviado) {
+      const t = setTimeout(() => { if (esqEmailRef.current) esqEmailRef.current.focus(); }, 180);
+      return () => clearTimeout(t);
+    }
+  }, [esqOpen, esqEnviado]);
+
+  // Injeta keyframes do shake uma unica vez (evita duplicar StyleSheet)
+  useEffect(() => {
+    if (document.getElementById('hub-esq-keyframes')) return;
+    const s = document.createElement('style');
+    s.id = 'hub-esq-keyframes';
+    s.textContent = `
+      @keyframes hubShake { 0%,100% { transform: translateX(0); } 16% { transform: translateX(-7px); } 33% { transform: translateX(7px); } 50% { transform: translateX(-4px); } 66% { transform: translateX(4px); } 83% { transform: translateX(-2px); } }
+      @keyframes hubSlideIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+    `;
+    document.head.appendChild(s);
+  }, []);
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -304,21 +339,43 @@ function HubLogin({ onLogin }) {
               {!esqEnviado && (
                 <div>
                   <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 8 }}>E-mail cadastrado</div>
-                  <input type="email" value={esqEmail} onChange={e => setEsqEmail(e.target.value)} placeholder="seu@granmarquise.com.br" required disabled={esqLoading}
-                    style={inputBase}
-                    onFocus={e => e.target.style.borderColor = HUB_PALETTE.champanhe + '88'}
-                    onBlur={e => e.target.style.borderColor = HUB_PALETTE.areiaDim + '44'} />
+                  <input key={esqShakeKey} ref={esqEmailRef} type="email" value={esqEmail} onChange={e => setEsqEmail(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') handleEsqueci(e); }}
+                    placeholder="seu@granmarquise.com.br" required disabled={esqLoading}
+                    style={{ ...inputBase, ...(esqMsg && esqMsg.tipo === 'erro' ? { borderColor: '#E07A5F', boxShadow: '0 0 0 3px rgba(224,122,95,0.13)', animation: 'hubShake .42s ease' } : null) }}
+                    onFocus={e => { if (!(esqMsg && esqMsg.tipo === 'erro')) e.target.style.borderColor = HUB_PALETTE.champanhe + '88'; }}
+                    onBlur={e => { if (!(esqMsg && esqMsg.tipo === 'erro')) e.target.style.borderColor = HUB_PALETTE.areiaDim + '44'; }} />
                 </div>
               )}
               {esqMsg && (
-                <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: esqMsg.tipo === 'ok' ? '#7cb342' : '#E07A5F', lineHeight: 1.5 }}>
-                  {esqMsg.texto}
+                <div style={{
+                  display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px',
+                  borderLeft: `3px solid ${esqMsg.tipo === 'ok' ? '#7cb342' : '#E07A5F'}`,
+                  background: esqMsg.tipo === 'ok' ? 'rgba(124,179,66,0.08)' : 'rgba(224,122,95,0.08)',
+                  fontFamily: 'Inter, sans-serif',
+                  animation: 'hubSlideIn .22s ease',
+                }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={esqMsg.tipo === 'ok' ? '#7cb342' : '#E07A5F'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 1 }}>
+                    {esqMsg.tipo === 'ok'
+                      ? <><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></>
+                      : <><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></>}
+                  </svg>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: esqMsg.tipo === 'ok' ? '#7cb342' : '#E07A5F', marginBottom: 2 }}>{esqMsg.titulo}</div>
+                    <div style={{ fontSize: 12.5, color: HUB_PALETTE.areia, lineHeight: 1.5 }}>{esqMsg.texto}</div>
+                  </div>
                 </div>
               )}
               {!esqEnviado && (
                 <button type="button" onClick={handleEsqueci} disabled={esqLoading}
                   style={{ width: '100%', padding: '13px', background: 'transparent', border: `1px solid ${HUB_PALETTE.champanhe}88`, color: esqLoading ? HUB_PALETTE.areiaDim : HUB_PALETTE.champanhe, fontFamily: 'JetBrains Mono, monospace', fontSize: 10.5, letterSpacing: '0.28em', textTransform: 'uppercase', cursor: esqLoading ? 'not-allowed' : 'pointer' }}>
-                  {esqLoading ? 'Enviando…' : 'Enviar link de redefinição'}
+                  {esqLoading ? 'Enviando…' : (esqMsg && esqMsg.tipo === 'erro' ? 'Solicitar redefinição' : 'Enviar link de redefinição')}
+                </button>
+              )}
+              {esqEnviado && (
+                <button type="button" onClick={resetEsqueci}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'Inter, sans-serif', fontSize: 12.5, color: HUB_PALETTE.areiaDim, textDecoration: 'underline', padding: 0, alignSelf: 'flex-start' }}>
+                  Não recebeu? Reenviar
                 </button>
               )}
             </div>
