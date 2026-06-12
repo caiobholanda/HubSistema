@@ -76,6 +76,20 @@ function clearHubAuth() {
     sessionStorage.removeItem('hub_contas_status');
   } catch {}
 }
+// Registra um evento na jornada do usuario (login/logout/click em sistema).
+// Fire-and-forget: nao espera resposta, nao quebra o fluxo se falhar.
+function logHubEvento(evento, detalhes) {
+  try {
+    const token = localStorage.getItem('hub_sso_token');
+    if (!token) return;
+    fetch('/api/hub-log', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ evento, detalhes }),
+      keepalive: true,
+    }).catch(() => {});
+  } catch {}
+}
 // Wrapper de fetch que sempre injeta o Bearer e, em 401/403, faz auto-logout
 // (limpa sessao + recarrega) para evitar estado "meio autenticado".
 async function hubFetch(url, opts) {
@@ -1786,9 +1800,7 @@ function ContasPanel({ isMobile }) {
                   </div>
                 )}
               </div>
-              {!isAdmin && (
-                <button onClick={() => setHistoricoUsuario({ id: row.id, nome: row.nome })} style={cs.btnGhost}>Histórico</button>
-              )}
+              <button onClick={() => setHistoricoUsuario({ id: row.id, nome: isAdmin ? row.nome_completo : row.nome, tipo: isAdmin ? 'admin' : 'usuario' })} style={cs.btnGhost}>Histórico</button>
               <button onClick={() => startEdit(isAdmin ? 'admin' : 'usuario', row)} style={cs.btnGhost}>Editar</button>
               {ehEuMesmo(isAdmin ? 'admin' : 'usuario', row) ? (
                 <span title="Você não pode ativar/desativar sua própria conta"
@@ -1827,7 +1839,7 @@ function ContasPanel({ isMobile }) {
 
     {/* Modal Historico do usuario */}
     {historicoUsuario && (
-      <HistoricoUsuarioModal usuarioId={historicoUsuario.id} nome={historicoUsuario.nome} isMobile={isMobile} cs={cs}
+      <HistoricoUsuarioModal usuarioId={historicoUsuario.id} nome={historicoUsuario.nome} tipo={historicoUsuario.tipo} isMobile={isMobile} cs={cs}
         onClose={() => setHistoricoUsuario(null)} />
     )}
 
@@ -2015,8 +2027,9 @@ function ContaForm({ tipo, isMobile, cs, erro, saving, initial, initialEtiquetas
 }
 
 // ─── Historico do usuario do portal (chamados + atividade) ──────────────────
-function HistoricoUsuarioModal({ usuarioId, nome, isMobile, cs, onClose }) {
-  const [aba, setAba] = useState('chamados');
+function HistoricoUsuarioModal({ usuarioId, nome, isMobile, cs, onClose, tipo }) {
+  const ehAdmin = tipo === 'admin';
+  const [aba, setAba] = useState(ehAdmin ? 'atividade' : 'chamados');
   const [chamados, setChamados] = useState(null);
   const [logs, setLogs] = useState(null);
 
@@ -2024,24 +2037,47 @@ function HistoricoUsuarioModal({ usuarioId, nome, isMobile, cs, onClose }) {
     const lock = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     const token = localStorage.getItem('hub_sso_token');
-    fetch(`/api/admin/chamados-usuarios/${usuarioId}/chamados`, { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.json()).then(d => setChamados(d.ok ? (d.chamados || []) : [])).catch(() => setChamados([]));
-    fetch(`/api/admin/chamados-usuarios/${usuarioId}/logs`, { headers: { Authorization: `Bearer ${token}` } })
+    if (!ehAdmin) {
+      fetch(`/api/admin/chamados-usuarios/${usuarioId}/chamados`, { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.json()).then(d => setChamados(d.ok ? (d.chamados || []) : [])).catch(() => setChamados([]));
+    } else {
+      setChamados([]); // admin nao tem 'chamados' associados na mesma forma
+    }
+    const rotaLogs = ehAdmin
+      ? `/api/admin/chamados-admins/${usuarioId}/logs`
+      : `/api/admin/chamados-usuarios/${usuarioId}/logs`;
+    fetch(rotaLogs, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json()).then(d => setLogs(d.ok ? (d.logs || []) : [])).catch(() => setLogs([]));
     return () => { document.body.style.overflow = lock; };
-  }, [usuarioId]);
+  }, [usuarioId, ehAdmin]);
 
   function fmtData(s) {
     if (!s) return '—';
     const iso = s.includes('T') ? s : s.replace(' ', 'T');
     return new Date(iso.endsWith('Z') ? iso : iso + 'Z').toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short', timeZone: 'America/Fortaleza' });
   }
-  const EVENTO_LABEL = {
-    login_sucesso: 'Login realizado', login_falha: 'Tentativa de login (senha incorreta)',
-    logout: 'Logout', reset_solicitado: 'Reset de senha solicitado',
-    reset_email_enviado: 'E-mail de reset enviado', reset_concluido: 'Senha redefinida',
-    reset_link_expirado: 'Link de reset expirado', reset_link_ja_usado: 'Link de reset já utilizado',
-  };
+  // Renderiza evento desconhecido como 'abrir_chamados', 'logout_ramais', etc.
+  // de forma legivel.
+  function labelEvento(ev) {
+    const MAP = {
+      login_sucesso: 'Login realizado', login_falha: 'Tentativa de login (senha incorreta)',
+      logout: 'Logout', reset_solicitado: 'Reset de senha solicitado',
+      reset_email_enviado: 'E-mail de reset enviado', reset_concluido: 'Senha redefinida',
+      reset_link_expirado: 'Link de reset expirado', reset_link_ja_usado: 'Link de reset já utilizado',
+      login_hub: 'Entrou no Hub', logout_hub: 'Saiu do Hub',
+      logout_chamados: 'Saiu do Chamados', logout_ramais: 'Saiu da Lista de Ramais', logout_pesquisa: 'Saiu da Pesquisa de Satisfação',
+    };
+    if (MAP[ev]) return MAP[ev];
+    if (ev && ev.startsWith('abrir_')) {
+      const id = ev.slice(6).replace(/[-_]/g, ' ');
+      return `Abriu sistema: ${id.charAt(0).toUpperCase() + id.slice(1)}`;
+    }
+    if (ev && ev.startsWith('logout_')) {
+      return `Saiu de ${ev.slice(7)}`;
+    }
+    return ev || '—';
+  }
+  const EVENTO_LABEL = new Proxy({}, { get: (_t, k) => labelEvento(k) });
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.68)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
@@ -2303,6 +2339,7 @@ function SystemPanel({ system, index, revealed, isMobile, userEmail, userTipo })
   function handleOpen(e) {
     e.preventDefault();
     if (disabled) return;
+    logHubEvento(`abrir_${system.id}`, system.nome);
     const token = localStorage.getItem('hub_sso_token');
     let destUrl = system.url;
     if (system.adminUrl) {
@@ -2492,6 +2529,17 @@ function HubMarquise() {
   // carregamos /api/me/sistemas. Quando booting==false a tela autenticada aparece sem delay.
   useEffect(() => {
     const token = localStorage.getItem('hub_sso_token');
+    // Detecta retorno de logout de algum sistema externo (?logout=1&from=X)
+    // e registra na jornada do usuario. Limpa a querystring depois.
+    try {
+      const p = new URLSearchParams(window.location.search);
+      if (p.get('logout') === '1' && p.get('from') && token) {
+        const from = p.get('from').replace(/[^a-z0-9_-]/gi, '').slice(0, 40);
+        logHubEvento(`logout_${from}`);
+        const cleanUrl = window.location.pathname + window.location.hash;
+        try { window.history.replaceState({}, '', cleanUrl); } catch {}
+      }
+    } catch {}
     if (!token) return;
     const payload = parseJwt(token);
     if (!(payload.exp && payload.exp * 1000 > Date.now())) {
@@ -2552,6 +2600,7 @@ function HubMarquise() {
 
   function handleLogin(nome, sis, tipo) {
     // Login concluido: se veio com ?next=, redireciona direto para o sistema destino.
+    logHubEvento('login_hub');
     if (redirectToNextIfAny()) return;
     setUserName(nome);
     setUserTipo(tipo || '');
@@ -2562,6 +2611,7 @@ function HubMarquise() {
   }
 
   function handleLogout() {
+    logHubEvento('logout_hub');
     clearHubAuth();
     try { sessionStorage.removeItem('hub_boot_seen'); } catch {}
     setAuthed(false);

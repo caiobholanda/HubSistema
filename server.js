@@ -290,6 +290,34 @@ app.post('/api/auth/trocar-primeira-senha', async (req, res) => {
   }
 });
 
+// Registra evento na jornada do usuario (login_hub, logout_hub,
+// abrir_<sistemaId>, logout_<sistema>). Aceita JWT de admin ou usuario.
+// Repassa para o backend de chamados que persiste em logs_admins/logs_usuarios.
+app.post('/api/hub-log', async (req, res) => {
+  try {
+    const auth = req.headers.authorization || '';
+    const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
+    if (!token) return res.status(401).json({ ok: false, erro: 'Não autenticado' });
+    let payload;
+    try { payload = jwt.verify(token, SSO_SECRET); } catch { return res.status(401).json({ ok: false, erro: 'Token inválido' }); }
+    const email = (payload.email || '').trim().toLowerCase();
+    const evento = (req.body && req.body.evento || '').trim().slice(0, 80);
+    const detalhes = req.body && req.body.detalhes ? String(req.body.detalhes).slice(0, 240) : null;
+    if (!email || !evento) return res.status(400).json({ ok: false, erro: 'evento obrigatorio' });
+    const ip = (req.headers['fly-client-ip'] || req.headers['x-forwarded-for'] || req.ip || '').toString().split(',')[0].trim();
+    // Fire-and-forget: nao bloqueia resposta. Falha do log nao quebra o fluxo.
+    fetch(`${CHAMADOS_URL}/api/hub/log-evento`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${SSO_SECRET}` },
+      body: JSON.stringify({ email, evento, ip, detalhes }),
+    }).catch(() => {});
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('[hub-log]', err);
+    return res.status(500).json({ ok: false, erro: 'Erro interno' });
+  }
+});
+
 app.post('/api/auth/esqueci-senha', async (req, res) => {
   const email = (req.body && req.body.email || '').trim().toLowerCase();
   if (!email) return res.status(400).json({ ok: false, erro: 'E-mail obrigatório' });
@@ -675,6 +703,10 @@ app.delete('/api/admin/chamados-usuarios/:id', requireAdmin, async (req, res) =>
       campos: {},
     });
   }
+  res.status(r.status).json(r.data);
+});
+app.get('/api/admin/chamados-admins/:id/logs', requireAdmin, async (req, res) => {
+  const r = await proxyChamados(`/admins/${encodeURIComponent(req.params.id)}/logs`);
   res.status(r.status).json(r.data);
 });
 app.get('/api/admin/chamados-usuarios/:id/logs', requireAdmin, async (req, res) => {
