@@ -677,6 +677,8 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
   // Links tab state
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
+  // Snapshot do link no momento do startEdit; usado para detectar 'nada mudou'.
+  const [editOriginal, setEditOriginal] = useState({});
   const [addingNew, setAddingNew] = useState(false);
   const [newForm, setNewForm] = useState({ nome: '', url: '', status: 'no-ar', categoria: '', descricao: '', paraQuem: '' });
   const [linkSaving, setLinkSaving] = useState(false);
@@ -755,12 +757,23 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
 
   function startEdit(sys) {
     setEditingId(sys.id);
-    setEditForm({ nome: sys.nome, url: sys.url, status: sys.status, categoria: sys.categoria || '', descricao: sys.descricao || '', paraQuem: sys.paraQuem || '' });
+    const initial = { nome: sys.nome, url: sys.url, status: sys.status, categoria: sys.categoria || '', descricao: sys.descricao || '', paraQuem: sys.paraQuem || '' };
+    setEditForm(initial);
+    setEditOriginal(initial);
     setLinkErro('');
   }
 
   async function saveEdit() {
     if (!editForm.nome || !editForm.status) { setLinkErro('Nome e status são obrigatórios'); return; }
+    // Bloqueia salvar se nada mudou em relacao ao snapshot do startEdit.
+    const camposLink = ['nome', 'url', 'status', 'categoria', 'descricao', 'paraQuem'];
+    const algumMudou = camposLink.some(k => (editOriginal[k] ?? '') !== (editForm[k] ?? ''));
+    if (!algumMudou) {
+      const msg = 'Faça alguma alteração antes de salvar.';
+      setLinkErro(msg);
+      notifyLink(msg, true);
+      return;
+    }
     setLinkSaving(true);
     try {
       const r = await hubFetch(`/api/admin/sistemas/${editingId}`, {
@@ -1335,6 +1348,11 @@ function SetoresPanel({ isMobile }) {
   async function salvar(nome, id) {
     nome = (nome || '').trim();
     if (!nome) { setErro('Nome obrigatório'); return; }
+    // Bloqueia salvar setor existente quando o nome nao mudou.
+    if (id && editing && (editing.nome || '').trim() === nome) {
+      notify('Faça alguma alteração antes de salvar.', true);
+      return;
+    }
     setSaving(true); setErro('');
     const url = id ? `/api/admin/chamados-setores/${id}` : '/api/admin/chamados-setores';
     const method = id ? 'PUT' : 'POST';
@@ -1618,7 +1636,32 @@ function ContasPanel({ isMobile }) {
     const body = { ...dados };
     // Envia "senha" so se foi efetivamente alterada (comparar com senhaInicial do startEdit)
     const senhaInicial = (editing && editing.senhaInicial) || '';
-    if (!body.senha || body.senha === senhaInicial) delete body.senha;
+    const senhaMudou = !!body.senha && body.senha !== senhaInicial;
+    if (!senhaMudou) delete body.senha;
+
+    // Bloqueia salvar quando NADA mudou em relacao ao snapshot do startEdit.
+    // Inclui campos textuais, ativo/is_master, senha e etiquetas (admin).
+    const original = (editing && editing.dados) || {};
+    const camposParaComparar = tipo === 'admin'
+      ? ['nome_completo', 'email', 'ramal', 'is_master', 'ativo']
+      : ['nome', 'email', 'setor', 'ramal', 'ativo'];
+    const algumCampoMudou = camposParaComparar.some(k => {
+      const a = original[k]; const b = dados[k];
+      // Normaliza bool/int (ativo=1 == true).
+      const norm = v => (v === true || v === 1) ? 1 : (v === false || v === 0 || v == null) ? 0 : v;
+      if (typeof a === 'boolean' || typeof b === 'boolean' || k === 'ativo' || k === 'is_master') {
+        return norm(a) !== norm(b);
+      }
+      return (a ?? '') !== (b ?? '');
+    });
+    const etOrig = JSON.stringify([...((editing && editing.etiquetas) || [])].sort());
+    const etNovo = JSON.stringify([...(Array.isArray(etiquetas) ? etiquetas : [])].sort());
+    const etiquetasMudaram = tipo === 'admin' && etOrig !== etNovo;
+    if (!algumCampoMudou && !senhaMudou && !etiquetasMudaram) {
+      notify('Faça alguma alteração antes de salvar.');
+      setSaving(false);
+      return;
+    }
     try {
       const r = await fetch(rota, {
         method: 'PATCH',
