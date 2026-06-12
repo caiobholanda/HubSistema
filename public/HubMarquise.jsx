@@ -51,6 +51,48 @@ function applyHubTheme(name) {
   Object.assign(HUB_PALETTE, HUB_THEMES[name] || HUB_THEMES.dark);
 }
 
+// ─── Auth utils ──────────────────────────────────────────────────────────────
+// Decodifica JWT (parte central, base64url) com defesas para token malformado.
+// Retorna {} em qualquer falha — nunca lanca.
+function parseJwt(token) {
+  try {
+    if (!token || typeof token !== 'string') return {};
+    const parts = token.split('.');
+    if (parts.length < 2) return {};
+    let b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const padding = b64.length % 4 === 0 ? '' : '='.repeat(4 - (b64.length % 4));
+    return JSON.parse(atob(b64 + padding)) || {};
+  } catch { return {}; }
+}
+// Limpa tudo de auth + estado persistido e devolve o usuario para a tela de login.
+function clearHubAuth() {
+  try {
+    localStorage.removeItem('hub_sso_token');
+    localStorage.removeItem('hub_sistemas');
+    localStorage.removeItem('hub_tipo');
+    sessionStorage.removeItem('hub_show_admin');
+    sessionStorage.removeItem('hub_admin_aba');
+    sessionStorage.removeItem('hub_contas_subaba');
+    sessionStorage.removeItem('hub_contas_status');
+  } catch {}
+}
+// Wrapper de fetch que sempre injeta o Bearer e, em 401/403, faz auto-logout
+// (limpa sessao + recarrega) para evitar estado "meio autenticado".
+async function hubFetch(url, opts) {
+  const o = opts || {};
+  const headers = Object.assign({}, o.headers || {});
+  const token = localStorage.getItem('hub_sso_token');
+  if (token && !headers.Authorization) headers.Authorization = `Bearer ${token}`;
+  const r = await fetch(url, { ...o, headers });
+  if (r.status === 401 || r.status === 403) {
+    clearHubAuth();
+    // Forca volta para o login. Reload e o jeito mais simples de reiniciar
+    // os estados sem precisar bubbling complexo.
+    if (typeof window !== 'undefined') window.location.replace('/');
+  }
+  return r;
+}
+
 const HUB_SYSTEMS = [
 {
   id: 'chamados',
@@ -295,21 +337,30 @@ function HubLogin({ onLogin }) {
         setTrocaLoading(false);
         return;
       }
+      // Limpa a senha temporaria do state — nao deve ficar em memoria depois daqui.
+      const emailFinal = trocaForcada.email;
+      setTrocaForcada(prev => prev ? { ...prev, senha_atual: '' } : prev);
+
       // Login automatico com a senha nova.
       const r2 = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: trocaForcada.email, senha: novaSenha }),
+        body: JSON.stringify({ email: emailFinal, senha: novaSenha }),
       });
       const d2 = await r2.json().catch(() => ({}));
       if (r2.ok && d2.ok && d2.token) {
         localStorage.setItem('hub_sso_token', d2.token);
         localStorage.setItem('hub_tipo', d2.tipo || 'usuario');
-        onLogin(d2.nome, d2.sistemas, d2.tipo || 'usuario');
-      } else {
-        setTrocaErro('Senha trocada, mas o login falhou. Tente entrar novamente.');
         setTrocaForcada(null);
-        setSenha('');
+        setNovaSenha(''); setConfirmarSenha(''); setSenha('');
+        onLogin(d2.nome, d2.sistemas, d2.tipo || 'usuario');
+      } else if (r2.ok && d2.ok && d2.precisa_trocar_senha) {
+        // Backend nao limpou a flag — diagnostico claro para nao ficar em loop silencioso.
+        setTrocaErro('A senha foi salva, mas o servidor ainda exige troca. Contate o suporte.');
+      } else {
+        setTrocaErro((d2 && d2.erro) || 'Senha salva, mas o login automático falhou. Tente entrar manualmente.');
+        setTrocaForcada(null);
+        setSenha(''); setNovaSenha(''); setConfirmarSenha('');
       }
     } catch {
       setTrocaErro('Erro de conexão. Tente novamente.');
@@ -649,24 +700,40 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
     } else {
       nova = [...current, systemId];
     }
+    // Snapshot do estado anterior para reverter em caso de falha do servidor.
+    const anterior = permissions[email];
     setPermissions(prev => ({ ...prev, [email]: nova }));
     setSaving(email + systemId);
-    const token = localStorage.getItem('hub_sso_token');
-    await fetch('/api/admin/permissions', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ email, sistemas: nova }),
-    });
-    setSaving(null);
+    try {
+      const r = await hubFetch('/api/admin/permissions', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, sistemas: nova }),
+      });
+      if (!r.ok) throw new Error('falha');
+    } catch {
+      // Reverte exatamente para o que estava antes (inclusive undefined).
+      setPermissions(prev => {
+        const n = { ...prev };
+        if (anterior === undefined) delete n[email]; else n[email] = anterior;
+        return n;
+      });
+      alert('Não foi possível salvar a permissão. Tente novamente.');
+    } finally {
+      setSaving(null);
+    }
   }
 
   async function resetPermissions(email) {
+    const anterior = permissions[email];
     setPermissions(prev => { const n = { ...prev }; delete n[email]; return n; });
-    const token = localStorage.getItem('hub_sso_token');
-    await fetch(`/api/admin/permissions/${encodeURIComponent(email)}`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    try {
+      const r = await hubFetch(`/api/admin/permissions/${encodeURIComponent(email)}`, { method: 'DELETE' });
+      if (!r.ok) throw new Error('falha');
+    } catch {
+      setPermissions(prev => ({ ...prev, [email]: anterior }));
+      alert('Não foi possível resetar as permissões. Tente novamente.');
+    }
   }
 
   function startEdit(sys) {
@@ -678,28 +745,35 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
   async function saveEdit() {
     if (!editForm.nome || !editForm.status) { setLinkErro('Nome e status são obrigatórios'); return; }
     setLinkSaving(true);
-    const token = localStorage.getItem('hub_sso_token');
-    const r = await fetch(`/api/admin/sistemas/${editingId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify(editForm),
-    });
-    const d = await r.json();
-    if (d.ok) {
+    try {
+      const r = await hubFetch(`/api/admin/sistemas/${editingId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editForm),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.ok) { setLinkErro(d.erro || 'Erro ao salvar'); return; }
       setHubSystems(prev => prev.map(s => s.id === editingId ? { ...s, ...d.sistema } : s));
       setEditingId(null);
-    } else {
-      setLinkErro(d.erro || 'Erro ao salvar');
+    } catch {
+      setLinkErro('Erro de conexão');
+    } finally {
+      setLinkSaving(false);
     }
-    setLinkSaving(false);
   }
 
   async function deleteLink(id) {
     if (!confirm('Apagar este link definitivamente?')) return;
-    const token = localStorage.getItem('hub_sso_token');
-    await fetch(`/api/admin/sistemas/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+    const anteriores = hubSystems;
     setHubSystems(prev => prev.filter(s => s.id !== id));
     if (expandedLink === id) setExpandedLink(null);
+    try {
+      const r = await hubFetch(`/api/admin/sistemas/${id}`, { method: 'DELETE' });
+      if (!r.ok) throw new Error('falha');
+    } catch {
+      setHubSystems(anteriores);
+      alert('Não foi possível apagar o link. Tente novamente.');
+    }
   }
 
   async function saveNew() {
@@ -1350,16 +1424,7 @@ function ContasPanel({ isMobile }) {
 
   // Email do admin logado (extraido do JWT em localStorage). Usado para impedir
   // que ele ative/desative a propria conta.
-  const meuEmail = (() => {
-    try {
-      const t = localStorage.getItem('hub_sso_token');
-      if (!t) return '';
-      const [, b64] = t.split('.');
-      const padding = b64.length % 4 === 0 ? '' : '='.repeat(4 - (b64.length % 4));
-      const payload = JSON.parse(atob(b64.replace(/-/g, '+').replace(/_/g, '/') + padding));
-      return (payload.email || '').toLowerCase();
-    } catch { return ''; }
-  })();
+  const meuEmail = (parseJwt(localStorage.getItem('hub_sso_token')).email || '').toLowerCase();
   function ehEuMesmo(tipo, row) {
     if (tipo !== 'admin' || !meuEmail || !row || !row.email) return false;
     return String(row.email).toLowerCase() === meuEmail;
@@ -2336,35 +2401,29 @@ function HubMarquise() {
     document.body.style.setProperty('--grain-blend', HUB_PALETTE.grainBlend);
   }, [theme]);
 
+  // Restauracao de sessao roda em paralelo ao booting, nao depende dele terminar.
+  // Mesmo enquanto a animacao de boot esta na tela, ja autenticamos o usuario e
+  // carregamos /api/me/sistemas. Quando booting==false a tela autenticada aparece sem delay.
   useEffect(() => {
-    if (!booting) {
-      const token = localStorage.getItem('hub_sso_token');
-      if (token) {
-        try {
-          const [, b64] = token.split('.');
-          const padding = b64.length % 4 === 0 ? '' : '='.repeat(4 - (b64.length % 4));
-          const payload = JSON.parse(atob(b64.replace(/-/g, '+').replace(/_/g, '/') + padding));
-          if (payload.exp && payload.exp * 1000 > Date.now()) {
-            // Ja autenticado: se veio com ?next=, redireciona direto pro sistema destino.
-            if (redirectToNextIfAny()) return;
-            setUserName(payload.nome || '');
-            setUserTipo(localStorage.getItem('hub_tipo') || payload.tipo || '');
-            setUserEmail(payload.email || '');
-            setAuthed(true);
-            fetch('/api/me/sistemas', { headers: { Authorization: `Bearer ${token}` } })
-              .then(r => r.json())
-              .then(d => { if (d.ok) setSistemas(d.sistemas); })
-              .catch(() => {});
-            const t = setTimeout(() => setRevealed(true), 80);
-            return () => clearTimeout(t);
-          }
-        } catch (_) {}
-      }
-      localStorage.removeItem('hub_sso_token');
-      localStorage.removeItem('hub_sistemas');
-      localStorage.removeItem('hub_tipo');
+    const token = localStorage.getItem('hub_sso_token');
+    if (!token) return;
+    const payload = parseJwt(token);
+    if (!(payload.exp && payload.exp * 1000 > Date.now())) {
+      clearHubAuth();
+      return;
     }
-  }, [booting]);
+    if (redirectToNextIfAny()) return;
+    setUserName(payload.nome || '');
+    setUserTipo(localStorage.getItem('hub_tipo') || payload.tipo || '');
+    setUserEmail(payload.email || '');
+    setAuthed(true);
+    hubFetch('/api/me/sistemas')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d && d.ok) setSistemas(d.sistemas); })
+      .catch(() => {});
+    const t = setTimeout(() => setRevealed(true), 80);
+    return () => clearTimeout(t);
+  }, []);
 
   useEffect(() => {
     if (!authed) return;
@@ -2413,27 +2472,12 @@ function HubMarquise() {
     setSistemas(sis);
     setAuthed(true);
     setTimeout(() => setRevealed(true), 80);
-    try {
-      const token = localStorage.getItem('hub_sso_token');
-      const [, b64] = token.split('.');
-      const padding = b64.length % 4 === 0 ? '' : '='.repeat(4 - (b64.length % 4));
-      const payload = JSON.parse(atob(b64.replace(/-/g, '+').replace(/_/g, '/') + padding));
-      setUserEmail(payload.email || '');
-    } catch (_) {}
+    setUserEmail(parseJwt(localStorage.getItem('hub_sso_token')).email || '');
   }
 
   function handleLogout() {
-    localStorage.removeItem('hub_sso_token');
-    localStorage.removeItem('hub_sistemas');
-    localStorage.removeItem('hub_tipo');
-    // Limpa estado de navegacao persistido (proximo login comeca limpo)
-    try {
-      sessionStorage.removeItem('hub_show_admin');
-      sessionStorage.removeItem('hub_admin_aba');
-      sessionStorage.removeItem('hub_contas_subaba');
-      sessionStorage.removeItem('hub_contas_status');
-      sessionStorage.removeItem('hub_boot_seen');
-    } catch {}
+    clearHubAuth();
+    try { sessionStorage.removeItem('hub_boot_seen'); } catch {}
     setAuthed(false);
     setRevealed(false);
     setUserName('');
