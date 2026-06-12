@@ -6,10 +6,10 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { aplicarFiltros } = require('../src/audit-filtros');
+const { aplicarFiltros, tipoLogico } = require('../src/audit-filtros');
 
-function ev(at, target_tipo, target_id = 'x') {
-  return { at, target_tipo, target_id, target_nome: 'X', action: 'editar', campos: {} };
+function ev(at, target_tipo, target_id = 'x', action = 'editar') {
+  return { at, target_tipo, target_id, target_nome: 'X', action, campos: {} };
 }
 
 const LOG = [
@@ -48,6 +48,30 @@ test('filtro de data sem registros: contagens zeradas, lista vazia', () => {
   assert.equal(totalGeral, 0);
   assert.deepEqual(contagemPorTipo, {});
   assert.equal(filtrado.length, 0);
+});
+
+test('liberar_link/bloquear_link/resetar_permissoes contam como tipo logico LINK', () => {
+  assert.equal(tipoLogico(ev('2026-06-12', 'permissao', 'x', 'liberar_link')), 'link');
+  assert.equal(tipoLogico(ev('2026-06-12', 'permissao', 'x', 'bloquear_link')), 'link');
+  assert.equal(tipoLogico(ev('2026-06-12', 'permissao', 'x', 'resetar_permissoes')), 'link');
+  // Outros target_tipo='permissao' (hipoteticos) continuam como permissao
+  assert.equal(tipoLogico(ev('2026-06-12', 'permissao', 'x', 'qualquer_outra')), 'permissao');
+});
+
+test('aba Links agrega eventos sobre links + permissoes de link', () => {
+  const LOG2 = [
+    ev('2026-06-12T10:00:00Z', 'link',      'chamados', 'editar'),
+    ev('2026-06-12T11:00:00Z', 'permissao', 'x',        'liberar_link'),
+    ev('2026-06-12T12:00:00Z', 'permissao', 'x',        'bloquear_link'),
+    ev('2026-06-12T13:00:00Z', 'permissao', 'x',        'resetar_permissoes'),
+    ev('2026-06-12T14:00:00Z', 'admin',     'a',        'editar'),
+  ];
+  const r = aplicarFiltros(LOG2, { filterTipo: 'link' });
+  // 1 evento de edicao de link + 3 de permissao de link = 4 no contador e na lista.
+  assert.equal(r.contagemPorTipo.link, 4);
+  assert.equal(r.filtrado.length, 4);
+  // Nao expoe categoria 'permissao' nos contadores quando todas viraram link.
+  assert.equal(r.contagemPorTipo.permissao || 0, 0);
 });
 
 test('log vazio nao quebra', () => {

@@ -1171,16 +1171,26 @@ function HistoricoPanel({ isMobile }) {
     }
   }
 
+  // Tipo "logico" do evento: agrupa permissoes de link na aba "Links" porque
+  // conceitualmente sao acoes sobre links (liberar/bloquear acesso, reset).
+  function tipoLogico(e) {
+    if (!e) return '';
+    if (e.target_tipo === 'permissao'
+      && (e.action === 'liberar_link' || e.action === 'bloquear_link' || e.action === 'resetar_permissoes')) {
+      return 'link';
+    }
+    return e.target_tipo;
+  }
   // Fonte unica de verdade para filtros:
   // 1) logPorData aplica APENAS o filtro de data — usado para os contadores
-  //    dos chips por tipo (Admins, Usuarios, Setores, Links, Permissoes).
-  // 2) filtrado adiciona o filtro de tipo — usado para renderizar a lista.
-  // Sem isso, os badges mostravam o total geral ignorando a data selecionada.
+  //    dos chips por tipo.
+  // 2) filtrado adiciona o filtro de tipo (logico) — usado para renderizar a lista.
   const logPorData = (log || []).filter(e => !filterDate || localDateStr(e.at) === filterDate);
-  const filtrado = logPorData.filter(e => filterTipo === 'todos' || e.target_tipo === filterTipo);
+  const filtrado = logPorData.filter(e => filterTipo === 'todos' || tipoLogico(e) === filterTipo);
 
   const contagemPorTipo = logPorData.reduce((acc, e) => {
-    acc[e.target_tipo] = (acc[e.target_tipo] || 0) + 1;
+    const t = tipoLogico(e);
+    acc[t] = (acc[t] || 0) + 1;
     return acc;
   }, {});
   const totalGeral = logPorData.length;
@@ -1217,7 +1227,8 @@ function HistoricoPanel({ isMobile }) {
       </p>
     </div>
 
-    {/* Filtros por tipo (chips) */}
+    {/* Filtros por tipo (chips) — a aba 'Links' inclui acoes sobre links E
+        acoes sobre permissoes de link (liberar/bloquear acesso, resetar). */}
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
       {[
         { id: 'todos', label: 'Todos', total: totalGeral },
@@ -1225,7 +1236,6 @@ function HistoricoPanel({ isMobile }) {
         { id: 'usuario', label: 'Usuários', total: contagemPorTipo.usuario || 0 },
         { id: 'setor', label: 'Setores', total: contagemPorTipo.setor || 0 },
         { id: 'link', label: 'Links', total: contagemPorTipo.link || 0 },
-        { id: 'permissao', label: 'Permissões', total: contagemPorTipo.permissao || 0 },
       ].map(t => {
         const on = filterTipo === t.id;
         return (
