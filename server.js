@@ -374,7 +374,7 @@ app.put('/api/admin/permissions', requireAdmin, (req, res) => {
   const { email, sistemas } = req.body || {};
   if (!email || !Array.isArray(sistemas)) return res.status(400).json({ ok: false, erro: 'Dados inválidos' });
   const data = readData();
-  // Diff: para cada toggle de link gera um evento granular (liberar_link/bloquear_link)
+  // Diff: para cada toggle de link gera um evento granular (liberar_link/bloquear_link).
   const antes = data.permissions[email];
   const sistemasAtuaisIds = (data.sistemas || DEFAULT_SISTEMAS).map(s => s.id);
   const tinhaAntes = (antes === undefined || antes === null) ? sistemasAtuaisIds : antes;
@@ -385,6 +385,15 @@ app.put('/api/admin/permissions', requireAdmin, (req, res) => {
   const alvo = (data.users || []).find(u => u.email === email);
   const targetNome = (alvo && alvo.nome) || email;
   const sistemasMap = Object.fromEntries((data.sistemas || DEFAULT_SISTEMAS).map(s => [s.id, s.nome]));
+
+  // CRITICO: grava a mudanca de permissao ANTES dos appendAudit.
+  // appendAudit faz readData()+writeData() interno; se rodasse depois,
+  // o writeData final SOBRESCREVERIA os audits acabados de gravar
+  // (bug que zerava o historico de liberar/bloquear link).
+  data.permissions[email] = sistemas;
+  writeData(data);
+  notifyUser(email, sistemas);
+
   for (const sid of liberados) {
     appendAudit({
       by_email: req.hubUser.email, by_nome: req.hubUser.nome,
@@ -401,9 +410,6 @@ app.put('/api/admin/permissions', requireAdmin, (req, res) => {
       campos: { email, link: sistemasMap[sid] || sid },
     });
   }
-  data.permissions[email] = sistemas;
-  writeData(data);
-  notifyUser(email, sistemas);
   res.json({ ok: true });
 });
 
