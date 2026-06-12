@@ -21,13 +21,16 @@ app.use(express.static(path.join(__dirname, 'public')));
 // ─── Helpers de persistência ────────────────────────────────────────────────
 
 const { migrarSlugs } = require('./src/migrations');
+const sitePerm = require('./src/site-permissions');
 
 function readData() {
   try {
     if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
     if (!fs.existsSync(HUB_DATA_FILE)) return { users: [], permissions: {} };
     const data = JSON.parse(fs.readFileSync(HUB_DATA_FILE, 'utf8'));
-    return migrarSlugs(data);
+    migrarSlugs(data);
+    sitePerm.migrarSitePermissoes(data); // popula registros-semente uma unica vez
+    return data;
   } catch {
     return { users: [], permissions: {} };
   }
@@ -238,6 +241,13 @@ app.post('/api/auth/login', async (req, res) => {
     }
     const payload = { nome: data.nome, email: emailNorm, tipo: data.tipo };
     if (data.tipo === 'admin') payload.is_master = !!data.is_master;
+    // Fase 1 do gerenciamento manual de cookies: anexa lista de sistemas onde
+    // este email tem papel 'admin' no banco do Hub. Sistemas satelites podem
+    // ler isso do JWT em vez de manter suas proprias allowlists hardcoded.
+    try {
+      const dados = readData();
+      payload.sites_admin = sitePerm.sitesOndeEhAdmin(dados, emailNorm);
+    } catch { payload.sites_admin = []; }
     const token = jwt.sign(payload, SSO_SECRET, { expiresIn: '8h' });
     trackUser(emailNorm, data.nome, data.tipo, {
       setor: data.setor,
@@ -736,6 +746,76 @@ app.delete('/api/admin/permissions/:email', requireAdmin, (req, res) => {
     campos: { email },
   });
   res.json({ ok: true });
+});
+
+// ─── Site permissions (Fase 1 do gerenciamento manual de cookies) ────────────
+
+// Lista todas as permissoes por site (admin/usuario). Usado pelo painel
+// de Links → popup → LIBERACAO no front. Ordenado por sistema_id, depois email.
+app.get('/api/admin/site-permissions', requireAdmin, (_req, res) => {
+  const dados = readData();
+  const all = sitePerm.listarTodos(dados);
+  all.sort((a, b) => (a.sistema_id + a.email).localeCompare(b.sistema_id + b.email));
+  res.json({ ok: true, items: all });
+});
+
+// Define/troca o papel de um email num sistema (cria se nao existir).
+app.post('/api/admin/site-permissions', requireAdmin, (req, res) => {
+  const { email, sistema_id, papel } = req.body || {};
+  if (!email || !sistema_id) return res.status(400).json({ ok: false, erro: 'email e sistema_id obrigatorios' });
+  if (papel !== 'admin' && papel !== 'usuario') return res.status(400).json({ ok: false, erro: 'papel deve ser admin ou usuario' });
+  const dados = readData();
+  const r = sitePerm.setPapel(dados, email, sistema_id, papel);
+  if (!r.ok) return res.status(400).json({ ok: false, erro: r.erro });
+  writeData(dados);
+  if (r.mudou) {
+    const sistemasMap = Object.fromEntries((dados.sistemas || DEFAULT_SISTEMAS).map(s => [s.id, s.nome]));
+    appendAudit({
+      by_email: req.hubUser.email, by_nome: req.hubUser.nome,
+      action: papel === 'admin' ? 'site_admin_liberar' : 'site_usuario_liberar',
+      target_tipo: 'permissao', target_id: null,
+      target_nome: sitePerm._norm(email),
+      campos: { email: sitePerm._norm(email), link: sistemasMap[sistema_id] || sistema_id, papel, papel_anterior: r.anterior || null },
+    });
+  }
+  res.json({ ok: true });
+});
+
+// Remove o papel de um email num sistema. Idempotente: 200 mesmo se nao existia.
+app.delete('/api/admin/site-permissions', requireAdmin, (req, res) => {
+  const email = req.query.email || (req.body && req.body.email);
+  const sistema_id = req.query.sistema_id || (req.body && req.body.sistema_id);
+  if (!email || !sistema_id) return res.status(400).json({ ok: false, erro: 'email e sistema_id obrigatorios' });
+  const dados = readData();
+  const r = sitePerm.removerPapel(dados, email, sistema_id);
+  writeData(dados);
+  if (r.mudou) {
+    const sistemasMap = Object.fromEntries((dados.sistemas || DEFAULT_SISTEMAS).map(s => [s.id, s.nome]));
+    appendAudit({
+      by_email: req.hubUser.email, by_nome: req.hubUser.nome,
+      action: 'site_acesso_remover', target_tipo: 'permissao', target_id: null,
+      target_nome: sitePerm._norm(email),
+      campos: { email: sitePerm._norm(email), link: sistemasMap[sistema_id] || sistema_id },
+    });
+  }
+  res.json({ ok: true });
+});
+
+// Server-to-server: sistema satelite consulta o Hub para saber papeis de
+// um email. Usado por ramais/pesquisa no /sso quando o JWT nao traz
+// sites_admin (cliente antigo ou falha). Bearer SSO_SECRET.
+app.get('/api/hub/site-roles', (req, res) => {
+  const auth = req.headers.authorization || '';
+  const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
+  if (!token || token !== SSO_SECRET) return res.status(403).json({ ok: false, erro: 'Acesso negado' });
+  const email = (req.query.email || '').toString();
+  if (!email) return res.status(400).json({ ok: false, erro: 'email obrigatorio' });
+  const dados = readData();
+  res.json({
+    ok: true,
+    sites_admin: sitePerm.sitesOndeEhAdmin(dados, email),
+    sites_usuario: sitePerm.sitesUsuario(dados, email),
+  });
 });
 
 // ─── Static fallback ─────────────────────────────────────────────────────────
