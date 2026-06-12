@@ -227,6 +227,25 @@ app.post('/api/auth/login', async (req, res) => {
   return res.status(401).json({ ok: false, erro: 'Credenciais inválidas' });
 });
 
+// Esqueci a senha: encaminha para o sistema-chamados, que envia o e-mail
+// (mesmo endpoint serve admins e usuarios do portal).
+app.post('/api/auth/esqueci-senha', async (req, res) => {
+  const email = (req.body && req.body.email || '').trim().toLowerCase();
+  if (!email) return res.status(400).json({ ok: false, erro: 'E-mail obrigatório' });
+  try {
+    const r = await fetch(`${CHAMADOS_URL}/api/usuarios/esqueci-senha`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (r.ok) return res.json({ ok: true, mensagem: data.mensagem || 'E-mail enviado com sucesso.' });
+    return res.status(r.status).json({ ok: false, erro: data.erro || 'Não foi possível enviar o link.' });
+  } catch {
+    return res.status(502).json({ ok: false, erro: 'Sistema de chamados offline. Tente novamente em instantes.' });
+  }
+});
+
 // ─── Admin API ───────────────────────────────────────────────────────────────
 
 app.get('/api/events', (req, res) => {

@@ -156,7 +156,35 @@ function HubLogin({ onLogin }) {
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState('');
   const [visible, setVisible] = useState(false);
+  // Esqueci senha (painel inline)
+  const [esqOpen, setEsqOpen] = useState(false);
+  const [esqEmail, setEsqEmail] = useState('');
+  const [esqLoading, setEsqLoading] = useState(false);
+  const [esqMsg, setEsqMsg] = useState(null); // { tipo: 'ok'|'erro', texto }
+  const [esqEnviado, setEsqEnviado] = useState(false);
   const emailRef = useRef(null);
+
+  async function handleEsqueci(e) {
+    e.preventDefault();
+    setEsqLoading(true); setEsqMsg(null);
+    const e_ = (esqEmail || '').trim().toLowerCase();
+    if (!e_) { setEsqMsg({ tipo: 'erro', texto: 'Informe seu e-mail.' }); setEsqLoading(false); return; }
+    try {
+      const r = await fetch('/api/auth/esqueci-senha', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: e_ }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (r.ok && d.ok) {
+        setEsqMsg({ tipo: 'ok', texto: d.mensagem || 'Enviamos um link para seu e-mail.' });
+        setEsqEnviado(true);
+      } else {
+        setEsqMsg({ tipo: 'erro', texto: d.erro || `Erro ${r.status}` });
+      }
+    } catch { setEsqMsg({ tipo: 'erro', texto: 'Erro de conexão.' }); }
+    setEsqLoading(false);
+  }
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -258,6 +286,43 @@ function HubLogin({ onLogin }) {
             onMouseLeave={e => { e.target.style.background = 'transparent'; }}>
             {loading ? 'Verificando...' : 'Entrar'}
           </button>
+
+          {/* Esqueci a senha */}
+          <div style={{ textAlign: 'center', marginTop: 4 }}>
+            <button type="button"
+              onClick={() => { setEsqOpen(v => !v); setEsqMsg(null); setEsqEnviado(false); if (!esqOpen && email) setEsqEmail(email); }}
+              style={{ background: 'transparent', border: 'none', color: HUB_PALETTE.areiaDim, fontFamily: 'Inter, sans-serif', fontSize: 12.5, textDecoration: 'underline', textUnderlineOffset: 3, cursor: 'pointer', padding: '6px 4px' }}>
+              {esqOpen ? 'Cancelar' : 'Esqueci minha senha'}
+            </button>
+          </div>
+
+          {esqOpen && (
+            <div style={{ marginTop: 4, paddingTop: 16, borderTop: `1px solid ${HUB_PALETTE.areiaDim}22`, display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 12.5, color: HUB_PALETTE.areia, margin: 0, lineHeight: 1.55 }}>
+                Digite seu e-mail e enviaremos um link para redefinir sua senha.
+              </p>
+              {!esqEnviado && (
+                <div>
+                  <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 8 }}>E-mail cadastrado</div>
+                  <input type="email" value={esqEmail} onChange={e => setEsqEmail(e.target.value)} placeholder="seu@granmarquise.com.br" required disabled={esqLoading}
+                    style={inputBase}
+                    onFocus={e => e.target.style.borderColor = HUB_PALETTE.champanhe + '88'}
+                    onBlur={e => e.target.style.borderColor = HUB_PALETTE.areiaDim + '44'} />
+                </div>
+              )}
+              {esqMsg && (
+                <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: esqMsg.tipo === 'ok' ? '#7cb342' : '#E07A5F', lineHeight: 1.5 }}>
+                  {esqMsg.texto}
+                </div>
+              )}
+              {!esqEnviado && (
+                <button type="button" onClick={handleEsqueci} disabled={esqLoading}
+                  style={{ width: '100%', padding: '13px', background: 'transparent', border: `1px solid ${HUB_PALETTE.champanhe}88`, color: esqLoading ? HUB_PALETTE.areiaDim : HUB_PALETTE.champanhe, fontFamily: 'JetBrains Mono, monospace', fontSize: 10.5, letterSpacing: '0.28em', textTransform: 'uppercase', cursor: esqLoading ? 'not-allowed' : 'pointer' }}>
+                  {esqLoading ? 'Enviando…' : 'Enviar link de redefinição'}
+                </button>
+              )}
+            </div>
+          )}
         </form>
 
         <div style={{ marginTop: 40, display: 'flex', alignItems: 'center', gap: 12 }}>
