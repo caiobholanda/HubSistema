@@ -1071,6 +1071,58 @@ function HistoricoPanel({ isMobile }) {
     return String(v ?? '—');
   }
 
+  // Gera frase em linguagem natural para o evento. Ex.: em vez de
+  // [EDITADO] [ADMIN] Caio Holanda + linha NOME X EMAIL Y RAMAL Z SENHA Sim,
+  // exibimos "Senha do admin Caio Holanda foi alterada".
+  function descreverEvento(e) {
+    const tipoCap = TARGET_LABEL[e.target_tipo] || e.target_tipo;
+    const tipoMin = (tipoCap || '').toLowerCase();
+    const alvo = e.target_nome || `#${e.target_id || ''}`;
+    const c = e.campos || {};
+    const keys = Object.keys(c);
+
+    switch (e.action) {
+      case 'criar':       return `${tipoCap} ${alvo} foi criado`;
+      case 'excluir':     return `${tipoCap} ${alvo} foi excluído`;
+      case 'ativar':      return `${tipoCap} ${alvo} foi ativado`;
+      case 'inativar':    return `${tipoCap} ${alvo} foi desativado`;
+      case 'promover_master': return `${tipoCap} ${alvo} foi promovido a master`;
+      case 'rebaixar_master': return `${tipoCap} ${alvo} foi rebaixado de master`;
+      case 'trocar_senha': return `Senha do ${tipoMin} ${alvo} foi alterada`;
+      case 'etiquetas': {
+        const n = Array.isArray(c.slugs) ? c.slugs.length : 0;
+        return `Etiquetas do ${tipoMin} ${alvo} foram atualizadas (${n} ${n === 1 ? 'etiqueta' : 'etiquetas'})`;
+      }
+      case 'liberar_link':   return `${alvo || c.email} recebeu acesso a "${c.link || 'link'}"`;
+      case 'bloquear_link':  return `${alvo || c.email} perdeu acesso a "${c.link || 'link'}"`;
+      case 'resetar_permissoes': return `Permissões de ${alvo || c.email} foram resetadas`;
+      case 'editar': {
+        // Setor renomeado tem campos especiais
+        if (e.target_tipo === 'setor' && c.nome_anterior && c.nome) {
+          return `Setor "${c.nome_anterior}" foi renomeado para "${c.nome}"`;
+        }
+        // Lista de campos efetivamente alterados (excluindo metadados)
+        const fields = keys.filter(k => k in FIELD_LABEL);
+        if (fields.length === 0) return `${tipoCap} ${alvo} foi editado`;
+        if (fields.length === 1) {
+          const k = fields[0];
+          if (k === '_trocou_senha') return `Senha do ${tipoMin} ${alvo} foi alterada`;
+          if (k === 'is_master')     return c.is_master ? `${tipoCap} ${alvo} foi promovido a master` : `${tipoCap} ${alvo} foi rebaixado de master`;
+          if (k === 'ativo')         return c.ativo ? `${tipoCap} ${alvo} foi ativado` : `${tipoCap} ${alvo} foi desativado`;
+          if (k === 'slugs')         return `Etiquetas do ${tipoMin} ${alvo} foram atualizadas`;
+          return `${FIELD_LABEL[k]} do ${tipoMin} ${alvo} foi alterado`;
+        }
+        // 2+ campos: lista com "e" antes do último
+        const nomes = fields.map(k => k === '_trocou_senha' ? 'senha' : (FIELD_LABEL[k] || k).toLowerCase());
+        const ultimo = nomes.pop();
+        const lista = nomes.length ? `${nomes.join(', ')} e ${ultimo}` : ultimo;
+        return `${tipoCap} ${alvo}: ${lista} alterados`;
+      }
+      default:
+        return `${tipoCap} ${alvo}: ${e.action}`;
+    }
+  }
+
   const filtrado = (log || []).filter(e => {
     if (filterDate && localDateStr(e.at) !== filterDate) return false;
     if (filterTipo !== 'todos' && e.target_tipo !== filterTipo) return false;
@@ -1163,27 +1215,35 @@ function HistoricoPanel({ isMobile }) {
             </div>
             {gr.itens.map(e => {
               const cor = ACTION_COR[e.action] || HUB_PALETTE.areiaDim;
-              const label = ACTION_LABEL[e.action] || e.action;
-              const camposKeys = Object.keys(e.campos || {}).filter(k => k in FIELD_LABEL);
+              const frase = descreverEvento(e);
+              // Mostra detalhes (chave -> novo valor) apenas para "editar" com >=2 campos
+              // ou quando o campo carrega informacao util (novo nome, novo email).
+              // Acao com 1 campo ja esta toda na frase — esconder detalhes evita duplicar.
+              const detalhesUteis = (() => {
+                if (!e.campos) return [];
+                const keys = Object.keys(e.campos).filter(k => k in FIELD_LABEL);
+                if (e.action !== 'editar') return [];
+                if (keys.length < 2) return [];
+                return keys.filter(k => k !== '_trocou_senha' && k !== 'ativo' && k !== 'is_master' && k !== 'slugs');
+              })();
               return (
                 <div key={e.id} style={{ padding: '14px 0', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22` }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                    <span style={{ display: 'inline-flex', padding: '3px 10px', fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', background: cor + '22', color: cor, border: `1px solid ${cor}55` }}>{label}</span>
-                    <span style={{ display: 'inline-flex', padding: '3px 8px', fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 500, letterSpacing: '0.18em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, border: `1px solid ${HUB_PALETTE.areiaDim}55` }}>
-                      {TARGET_LABEL[e.target_tipo] || e.target_tipo}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: cor, flexShrink: 0 }} />
+                    <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: HUB_PALETTE.marfim, fontWeight: 500, flex: 1, minWidth: 0, lineHeight: 1.45 }}>
+                      {frase}
                     </span>
-                    <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13.5, color: HUB_PALETTE.marfim, fontWeight: 500, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {e.target_nome || `${TARGET_LABEL[e.target_tipo] || e.target_tipo} #${e.target_id || ''}`}
+                    <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 12.5, color: HUB_PALETTE.areia, whiteSpace: 'nowrap' }}>
+                      por <strong style={{ color: HUB_PALETTE.champanhe, fontWeight: 600 }}>{e.by_nome || e.by_email}</strong>
                     </span>
-                    <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 12.5, color: HUB_PALETTE.areia }}>por <strong style={{ color: HUB_PALETTE.champanhe, fontWeight: 600 }}>{e.by_nome || e.by_email}</strong></span>
-                    <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: HUB_PALETTE.areiaDim, fontVariantNumeric: 'tabular-nums' }}>{fmtHora(e.at)}</span>
+                    <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: HUB_PALETTE.areiaDim, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{fmtHora(e.at)}</span>
                   </div>
-                  {camposKeys.length > 0 && (
-                    <div style={{ marginTop: 8, paddingLeft: 12, display: 'flex', flexWrap: 'wrap', gap: '4px 14px' }}>
-                      {camposKeys.map(k => (
-                        <span key={k} style={{ fontFamily: 'Inter, sans-serif', fontSize: 12.5, color: HUB_PALETTE.areia }}>
-                          <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.16em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginRight: 5 }}>{FIELD_LABEL[k]}</span>
-                          {fmtVal(k, e.campos[k])}
+                  {detalhesUteis.length > 0 && (
+                    <div style={{ marginTop: 6, paddingLeft: 18, display: 'flex', flexWrap: 'wrap', gap: '4px 14px' }}>
+                      {detalhesUteis.map(k => (
+                        <span key={k} style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: HUB_PALETTE.areiaDim }}>
+                          <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.16em', textTransform: 'uppercase', marginRight: 5 }}>{FIELD_LABEL[k]}</span>
+                          <span style={{ color: HUB_PALETTE.areia }}>{fmtVal(k, e.campos[k])}</span>
                         </span>
                       ))}
                     </div>

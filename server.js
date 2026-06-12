@@ -54,10 +54,36 @@ function _campos(body) {
   if (!body || typeof body !== 'object') return {};
   const out = {};
   for (const k of Object.keys(body)) {
+    if (k === '_self_edit') continue;
     if (k === 'senha') { if (body[k]) out._trocou_senha = true; continue; }
     if (k === 'senha_hash' || k === 'senha_plain') continue;
     if (body[k] === undefined || body[k] === null || body[k] === '') continue;
     out[k] = body[k];
+  }
+  return out;
+}
+// Diff entre o registro existente (antes) e o body recebido.
+// Retorna SOMENTE os campos que mudaram, no mesmo formato de _campos
+// (para o historico mostrar apenas o que foi alterado e nao todos os campos
+// que o front pre-preenche). Compara normalizando bool/int (ativo=1 == true).
+function _diff(antes, body) {
+  if (!antes || !body || typeof body !== 'object') return _campos(body);
+  const out = {};
+  const norm = v => (v === true || v === 1) ? 1 : (v === false || v === 0 || v == null) ? 0 : v;
+  for (const k of Object.keys(body)) {
+    if (k === '_self_edit') continue;
+    if (k === 'senha') { if (body[k]) out._trocou_senha = true; continue; }
+    if (k === 'senha_hash' || k === 'senha_plain') continue;
+    if (body[k] === undefined || body[k] === null || body[k] === '') continue;
+    const a = antes[k], b = body[k];
+    if (typeof a === 'boolean' || typeof b === 'boolean' || k === 'ativo' || k === 'is_master') {
+      if (norm(a) === norm(b)) continue;
+    } else if (typeof a === 'string' && typeof b === 'string') {
+      if (a.trim().toLowerCase() === b.trim().toLowerCase()) continue;
+    } else if (a === b) {
+      continue;
+    }
+    out[k] = b;
   }
   return out;
 }
@@ -66,6 +92,11 @@ async function _buscarAdminAlvo(id) {
   const r = await proxyChamados('/admins');
   if (r.status !== 200 || !r.data || !r.data.ok) return null;
   return (r.data.admins || []).find(a => Number(a.id) === Number(id)) || null;
+}
+async function _buscarUsuarioAlvo(id) {
+  const r = await proxyChamados('/portal-usuarios');
+  if (r.status !== 200 || !r.data || !r.data.ok) return null;
+  return (r.data.usuarios || []).find(u => Number(u.id) === Number(id)) || null;
 }
 
 // Resolve nome do alvo para qualquer tipo de audit log
@@ -490,19 +521,21 @@ app.patch('/api/admin/chamados-admins/:id', requireAdmin, async (req, res) => {
   }
   const r = await proxyChamados(`/admins/${encodeURIComponent(id)}`, { method: 'PATCH', body: bodyProxy });
   if (r.status >= 200 && r.status < 300 && r.data && r.data.ok) {
-    const b = bodyProxy;
-    // Distingue acoes (so-ativo, so-master, etc) das edicoes genericas
-    const onlyKeys = Object.keys(b).filter(k => b[k] !== undefined && k !== '_self_edit');
+    // Compara o body com o registro antes da edicao para registrar SO os campos
+    // que efetivamente mudaram (sem isso, o historico mostra todos os campos
+    // que o front pre-preenche, mesmo os que nao foram alterados).
+    const diff = _diff(antes, bodyProxy);
+    const onlyKeys = Object.keys(diff);
     let action = 'editar';
-    if (onlyKeys.length === 1 && 'ativo' in b) action = b.ativo ? 'ativar' : 'inativar';
-    else if (onlyKeys.length === 1 && 'is_master' in b) action = b.is_master ? 'promover_master' : 'rebaixar_master';
-    else if (onlyKeys.length === 1 && 'senha' in b) action = 'trocar_senha';
+    if (onlyKeys.length === 1 && 'ativo' in diff) action = diff.ativo ? 'ativar' : 'inativar';
+    else if (onlyKeys.length === 1 && 'is_master' in diff) action = diff.is_master ? 'promover_master' : 'rebaixar_master';
+    else if (onlyKeys.length === 1 && '_trocou_senha' in diff) action = 'trocar_senha';
     appendAudit({
       by_email: req.hubUser.email, by_nome: req.hubUser.nome,
       action, target_tipo: 'admin',
       target_id: Number(id),
       target_nome: (antes && antes.nome_completo) || null,
-      campos: _campos(b),
+      campos: diff,
     });
   }
   res.status(r.status).json(r.data);
@@ -610,19 +643,19 @@ app.post('/api/admin/chamados-usuarios', requireAdmin, async (req, res) => {
 });
 app.patch('/api/admin/chamados-usuarios/:id', requireAdmin, async (req, res) => {
   const id = req.params.id;
-  const nome = await _resolverNomeAlvo('usuario', id);
+  const antes = await _buscarUsuarioAlvo(id);
   const r = await proxyChamados(`/portal-usuarios/${encodeURIComponent(id)}`, { method: 'PATCH', body: req.body });
   if (r.status >= 200 && r.status < 300 && r.data && r.data.ok) {
-    const b = req.body || {};
-    const onlyKeys = Object.keys(b).filter(k => b[k] !== undefined);
+    const diff = _diff(antes, req.body || {});
+    const onlyKeys = Object.keys(diff);
     let action = 'editar';
-    if (onlyKeys.length === 1 && 'ativo' in b) action = b.ativo ? 'ativar' : 'inativar';
-    else if (onlyKeys.length === 1 && 'senha' in b) action = 'trocar_senha';
+    if (onlyKeys.length === 1 && 'ativo' in diff) action = diff.ativo ? 'ativar' : 'inativar';
+    else if (onlyKeys.length === 1 && '_trocou_senha' in diff) action = 'trocar_senha';
     appendAudit({
       by_email: req.hubUser.email, by_nome: req.hubUser.nome,
       action, target_tipo: 'usuario',
-      target_id: Number(id), target_nome: nome,
-      campos: _campos(b),
+      target_id: Number(id), target_nome: (antes && antes.nome) || null,
+      campos: diff,
     });
   }
   res.status(r.status).json(r.data);
