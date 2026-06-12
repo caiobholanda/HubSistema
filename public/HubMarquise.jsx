@@ -702,10 +702,13 @@ function LinkEditModal({ sys, form, setForm, onSave, onCancel, linkErro, linkSav
 
 // Aba LIBERACAO: gerencia papeis (admin/usuario) por email para um sistema.
 // Le e escreve no banco do Hub via /api/admin/site-permissions.
+// LiberacaoPanel: gerencia APENAS quem tem cookie de admin no sistema.
+// Acesso comum (usuario) e' implicito — quem ve o link no Hub recebe
+// cookie de usuario automaticamente ao fazer SSO. Por isso nao ha lista
+// de "usuarios" aqui.
 function LiberacaoPanel({ sistemaId, sistemaNome, isMobile, users }) {
   const [items, setItems] = useState(null); // null=loading, []=vazio
   const [novoEmail, setNovoEmail] = useState('');
-  const [novoPapel, setNovoPapel] = useState('admin');
   const [erro, setErro] = useState('');
   const [busy, setBusy] = useState(false);
   const [sugAberto, setSugAberto] = useState(false);
@@ -729,22 +732,11 @@ function LiberacaoPanel({ sistemaId, sistemaNome, isMobile, users }) {
       const r = await hubFetch('/api/admin/site-permissions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: e, sistema_id: sistemaId, papel: novoPapel }),
+        body: JSON.stringify({ email: e, sistema_id: sistemaId, papel: 'admin' }),
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok || !d.ok) { setErro(d.erro || 'Erro ao salvar'); return; }
       setNovoEmail('');
-      await carregar();
-    } finally { setBusy(false); }
-  }
-  async function trocar(email, novo) {
-    setBusy(true);
-    try {
-      await hubFetch('/api/admin/site-permissions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, sistema_id: sistemaId, papel: novo }),
-      });
       await carregar();
     } finally { setBusy(false); }
   }
@@ -756,8 +748,9 @@ function LiberacaoPanel({ sistemaId, sistemaNome, isMobile, users }) {
     } finally { setBusy(false); }
   }
 
+  // Apenas admins sao gerenciados aqui. Quem ve o link no Hub e' usuario
+  // por default — nao precisa de lista explicita.
   const admins = (items || []).filter(x => x.papel === 'admin');
-  const usuarios = (items || []).filter(x => x.papel === 'usuario');
 
   const subTitulo = { fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.28em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 8 };
   const lista = { display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 };
@@ -767,8 +760,9 @@ function LiberacaoPanel({ sistemaId, sistemaNome, isMobile, users }) {
   return (
     <div style={{ padding: isMobile ? '12px' : '18px 24px 24px' }}>
       <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areia, lineHeight: 1.55, margin: '0 0 18px' }}>
-        Quem aparece em <strong>Admins</strong> recebe cookie de admin no <em>{sistemaNome}</em> no próximo login.
-        Quem está em <strong>Usuários</strong> tem acesso comum explícito. As mudanças valem no <strong>próximo login</strong> da conta afetada.
+        Quem aparece abaixo recebe <strong>cookie de admin</strong> no <em>{sistemaNome}</em> no próximo login.
+        Quem tem acesso ao link no Hub mas não está aqui recebe cookie de usuário comum automaticamente.
+        Mudanças valem no <strong>próximo login</strong> da conta afetada.
       </p>
 
       {/* Adicionar — autocomplete com sugestoes de emails ja cadastrados no Hub
@@ -805,13 +799,8 @@ function LiberacaoPanel({ sistemaId, sistemaNome, isMobile, users }) {
             );
           })()}
         </div>
-        <select value={novoPapel} onChange={e => setNovoPapel(e.target.value)}
-          style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim, border: `1px solid ${HUB_PALETTE.areiaDim}44`, padding: '10px 12px', fontFamily: 'Inter, sans-serif', fontSize: 13 }}>
-          <option value="admin">Admin</option>
-          <option value="usuario">Usuário</option>
-        </select>
         <button onClick={adicionar} disabled={busy} style={{ background: HUB_PALETTE.champanhe + '22', border: `1px solid ${HUB_PALETTE.champanhe}55`, color: HUB_PALETTE.champanhe, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', padding: '10px 18px', cursor: busy ? 'wait' : 'pointer' }}>
-          + Adicionar
+          + Adicionar admin
         </button>
       </div>
       {erro && <div style={{ color: '#E07A5F', fontFamily: 'Inter, sans-serif', fontSize: 13, marginBottom: 14 }}>{erro}</div>}
@@ -819,24 +808,11 @@ function LiberacaoPanel({ sistemaId, sistemaNome, isMobile, users }) {
       <div style={subTitulo}>Admins ({admins.length})</div>
       <div style={lista}>
         {items === null && <div style={{ ...item, color: HUB_PALETTE.areiaDim, fontStyle: 'italic' }}>Carregando…</div>}
-        {items !== null && admins.length === 0 && <div style={{ ...item, color: HUB_PALETTE.areiaDim, fontStyle: 'italic' }}>Nenhum admin definido manualmente.</div>}
+        {items !== null && admins.length === 0 && <div style={{ ...item, color: HUB_PALETTE.areiaDim, fontStyle: 'italic' }}>Nenhum admin definido. Adicione contas acima.</div>}
         {admins.map(x => (
           <div key={'a-' + x.email} style={item}>
             <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{x.email}</span>
-            <button onClick={() => trocar(x.email, 'usuario')} disabled={busy} style={btn} title="Rebaixar a Usuário">↓ Usuário</button>
-            <button onClick={() => remover(x.email)} disabled={busy} style={{ ...btn, color: '#E07A5F', borderColor: '#E07A5F44' }} title="Remover">×</button>
-          </div>
-        ))}
-      </div>
-
-      <div style={subTitulo}>Usuários ({usuarios.length})</div>
-      <div style={lista}>
-        {items !== null && usuarios.length === 0 && <div style={{ ...item, color: HUB_PALETTE.areiaDim, fontStyle: 'italic' }}>Nenhum usuário com acesso explícito.</div>}
-        {usuarios.map(x => (
-          <div key={'u-' + x.email} style={item}>
-            <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{x.email}</span>
-            <button onClick={() => trocar(x.email, 'admin')} disabled={busy} style={btn} title="Promover a Admin">↑ Admin</button>
-            <button onClick={() => remover(x.email)} disabled={busy} style={{ ...btn, color: '#E07A5F', borderColor: '#E07A5F44' }} title="Remover">×</button>
+            <button onClick={() => remover(x.email)} disabled={busy} style={{ ...btn, color: '#E07A5F', borderColor: '#E07A5F44' }} title="Remover acesso de admin">× Remover</button>
           </div>
         ))}
       </div>
