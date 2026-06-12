@@ -1312,6 +1312,8 @@ function HistoricoPanel({ isMobile }) {
     excluir: 'Excluído',
     liberar_link: 'Liberou link', bloquear_link: 'Bloqueou link',
     resetar_permissoes: 'Permissões resetadas',
+    site_admin_liberar: 'Admin de site', site_usuario_liberar: 'Usuário de site',
+    site_acesso_remover: 'Acesso removido',
   };
   const ACTION_COR = {
     criar: '#3E8497', editar: HUB_PALETTE.champanhe,
@@ -1321,6 +1323,9 @@ function HistoricoPanel({ isMobile }) {
     excluir: '#E07A5F',
     liberar_link: '#7cb342', bloquear_link: '#9E6B43',
     resetar_permissoes: '#3E8497',
+    site_admin_liberar: HUB_PALETTE.champanhe,
+    site_usuario_liberar: '#7cb342',
+    site_acesso_remover: '#E07A5F',
   };
   const TARGET_LABEL = {
     admin: 'Admin', usuario: 'Usuário', setor: 'Setor', link: 'Link', permissao: 'Permissão',
@@ -1365,6 +1370,18 @@ function HistoricoPanel({ isMobile }) {
       case 'liberar_link':   return `${alvo || c.email} recebeu acesso a "${c.link || 'link'}"`;
       case 'bloquear_link':  return `${alvo || c.email} perdeu acesso a "${c.link || 'link'}"`;
       case 'resetar_permissoes': return `Permissões de ${alvo || c.email} foram resetadas`;
+      // Eventos da aba Liberacao (popup de Link). Refletem mudancas no
+      // banco site_permissions — quem recebe cookie de admin no proximo login.
+      case 'site_admin_liberar':
+        return c.papel_anterior === 'usuario'
+          ? `${alvo || c.email} foi promovido a admin em "${c.link || 'sistema'}"`
+          : `${alvo || c.email} recebeu permissão de admin em "${c.link || 'sistema'}"`;
+      case 'site_usuario_liberar':
+        return c.papel_anterior === 'admin'
+          ? `${alvo || c.email} foi rebaixado a usuário em "${c.link || 'sistema'}"`
+          : `${alvo || c.email} recebeu acesso comum em "${c.link || 'sistema'}"`;
+      case 'site_acesso_remover':
+        return `${alvo || c.email} perdeu permissão em "${c.link || 'sistema'}"`;
       case 'editar': {
         // Setor renomeado tem campos especiais
         if (e.target_tipo === 'setor' && c.nome_anterior && c.nome) {
@@ -1397,7 +1414,8 @@ function HistoricoPanel({ isMobile }) {
   function tipoLogico(e) {
     if (!e) return '';
     if (e.target_tipo === 'permissao'
-      && (e.action === 'liberar_link' || e.action === 'bloquear_link' || e.action === 'resetar_permissoes')) {
+      && (e.action === 'liberar_link' || e.action === 'bloquear_link' || e.action === 'resetar_permissoes'
+        || e.action === 'site_admin_liberar' || e.action === 'site_usuario_liberar' || e.action === 'site_acesso_remover')) {
       return 'link';
     }
     return e.target_tipo;
