@@ -468,23 +468,31 @@ app.post('/api/admin/chamados-admins', requireAdmin, async (req, res) => {
 app.patch('/api/admin/chamados-admins/:id', requireAdmin, async (req, res) => {
   const id = req.params.id;
   const antes = await _buscarAdminAlvo(id);
-  // Salvaguarda: admin nao pode ativar/inativar a propria conta pelo Hub.
   const ehEuMesmo = antes && req.hubUser.email && antes.email
       && antes.email.toLowerCase() === String(req.hubUser.email).toLowerCase();
-  if (ehEuMesmo && 'ativo' in (req.body || {})) {
-    return res.status(403).json({ ok: false, erro: 'Você não pode ativar/desativar sua própria conta.' });
+
+  // Bloqueio CIRURGICO de self-edit:
+  // - O admin pode editar nome_completo, email, ramal, senha e etiquetas da
+  //   propria conta normalmente.
+  // - 'ativo' e 'is_master' sao IGNORADOS silenciosamente quando ehEuMesmo
+  //   (em vez de devolver 403). O front ja envia o body completo do registro,
+  //   entao rejeitar derrubaria edicoes legitimas de outros campos.
+  // - A unica forma de uma alteracao de 'ativo' ou 'is_master' do PROPRIO admin
+  //   chegar aqui e tentativa de bypass via API: ignorar e prosseguir.
+  let bodyProxy = req.body || {};
+  if (ehEuMesmo) {
+    const sanitized = { ...bodyProxy };
+    delete sanitized.ativo;
+    delete sanitized.is_master;
+    // Sinaliza ao backend chamados que e auto-edicao (nao remarcar precisa_trocar_senha).
+    sanitized._self_edit = true;
+    bodyProxy = sanitized;
   }
-  // Salvaguarda: admin nao pode mudar o proprio nivel master (promocao/rebaixamento).
-  if (ehEuMesmo && 'is_master' in (req.body || {}) && (!!req.body.is_master) !== (antes.is_master === 1)) {
-    return res.status(403).json({ ok: false, erro: 'Você não pode alterar o próprio nível master.' });
-  }
-  // Flag para o backend chamados saber que e auto-edicao e nao remarcar precisa_trocar_senha.
-  const bodyProxy = ehEuMesmo ? { ...req.body, _self_edit: true } : req.body;
   const r = await proxyChamados(`/admins/${encodeURIComponent(id)}`, { method: 'PATCH', body: bodyProxy });
   if (r.status >= 200 && r.status < 300 && r.data && r.data.ok) {
-    const b = req.body || {};
+    const b = bodyProxy;
     // Distingue acoes (so-ativo, so-master, etc) das edicoes genericas
-    const onlyKeys = Object.keys(b).filter(k => b[k] !== undefined);
+    const onlyKeys = Object.keys(b).filter(k => b[k] !== undefined && k !== '_self_edit');
     let action = 'editar';
     if (onlyKeys.length === 1 && 'ativo' in b) action = b.ativo ? 'ativar' : 'inativar';
     else if (onlyKeys.length === 1 && 'is_master' in b) action = b.is_master ? 'promover_master' : 'rebaixar_master';
