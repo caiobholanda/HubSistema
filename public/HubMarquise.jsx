@@ -661,6 +661,158 @@ function LinkForm({ form, setForm, onSave, onCancel, linkErro, linkSaving }) {
   );
 }
 
+// ─── Modal de edicao de Link (substitui a edicao inline) ─────────────────────
+// 2 abas: "Edicao" (campos do link) e "Liberacao" (permissoes do banco).
+// Fecha so no botao X / Cancelar / overlay overlay click — nao no Esc.
+
+function LinkEditModal({ sys, form, setForm, onSave, onCancel, linkErro, linkSaving, isMobile }) {
+  const [aba, setAba] = useState('edicao'); // 'edicao' | 'liberacao'
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 180, background: 'rgba(0,0,0,0.62)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, overflowY: 'auto' }}>
+      <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, maxWidth: 720, width: '100%', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ padding: '18px 24px', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+          <div>
+            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe }}>Editar link</div>
+            <div style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontSize: 22, color: HUB_PALETTE.marfim, marginTop: 4 }}>{sys.nome}</div>
+          </div>
+          <button onClick={onCancel} aria-label="Fechar" style={{ background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}33`, color: HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 14, padding: '6px 12px', cursor: 'pointer' }}>×</button>
+        </div>
+        <div style={{ display: 'flex', gap: 0, borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, padding: '0 24px' }}>
+          {[{ id: 'edicao', label: 'Informações' }, { id: 'liberacao', label: 'Liberação' }].map(t => (
+            <button key={t.id} onClick={() => setAba(t.id)}
+              style={{ background: 'transparent', border: 'none', borderBottom: `2px solid ${aba === t.id ? HUB_PALETTE.champanhe : 'transparent'}`, color: aba === t.id ? HUB_PALETTE.champanhe : HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', padding: '12px 18px 10px', cursor: 'pointer' }}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+        <div style={{ flex: 1, overflowY: 'auto' }}>
+          {aba === 'edicao' && (
+            <div style={{ padding: isMobile ? '12px' : '4px 24px 8px' }}>
+              <LinkForm form={form} setForm={setForm} onSave={onSave} onCancel={onCancel} linkErro={linkErro} linkSaving={linkSaving} />
+            </div>
+          )}
+          {aba === 'liberacao' && (
+            <LiberacaoPanel sistemaId={sys.id} sistemaNome={sys.nome} isMobile={isMobile} />
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Aba LIBERACAO: gerencia papeis (admin/usuario) por email para um sistema.
+// Le e escreve no banco do Hub via /api/admin/site-permissions.
+function LiberacaoPanel({ sistemaId, sistemaNome, isMobile }) {
+  const [items, setItems] = useState(null); // null=loading, []=vazio
+  const [novoEmail, setNovoEmail] = useState('');
+  const [novoPapel, setNovoPapel] = useState('admin');
+  const [erro, setErro] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  async function carregar() {
+    try {
+      const r = await hubFetch('/api/admin/site-permissions');
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.ok) { setItems([]); return; }
+      setItems((d.items || []).filter(x => x.sistema_id === sistemaId));
+    } catch { setItems([]); }
+  }
+  useEffect(() => { carregar(); }, [sistemaId]);
+
+  async function adicionar() {
+    setErro('');
+    const e = (novoEmail || '').trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) { setErro('E-mail inválido.'); return; }
+    setBusy(true);
+    try {
+      const r = await hubFetch('/api/admin/site-permissions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: e, sistema_id: sistemaId, papel: novoPapel }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.ok) { setErro(d.erro || 'Erro ao salvar'); return; }
+      setNovoEmail('');
+      await carregar();
+    } finally { setBusy(false); }
+  }
+  async function trocar(email, novo) {
+    setBusy(true);
+    try {
+      await hubFetch('/api/admin/site-permissions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, sistema_id: sistemaId, papel: novo }),
+      });
+      await carregar();
+    } finally { setBusy(false); }
+  }
+  async function remover(email) {
+    setBusy(true);
+    try {
+      await hubFetch(`/api/admin/site-permissions?email=${encodeURIComponent(email)}&sistema_id=${encodeURIComponent(sistemaId)}`, { method: 'DELETE' });
+      await carregar();
+    } finally { setBusy(false); }
+  }
+
+  const admins = (items || []).filter(x => x.papel === 'admin');
+  const usuarios = (items || []).filter(x => x.papel === 'usuario');
+
+  const subTitulo = { fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.28em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 8 };
+  const lista = { display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 };
+  const item = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '10px 12px', border: `1px solid ${HUB_PALETTE.areiaDim}22`, fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.marfim };
+  const btn = { background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}44`, color: HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', padding: '5px 10px', cursor: busy ? 'wait' : 'pointer' };
+
+  return (
+    <div style={{ padding: isMobile ? '12px' : '18px 24px 24px' }}>
+      <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areia, lineHeight: 1.55, margin: '0 0 18px' }}>
+        Quem aparece em <strong>Admins</strong> recebe cookie de admin no <em>{sistemaNome}</em> no próximo login.
+        Quem está em <strong>Usuários</strong> tem acesso comum explícito. As mudanças valem no <strong>próximo login</strong> da conta afetada.
+      </p>
+
+      {/* Adicionar */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 18, flexWrap: 'wrap', alignItems: 'center' }}>
+        <input type="email" value={novoEmail} onChange={e => setNovoEmail(e.target.value)} placeholder="email@granmarquise.com.br"
+          style={{ flex: 1, minWidth: 220, background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}44`, color: HUB_PALETTE.marfim, padding: '10px 14px', fontFamily: 'Inter, sans-serif', fontSize: 13 }} />
+        <select value={novoPapel} onChange={e => setNovoPapel(e.target.value)}
+          style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim, border: `1px solid ${HUB_PALETTE.areiaDim}44`, padding: '10px 12px', fontFamily: 'Inter, sans-serif', fontSize: 13 }}>
+          <option value="admin">Admin</option>
+          <option value="usuario">Usuário</option>
+        </select>
+        <button onClick={adicionar} disabled={busy} style={{ background: HUB_PALETTE.champanhe + '22', border: `1px solid ${HUB_PALETTE.champanhe}55`, color: HUB_PALETTE.champanhe, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', padding: '10px 18px', cursor: busy ? 'wait' : 'pointer' }}>
+          + Adicionar
+        </button>
+      </div>
+      {erro && <div style={{ color: '#E07A5F', fontFamily: 'Inter, sans-serif', fontSize: 13, marginBottom: 14 }}>{erro}</div>}
+
+      <div style={subTitulo}>Admins ({admins.length})</div>
+      <div style={lista}>
+        {items === null && <div style={{ ...item, color: HUB_PALETTE.areiaDim, fontStyle: 'italic' }}>Carregando…</div>}
+        {items !== null && admins.length === 0 && <div style={{ ...item, color: HUB_PALETTE.areiaDim, fontStyle: 'italic' }}>Nenhum admin definido manualmente.</div>}
+        {admins.map(x => (
+          <div key={'a-' + x.email} style={item}>
+            <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{x.email}</span>
+            <button onClick={() => trocar(x.email, 'usuario')} disabled={busy} style={btn} title="Rebaixar a Usuário">↓ Usuário</button>
+            <button onClick={() => remover(x.email)} disabled={busy} style={{ ...btn, color: '#E07A5F', borderColor: '#E07A5F44' }} title="Remover">×</button>
+          </div>
+        ))}
+      </div>
+
+      <div style={subTitulo}>Usuários ({usuarios.length})</div>
+      <div style={lista}>
+        {items !== null && usuarios.length === 0 && <div style={{ ...item, color: HUB_PALETTE.areiaDim, fontStyle: 'italic' }}>Nenhum usuário com acesso explícito.</div>}
+        {usuarios.map(x => (
+          <div key={'u-' + x.email} style={item}>
+            <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{x.email}</span>
+            <button onClick={() => trocar(x.email, 'admin')} disabled={busy} style={btn} title="Promover a Admin">↑ Admin</button>
+            <button onClick={() => remover(x.email)} disabled={busy} style={{ ...btn, color: '#E07A5F', borderColor: '#E07A5F44' }} title="Remover">×</button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── Admin Panel ──────────────────────────────────────────────────────────────
 
 function HubAdmin({ onClose, hubSystems, setHubSystems }) {
@@ -901,9 +1053,8 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
               const semAcesso = users.filter(u => { const p = permissions[u.email]; return Array.isArray(p) && !p.includes(sys.id); });
               return (
                 <div key={sys.id} style={{ borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22` }}>
-                  {editingId === sys.id ? (
-                    <LinkForm form={editForm} setForm={setEditForm} onSave={saveEdit} onCancel={() => { setEditingId(null); setLinkErro(''); }} linkErro={linkErro} linkSaving={linkSaving} />
-                  ) : (
+                  {/* Fase 3: edicao agora abre modal (renderizado uma vez no fim do componente). */}
+                  {(
                     <div
                       onClick={() => { if (editingId) return; setExpandedLink(isLinkOpen ? null : sys.id); setFiltroSemAcesso(''); }}
                       style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 0', gap: 16, cursor: 'pointer' }}
@@ -1045,6 +1196,16 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
           {linkToast.msg}
         </div>
       )}
+      {/* Fase 3: modal de edicao de link (substitui edicao inline). */}
+      {editingId && (() => {
+        const sys = hubSystems.find(s => s.id === editingId);
+        if (!sys) return null;
+        return (
+          <LinkEditModal sys={sys} form={editForm} setForm={setEditForm} onSave={saveEdit}
+            onCancel={() => { setEditingId(null); setLinkErro(''); }}
+            linkErro={linkErro} linkSaving={linkSaving} isMobile={isMobile} />
+        );
+      })()}
     </div>
   );
 }
