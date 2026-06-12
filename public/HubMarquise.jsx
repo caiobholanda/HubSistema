@@ -678,7 +678,11 @@ function LinkEditModal({ sys, form, setForm, onSave, onCancel, linkErro, linkSav
           <button onClick={onCancel} aria-label="Fechar" style={{ background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}33`, color: HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 14, padding: '6px 12px', cursor: 'pointer' }}>×</button>
         </div>
         <div style={{ display: 'flex', gap: 0, borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, padding: '0 24px' }}>
-          {[{ id: 'edicao', label: 'Informações' }, { id: 'liberacao', label: 'Liberação' }].map(t => (
+          {/* Aba Liberacao escondida para 'chamados' — la os cookies de admin
+              sao decididos automaticamente pelo banco do proprio sistema-chamados
+              (admin do TI vs usuario do portal), nao por allowlist do Hub.
+              Manter a aba seria enganoso (mudanca aqui nao afeta cookie de la). */}
+          {[{ id: 'edicao', label: 'Informações' }, ...(sys.id !== 'chamados' ? [{ id: 'liberacao', label: 'Liberação' }] : [])].map(t => (
             <button key={t.id} onClick={() => setAba(t.id)}
               style={{ background: 'transparent', border: 'none', borderBottom: `2px solid ${aba === t.id ? HUB_PALETTE.champanhe : 'transparent'}`, color: aba === t.id ? HUB_PALETTE.champanhe : HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', padding: '12px 18px 10px', cursor: 'pointer' }}>
               {t.label}
