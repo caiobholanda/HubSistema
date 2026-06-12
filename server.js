@@ -804,6 +804,39 @@ app.delete('/api/admin/site-permissions', requireAdmin, (req, res) => {
 // Server-to-server: sistema satelite consulta o Hub para saber papeis de
 // um email. Usado por ramais/pesquisa no /sso quando o JWT nao traz
 // sites_admin (cliente antigo ou falha). Bearer SSO_SECRET.
+// Lista dos emails com papel='admin' num sistema. Usado pelos sistemas
+// sateligtes (ex: pesquisa-satisfacao) para mostrar a lista oficial de
+// administradores que vem do Hub. Bearer SSO_SECRET.
+// Item: { email, nome, ativo, ultimo_login, tipo }
+// 'ativo' = email ja logou no Hub alguma vez (existe em data.users).
+app.get('/api/hub/site-admins', (req, res) => {
+  const auth = req.headers.authorization || '';
+  const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
+  if (!token || token !== SSO_SECRET) return res.status(403).json({ ok: false, erro: 'Acesso negado' });
+  const sistema_id = (req.query.sistema_id || '').toString();
+  if (!sistema_id) return res.status(400).json({ ok: false, erro: 'sistema_id obrigatorio' });
+  const dados = readData();
+  const adminEmails = (dados.site_permissions || [])
+    .filter(r => r.sistema_id === sistema_id && r.papel === 'admin')
+    .map(r => String(r.email || '').toLowerCase())
+    .filter(Boolean);
+  const usersMap = Object.fromEntries(
+    (dados.users || []).map(u => [String(u.email || '').toLowerCase(), u])
+  );
+  const items = adminEmails.map(email => {
+    const u = usersMap[email];
+    return {
+      email,
+      nome: u && u.nome ? u.nome : null,
+      ativo: !!u,
+      ultimo_login: u && u.ultimo_login ? u.ultimo_login : null,
+      tipo: u && u.tipo ? u.tipo : null, // 'admin'|'usuario' do Hub
+      is_master: u ? !!u.is_master : false,
+    };
+  });
+  res.json({ ok: true, items });
+});
+
 app.get('/api/hub/site-roles', (req, res) => {
   const auth = req.headers.authorization || '';
   const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
