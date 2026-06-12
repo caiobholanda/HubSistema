@@ -2402,13 +2402,18 @@ function SystemPanel({ system, index, revealed, isMobile, userEmail, userTipo })
       const isAdmin = (system.adminEmails || []).includes(userEmail);
       if (isAdmin) destUrl = system.adminUrl;
     }
+    // Propaga o tema atual para que o destino abra no mesmo modo (claro/escuro).
+    const themeAtual = (() => {
+      try { return localStorage.getItem('gm-theme') === 'dark' ? 'dark' : 'light'; } catch { return 'light'; }
+    })();
     let url;
     if (token) {
       const destPath = destUrl.slice(system.url.length) || '/';
       const nextParam = destPath !== '/' ? `&next=${encodeURIComponent(destPath)}` : '';
-      url = `${system.url}/sso?sso_token=${encodeURIComponent(token)}${nextParam}`;
+      url = `${system.url}/sso?sso_token=${encodeURIComponent(token)}${nextParam}&theme=${themeAtual}`;
     } else {
-      url = destUrl;
+      const sep = destUrl.includes('?') ? '&' : '?';
+      url = `${destUrl}${sep}theme=${themeAtual}`;
     }
     window.open(url, '_blank', 'noopener,noreferrer');
   }
@@ -2506,7 +2511,25 @@ function HubMarquise() {
   const [sistemas, setSistemas] = useState(null); // null = todos
   const [revealed, setRevealed] = useState(false);
   const [easter, setEaster] = useState(false);
-  const [theme, setTheme] = useState('light');
+  // Tema sincronizado entre sistemas do hub:
+  // 1) Se a URL trouxer ?theme=dark|light (vindo de outro sistema via Sair),
+  //    usa esse — fonte de verdade do "ultimo escolhido".
+  // 2) Senao tenta localStorage('gm-theme') — sessao anterior.
+  // 3) Senao 'light'.
+  const [theme, setTheme] = useState(() => {
+    try {
+      const p = new URLSearchParams(window.location.search);
+      const fromUrl = p.get('theme');
+      if (fromUrl === 'dark' || fromUrl === 'light') return fromUrl;
+      const saved = localStorage.getItem('gm-theme');
+      if (saved === 'dark' || saved === 'light') return saved;
+    } catch {}
+    return 'light';
+  });
+  // Persiste qualquer mudanca para outras abas/sessoes desta origem.
+  useEffect(() => {
+    try { localStorage.setItem('gm-theme', theme); } catch {}
+  }, [theme]);
   // Estado persistido entre reloads (F5 / Ctrl+Shift+R nao volta para a tela inicial)
   const [showAdmin, setShowAdmin] = useState(() => {
     try { return sessionStorage.getItem('hub_show_admin') === '1'; } catch { return false; }
@@ -2555,7 +2578,10 @@ function HubMarquise() {
       const u = new URL(next, window.location.origin);
       if (!NEXT_ALLOWED_ORIGINS.includes(u.origin)) return false;
       const destPath = (u.pathname || '/') + (u.search || '') + (u.hash || '');
-      const url = `${u.origin}/sso?sso_token=${encodeURIComponent(token)}&next=${encodeURIComponent(destPath)}`;
+      const themeAtual = (() => {
+        try { return localStorage.getItem('gm-theme') === 'dark' ? 'dark' : 'light'; } catch { return 'light'; }
+      })();
+      const url = `${u.origin}/sso?sso_token=${encodeURIComponent(token)}&next=${encodeURIComponent(destPath)}&theme=${themeAtual}`;
       window.location.replace(url);
       return true;
     } catch (_) { return false; }
