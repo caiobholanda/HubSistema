@@ -343,71 +343,96 @@ function HubLogin({ onLogin }) {
     }}>
       <div style={{ position: 'absolute', right: 0, top: 0, width: 1, height: '60%', background: `linear-gradient(180deg, transparent 0%, ${HUB_PALETTE.champanhe}55 40%, transparent 100%)`, pointerEvents: 'none' }} />
 
-      <div style={{ width: '100%', maxWidth: 400, padding: '0 24px' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 48 }}>
-          <svg width="52" height="38" viewBox="0 0 140 100" fill="none" style={{ marginBottom: 20 }}>
+      <div style={{ width: '100%', maxWidth: trocaForcada ? 520 : 400, padding: '0 24px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: trocaForcada ? 36 : 48 }}>
+          <svg width={trocaForcada ? 64 : 52} height={trocaForcada ? 46 : 38} viewBox="0 0 140 100" fill="none" style={{ marginBottom: trocaForcada ? 24 : 20 }}>
             <path d="M 55 8 Q 8 8 8 50 Q 8 92 55 92 Q 70 92 70 80 L 70 55 L 40 55" stroke={HUB_PALETTE.champanhe} strokeWidth="2.5" fill="none" strokeLinecap="round" />
             <path d="M 80 92 L 80 8 L 102 60 L 124 8 L 124 92" stroke={HUB_PALETTE.champanhe} strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
-          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.35em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: trocaForcada ? 11 : 10, letterSpacing: '0.35em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: trocaForcada ? 24 : 20, display: 'flex', alignItems: 'center', gap: 10 }}>
             Gran Marquise <span style={{ width: 4, height: 4, borderRadius: '50%', background: HUB_PALETTE.champanhe, display: 'inline-block' }} /> Hub
           </div>
-          <h1 style={{ fontFamily: 'Fraunces, serif', fontWeight: 300, fontStyle: 'italic', fontSize: 36, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: 0, lineHeight: 1 }}>{trocaForcada ? 'Defina sua nova senha.' : 'Entrar.'}</h1>
+          <h1 style={{ fontFamily: 'Fraunces, serif', fontWeight: 300, fontStyle: 'italic', fontSize: trocaForcada ? 44 : 36, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: 0, lineHeight: 1 }}>{trocaForcada ? 'Defina sua nova senha.' : 'Entrar.'}</h1>
           {trocaForcada && (
-            <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 12.5, color: HUB_PALETTE.areia, marginTop: 14, textAlign: 'center', lineHeight: 1.55 }}>
+            <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 15, color: HUB_PALETTE.areia, marginTop: 18, textAlign: 'center', lineHeight: 1.6 }}>
               É o seu primeiro acesso. Por segurança, troque a senha temporária<br />que você recebeu antes de continuar.
             </div>
           )}
         </div>
 
-        {trocaForcada ? (
-          <form onSubmit={handleTrocarSenha} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {trocaForcada ? (() => {
+          const senhaScore = (() => {
+            const s = novaSenha || '';
+            if (!s) return null;
+            let n = 0;
+            if (s.length >= 8) n++;
+            if (/[A-Z]/.test(s)) n++;
+            if (/[a-z]/.test(s)) n++;
+            if (/[0-9]/.test(s)) n++;
+            if (/[^A-Za-z0-9]/.test(s)) n++;
+            return n;
+          })();
+          const senhaCor = senhaScore == null ? null : ['#e53935', '#e53935', '#fb8c00', '#fdd835', '#7cb342', '#43a047'][senhaScore];
+          const senhaLabel = senhaScore == null ? null : ['Muito fraca', 'Fraca', 'Média', 'Boa', 'Forte', 'Excelente'][senhaScore];
+          const inputTroca = { ...inputBase, fontSize: 16, padding: '17px 18px' };
+          const labelTroca = { fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 10 };
+          return (
+          <form onSubmit={handleTrocarSenha} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div>
-              <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 8 }}>E-mail</div>
+              <div style={labelTroca}>E-mail</div>
               <input type="email" value={trocaForcada.email} disabled readOnly
-                style={{ ...inputBase, opacity: 0.65, cursor: 'not-allowed' }} />
+                style={{ ...inputTroca, opacity: 0.65, cursor: 'not-allowed' }} />
             </div>
             <div>
-              <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 8 }}>Nova senha</div>
+              <div style={labelTroca}>Nova senha</div>
               <div style={{ position: 'relative' }}>
                 <input type={mostrarNovaSenha ? 'text' : 'password'} value={novaSenha} onChange={e => setNovaSenha(e.target.value)} placeholder="••••••••" required disabled={trocaLoading} autoFocus
-                  style={{ ...inputBase, paddingRight: 48 }}
+                  style={{ ...inputTroca, paddingRight: 56 }}
                   onFocus={e => e.target.style.borderColor = HUB_PALETTE.champanhe + '88'}
                   onBlur={e => e.target.style.borderColor = HUB_PALETTE.areiaDim + '44'} />
-                <button type="button" onClick={() => setMostrarNovaSenha(v => !v)} style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: HUB_PALETTE.areiaDim, cursor: 'pointer', padding: 0, display: 'flex' }}>
+                <button type="button" onClick={() => setMostrarNovaSenha(v => !v)} style={{ position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: HUB_PALETTE.areiaDim, cursor: 'pointer', padding: 0, display: 'flex' }}>
                   {mostrarNovaSenha
-                    ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-                    : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    ? <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                    : <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                   }
                 </button>
               </div>
-              <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 11.5, color: HUB_PALETTE.areiaDim, marginTop: 6, lineHeight: 1.5 }}>
+              {senhaScore != null && (
+                <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{ flex: 1, height: 5, background: HUB_PALETTE.areiaDim + '33', borderRadius: 3, overflow: 'hidden' }}>
+                    <div style={{ width: `${(senhaScore / 5) * 100}%`, height: '100%', background: senhaCor, transition: 'width 220ms, background 220ms' }} />
+                  </div>
+                  <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase', color: senhaCor, minWidth: 90, textAlign: 'right' }}>{senhaLabel}</span>
+                </div>
+              )}
+              <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 13.5, color: HUB_PALETTE.areiaDim, marginTop: 10, lineHeight: 1.55 }}>
                 Mínimo 8 caracteres, com maiúscula, minúscula, número e caractere especial.<br />
                 <span style={{ opacity: 0.85 }}>Quer manter a senha que já usa? Basta digitá-la nos dois campos.</span>
               </div>
             </div>
             <div>
-              <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 8 }}>Confirmar nova senha</div>
+              <div style={labelTroca}>Confirmar nova senha</div>
               <input type={mostrarNovaSenha ? 'text' : 'password'} value={confirmarSenha} onChange={e => setConfirmarSenha(e.target.value)} placeholder="••••••••" required disabled={trocaLoading}
-                style={inputBase}
+                style={inputTroca}
                 onFocus={e => e.target.style.borderColor = HUB_PALETTE.champanhe + '88'}
                 onBlur={e => e.target.style.borderColor = HUB_PALETTE.areiaDim + '44'} />
             </div>
-            {trocaErro && <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#E07A5F', paddingTop: 4, display: 'flex', alignItems: 'center', gap: 8 }}><span>—</span> {trocaErro}</div>}
+            {trocaErro && <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 15, color: '#E07A5F', paddingTop: 6, display: 'flex', alignItems: 'center', gap: 10 }}><span>—</span> {trocaErro}</div>}
             <button type="submit" disabled={trocaLoading}
-              style={{ marginTop: 8, width: '100%', padding: '15px', background: 'transparent', border: `1px solid ${HUB_PALETTE.champanhe}`, color: trocaLoading ? HUB_PALETTE.areiaDim : HUB_PALETTE.champanhe, fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.3em', textTransform: 'uppercase', cursor: trocaLoading ? 'not-allowed' : 'pointer', transition: `background 300ms ${HUB_EASE}` }}
+              style={{ marginTop: 10, width: '100%', padding: '19px', background: 'transparent', border: `1px solid ${HUB_PALETTE.champanhe}`, color: trocaLoading ? HUB_PALETTE.areiaDim : HUB_PALETTE.champanhe, fontFamily: 'JetBrains Mono, monospace', fontSize: 13, letterSpacing: '0.3em', textTransform: 'uppercase', cursor: trocaLoading ? 'not-allowed' : 'pointer', transition: `background 300ms ${HUB_EASE}` }}
               onMouseEnter={e => { if (!trocaLoading) e.target.style.background = 'rgba(201,169,97,0.1)'; }}
               onMouseLeave={e => { e.target.style.background = 'transparent'; }}>
               {trocaLoading ? 'Salvando...' : 'Salvar e entrar'}
             </button>
-            <div style={{ textAlign: 'center', marginTop: 4 }}>
+            <div style={{ textAlign: 'center', marginTop: 6 }}>
               <button type="button" onClick={() => { setTrocaForcada(null); setSenha(''); setNovaSenha(''); setConfirmarSenha(''); setTrocaErro(''); }}
-                style={{ background: 'transparent', border: 'none', color: HUB_PALETTE.areiaDim, fontFamily: 'Inter, sans-serif', fontSize: 12.5, textDecoration: 'underline', textUnderlineOffset: 3, cursor: 'pointer', padding: '6px 4px' }}>
+                style={{ background: 'transparent', border: 'none', color: HUB_PALETTE.areiaDim, fontFamily: 'Inter, sans-serif', fontSize: 14, textDecoration: 'underline', textUnderlineOffset: 3, cursor: 'pointer', padding: '8px 4px' }}>
                 Cancelar e voltar
               </button>
             </div>
           </form>
-        ) : (
+          );
+        })() : (
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div>
             <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 8 }}>E-mail</div>
