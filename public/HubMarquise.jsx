@@ -2198,7 +2198,10 @@ function HubHeader({ theme, onToggleTheme, isMobile, userName, userTipo, onLogou
     const t = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(t);
   }, []);
-  const hora = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Fortaleza', hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(now);
+  // Padrao Gran Marquise — todos os sistemas do hub: DD/MM/AAAA · HH:MM (Fortaleza)
+  const dataFmt = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Fortaleza', day: '2-digit', month: '2-digit', year: 'numeric' }).format(now);
+  const horaFmt = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Fortaleza', hour: '2-digit', minute: '2-digit' }).format(now);
+  const dataHora = `${dataFmt} · ${horaFmt}`;
   const primeiroNome = userName ? userName.split(' ')[0] : '';
 
   return (
@@ -2214,7 +2217,7 @@ function HubHeader({ theme, onToggleTheme, isMobile, userName, userTipo, onLogou
           </span>
         </a>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          {!isMobile && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, letterSpacing: '0.1em', color: HUB_PALETTE.marfim, fontVariantNumeric: 'tabular-nums' }}>{hora}</span>}
+          {!isMobile && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, letterSpacing: '0.1em', color: HUB_PALETTE.marfim, fontVariantNumeric: 'tabular-nums' }} title="Horário de Fortaleza">{dataHora}</span>}
           {!isMobile && primeiroNome && <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: HUB_PALETTE.areiaDim }}>{primeiroNome}</span>}
 
           {/* Engrenagem — só para admins */}
