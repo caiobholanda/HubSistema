@@ -665,7 +665,7 @@ function LinkForm({ form, setForm, onSave, onCancel, linkErro, linkSaving }) {
 // 2 abas: "Edicao" (campos do link) e "Liberacao" (permissoes do banco).
 // Fecha so no botao X / Cancelar / overlay overlay click — nao no Esc.
 
-function LinkEditModal({ sys, form, setForm, onSave, onCancel, linkErro, linkSaving, isMobile }) {
+function LinkEditModal({ sys, form, setForm, onSave, onCancel, linkErro, linkSaving, isMobile, users }) {
   const [aba, setAba] = useState('edicao'); // 'edicao' | 'liberacao'
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 180, background: 'rgba(0,0,0,0.62)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, overflowY: 'auto' }}>
@@ -692,7 +692,7 @@ function LinkEditModal({ sys, form, setForm, onSave, onCancel, linkErro, linkSav
             </div>
           )}
           {aba === 'liberacao' && (
-            <LiberacaoPanel sistemaId={sys.id} sistemaNome={sys.nome} isMobile={isMobile} />
+            <LiberacaoPanel sistemaId={sys.id} sistemaNome={sys.nome} isMobile={isMobile} users={users} />
           )}
         </div>
       </div>
@@ -702,12 +702,13 @@ function LinkEditModal({ sys, form, setForm, onSave, onCancel, linkErro, linkSav
 
 // Aba LIBERACAO: gerencia papeis (admin/usuario) por email para um sistema.
 // Le e escreve no banco do Hub via /api/admin/site-permissions.
-function LiberacaoPanel({ sistemaId, sistemaNome, isMobile }) {
+function LiberacaoPanel({ sistemaId, sistemaNome, isMobile, users }) {
   const [items, setItems] = useState(null); // null=loading, []=vazio
   const [novoEmail, setNovoEmail] = useState('');
   const [novoPapel, setNovoPapel] = useState('admin');
   const [erro, setErro] = useState('');
   const [busy, setBusy] = useState(false);
+  const [sugAberto, setSugAberto] = useState(false);
 
   async function carregar() {
     try {
@@ -770,10 +771,40 @@ function LiberacaoPanel({ sistemaId, sistemaNome, isMobile }) {
         Quem está em <strong>Usuários</strong> tem acesso comum explícito. As mudanças valem no <strong>próximo login</strong> da conta afetada.
       </p>
 
-      {/* Adicionar */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 18, flexWrap: 'wrap', alignItems: 'center' }}>
-        <input type="email" value={novoEmail} onChange={e => setNovoEmail(e.target.value)} placeholder="email@granmarquise.com.br"
-          style={{ flex: 1, minWidth: 220, background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}44`, color: HUB_PALETTE.marfim, padding: '10px 14px', fontFamily: 'Inter, sans-serif', fontSize: 13 }} />
+      {/* Adicionar — autocomplete com sugestoes de emails ja cadastrados no Hub
+          (usa a lista users que ja vem carregada de /api/admin/all-users). */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 18, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+        <div style={{ flex: 1, minWidth: 240, position: 'relative' }}>
+          <input type="email" value={novoEmail}
+            onChange={e => { setNovoEmail(e.target.value); setSugAberto(true); }}
+            onFocus={() => setSugAberto(true)}
+            onBlur={() => setTimeout(() => setSugAberto(false), 150)}
+            placeholder="Digite para buscar um e-mail cadastrado…"
+            style={{ width: '100%', boxSizing: 'border-box', background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}44`, color: HUB_PALETTE.marfim, padding: '10px 14px', fontFamily: 'Inter, sans-serif', fontSize: 13 }} />
+          {sugAberto && (() => {
+            const q = (novoEmail || '').trim().toLowerCase();
+            // Filtra/ranqueia: prefere prefixo do email/nome, depois substring.
+            const candidatos = (users || [])
+              .filter(u => u && u.email)
+              .filter(u => !q || u.email.toLowerCase().includes(q) || (u.nome || '').toLowerCase().includes(q))
+              .slice(0, 12);
+            if (!candidatos.length) return null;
+            return (
+              <div style={{ position: 'absolute', top: 'calc(100% + 2px)', left: 0, right: 0, background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}55`, zIndex: 10, maxHeight: 240, overflowY: 'auto', boxShadow: '0 6px 20px rgba(0,0,0,0.35)' }}>
+                {candidatos.map(u => (
+                  <div key={u.email}
+                    onMouseDown={e => { e.preventDefault(); setNovoEmail(u.email); setSugAberto(false); }}
+                    style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}1a`, fontFamily: 'Inter, sans-serif', fontSize: 12.5, color: HUB_PALETTE.marfim, display: 'flex', justifyContent: 'space-between', gap: 10 }}
+                    onMouseEnter={e => e.currentTarget.style.background = HUB_PALETTE.areiaDim + '14'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                    <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{u.email}</span>
+                    {u.nome && <span style={{ color: HUB_PALETTE.areiaDim, fontSize: 11.5, whiteSpace: 'nowrap' }}>{u.nome}</span>}
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+        </div>
         <select value={novoPapel} onChange={e => setNovoPapel(e.target.value)}
           style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim, border: `1px solid ${HUB_PALETTE.areiaDim}44`, padding: '10px 12px', fontFamily: 'Inter, sans-serif', fontSize: 13 }}>
           <option value="admin">Admin</option>
@@ -1203,7 +1234,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
         return (
           <LinkEditModal sys={sys} form={editForm} setForm={setEditForm} onSave={saveEdit}
             onCancel={() => { setEditingId(null); setLinkErro(''); }}
-            linkErro={linkErro} linkSaving={linkSaving} isMobile={isMobile} />
+            linkErro={linkErro} linkSaving={linkSaving} isMobile={isMobile} users={users} />
         );
       })()}
     </div>
