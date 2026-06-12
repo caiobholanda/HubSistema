@@ -478,7 +478,9 @@ app.patch('/api/admin/chamados-admins/:id', requireAdmin, async (req, res) => {
   if (ehEuMesmo && 'is_master' in (req.body || {}) && (!!req.body.is_master) !== (antes.is_master === 1)) {
     return res.status(403).json({ ok: false, erro: 'Você não pode alterar o próprio nível master.' });
   }
-  const r = await proxyChamados(`/admins/${encodeURIComponent(id)}`, { method: 'PATCH', body: req.body });
+  // Flag para o backend chamados saber que e auto-edicao e nao remarcar precisa_trocar_senha.
+  const bodyProxy = ehEuMesmo ? { ...req.body, _self_edit: true } : req.body;
+  const r = await proxyChamados(`/admins/${encodeURIComponent(id)}`, { method: 'PATCH', body: bodyProxy });
   if (r.status >= 200 && r.status < 300 && r.data && r.data.ok) {
     const b = req.body || {};
     // Distingue acoes (so-ativo, so-master, etc) das edicoes genericas
