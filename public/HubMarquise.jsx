@@ -712,6 +712,38 @@ function LiberacaoPanel({ sistemaId, sistemaNome, isMobile, users }) {
   const [erro, setErro] = useState('');
   const [busy, setBusy] = useState(false);
   const [sugAberto, setSugAberto] = useState(false);
+  // Lista de usuarios sempre fresca (recarregada ao montar e a cada
+  // adicao/remocao). Garante que conta recem-criada apareca em tempo real.
+  const [usersFresh, setUsersFresh] = useState(users || []);
+  // Ref do input para posicionar a dropbox por cima do modal (position fixed).
+  const inputWrapRef = useRef(null);
+  const [popRect, setPopRect] = useState(null);
+
+  async function recarregarUsuarios() {
+    try {
+      const r = await hubFetch('/api/admin/all-users');
+      const d = await r.json().catch(() => ({}));
+      if (d && d.ok !== false && Array.isArray(d.users)) setUsersFresh(d.users);
+    } catch {}
+  }
+  useEffect(() => { recarregarUsuarios(); }, []);
+  // Atualiza posicao do dropdown quando abre / quando rola a tela.
+  useEffect(() => {
+    if (!sugAberto) { setPopRect(null); return; }
+    function atualizar() {
+      const el = inputWrapRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      setPopRect({ top: r.bottom + 2, left: r.left, width: r.width });
+    }
+    atualizar();
+    window.addEventListener('scroll', atualizar, true);
+    window.addEventListener('resize', atualizar);
+    return () => {
+      window.removeEventListener('scroll', atualizar, true);
+      window.removeEventListener('resize', atualizar);
+    };
+  }, [sugAberto]);
 
   async function carregar() {
     try {
@@ -737,14 +769,14 @@ function LiberacaoPanel({ sistemaId, sistemaNome, isMobile, users }) {
       const d = await r.json().catch(() => ({}));
       if (!r.ok || !d.ok) { setErro(d.erro || 'Erro ao salvar'); return; }
       setNovoEmail('');
-      await carregar();
+      await Promise.all([carregar(), recarregarUsuarios()]);
     } finally { setBusy(false); }
   }
   async function remover(email) {
     setBusy(true);
     try {
       await hubFetch(`/api/admin/site-permissions?email=${encodeURIComponent(email)}&sistema_id=${encodeURIComponent(sistemaId)}`, { method: 'DELETE' });
-      await carregar();
+      await Promise.all([carregar(), recarregarUsuarios()]);
     } finally { setBusy(false); }
   }
 
@@ -765,36 +797,53 @@ function LiberacaoPanel({ sistemaId, sistemaNome, isMobile, users }) {
         Mudanças valem no <strong>próximo login</strong> da conta afetada.
       </p>
 
-      {/* Adicionar — autocomplete com sugestoes de emails ja cadastrados no Hub
-          (usa a lista users que ja vem carregada de /api/admin/all-users). */}
+      {/* Adicionar — autocomplete com sugestoes de emails cadastrados no Hub.
+          Dropdown renderizada em position:fixed para nao ser cortada pelo modal.
+          Ordem: admins do Hub primeiro, depois alfabetica. Emails ja admins do
+          site atual nao aparecem (filtra para evitar duplicacao). */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 18, flexWrap: 'wrap', alignItems: 'flex-start' }}>
-        <div style={{ flex: 1, minWidth: 240, position: 'relative' }}>
+        <div ref={inputWrapRef} style={{ flex: 1, minWidth: 240, position: 'relative' }}>
           <input type="email" value={novoEmail}
             onChange={e => { setNovoEmail(e.target.value); setSugAberto(true); }}
             onFocus={() => setSugAberto(true)}
-            onBlur={() => setTimeout(() => setSugAberto(false), 150)}
+            onBlur={() => setTimeout(() => setSugAberto(false), 180)}
             placeholder="Digite para buscar um e-mail cadastrado…"
             style={{ width: '100%', boxSizing: 'border-box', background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}44`, color: HUB_PALETTE.marfim, padding: '10px 14px', fontFamily: 'Inter, sans-serif', fontSize: 13 }} />
-          {sugAberto && (() => {
+          {sugAberto && popRect && (() => {
             const q = (novoEmail || '').trim().toLowerCase();
-            // Filtra/ranqueia: prefere prefixo do email/nome, depois substring.
-            const candidatos = (users || [])
+            const adminsSet = new Set((items || []).filter(x => x.papel === 'admin').map(x => (x.email || '').toLowerCase()));
+            const candidatos = (usersFresh || [])
               .filter(u => u && u.email)
+              // 3) ja selecionado nao aparece
+              .filter(u => !adminsSet.has(u.email.toLowerCase()))
               .filter(u => !q || u.email.toLowerCase().includes(q) || (u.nome || '').toLowerCase().includes(q))
-              .slice(0, 12);
+              .sort((a, b) => {
+                // 2) admins do Hub primeiro, depois ordem alfabetica
+                const ehAdminA = (a.tipo === 'admin' || a.is_master) ? 0 : 1;
+                const ehAdminB = (b.tipo === 'admin' || b.is_master) ? 0 : 1;
+                if (ehAdminA !== ehAdminB) return ehAdminA - ehAdminB;
+                return (a.nome || a.email || '').localeCompare(b.nome || b.email || '', 'pt-BR', { sensitivity: 'base' });
+              })
+              .slice(0, 30);
             if (!candidatos.length) return null;
             return (
-              <div style={{ position: 'absolute', top: 'calc(100% + 2px)', left: 0, right: 0, background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}55`, zIndex: 10, maxHeight: 240, overflowY: 'auto', boxShadow: '0 6px 20px rgba(0,0,0,0.35)' }}>
-                {candidatos.map(u => (
-                  <div key={u.email}
-                    onMouseDown={e => { e.preventDefault(); setNovoEmail(u.email); setSugAberto(false); }}
-                    style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}1a`, fontFamily: 'Inter, sans-serif', fontSize: 12.5, color: HUB_PALETTE.marfim, display: 'flex', justifyContent: 'space-between', gap: 10 }}
-                    onMouseEnter={e => e.currentTarget.style.background = HUB_PALETTE.areiaDim + '14'}
-                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                    <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{u.email}</span>
-                    {u.nome && <span style={{ color: HUB_PALETTE.areiaDim, fontSize: 11.5, whiteSpace: 'nowrap' }}>{u.nome}</span>}
-                  </div>
-                ))}
+              <div style={{ position: 'fixed', top: popRect.top, left: popRect.left, width: popRect.width, background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}77`, zIndex: 9999, maxHeight: 280, overflowY: 'auto', boxShadow: '0 12px 32px rgba(0,0,0,0.55)' }}>
+                {candidatos.map(u => {
+                  const ehAdmin = u.tipo === 'admin' || u.is_master;
+                  return (
+                    <div key={u.email}
+                      onMouseDown={e => { e.preventDefault(); setNovoEmail(u.email); setSugAberto(false); }}
+                      style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}1a`, fontFamily: 'Inter, sans-serif', fontSize: 12.5, color: HUB_PALETTE.marfim, display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center' }}
+                      onMouseEnter={e => e.currentTarget.style.background = HUB_PALETTE.areiaDim + '14'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                      <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {u.email}
+                        {ehAdmin && <span style={{ marginLeft: 8, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, border: `1px solid ${HUB_PALETTE.champanhe}55`, padding: '1px 6px' }}>admin TI</span>}
+                      </span>
+                      {u.nome && <span style={{ color: HUB_PALETTE.areiaDim, fontSize: 11.5, whiteSpace: 'nowrap' }}>{u.nome}</span>}
+                    </div>
+                  );
+                })}
               </div>
             );
           })()}
