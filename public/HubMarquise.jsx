@@ -282,10 +282,6 @@ function HubLogin({ onLogin }) {
       setTrocaErro('A confirmação não confere com a nova senha.');
       return;
     }
-    if (novaSenha === trocaForcada.senha_atual) {
-      setTrocaErro('A nova senha deve ser diferente da atual.');
-      return;
-    }
     setTrocaLoading(true);
     try {
       const r1 = await fetch('/api/auth/trocar-primeira-senha', {
@@ -386,7 +382,8 @@ function HubLogin({ onLogin }) {
                 </button>
               </div>
               <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 11.5, color: HUB_PALETTE.areiaDim, marginTop: 6, lineHeight: 1.5 }}>
-                Mínimo 8 caracteres, com maiúscula, minúscula, número e caractere especial.
+                Mínimo 8 caracteres, com maiúscula, minúscula, número e caractere especial.<br />
+                <span style={{ opacity: 0.85 }}>Quer manter a senha que já usa? Basta digitá-la nos dois campos.</span>
               </div>
             </div>
             <div>
