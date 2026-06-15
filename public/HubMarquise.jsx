@@ -801,9 +801,10 @@ function LiberacaoPanel({ sistemaId, sistemaNome, isMobile, users }) {
     } finally { setBusy(false); }
   }
 
-  // Apenas admins sao gerenciados aqui. Quem ve o link no Hub e' usuario
-  // por default — nao precisa de lista explicita.
-  const admins = (items || []).filter(x => x.papel === 'admin');
+  // Lista mostra qualquer registro de permissao explicita (admin, master,
+  // spa, satisfacao). Filtra apenas 'usuario' (acesso comum) que e' implicito.
+  // Sem isso, trocar de 'admin' para 'master' fazia o item sumir da lista.
+  const admins = (items || []).filter(x => x.papel !== 'usuario');
 
   const subTitulo = { fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.28em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 8 };
   const lista = { display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 };
