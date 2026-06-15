@@ -76,6 +76,17 @@ function clearHubAuth() {
     sessionStorage.removeItem('hub_contas_status');
   } catch {}
 }
+// Event bus simples para auto-refresh do HistoricoPanel apos mutacoes.
+// Toda funcao de mutacao bem-sucedida (saveNew, saveEdit, deleteLink,
+// toggleSystem, resetPermissions, adicionar, trocarPapel, remover, etc.)
+// chama notifyHubMutation(). O HistoricoPanel escuta 'hub:mutation' e
+// recarrega o audit-log automaticamente — sem polling e sem prop drilling.
+// Importante: o registro do audit fica APENAS no backend (appendAudit).
+// Este helper so dispara o refresh do log, nao loga nada por si so.
+function notifyHubMutation() {
+  try { window.dispatchEvent(new Event('hub:mutation')); } catch {}
+}
+
 // Registra um evento na jornada do usuario (login/logout/click em sistema).
 // Fire-and-forget: nao espera resposta, nao quebra o fluxo se falhar.
 function logHubEvento(evento, detalhes) {
@@ -778,6 +789,7 @@ function LiberacaoPanel({ sistemaId, sistemaNome, isMobile, users }) {
       const d = await r.json().catch(() => ({}));
       if (!r.ok || !d.ok) { setErro(d.erro || 'Erro ao salvar'); return; }
       setNovoEmail('');
+      notifyHubMutation();
       await Promise.all([carregar(), recarregarUsuarios()]);
     } finally { setBusy(false); }
   }
@@ -790,6 +802,7 @@ function LiberacaoPanel({ sistemaId, sistemaNome, isMobile, users }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, sistema_id: sistemaId, papel }),
       });
+      notifyHubMutation();
       await Promise.all([carregar(), recarregarUsuarios()]);
     } finally { setBusy(false); }
   }
@@ -797,6 +810,7 @@ function LiberacaoPanel({ sistemaId, sistemaNome, isMobile, users }) {
     setBusy(true);
     try {
       await hubFetch(`/api/admin/site-permissions?email=${encodeURIComponent(email)}&sistema_id=${encodeURIComponent(sistemaId)}`, { method: 'DELETE' });
+      notifyHubMutation();
       await Promise.all([carregar(), recarregarUsuarios()]);
     } finally { setBusy(false); }
   }
@@ -980,6 +994,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
         body: JSON.stringify({ email, sistemas: nova }),
       });
       if (!r.ok) throw new Error('falha');
+      notifyHubMutation();
     } catch {
       // Reverte exatamente para o que estava antes (inclusive undefined).
       setPermissions(prev => {
@@ -999,6 +1014,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
     try {
       const r = await hubFetch(`/api/admin/permissions/${encodeURIComponent(email)}`, { method: 'DELETE' });
       if (!r.ok) throw new Error('falha');
+      notifyHubMutation();
     } catch {
       setPermissions(prev => ({ ...prev, [email]: anterior }));
       alert('Não foi possível resetar as permissões. Tente novamente.');
@@ -1040,6 +1056,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
       }
       setHubSystems(prev => prev.map(s => s.id === editingId ? { ...s, ...d.sistema } : s));
       setEditingId(null);
+      notifyHubMutation();
       notifyLink('Link atualizado.');
     } catch {
       const msg = 'Erro de conexão';
@@ -1058,6 +1075,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
     try {
       const r = await hubFetch(`/api/admin/sistemas/${id}`, { method: 'DELETE' });
       if (!r.ok) throw new Error('falha');
+      notifyHubMutation();
     } catch {
       setHubSystems(anteriores);
       alert('Não foi possível apagar o link. Tente novamente.');
@@ -1083,6 +1101,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
       setHubSystems(prev => [...prev, d.sistema]);
       setAddingNew(false);
       setNewForm({ nome: '', url: '', status: 'no-ar', categoria: '', descricao: '', paraQuem: '' });
+      notifyHubMutation();
       notifyLink('Link criado.');
     } catch {
       const msg = 'Erro de conexão';
@@ -1324,7 +1343,16 @@ function HistoricoPanel({ isMobile }) {
     } catch { setLog([]); }
     finally { setLoading(false); }
   }
-  useEffect(() => { carregar(); }, []);
+  // 1) Mount: carrega imediato.
+  // 2) Listener 'hub:mutation': recarrega quando QUALQUER mutacao acontece
+  //    no painel (link, permissao, usuario, setor). Sem isso o usuario tinha
+  //    que clicar 'ATUALIZAR' para ver o evento que ele mesmo acabou de gerar.
+  useEffect(() => {
+    carregar();
+    const onMut = () => { carregar(); };
+    window.addEventListener('hub:mutation', onMut);
+    return () => window.removeEventListener('hub:mutation', onMut);
+  }, []);
 
   function localDateStr(iso) {
     const d = new Date(iso);
@@ -1651,6 +1679,7 @@ function SetoresPanel({ isMobile }) {
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok || !d.ok) { setErro(d.erro || `Erro ${r.status}`); setSaving(false); return; }
+      notifyHubMutation();
       notify(id ? 'Setor atualizado' : 'Setor criado');
       fechar();
       await carregar();
@@ -1669,6 +1698,7 @@ function SetoresPanel({ isMobile }) {
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok || !d.ok) { notify(d.erro || 'Erro ao excluir', true); return; }
+      notifyHubMutation();
       notify('Setor excluído');
       await carregar();
     } catch { notify('Erro de conexão', true); }
@@ -1911,6 +1941,7 @@ function ContasPanel({ isMobile }) {
       });
       const d = await r.json();
       if (!r.ok || !d.ok) { setErro(d.erro || `Erro ${r.status}`); setSaving(false); return; }
+      notifyHubMutation();
       notify(tipo === 'admin' ? 'Admin criado.' : 'Usuário criado.');
       fecharModal();
       if (tipo === 'admin') loadAdmins(); else loadUsuarios();
@@ -1967,6 +1998,7 @@ function ContasPanel({ isMobile }) {
           });
         } catch {}
       }
+      notifyHubMutation();
       notify('Salvo.');
       fecharModal();
       if (tipo === 'admin') loadAdmins(); else loadUsuarios();
@@ -1996,6 +2028,7 @@ function ContasPanel({ isMobile }) {
       });
       const d = await r.json();
       if (r.ok && d.ok) {
+        notifyHubMutation();
         notify(ativar ? 'Conta ativada.' : 'Conta desativada.');
         setConfirmAtivo(null);
         if (tipo === 'admin') loadAdmins(); else loadUsuarios();

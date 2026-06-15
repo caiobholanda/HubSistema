@@ -475,9 +475,17 @@ app.put('/api/admin/sistemas/:id', requireAdmin, (req, res) => {
   for (const k of ['nome', 'url', 'status', 'categoria', 'descricao', 'paraQuem']) {
     if (antes[k] !== sistemas[idx][k]) diff[k] = sistemas[idx][k];
   }
+  // Quando o unico campo alterado e' o status, deriva 'ativar' ou 'inativar'
+  // para alinhar com a mesma convencao usada nos endpoints de admins/usuarios.
+  // 'no-ar' = ativo; qualquer outro status (construcao/beta/concept) = inativo.
+  const keys = Object.keys(diff);
+  let action = 'editar';
+  if (keys.length === 1 && keys[0] === 'status') {
+    action = diff.status === 'no-ar' ? 'ativar' : 'inativar';
+  }
   appendAudit({
     by_email: req.hubUser.email, by_nome: req.hubUser.nome,
-    action: 'editar', target_tipo: 'link',
+    action, target_tipo: 'link',
     target_id: req.params.id, target_nome: sistemas[idx].nome,
     campos: diff,
   });
