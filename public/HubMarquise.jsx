@@ -833,7 +833,7 @@ function LiberacaoPanel({ sistemaId, sistemaNome, isMobile, users }) {
             style={{ width: '100%', boxSizing: 'border-box', background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}44`, color: HUB_PALETTE.marfim, padding: '10px 14px', fontFamily: 'Inter, sans-serif', fontSize: 13 }} />
           {sugAberto && popRect && (() => {
             const q = (novoEmail || '').trim().toLowerCase();
-            const adminsSet = new Set((items || []).filter(x => x.papel === 'admin').map(x => (x.email || '').toLowerCase()));
+            const adminsSet = new Set((items || []).filter(x => x.papel && x.papel !== 'usuario').map(x => (x.email || '').toLowerCase()));
             const candidatos = (usersFresh || [])
               .filter(u => u && u.email)
               // 3) ja selecionado nao aparece

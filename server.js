@@ -782,7 +782,7 @@ app.post('/api/admin/site-permissions', requireAdmin, (req, res) => {
     const sistemasMap = Object.fromEntries((dados.sistemas || DEFAULT_SISTEMAS).map(s => [s.id, s.nome]));
     appendAudit({
       by_email: req.hubUser.email, by_nome: req.hubUser.nome,
-      action: papel === 'admin' ? 'site_admin_liberar' : 'site_usuario_liberar',
+      action: papel === 'usuario' ? 'site_usuario_liberar' : 'site_admin_liberar',
       target_tipo: 'permissao', target_id: null,
       target_nome: sitePerm._norm(email),
       campos: { email: sitePerm._norm(email), link: sistemasMap[sistema_id] || sistema_id, papel, papel_anterior: r.anterior || null },
@@ -826,8 +826,12 @@ app.get('/api/hub/site-admins', (req, res) => {
   const sistema_id = (req.query.sistema_id || '').toString();
   if (!sistema_id) return res.status(400).json({ ok: false, erro: 'sistema_id obrigatorio' });
   const dados = readData();
+  // Retorna TODO registro com papel != 'usuario' (admin, master, spa, satisfacao).
+  // 'usuario' e' implicito (quem tem acesso ao link mas nao tem cookie admin) e
+  // nao precisa ficar na lista. Bug anterior: filtrar so 'admin' fazia master/
+  // spa/satisfacao sumirem da resposta apos troca de papel.
   const adminEmails = (dados.site_permissions || [])
-    .filter(r => r.sistema_id === sistema_id && r.papel === 'admin')
+    .filter(r => r.sistema_id === sistema_id && r.papel && r.papel !== 'usuario')
     .map(r => String(r.email || '').toLowerCase())
     .filter(Boolean);
   const usersMap = Object.fromEntries(
