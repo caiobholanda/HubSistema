@@ -713,9 +713,13 @@ function LinkEditModal({ sys, form, setForm, onSave, onCancel, linkErro, linkSav
 function LiberacaoPanel({ sistemaId, sistemaNome, isMobile, users }) {
   const [items, setItems] = useState(null); // null=loading, []=vazio
   const [novoEmail, setNovoEmail] = useState('');
+  const [novoPapel, setNovoPapel] = useState('admin');
   const [erro, setErro] = useState('');
   const [busy, setBusy] = useState(false);
   const [sugAberto, setSugAberto] = useState(false);
+  // pesquisa-satisfacao tem 4 papeis granulares; demais sistemas so 'admin'.
+  const ehPesquisa = sistemaId === 'pesquisa-satisfacao';
+  const PAPEIS_LABEL = { master: 'Master (tudo)', admin: 'Admin (só ver)', spa: 'Spa', satisfacao: 'Satisfação' };
   // Lista de usuarios sempre fresca (recarregada ao montar e a cada
   // adicao/remocao). Garante que conta recem-criada apareca em tempo real.
   const [usersFresh, setUsersFresh] = useState(users || []);
@@ -763,16 +767,29 @@ function LiberacaoPanel({ sistemaId, sistemaNome, isMobile, users }) {
     setErro('');
     const e = (novoEmail || '').trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) { setErro('E-mail inválido.'); return; }
+    const papel = ehPesquisa ? novoPapel : 'admin';
     setBusy(true);
     try {
       const r = await hubFetch('/api/admin/site-permissions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: e, sistema_id: sistemaId, papel: 'admin' }),
+        body: JSON.stringify({ email: e, sistema_id: sistemaId, papel }),
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok || !d.ok) { setErro(d.erro || 'Erro ao salvar'); return; }
       setNovoEmail('');
+      await Promise.all([carregar(), recarregarUsuarios()]);
+    } finally { setBusy(false); }
+  }
+  // Promove/rebaixa o papel de um email ja na lista (so pesquisa).
+  async function trocarPapel(email, papel) {
+    setBusy(true);
+    try {
+      await hubFetch('/api/admin/site-permissions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, sistema_id: sistemaId, papel }),
+      });
       await Promise.all([carregar(), recarregarUsuarios()]);
     } finally { setBusy(false); }
   }
@@ -852,8 +869,18 @@ function LiberacaoPanel({ sistemaId, sistemaNome, isMobile, users }) {
             );
           })()}
         </div>
+        {ehPesquisa && (
+          <select value={novoPapel} onChange={e => setNovoPapel(e.target.value)} disabled={busy}
+            style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim, border: `1px solid ${HUB_PALETTE.areiaDim}44`, padding: '10px 12px', fontFamily: 'Inter, sans-serif', fontSize: 13 }}
+            title="Papel: master vê e edita tudo · admin só vê · spa edita Spa · satisfação edita Relatórios">
+            <option value="master">Master</option>
+            <option value="admin">Admin (só ver)</option>
+            <option value="spa">Spa</option>
+            <option value="satisfacao">Satisfação</option>
+          </select>
+        )}
         <button onClick={adicionar} disabled={busy} style={{ background: HUB_PALETTE.champanhe + '22', border: `1px solid ${HUB_PALETTE.champanhe}55`, color: HUB_PALETTE.champanhe, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', padding: '10px 18px', cursor: busy ? 'wait' : 'pointer' }}>
-          + Adicionar admin
+          + Adicionar
         </button>
       </div>
       {erro && <div style={{ color: '#E07A5F', fontFamily: 'Inter, sans-serif', fontSize: 13, marginBottom: 14 }}>{erro}</div>}
@@ -865,6 +892,16 @@ function LiberacaoPanel({ sistemaId, sistemaNome, isMobile, users }) {
         {admins.map(x => (
           <div key={'a-' + x.email} style={item}>
             <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{x.email}</span>
+            {ehPesquisa ? (
+              <select value={x.papel || 'admin'} onChange={e => trocarPapel(x.email, e.target.value)} disabled={busy}
+                style={{ background: 'transparent', color: HUB_PALETTE.marfim, border: `1px solid ${HUB_PALETTE.areiaDim}44`, padding: '4px 8px', fontFamily: 'Inter, sans-serif', fontSize: 12 }}
+                title="Mudar papel">
+                <option value="master">Master</option>
+                <option value="admin">Admin</option>
+                <option value="spa">Spa</option>
+                <option value="satisfacao">Satisfação</option>
+              </select>
+            ) : null}
             <button onClick={() => remover(x.email)} disabled={busy} style={{ ...btn, color: '#E07A5F', borderColor: '#E07A5F44' }} title="Remover acesso de admin">× Remover</button>
           </div>
         ))}
