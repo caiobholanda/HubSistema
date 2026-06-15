@@ -56,9 +56,22 @@ function listarPapeis(data, email) {
   return data.site_permissions.filter(r => _norm(r.email) === e);
 }
 
-// Sistemas onde este email tem papel 'admin'.
+// Sistemas onde este email tem papel "admin-like" (qualquer um exceto 'usuario').
+// Inclui 'admin', 'master', 'spa', 'satisfacao' — todos dao cookie de admin
+// no destino, embora o destino possa aplicar permissoes mais granulares
+// via site_roles do JWT.
 function sitesOndeEhAdmin(data, email) {
-  return listarPapeis(data, email).filter(r => r.papel === 'admin').map(r => r.sistema_id);
+  return listarPapeis(data, email).filter(r => r.papel !== 'usuario').map(r => r.sistema_id);
+}
+// Retorna um mapa { sistema_id: papel } com o papel especifico em cada site.
+// Usado para enriquecer o JWT (site_roles) para que sistemas como
+// pesquisa-satisfacao possam diferenciar master / admin / spa / satisfacao.
+function rolesDoEmail(data, email) {
+  const out = {};
+  for (const r of listarPapeis(data, email)) {
+    out[r.sistema_id] = r.papel;
+  }
+  return out;
 }
 
 // Sistemas onde este email tem papel 'usuario' (acesso comum explicito).
@@ -67,8 +80,15 @@ function sitesUsuario(data, email) {
 }
 
 // CRUD basico. Sempre normaliza email. Retorna boolean indicando se mudou.
+// Papeis aceitos:
+// - 'admin'      → cookie de admin no destino (default para qualquer site)
+// - 'usuario'    → acesso comum explicito
+// - 'master'     → so para pesquisa-satisfacao: pode tudo
+// - 'spa'        → so para pesquisa-satisfacao: ve area do Spa
+// - 'satisfacao' → so para pesquisa-satisfacao: ve relatorios/historico
+const PAPEIS_VALIDOS = new Set(['admin', 'usuario', 'master', 'spa', 'satisfacao']);
 function setPapel(data, email, sistema_id, papel) {
-  if (papel !== 'admin' && papel !== 'usuario') return { ok: false, erro: 'papel invalido' };
+  if (!PAPEIS_VALIDOS.has(papel)) return { ok: false, erro: 'papel invalido' };
   if (!email || !sistema_id) return { ok: false, erro: 'email e sistema_id obrigatorios' };
   const e = _norm(email);
   if (!Array.isArray(data.site_permissions)) data.site_permissions = [];
@@ -99,10 +119,12 @@ function listarTodos(data) {
 
 module.exports = {
   MIGRATION_SEED,
+  PAPEIS_VALIDOS,
   migrarSitePermissoes,
   listarPapeis,
   sitesOndeEhAdmin,
   sitesUsuario,
+  rolesDoEmail,
   setPapel,
   removerPapel,
   listarTodos,

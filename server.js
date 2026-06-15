@@ -247,7 +247,11 @@ app.post('/api/auth/login', async (req, res) => {
     try {
       const dados = readData();
       payload.sites_admin = sitePerm.sitesOndeEhAdmin(dados, emailNorm);
-    } catch { payload.sites_admin = []; }
+      // site_roles: papel granular por site (ex: { 'pesquisa-satisfacao': 'spa' }).
+      // Usado pela pesquisa-satisfacao para aplicar visibilidade fina alem do
+      // simples admin/usuario do sites_admin.
+      payload.site_roles = sitePerm.rolesDoEmail(dados, emailNorm);
+    } catch { payload.sites_admin = []; payload.site_roles = {}; }
     const token = jwt.sign(payload, SSO_SECRET, { expiresIn: '8h' });
     trackUser(emailNorm, data.nome, data.tipo, {
       setor: data.setor,
@@ -763,7 +767,13 @@ app.get('/api/admin/site-permissions', requireAdmin, (_req, res) => {
 app.post('/api/admin/site-permissions', requireAdmin, (req, res) => {
   const { email, sistema_id, papel } = req.body || {};
   if (!email || !sistema_id) return res.status(400).json({ ok: false, erro: 'email e sistema_id obrigatorios' });
-  if (papel !== 'admin' && papel !== 'usuario') return res.status(400).json({ ok: false, erro: 'papel deve ser admin ou usuario' });
+  // master/spa/satisfacao so fazem sentido em pesquisa-satisfacao;
+  // demais sites aceitam apenas admin/usuario.
+  const granulares = ['master', 'spa', 'satisfacao'];
+  if (!sitePerm.PAPEIS_VALIDOS.has(papel)) return res.status(400).json({ ok: false, erro: 'papel invalido' });
+  if (granulares.includes(papel) && sistema_id !== 'pesquisa-satisfacao') {
+    return res.status(400).json({ ok: false, erro: `papel '${papel}' so e' valido em pesquisa-satisfacao` });
+  }
   const dados = readData();
   const r = sitePerm.setPapel(dados, email, sistema_id, papel);
   if (!r.ok) return res.status(400).json({ ok: false, erro: r.erro });
@@ -823,6 +833,12 @@ app.get('/api/hub/site-admins', (req, res) => {
   const usersMap = Object.fromEntries(
     (dados.users || []).map(u => [String(u.email || '').toLowerCase(), u])
   );
+  // mapa { email -> papel } para enriquecer cada item com o role granular
+  const papeisMap = Object.fromEntries(
+    (dados.site_permissions || [])
+      .filter(r => r.sistema_id === sistema_id)
+      .map(r => [String(r.email || '').toLowerCase(), r.papel])
+  );
   const items = adminEmails.map(email => {
     const u = usersMap[email];
     return {
@@ -832,6 +848,7 @@ app.get('/api/hub/site-admins', (req, res) => {
       ultimo_login: u && u.ultimo_login ? u.ultimo_login : null,
       tipo: u && u.tipo ? u.tipo : null, // 'admin'|'usuario' do Hub
       is_master: u ? !!u.is_master : false,
+      papel: papeisMap[email] || 'admin', // master|admin|spa|satisfacao|usuario
     };
   });
   res.json({ ok: true, items });

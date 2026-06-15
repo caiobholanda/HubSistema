@@ -76,8 +76,26 @@ test('setPapel com mesmo papel nao muda nada (idempotente)', () => {
 
 test('setPapel rejeita papel invalido', () => {
   const d = { site_permissions: [] };
-  const r = setPapel(d, 'a@x.com', 'ramais', 'master');
+  const r = setPapel(d, 'a@x.com', 'ramais', 'inexistente');
   assert.equal(r.ok, false);
+});
+
+test('papeis granulares (master/spa/satisfacao) sao aceitos', () => {
+  const d = { site_permissions: [] };
+  assert.equal(setPapel(d, 'a@x.com', 'pesquisa-satisfacao', 'master').ok, true);
+  assert.equal(setPapel(d, 'b@x.com', 'pesquisa-satisfacao', 'spa').ok, true);
+  assert.equal(setPapel(d, 'c@x.com', 'pesquisa-satisfacao', 'satisfacao').ok, true);
+});
+
+test('sitesOndeEhAdmin inclui master/spa/satisfacao (todos com cookie admin)', () => {
+  const d = {
+    site_permissions: [
+      { email: 'a@x.com', sistema_id: 'pesquisa-satisfacao', papel: 'master' },
+      { email: 'a@x.com', sistema_id: 'ramais', papel: 'usuario' },
+    ],
+  };
+  const sites = require('../src/site-permissions').sitesOndeEhAdmin(d, 'a@x.com');
+  assert.deepEqual(sites, ['pesquisa-satisfacao']);
 });
 
 test('removerPapel apaga apenas o sistema especifico', () => {
