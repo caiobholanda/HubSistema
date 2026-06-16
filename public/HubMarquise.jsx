@@ -888,10 +888,10 @@ function LiberacaoPanel({ sistemaId, sistemaNome, isMobile, users }) {
           <select value={novoPapel} onChange={e => setNovoPapel(e.target.value)} disabled={busy}
             style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim, border: `1px solid ${HUB_PALETTE.areiaDim}44`, padding: '10px 12px', fontFamily: 'Inter, sans-serif', fontSize: 13 }}
             title="Papel: master vê e edita tudo · admin só vê · spa edita Spa · satisfação edita Relatórios">
-            <option value="master">Master</option>
-            <option value="admin">Admin (só ver)</option>
-            <option value="spa">Spa</option>
-            <option value="satisfacao">Satisfação</option>
+            <option value="master"     style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim }}>Master</option>
+            <option value="admin"      style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim }}>Admin (só ver)</option>
+            <option value="spa"        style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim }}>Spa</option>
+            <option value="satisfacao" style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim }}>Satisfação</option>
           </select>
         )}
         <button onClick={adicionar} disabled={busy} style={{ background: HUB_PALETTE.champanhe + '22', border: `1px solid ${HUB_PALETTE.champanhe}55`, color: HUB_PALETTE.champanhe, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', padding: '10px 18px', cursor: busy ? 'wait' : 'pointer' }}>
@@ -909,12 +909,12 @@ function LiberacaoPanel({ sistemaId, sistemaNome, isMobile, users }) {
             <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{x.email}</span>
             {ehPesquisa ? (
               <select value={x.papel || 'admin'} onChange={e => trocarPapel(x.email, e.target.value)} disabled={busy}
-                style={{ background: 'transparent', color: HUB_PALETTE.marfim, border: `1px solid ${HUB_PALETTE.areiaDim}44`, padding: '4px 8px', fontFamily: 'Inter, sans-serif', fontSize: 12 }}
+                style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim, border: `1px solid ${HUB_PALETTE.areiaDim}44`, padding: '4px 8px', fontFamily: 'Inter, sans-serif', fontSize: 12 }}
                 title="Mudar papel">
-                <option value="master">Master</option>
-                <option value="admin">Admin</option>
-                <option value="spa">Spa</option>
-                <option value="satisfacao">Satisfação</option>
+                <option value="master" style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim }}>Master</option>
+                <option value="admin"  style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim }}>Admin</option>
+                <option value="spa"    style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim }}>Spa</option>
+                <option value="satisfacao" style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim }}>Satisfação</option>
               </select>
             ) : null}
             <button onClick={() => remover(x.email)} disabled={busy} style={{ ...btn, color: '#E07A5F', borderColor: '#E07A5F44' }} title="Remover acesso de admin">× Remover</button>
