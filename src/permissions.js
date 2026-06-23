@@ -4,15 +4,12 @@
 // Extraida para teste — qualquer divergencia entre este modulo e o handler
 // em server.js e bug.
 
-// Quando um usuario nao tem entrada em data.permissions[email]:
-// - antes === undefined OR null → significa "sem snapshot", e por convencao
-//   o sistema considera que ele TINHA acesso a todos os sistemas atuais.
-// Quando ele passa a ter uma lista explicita em `depois`, comparamos com
-// essa convencao para gerar liberados/bloqueados.
-function diffPermissoes(antes, depois, sistemasAtuaisIds) {
-  const tinhaAntes = (antes === undefined || antes === null) ? sistemasAtuaisIds : antes;
-  const setAntes = new Set(tinhaAntes);
-  const setDepois = new Set(depois);
+// Sob a regra fail-closed, ausencia de entrada (undefined/null/valor nao-array)
+// significa que o usuario NAO tinha acesso a nada. O `sistemasAtuaisIds` ficou
+// no parametro so para nao quebrar call-sites antigos.
+function diffPermissoes(antes, depois, _sistemasAtuaisIds) {
+  const setAntes = new Set(Array.isArray(antes) ? antes : []);
+  const setDepois = new Set(Array.isArray(depois) ? depois : []);
   const liberados = [...setDepois].filter(x => !setAntes.has(x));
   const bloqueados = [...setAntes].filter(x => !setDepois.has(x));
   return { liberados, bloqueados };

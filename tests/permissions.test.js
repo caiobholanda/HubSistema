@@ -21,15 +21,16 @@ test('bloqueia 1 sistema: liberados=[], bloqueados=[removido]', () => {
   assert.deepEqual(r.bloqueados, ['ramais']);
 });
 
-test('antes=undefined (sem snapshot): bloqueia tudo que faltar do default', () => {
+test('antes=undefined (fail-closed): trata como [], tudo de depois e novo', () => {
   const r = diffPermissoes(undefined, ['chamados'], ['chamados', 'ramais', 'pesquisa-satisfacao']);
-  assert.deepEqual(r.liberados, []);
-  assert.deepEqual(r.bloqueados.sort(), ['pesquisa-satisfacao', 'ramais']);
+  assert.deepEqual(r.liberados, ['chamados']);
+  assert.deepEqual(r.bloqueados, []);
 });
 
-test('antes=null: trata igual a undefined (sem snapshot)', () => {
+test('antes=null (fail-closed): igual a undefined, tudo de depois e novo', () => {
   const r = diffPermissoes(null, ['chamados', 'ramais'], ['chamados', 'ramais', 'pesquisa-satisfacao']);
-  assert.deepEqual(r.bloqueados, ['pesquisa-satisfacao']);
+  assert.deepEqual(r.liberados.sort(), ['chamados', 'ramais']);
+  assert.deepEqual(r.bloqueados, []);
 });
 
 test('antes vazio []: tudo de depois e novo', () => {

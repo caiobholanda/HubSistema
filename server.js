@@ -155,21 +155,34 @@ function trackUser(email, nome, tipo, extras = {}) {
   writeData(data);
 }
 
-function getUserSistemas(email) {
-  const data = readData();
-  return Object.prototype.hasOwnProperty.call(data.permissions, email)
-    ? data.permissions[email]
-    : null; // null = acesso total
+// Regra unica de acesso a link (compartilhada com o front em HubMarquise.jsx):
+// - admins (tipo='admin' ou is_master) veem todos os sistemas;
+// - demais usuarios sem entrada explicita, com valor nao-array ou array vazio
+//   NAO veem nenhum link (fail-closed). Apenas o array com o id concede acesso.
+function temAcessoAoSistema(permissions, email, systemId, ehAdmin) {
+  if (ehAdmin) return true;
+  const p = permissions && permissions[email];
+  return Array.isArray(p) && p.includes(systemId);
 }
 
-// Garante que usuario nao-admin tenha permissoes explicitas no primeiro login.
-// Assim, links novos criados depois nao aparecem automaticamente para ele.
+function getUserSistemas(email, tipo, isMaster) {
+  const data = readData();
+  const sistemasAtuaisIds = (data.sistemas || DEFAULT_SISTEMAS).map(s => s.id);
+  const ehAdmin = tipo === 'admin' || !!isMaster;
+  if (ehAdmin) return sistemasAtuaisIds;
+  const p = data.permissions[email];
+  return Array.isArray(p) ? p.filter(id => sistemasAtuaisIds.includes(id)) : [];
+}
+
+// Garante que usuario nao-admin tenha entrada explicita no primeiro login.
+// Como agora o default e fail-closed, novos usuarios entram com array vazio
+// — admin precisa liberar links manualmente.
 function snapshotPermissoesSeNaoTiver(email, tipo) {
   if (tipo === 'admin') return;
   const data = readData();
   if (!data.permissions) data.permissions = {};
   if (Object.prototype.hasOwnProperty.call(data.permissions, email)) return;
-  data.permissions[email] = (data.sistemas || DEFAULT_SISTEMAS).map(s => s.id);
+  data.permissions[email] = [];
   writeData(data);
 }
 
@@ -260,7 +273,7 @@ app.post('/api/auth/login', async (req, res) => {
       usuario: data.usuario,
     });
     if (data.tipo === 'usuario') snapshotPermissoesSeNaoTiver(emailNorm, 'usuario');
-    return res.json({ ok: true, token, tipo: data.tipo, nome: data.nome, sistemas: getUserSistemas(emailNorm) });
+    return res.json({ ok: true, token, tipo: data.tipo, nome: data.nome, sistemas: getUserSistemas(emailNorm, data.tipo, data.is_master) });
   } catch (err) {
     console.error('[auth/login proxy]', err);
     return res.status(502).json({ ok: false, erro: 'Serviço de autenticação indisponível.' });
@@ -359,7 +372,7 @@ app.get('/api/me/sistemas', (req, res) => {
   if (!token) return res.status(401).json({ ok: false });
   try {
     const payload = jwt.verify(token, SSO_SECRET);
-    return res.json({ ok: true, sistemas: getUserSistemas(payload.email) });
+    return res.json({ ok: true, sistemas: getUserSistemas(payload.email, payload.tipo, payload.is_master) });
   } catch {
     return res.status(401).json({ ok: false });
   }
@@ -375,10 +388,9 @@ app.put('/api/admin/permissions', requireAdmin, (req, res) => {
   if (!email || !Array.isArray(sistemas)) return res.status(400).json({ ok: false, erro: 'Dados inválidos' });
   const data = readData();
   // Diff: para cada toggle de link gera um evento granular (liberar_link/bloquear_link).
+  // Sob fail-closed, ausencia de entrada = nenhum acesso, entao antes vira [].
   const antes = data.permissions[email];
-  const sistemasAtuaisIds = (data.sistemas || DEFAULT_SISTEMAS).map(s => s.id);
-  const tinhaAntes = (antes === undefined || antes === null) ? sistemasAtuaisIds : antes;
-  const setAntes = new Set(tinhaAntes);
+  const setAntes = new Set(Array.isArray(antes) ? antes : []);
   const setDepois = new Set(sistemas);
   const liberados = [...setDepois].filter(x => !setAntes.has(x));
   const bloqueados = [...setAntes].filter(x => !setDepois.has(x));
@@ -436,19 +448,10 @@ app.post('/api/admin/sistemas', requireAdmin, (req, res) => {
   const novo = { id, num, nome, url: url || '#', status, categoria: categoria || '', descricao: descricao || '', paraQuem: paraQuem || '' };
   data.sistemas = [...sistemas, novo];
 
-  // Novo link aparece apenas para admins por padrão. Snapshot dos sistemas
-  // atuais para todo usuario sem permissao explicita, preservando o acesso
-  // que ja tinham mas excluindo o novo link.
-  const sistemasAtuaisIds = sistemas.map(s => s.id);
+  // Novo link aparece apenas para admins por padrao — sob fail-closed isto e
+  // automatico (usuario sem o id no array nao ve o link). Nao precisamos mais
+  // do snapshot defensivo aqui.
   data.permissions = data.permissions || {};
-  for (const u of (data.users || [])) {
-    if (u.tipo === 'admin') continue;
-    const atual = data.permissions[u.email];
-    if (atual === undefined || atual === null) {
-      data.permissions[u.email] = sistemasAtuaisIds;
-      notifyUser(u.email, sistemasAtuaisIds);
-    }
-  }
 
   writeData(data);
   appendAudit({

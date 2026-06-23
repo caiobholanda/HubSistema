@@ -967,17 +967,21 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
     }).catch(() => setLoading(false));
   }, []);
 
+  // Mesma regra do back-end (server.js#temAcessoAoSistema). Admin/master
+  // sempre veem todos; demais precisam do id explicito no array.
   function isAllowed(email, systemId) {
+    const u = users.find(x => x.email === email);
+    if (u && (u.tipo === 'admin' || u.is_master)) return true;
     const p = permissions[email];
-    if (p === undefined || p === null) return true;
     return Array.isArray(p) && p.includes(systemId);
   }
 
   async function toggleSystem(email, systemId) {
     const current = permissions[email];
     let nova;
-    if (current === undefined || current === null) {
-      nova = noArSystems.map(s => s.id).filter(id => id !== systemId);
+    if (!Array.isArray(current)) {
+      // Usuario sem entrada explicita: criar lista contendo apenas o id liberado.
+      nova = [systemId];
     } else if (current.includes(systemId)) {
       nova = current.filter(id => id !== systemId);
     } else {
@@ -1166,8 +1170,18 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
           <div style={{ display: 'flex', flexDirection: 'column', borderTop: `1px solid ${HUB_PALETTE.areiaDim}22` }}>
             {hubSystems.map(sys => {
               const isLinkOpen = expandedLink === sys.id;
-              const comAcesso = users.filter(u => { const p = permissions[u.email]; return p === undefined || p === null || p.includes(sys.id); });
-              const semAcesso = users.filter(u => { const p = permissions[u.email]; return Array.isArray(p) && !p.includes(sys.id); });
+              // Mesma regra do back-end: admin/master sempre tem acesso; demais
+              // precisam do id no array (undefined/null/vazio = sem acesso).
+              const comAcesso = users.filter(u => {
+                if (u.tipo === 'admin' || u.is_master) return true;
+                const p = permissions[u.email];
+                return Array.isArray(p) && p.includes(sys.id);
+              });
+              const semAcesso = users.filter(u => {
+                if (u.tipo === 'admin' || u.is_master) return false;
+                const p = permissions[u.email];
+                return !Array.isArray(p) || !p.includes(sys.id);
+              });
               return (
                 <div key={sys.id} style={{ borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22` }}>
                   {/* Fase 3: edicao agora abre modal (renderizado uma vez no fim do componente). */}
@@ -3015,9 +3029,11 @@ function HubMarquise() {
     setShowAdmin(false);
   }
 
+  // Fail-closed: durante o carregamento (sistemas==null) e quando o back-end
+  // devolve array vazio, NAO mostramos nada. So um array contendo o id libera.
   const sistemasVisiveis = hubSystems
     .filter(s => s.status === 'no-ar')
-    .filter(s => !sistemas || sistemas.includes(s.id));
+    .filter(s => Array.isArray(sistemas) && sistemas.includes(s.id));
 
   return (
     <div id="top" style={{ minHeight: '100vh', background: easter ? `radial-gradient(ellipse at 70% -10%, ${HUB_PALETTE.jangada}22, transparent 50%), ${HUB_PALETTE.noite}` : HUB_PALETTE.noite, color: HUB_PALETTE.marfim, fontFamily: 'Inter, sans-serif', transition: `background 1200ms ${HUB_EASE}`, position: 'relative', overflow: 'hidden' }}>
