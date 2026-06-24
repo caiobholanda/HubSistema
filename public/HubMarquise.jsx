@@ -2270,8 +2270,28 @@ function ContaForm({ tipo, isMobile, cs, erro, saving, initial, initialEtiquetas
   const [showSenha, setShowSenha] = useState(false);
   const [etSel, setEtSel] = useState(new Set(initialEtiquetas || []));
   const [etBusca, setEtBusca] = useState('');
+  const [erroLocal, setErroLocal] = useState('');
   const set = (k, v) => setD(p => ({ ...p, [k]: v }));
   const isAdmin = tipo === 'admin';
+
+  // Validacao de setor: precisa bater com a lista oficial. Permite preservar valor legado na edicao.
+  const setoresNames = (setores || []).map(s => s.name);
+  const setorAtualOriginal = (initial && initial.setor) || '';
+  const setorLegado = !isAdmin && !!setorAtualOriginal && !setoresNames.includes(setorAtualOriginal);
+  const semListaSetores = !isAdmin && setoresNames.length === 0;
+
+  function handleSave() {
+    if (!isAdmin) {
+      const v = (d.setor || '').trim();
+      if (!v) { setErroLocal('Setor é obrigatório.'); return; }
+      if (!setoresNames.includes(v) && v !== setorAtualOriginal) {
+        setErroLocal('Selecione um setor válido da lista.');
+        return;
+      }
+    }
+    setErroLocal('');
+    onSave(d, isAdmin ? Array.from(etSel) : null);
+  }
 
   // Forca de senha (5 criterios)
   const senhaScore = (() => {
@@ -2326,12 +2346,31 @@ function ContaForm({ tipo, isMobile, cs, erro, saving, initial, initialEtiquetas
 
         {!isAdmin && (<>
           <label style={{ ...cs.label, marginTop: 14 }}>Setor</label>
-          <input style={cs.input} value={d.setor} list="contas-setores"
-            autoComplete="off" name="conta-setor-randome5f6" spellCheck={false}
-            onChange={e => set('setor', e.target.value)} placeholder="Digite ou selecione" />
-          <datalist id="contas-setores">
-            {(setores || []).map(s => <option key={s.id} value={s.name} />)}
-          </datalist>
+          <select
+            style={{ ...cs.input, appearance: 'auto' }}
+            value={d.setor || ''}
+            name="conta-setor-randome5f6"
+            autoComplete="off"
+            disabled={semListaSetores && !setorLegado}
+            onChange={e => { set('setor', e.target.value); setErroLocal(''); }}>
+            <option value="" disabled hidden>Digite ou selecione</option>
+            {setorLegado && (
+              <option value={setorAtualOriginal}>
+                {setorAtualOriginal} (atual — legado)
+              </option>
+            )}
+            {(setores || []).map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+          </select>
+          {semListaSetores && !setorLegado && (
+            <div style={{ marginTop: 6, fontFamily: 'Inter, sans-serif', fontSize: 12, color: '#E07A5F' }}>
+              Lista de setores indisponível. Recarregue a página antes de salvar.
+            </div>
+          )}
+          {setorLegado && (
+            <div style={{ marginTop: 6, fontFamily: 'Inter, sans-serif', fontSize: 11, color: HUB_PALETTE.areiaDim }}>
+              Setor atual não está na lista oficial. Pode salvar como está ou escolher um setor válido.
+            </div>
+          )}
         </>)}
 
         <label style={{ ...cs.label, marginTop: 14 }}>Ramal {!isAdmin && <span style={{ textTransform: 'none', letterSpacing: 0, opacity: .6 }}>(4 dígitos)</span>}</label>
@@ -2384,15 +2423,15 @@ function ContaForm({ tipo, isMobile, cs, erro, saving, initial, initialEtiquetas
           </>)}
         </>)}
 
-        {erro && (
+        {(erroLocal || erro) && (
           <div style={{ marginTop: 16, padding: '10px 12px', border: '1px solid #E07A5F66', color: '#E07A5F', fontSize: 13, fontFamily: 'Inter, sans-serif' }}>
-            {erro}
+            {erroLocal || erro}
           </div>
         )}
 
         <div style={{ display: 'flex', gap: 10, marginTop: 24, justifyContent: 'flex-end' }}>
           <button type="button" onClick={onCancel} disabled={saving} style={cs.btnGhost}>Cancelar</button>
-          <button type="button" onClick={() => onSave(d, isAdmin ? Array.from(etSel) : null)} disabled={saving} style={cs.btnPrim}>
+          <button type="button" onClick={handleSave} disabled={saving || (semListaSetores && !setorLegado)} style={cs.btnPrim}>
             {saving ? '...' : (isEdit ? 'Salvar' : 'Criar')}
           </button>
         </div>
