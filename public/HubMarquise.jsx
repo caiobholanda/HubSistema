@@ -2280,6 +2280,54 @@ function ContaForm({ tipo, isMobile, cs, erro, saving, initial, initialEtiquetas
   const setorLegado = !isAdmin && !!setorAtualOriginal && !setoresNames.includes(setorAtualOriginal);
   const semListaSetores = !isAdmin && setoresNames.length === 0;
 
+  // Combobox de setor: input filtravel + popup customizado (tema dark, restrito ao banco).
+  const [setorOpen, setSetorOpen] = useState(false);
+  const [setorHighlight, setSetorHighlight] = useState(0);
+  const setorWrapRef = useRef(null);
+  const norm = s => (s || '').toString().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  useEffect(() => {
+    if (!setorOpen) return;
+    function onDocMouseDown(e) {
+      if (setorWrapRef.current && !setorWrapRef.current.contains(e.target)) setSetorOpen(false);
+    }
+    document.addEventListener('mousedown', onDocMouseDown);
+    return () => document.removeEventListener('mousedown', onDocMouseDown);
+  }, [setorOpen]);
+  const setorOpcoes = (() => {
+    const f = norm(d.setor || '');
+    const out = [];
+    if (setorLegado && (!f || norm(setorAtualOriginal).includes(f))) {
+      out.push({ name: setorAtualOriginal, legado: true, key: 'legado' });
+    }
+    (setores || []).forEach(s => {
+      if (!f || norm(s.name).includes(f)) out.push({ name: s.name, legado: false, key: 's-' + s.id });
+    });
+    return out;
+  })();
+  function pickSetor(name) {
+    set('setor', name);
+    setErroLocal('');
+    setSetorOpen(false);
+    setSetorHighlight(0);
+  }
+  function onSetorKey(e) {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (!setorOpen) { setSetorOpen(true); return; }
+      setSetorHighlight(h => Math.min(h + 1, Math.max(0, setorOpcoes.length - 1)));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSetorHighlight(h => Math.max(h - 1, 0));
+    } else if (e.key === 'Enter') {
+      if (setorOpen && setorOpcoes[setorHighlight]) {
+        e.preventDefault();
+        pickSetor(setorOpcoes[setorHighlight].name);
+      }
+    } else if (e.key === 'Escape') {
+      if (setorOpen) { e.preventDefault(); setSetorOpen(false); }
+    }
+  }
+
   function handleSave() {
     if (!isAdmin) {
       const v = (d.setor || '').trim();
@@ -2346,21 +2394,32 @@ function ContaForm({ tipo, isMobile, cs, erro, saving, initial, initialEtiquetas
 
         {!isAdmin && (<>
           <label style={{ ...cs.label, marginTop: 14 }}>Setor</label>
-          <select
-            style={{ ...cs.input, appearance: 'auto' }}
-            value={d.setor || ''}
-            name="conta-setor-randome5f6"
-            autoComplete="off"
-            disabled={semListaSetores && !setorLegado}
-            onChange={e => { set('setor', e.target.value); setErroLocal(''); }}>
-            <option value="" disabled hidden>Digite ou selecione</option>
-            {setorLegado && (
-              <option value={setorAtualOriginal}>
-                {setorAtualOriginal} (atual — legado)
-              </option>
+          <div ref={setorWrapRef} style={{ position: 'relative' }}>
+            <input style={cs.input} type="text" value={d.setor || ''}
+              autoComplete="off" name="conta-setor-randome5f6" spellCheck={false}
+              placeholder="Digite ou selecione"
+              disabled={semListaSetores && !setorLegado}
+              onFocus={() => setSetorOpen(true)}
+              onClick={() => setSetorOpen(true)}
+              onKeyDown={onSetorKey}
+              onChange={e => { set('setor', e.target.value); setErroLocal(''); setSetorOpen(true); setSetorHighlight(0); }} />
+            {setorOpen && (
+              <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10, background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}44`, maxHeight: 220, overflowY: 'auto', marginTop: 2 }}>
+                {setorOpcoes.length === 0 ? (
+                  <div style={{ padding: '8px 12px', color: HUB_PALETTE.areiaDim, fontFamily: 'Inter, sans-serif', fontSize: 13 }}>
+                    Nenhum setor corresponde.
+                  </div>
+                ) : setorOpcoes.map((it, i) => (
+                  <div key={it.key}
+                    onMouseDown={e => { e.preventDefault(); pickSetor(it.name); }}
+                    onMouseEnter={() => setSetorHighlight(i)}
+                    style={{ padding: '8px 12px', cursor: 'pointer', background: i === setorHighlight ? HUB_PALETTE.champanhe + '22' : 'transparent', color: it.legado ? HUB_PALETTE.champanhe : HUB_PALETTE.marfim, fontFamily: 'Inter, sans-serif', fontSize: 13 }}>
+                    {it.name}{it.legado ? ' (atual — legado)' : ''}
+                  </div>
+                ))}
+              </div>
             )}
-            {(setores || []).map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
-          </select>
+          </div>
           {semListaSetores && !setorLegado && (
             <div style={{ marginTop: 6, fontFamily: 'Inter, sans-serif', fontSize: 12, color: '#E07A5F' }}>
               Lista de setores indisponível. Recarregue a página antes de salvar.
