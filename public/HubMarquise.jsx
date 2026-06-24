@@ -2275,7 +2275,9 @@ function ContaForm({ tipo, isMobile, cs, erro, saving, initial, initialEtiquetas
   const isAdmin = tipo === 'admin';
 
   // Validacao de setor: precisa bater com a lista oficial. Permite preservar valor legado na edicao.
-  const setoresNames = (setores || []).map(s => s.name);
+  // API retorna {id, nome}; mantemos fallback p/ s.name caso o contrato mude.
+  const setorNome = s => (s && (s.nome ?? s.name)) || '';
+  const setoresNames = (setores || []).map(setorNome);
   const setorAtualOriginal = (initial && initial.setor) || '';
   const setorLegado = !isAdmin && !!setorAtualOriginal && !setoresNames.includes(setorAtualOriginal);
   const semListaSetores = !isAdmin && setoresNames.length === 0;
@@ -2300,7 +2302,8 @@ function ContaForm({ tipo, isMobile, cs, erro, saving, initial, initialEtiquetas
       out.push({ name: setorAtualOriginal, legado: true, key: 'legado' });
     }
     (setores || []).forEach(s => {
-      if (!f || norm(s.name).includes(f)) out.push({ name: s.name, legado: false, key: 's-' + s.id });
+      const nm = setorNome(s);
+      if (!f || norm(nm).includes(f)) out.push({ name: nm, legado: false, key: 's-' + s.id });
     });
     return out;
   })();
