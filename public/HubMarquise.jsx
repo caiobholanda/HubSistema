@@ -191,25 +191,11 @@ function HubBoot({ onDone }) {
       transition: `opacity 600ms ${HUB_EASE}`,
       pointerEvents: phase === 'fade' ? 'none' : 'auto'
     }}>
-      <svg width="140" height="100" viewBox="0 0 140 100" fill="none" style={{ overflow: 'visible' }}>
-        <path d="M 55 8 Q 8 8 8 50 Q 8 92 55 92 Q 70 92 70 80 L 70 55 L 40 55"
-          stroke={HUB_PALETTE.champanhe} strokeWidth="1.2" fill="none" strokeLinecap="round"
-          style={{ strokeDasharray: 260, strokeDashoffset: 260, animation: `hubDraw 1300ms ${HUB_EASE} forwards` }} />
-        <path d="M 80 92 L 80 8 L 102 60 L 124 8 L 124 92"
-          stroke={HUB_PALETTE.champanhe} strokeWidth="1.2" fill="none" strokeLinecap="round" strokeLinejoin="round"
-          style={{ strokeDasharray: 320, strokeDashoffset: 320, animation: `hubDraw 1300ms ${HUB_EASE} 200ms forwards` }} />
-      </svg>
-      <div style={{
-        marginTop: 32,
-        fontFamily: 'JetBrains Mono, monospace',
-        fontSize: 10, letterSpacing: '0.35em',
-        color: HUB_PALETTE.areiaDim,
-        textTransform: 'uppercase',
-        opacity: 0,
-        animation: `hubFadeIn 600ms ${HUB_EASE} 900ms forwards`
-      }}>
-        Gran Marquise · Sistemas
-      </div>
+      <img
+        src="https://letsimage.s3.amazonaws.com/editor/granmarquise/imgs/1760033174793-hotelgranmarquise_pos_footer.png"
+        alt="Gran Marquise"
+        style={{ height: 80, width: 'auto', filter: 'brightness(0) invert(1)', opacity: 0.9 }}
+      />
     </div>
   );
 }
@@ -421,13 +407,11 @@ function HubLogin({ onLogin }) {
 
       <div style={{ width: '100%', maxWidth: trocaForcada ? 520 : 400, padding: '0 24px' }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: trocaForcada ? 36 : 48 }}>
-          <svg width={trocaForcada ? 64 : 52} height={trocaForcada ? 46 : 38} viewBox="0 0 140 100" fill="none" style={{ marginBottom: trocaForcada ? 24 : 20 }}>
-            <path d="M 55 8 Q 8 8 8 50 Q 8 92 55 92 Q 70 92 70 80 L 70 55 L 40 55" stroke={HUB_PALETTE.champanhe} strokeWidth="2.5" fill="none" strokeLinecap="round" />
-            <path d="M 80 92 L 80 8 L 102 60 L 124 8 L 124 92" stroke={HUB_PALETTE.champanhe} strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: trocaForcada ? 11 : 10, letterSpacing: '0.35em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: trocaForcada ? 24 : 20, display: 'flex', alignItems: 'center', gap: 10 }}>
-            Gran Marquise <span style={{ width: 4, height: 4, borderRadius: '50%', background: HUB_PALETTE.champanhe, display: 'inline-block' }} /> Hub
-          </div>
+          <img
+            src="https://letsimage.s3.amazonaws.com/editor/granmarquise/imgs/1760033174793-hotelgranmarquise_pos_footer.png"
+            alt="Gran Marquise"
+            style={{ height: trocaForcada ? 56 : 46, width: 'auto', filter: 'brightness(0) invert(1)', opacity: 0.9, marginBottom: trocaForcada ? 24 : 20 }}
+          />
           <h1 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 300, fontStyle: 'italic', fontSize: trocaForcada ? 44 : 36, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: 0, lineHeight: 1 }}>{trocaForcada ? 'Defina sua nova senha.' : 'Entrar.'}</h1>
           {trocaForcada && (
             <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 15, color: HUB_PALETTE.areia, marginTop: 18, textAlign: 'center', lineHeight: 1.6 }}>
@@ -2633,13 +2617,11 @@ function HubHeader({ theme, onToggleTheme, isMobile, userName, userTipo, onLogou
     <header style={{ position: 'sticky', top: 0, zIndex: 50, backdropFilter: 'blur(10px)', background: HUB_PALETTE.headerBg, borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22` }}>
       <div style={{ maxWidth: 1400, margin: '0 auto', padding: isMobile ? '14px 18px' : '20px 48px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <a href="#top" style={{ display: 'flex', alignItems: 'center', gap: 14, textDecoration: 'none' }}>
-          <svg width="22" height="16" viewBox="0 0 140 100" fill="none">
-            <path d="M 55 8 Q 8 8 8 50 Q 8 92 55 92 Q 70 92 70 80 L 70 55 L 40 55" stroke={HUB_PALETTE.champanhe} strokeWidth="3" fill="none" strokeLinecap="round" />
-            <path d="M 80 92 L 80 8 L 102 60 L 124 8 L 124 92" stroke={HUB_PALETTE.champanhe} strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.28em', textTransform: 'uppercase', color: HUB_PALETTE.areia }}>
-            Gran Marquise <span style={{ color: HUB_PALETTE.areiaDim, margin: '0 6px' }}>/</span> Hub
-          </span>
+          <img
+            src="https://letsimage.s3.amazonaws.com/editor/granmarquise/imgs/1760033174793-hotelgranmarquise_pos_footer.png"
+            alt="Gran Marquise"
+            style={{ height: 32, width: 'auto', filter: theme === 'dark' ? 'brightness(0) invert(1)' : 'none', opacity: 0.9 }}
+          />
         </a>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           {!isMobile && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, letterSpacing: '0.1em', color: HUB_PALETTE.marfim, fontVariantNumeric: 'tabular-nums' }} title="Horário de Fortaleza">{dataHora}</span>}
@@ -2695,7 +2677,7 @@ function HubHero({ revealed, easterActive, isMobile, userName, sistemasVisiveis 
             {periodo}, {primeiroNome}
           </div>
           <h1 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 300, fontSize: isMobile ? 'clamp(38px, 11vw, 92px)' : 'clamp(48px, 6.4vw, 92px)', lineHeight: 0.98, letterSpacing: '-0.025em', color: HUB_PALETTE.marfim, margin: 0, opacity: revealed ? 1 : 0, transform: revealed ? 'translateY(0)' : 'translateY(24px)', transition: `all 1100ms ${HUB_EASE} 120ms` }}>
-            <span style={{ display: 'block', color: HUB_PALETTE.areia }}>Hub de sites</span>
+            <span style={{ display: 'block', color: HUB_PALETTE.areia }}>Hub</span>
             <span style={{ display: 'block', fontStyle: 'italic', fontWeight: 300, color: HUB_PALETTE.marfim }}>Gran Marquise.</span>
           </h1>
           <p style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontWeight: 300, fontSize: isMobile ? 16 : 19, lineHeight: 1.4, color: HUB_PALETTE.areia, maxWidth: 460, margin: '28px 0 0', letterSpacing: '-0.005em', opacity: revealed ? 1 : 0, transform: revealed ? 'translateY(0)' : 'translateY(16px)', transition: `all 1100ms ${HUB_EASE} 320ms` }}>
