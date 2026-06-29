@@ -1,4 +1,4 @@
-const { useState, useEffect, useRef } = React;
+﻿const { useState, useEffect, useRef } = React;
 
 function useWindowWidth() {
   const [w, setW] = useState(window.innerWidth);
@@ -13,34 +13,34 @@ function useWindowWidth() {
 const HUB_EASE = 'cubic-bezier(0.16, 1, 0.3, 1)';
 const HUB_THEMES = {
   dark: {
-    noite: '#0A0E1A',
-    noiteAlt: '#0D1322',
-    champanhe: '#C9A961',
-    dourado: '#B8924A',
-    marfim: '#F5F0E6',
-    areia: '#D4C4A0',
-    areiaDim: '#8A7E64',
+    noite: '#202C28',
+    noiteAlt: '#293630',
+    champanhe: '#9C5843',
+    dourado: '#996442',
+    marfim: '#ECE4D2',
+    areia: '#C8B89A',
+    areiaDim: '#8A7B6A',
     jangada: '#2A5A6B',
     jangadaGlow: '#3E8497',
     panelHover: 'rgba(255,255,255,0.012)',
     previewBg: 'rgba(255,255,255,0.015)',
-    headerBg: 'rgba(10, 14, 26, 0.72)',
+    headerBg: 'rgba(32, 44, 40, 0.82)',
     grainOpacity: 0.025,
     grainBlend: 'overlay',
   },
   light: {
-    noite: '#F4EEE1',
-    noiteAlt: '#EBE3D2',
-    champanhe: '#8A6B1F',
-    dourado: '#6B531A',
-    marfim: '#1C2030',
-    areia: '#44402F',
-    areiaDim: '#605738',
+    noite: '#ECE4D2',
+    noiteAlt: '#E3DACC',
+    champanhe: '#9C5843',
+    dourado: '#7A4334',
+    marfim: '#202C28',
+    areia: '#996442',
+    areiaDim: '#7A6B5A',
     jangada: '#175F4F',
     jangadaGlow: '#15705A',
-    panelHover: 'rgba(30,34,48,0.03)',
-    previewBg: 'rgba(30,34,48,0.035)',
-    headerBg: 'rgba(244, 238, 225, 0.82)',
+    panelHover: 'rgba(32,44,40,0.03)',
+    previewBg: 'rgba(32,44,40,0.035)',
+    headerBg: 'rgba(236, 228, 210, 0.82)',
     grainOpacity: 0.05,
     grainBlend: 'multiply',
   },
@@ -428,7 +428,7 @@ function HubLogin({ onLogin }) {
           <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: trocaForcada ? 11 : 10, letterSpacing: '0.35em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: trocaForcada ? 24 : 20, display: 'flex', alignItems: 'center', gap: 10 }}>
             Gran Marquise <span style={{ width: 4, height: 4, borderRadius: '50%', background: HUB_PALETTE.champanhe, display: 'inline-block' }} /> Hub
           </div>
-          <h1 style={{ fontFamily: 'Fraunces, serif', fontWeight: 300, fontStyle: 'italic', fontSize: trocaForcada ? 44 : 36, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: 0, lineHeight: 1 }}>{trocaForcada ? 'Defina sua nova senha.' : 'Entrar.'}</h1>
+          <h1 style={{ fontFamily: 'Helvetica Neue', Helvetica, Arial, sans-serif, fontWeight: 300, fontStyle: 'italic', fontSize: trocaForcada ? 44 : 36, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: 0, lineHeight: 1 }}>{trocaForcada ? 'Defina sua nova senha.' : 'Entrar.'}</h1>
           {trocaForcada && (
             <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 15, color: HUB_PALETTE.areia, marginTop: 18, textAlign: 'center', lineHeight: 1.6 }}>
               É o seu primeiro acesso. Por segurança, troque a senha temporária<br />que você recebeu antes de continuar.
@@ -496,7 +496,7 @@ function HubLogin({ onLogin }) {
             {trocaErro && <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 15, color: '#E07A5F', paddingTop: 6, display: 'flex', alignItems: 'center', gap: 10 }}><span>—</span> {trocaErro}</div>}
             <button type="submit" disabled={trocaLoading}
               style={{ marginTop: 10, width: '100%', padding: '19px', background: 'transparent', border: `1px solid ${HUB_PALETTE.champanhe}`, color: trocaLoading ? HUB_PALETTE.areiaDim : HUB_PALETTE.champanhe, fontFamily: 'JetBrains Mono, monospace', fontSize: 13, letterSpacing: '0.3em', textTransform: 'uppercase', cursor: trocaLoading ? 'not-allowed' : 'pointer', transition: `background 300ms ${HUB_EASE}` }}
-              onMouseEnter={e => { if (!trocaLoading) e.target.style.background = 'rgba(201,169,97,0.1)'; }}
+              onMouseEnter={e => { if (!trocaLoading) e.target.style.background = 'rgba(156,88,67,0.1)'; }}
               onMouseLeave={e => { e.target.style.background = 'transparent'; }}>
               {trocaLoading ? 'Salvando...' : 'Salvar e entrar'}
             </button>
@@ -535,7 +535,7 @@ function HubLogin({ onLogin }) {
           {erro && <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#E07A5F', paddingTop: 4, display: 'flex', alignItems: 'center', gap: 8 }}><span>—</span> {erro}</div>}
           <button type="submit" disabled={loading}
             style={{ marginTop: 8, width: '100%', padding: '15px', background: 'transparent', border: `1px solid ${HUB_PALETTE.champanhe}`, color: loading ? HUB_PALETTE.areiaDim : HUB_PALETTE.champanhe, fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.3em', textTransform: 'uppercase', cursor: loading ? 'not-allowed' : 'pointer', transition: `background 300ms ${HUB_EASE}` }}
-            onMouseEnter={e => { if (!loading) e.target.style.background = 'rgba(201,169,97,0.1)'; }}
+            onMouseEnter={e => { if (!loading) e.target.style.background = 'rgba(156,88,67,0.1)'; }}
             onMouseLeave={e => { e.target.style.background = 'transparent'; }}>
             {loading ? 'Verificando...' : 'Entrar'}
           </button>
@@ -603,7 +603,7 @@ function HubLogin({ onLogin }) {
 
         <div style={{ marginTop: 40, display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{ flex: 1, height: 1, background: `${HUB_PALETTE.areiaDim}22` }} />
-          <span style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontWeight: 300, fontSize: 13, color: HUB_PALETTE.areiaDim }}>Quem é bem atendido, atende bem.</span>
+          <span style={{ fontFamily: 'Helvetica Neue', Helvetica, Arial, sans-serif, fontStyle: 'italic', fontWeight: 300, fontSize: 13, color: HUB_PALETTE.areiaDim }}>Quem é bem atendido, atende bem.</span>
           <div style={{ flex: 1, height: 1, background: `${HUB_PALETTE.areiaDim}22` }} />
         </div>
       </div>
@@ -684,7 +684,7 @@ function LinkEditModal({ sys, form, setForm, onSave, onCancel, linkErro, linkSav
         <div style={{ padding: '18px 24px', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
           <div>
             <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe }}>Editar link</div>
-            <div style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontSize: 22, color: HUB_PALETTE.marfim, marginTop: 4 }}>{sys.nome}</div>
+            <div style={{ fontFamily: 'Helvetica Neue', Helvetica, Arial, sans-serif, fontStyle: 'italic', fontSize: 22, color: HUB_PALETTE.marfim, marginTop: 4 }}>{sys.nome}</div>
           </div>
           <button onClick={onCancel} aria-label="Fechar" style={{ background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}33`, color: HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 14, padding: '6px 12px', cursor: 'pointer' }}>×</button>
         </div>
@@ -1161,7 +1161,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
             <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.35em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
               <span style={{ width: 18, height: 1, background: HUB_PALETTE.champanhe }} />Gerenciar Links
             </div>
-            <h2 style={{ fontFamily: 'Fraunces, serif', fontWeight: 300, fontStyle: 'italic', fontSize: 40, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: '0 0 10px' }}>Links do Hub.</h2>
+            <h2 style={{ fontFamily: 'Helvetica Neue', Helvetica, Arial, sans-serif, fontWeight: 300, fontStyle: 'italic', fontSize: 40, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: '0 0 10px' }}>Links do Hub.</h2>
             <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: HUB_PALETTE.areiaDim, lineHeight: 1.5, margin: 0 }}>
               Edite os sistemas existentes ou adicione novos links ao Hub.
             </p>
@@ -1194,7 +1194,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
                       <div style={{ display: 'flex', alignItems: 'center', gap: 16, minWidth: 0 }}>
                         <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: HUB_PALETTE.areiaDim, flexShrink: 0 }}>{sys.num}</span>
                         <div style={{ minWidth: 0 }}>
-                          <div style={{ fontFamily: 'Fraunces, serif', fontWeight: 300, fontSize: 17, color: HUB_PALETTE.marfim, lineHeight: 1.2 }}>{sys.nome}</div>
+                          <div style={{ fontFamily: 'Helvetica Neue', Helvetica, Arial, sans-serif, fontWeight: 300, fontSize: 17, color: HUB_PALETTE.marfim, lineHeight: 1.2 }}>{sys.nome}</div>
                           <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: HUB_PALETTE.areiaDim, marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: isMobile ? 140 : 300 }}>{sys.url}</div>
                         </div>
                       </div>
@@ -1537,7 +1537,7 @@ function HistoricoPanel({ isMobile }) {
       <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.35em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
         <span style={{ width: 18, height: 1, background: HUB_PALETTE.champanhe }} />Histórico
       </div>
-      <h2 style={{ fontFamily: 'Fraunces, serif', fontWeight: 300, fontStyle: 'italic', fontSize: 40, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: '0 0 10px' }}>Alterações no painel.</h2>
+      <h2 style={{ fontFamily: 'Helvetica Neue', Helvetica, Arial, sans-serif, fontWeight: 300, fontStyle: 'italic', fontSize: 40, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: '0 0 10px' }}>Alterações no painel.</h2>
       <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: HUB_PALETTE.areiaDim, lineHeight: 1.5, margin: 0 }}>
         Toda mudança em admins, usuários, setores, links e permissões fica registrada — quem fez e quando.
         {filterDate || filterTipo !== 'todos'
@@ -1582,14 +1582,14 @@ function HistoricoPanel({ isMobile }) {
     {log === null ? (
       <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.2em', color: HUB_PALETTE.areiaDim, textTransform: 'uppercase', padding: '40px 0' }}>Carregando...</div>
     ) : filtrado.length === 0 && !filterDate ? (
-      <div style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontSize: 16, color: HUB_PALETTE.areiaDim, padding: '40px 0' }}>Nenhum registro ainda.</div>
+      <div style={{ fontFamily: 'Helvetica Neue', Helvetica, Arial, sans-serif, fontStyle: 'italic', fontSize: 16, color: HUB_PALETTE.areiaDim, padding: '40px 0' }}>Nenhum registro ainda.</div>
     ) : filtrado.length === 0 ? (
-      <div style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontSize: 16, color: HUB_PALETTE.areiaDim, padding: '40px 0' }}>Nenhum registro neste dia.</div>
+      <div style={{ fontFamily: 'Helvetica Neue', Helvetica, Arial, sans-serif, fontStyle: 'italic', fontSize: 16, color: HUB_PALETTE.areiaDim, padding: '40px 0' }}>Nenhum registro neste dia.</div>
     ) : (
       <div>
         {grupos.map((gr, gi) => (
           <div key={gr.key} style={{ marginTop: gi === 0 ? 0 : 24 }}>
-            <div style={{ position: 'sticky', top: 0, zIndex: 1, display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, padding: '12px 0', background: `linear-gradient(${HUB_PALETTE.noite}, ${HUB_PALETTE.noite} 80%, ${HUB_PALETTE.noite}00)`, borderBottom: `1px solid ${HUB_PALETTE.champanhe}44`, fontFamily: 'Fraunces, serif', fontStyle: 'italic' }}>
+            <div style={{ position: 'sticky', top: 0, zIndex: 1, display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, padding: '12px 0', background: `linear-gradient(${HUB_PALETTE.noite}, ${HUB_PALETTE.noite} 80%, ${HUB_PALETTE.noite}00)`, borderBottom: `1px solid ${HUB_PALETTE.champanhe}44`, fontFamily: 'Helvetica Neue', Helvetica, Arial, sans-serif, fontStyle: 'italic' }}>
               <span style={{ fontSize: 17, fontWeight: 500, color: HUB_PALETTE.marfim, textTransform: 'capitalize' }}>{gr.label}</span>
               <span style={{ fontFamily: 'JetBrains Mono, monospace', fontStyle: 'normal', fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim }}>
                 {gr.itens.length} {gr.itens.length === 1 ? 'registro' : 'registros'}
@@ -1734,7 +1734,7 @@ function SetoresPanel({ isMobile }) {
       <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.35em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
         <span style={{ width: 18, height: 1, background: HUB_PALETTE.champanhe }} />Setores
       </div>
-      <h2 style={{ fontFamily: 'Fraunces, serif', fontWeight: 300, fontStyle: 'italic', fontSize: 40, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: '0 0 10px' }}>Setores do hotel.</h2>
+      <h2 style={{ fontFamily: 'Helvetica Neue', Helvetica, Arial, sans-serif, fontWeight: 300, fontStyle: 'italic', fontSize: 40, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: '0 0 10px' }}>Setores do hotel.</h2>
       <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: HUB_PALETTE.areiaDim, lineHeight: 1.5, margin: 0 }}>
         Gerencie os setores disponíveis para seleção em chamados e cadastros de usuários. Os dados ficam no sistema-chamados; aqui é só a interface.
       </p>
@@ -1752,7 +1752,7 @@ function SetoresPanel({ isMobile }) {
     {lista === null ? (
       <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.2em', color: HUB_PALETTE.areiaDim, textTransform: 'uppercase', padding: '40px 0' }}>Carregando...</div>
     ) : filtrada.length === 0 ? (
-      <div style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontSize: 16, color: HUB_PALETTE.areiaDim, padding: '40px 0' }}>
+      <div style={{ fontFamily: 'Helvetica Neue', Helvetica, Arial, sans-serif, fontStyle: 'italic', fontSize: 16, color: HUB_PALETTE.areiaDim, padding: '40px 0' }}>
         {q ? 'Nenhum setor encontrado.' : 'Nenhum setor cadastrado ainda.'}
       </div>
     ) : (
@@ -1784,7 +1784,7 @@ function SetoresPanel({ isMobile }) {
         style={{ position: 'fixed', inset: 0, zIndex: 160, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
         <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, maxWidth: 420, width: '100%', padding: isMobile ? '24px 20px' : '32px 36px' }}>
           <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: '#E07A5F', marginBottom: 6 }}>Confirmar exclusão</div>
-          <h3 style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontWeight: 300, fontSize: 22, color: HUB_PALETTE.marfim, margin: '0 0 14px', lineHeight: 1.25 }}>
+          <h3 style={{ fontFamily: 'Helvetica Neue', Helvetica, Arial, sans-serif, fontStyle: 'italic', fontWeight: 300, fontSize: 22, color: HUB_PALETTE.marfim, margin: '0 0 14px', lineHeight: 1.25 }}>
             Excluir o setor "{confirmar.nome}"?
           </h3>
           <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areia, margin: '0 0 22px', lineHeight: 1.5 }}>
@@ -1822,7 +1822,7 @@ function SetorForm({ isMobile, cs, erro, saving, initialNome, isEdit, onCancel, 
       style={{ position: 'fixed', inset: 0, zIndex: 150, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
       <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, maxWidth: 460, width: '100%', padding: isMobile ? '24px 20px' : '32px 36px' }}>
         <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 6 }}>Setor</div>
-        <h3 style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontWeight: 300, fontSize: 26, color: HUB_PALETTE.marfim, margin: '0 0 22px' }}>
+        <h3 style={{ fontFamily: 'Helvetica Neue', Helvetica, Arial, sans-serif, fontStyle: 'italic', fontWeight: 300, fontSize: 26, color: HUB_PALETTE.marfim, margin: '0 0 22px' }}>
           {isEdit ? 'Editar setor' : 'Informar novo setor'}
         </h3>
         <form autoComplete="off" onSubmit={e => { e.preventDefault(); onSave(nome); }}>
@@ -2101,7 +2101,7 @@ function ContasPanel({ isMobile }) {
       <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.35em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
         <span style={{ width: 18, height: 1, background: HUB_PALETTE.champanhe }} />Contas
       </div>
-      <h2 style={{ fontFamily: 'Fraunces, serif', fontWeight: 300, fontStyle: 'italic', fontSize: 40, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: '0 0 10px' }}>Gerenciar contas.</h2>
+      <h2 style={{ fontFamily: 'Helvetica Neue', Helvetica, Arial, sans-serif, fontWeight: 300, fontStyle: 'italic', fontSize: 40, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: '0 0 10px' }}>Gerenciar contas.</h2>
       <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: HUB_PALETTE.areiaDim, lineHeight: 1.5, margin: 0 }}>
         Crie, edite ou desative admins do TI e usuários do portal de chamados. Os dados ficam no sistema-chamados; aqui é só a interface.
       </p>
@@ -2140,7 +2140,7 @@ function ContasPanel({ isMobile }) {
     {lista === null ? (
       <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.2em', color: HUB_PALETTE.areiaDim, textTransform: 'uppercase', padding: '40px 0' }}>Carregando...</div>
     ) : filtrada.length === 0 ? (
-      <div style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontSize: 16, color: HUB_PALETTE.areiaDim, padding: '40px 0' }}>Nenhum registro.</div>
+      <div style={{ fontFamily: 'Helvetica Neue', Helvetica, Arial, sans-serif, fontStyle: 'italic', fontSize: 16, color: HUB_PALETTE.areiaDim, padding: '40px 0' }}>Nenhum registro.</div>
     ) : (
       <div style={{ display: 'flex', flexDirection: 'column', borderTop: `1px solid ${HUB_PALETTE.areiaDim}22` }}>
         {filtrada.map(row => {
@@ -2233,7 +2233,7 @@ function ContasPanel({ isMobile }) {
             <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: cor, marginBottom: 6 }}>
               Confirmar {acaoLabel}
             </div>
-            <h3 style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontWeight: 300, fontSize: 22, color: HUB_PALETTE.marfim, margin: '0 0 14px', lineHeight: 1.3 }}>
+            <h3 style={{ fontFamily: 'Helvetica Neue', Helvetica, Arial, sans-serif, fontStyle: 'italic', fontWeight: 300, fontSize: 22, color: HUB_PALETTE.marfim, margin: '0 0 14px', lineHeight: 1.3 }}>
               {ativar ? 'Ativar' : 'Desativar'} {tipo === 'admin' ? 'o admin' : 'o usuário'} <span style={{ color: HUB_PALETTE.champanhe }}>"{nome}"</span>?
             </h3>
             <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13.5, color: HUB_PALETTE.areia, margin: '0 0 22px', lineHeight: 1.5 }}>
@@ -2371,7 +2371,7 @@ function ContaForm({ tipo, isMobile, cs, erro, saving, initial, initialEtiquetas
         <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 6 }}>
           {isAdmin ? 'Admin do TI' : 'Usuário do portal'}
         </div>
-        <h3 style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontWeight: 300, fontSize: 26, color: HUB_PALETTE.marfim, margin: '0 0 22px' }}>
+        <h3 style={{ fontFamily: 'Helvetica Neue', Helvetica, Arial, sans-serif, fontStyle: 'italic', fontWeight: 300, fontSize: 26, color: HUB_PALETTE.marfim, margin: '0 0 22px' }}>
           {isEdit ? 'Editar' : 'Novo'}
         </h3>
 
@@ -2563,7 +2563,7 @@ function HistoricoUsuarioModal({ usuarioId, nome, isMobile, cs, onClose, tipo })
         <div style={{ padding: '18px 24px', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
           <div>
             <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe }}>Histórico</div>
-            <div style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontSize: 22, color: HUB_PALETTE.marfim, marginTop: 4 }}>{nome}</div>
+            <div style={{ fontFamily: 'Helvetica Neue', Helvetica, Arial, sans-serif, fontStyle: 'italic', fontSize: 22, color: HUB_PALETTE.marfim, marginTop: 4 }}>{nome}</div>
           </div>
           <button onClick={onClose} style={cs.btnGhost}>Fechar</button>
         </div>
@@ -2613,7 +2613,7 @@ function HistoricoUsuarioModal({ usuarioId, nome, isMobile, cs, onClose, tipo })
 }
 
 function Carregando() { return <div style={{ padding: '40px 0', textAlign: 'center', fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim }}>Carregando…</div>; }
-function Vazio({ msg }) { return <div style={{ padding: '40px 0', textAlign: 'center', fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontSize: 15, color: HUB_PALETTE.areiaDim }}>{msg}</div>; }
+function Vazio({ msg }) { return <div style={{ padding: '40px 0', textAlign: 'center', fontFamily: 'Helvetica Neue', Helvetica, Arial, sans-serif, fontStyle: 'italic', fontSize: 15, color: HUB_PALETTE.areiaDim }}>{msg}</div>; }
 
 // ─── Header ───────────────────────────────────────────────────────────────────
 
@@ -2694,28 +2694,28 @@ function HubHero({ revealed, easterActive, isMobile, userName, sistemasVisiveis 
             <span style={{ width: 28, height: 1, background: HUB_PALETTE.champanhe, display: 'inline-block' }} />
             {periodo}, {primeiroNome}
           </div>
-          <h1 style={{ fontFamily: 'Fraunces, serif', fontWeight: 300, fontSize: isMobile ? 'clamp(38px, 11vw, 92px)' : 'clamp(48px, 6.4vw, 92px)', lineHeight: 0.98, letterSpacing: '-0.025em', color: HUB_PALETTE.marfim, margin: 0, opacity: revealed ? 1 : 0, transform: revealed ? 'translateY(0)' : 'translateY(24px)', transition: `all 1100ms ${HUB_EASE} 120ms` }}>
+          <h1 style={{ fontFamily: 'Helvetica Neue', Helvetica, Arial, sans-serif, fontWeight: 300, fontSize: isMobile ? 'clamp(38px, 11vw, 92px)' : 'clamp(48px, 6.4vw, 92px)', lineHeight: 0.98, letterSpacing: '-0.025em', color: HUB_PALETTE.marfim, margin: 0, opacity: revealed ? 1 : 0, transform: revealed ? 'translateY(0)' : 'translateY(24px)', transition: `all 1100ms ${HUB_EASE} 120ms` }}>
             <span style={{ display: 'block', color: HUB_PALETTE.areia }}>Hub de sites</span>
             <span style={{ display: 'block', fontStyle: 'italic', fontWeight: 300, color: HUB_PALETTE.marfim }}>Gran Marquise.</span>
           </h1>
-          <p style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontWeight: 300, fontSize: isMobile ? 16 : 19, lineHeight: 1.4, color: HUB_PALETTE.areia, maxWidth: 460, margin: '28px 0 0', letterSpacing: '-0.005em', opacity: revealed ? 1 : 0, transform: revealed ? 'translateY(0)' : 'translateY(16px)', transition: `all 1100ms ${HUB_EASE} 320ms` }}>
+          <p style={{ fontFamily: 'Helvetica Neue', Helvetica, Arial, sans-serif, fontStyle: 'italic', fontWeight: 300, fontSize: isMobile ? 16 : 19, lineHeight: 1.4, color: HUB_PALETTE.areia, maxWidth: 460, margin: '28px 0 0', letterSpacing: '-0.005em', opacity: revealed ? 1 : 0, transform: revealed ? 'translateY(0)' : 'translateY(16px)', transition: `all 1100ms ${HUB_EASE} 320ms` }}>
             Bem-vindo. Aqui ficam os sistemas que a equipe do hotel já pode usar no dia a dia.
           </p>
         </div>
         {!isMobile && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 22, paddingLeft: 32, borderLeft: `1px solid ${HUB_PALETTE.champanhe}55`, opacity: revealed ? 1 : 0, transform: revealed ? 'translateY(0)' : 'translateY(16px)', transition: `all 1100ms ${HUB_EASE} 420ms` }}>
-            <span style={{ fontFamily: 'Fraunces, serif', fontWeight: 300, fontSize: 64, lineHeight: 1, color: HUB_PALETTE.champanhe, fontVariantNumeric: 'tabular-nums' }}>{String(sistemasVisiveis.length).padStart(2, '0')}</span>
+            <span style={{ fontFamily: 'Helvetica Neue', Helvetica, Arial, sans-serif, fontWeight: 300, fontSize: 64, lineHeight: 1, color: HUB_PALETTE.champanhe, fontVariantNumeric: 'tabular-nums' }}>{String(sistemasVisiveis.length).padStart(2, '0')}</span>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
                 <span style={{ width: 7, height: 7, borderRadius: '50%', background: HUB_PALETTE.jangadaGlow, animation: `hubPulse 2200ms ${HUB_EASE} infinite` }} />
                 <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.jangadaGlow }}>Em operação</span>
               </div>
-              <span style={{ fontFamily: 'Fraunces, serif', fontWeight: 300, fontStyle: 'italic', fontSize: 16, lineHeight: 1.3, color: HUB_PALETTE.areia, letterSpacing: '-0.005em', maxWidth: 200 }}>Disponível para toda a equipe.</span>
+              <span style={{ fontFamily: 'Helvetica Neue', Helvetica, Arial, sans-serif, fontWeight: 300, fontStyle: 'italic', fontSize: 16, lineHeight: 1.3, color: HUB_PALETTE.areia, letterSpacing: '-0.005em', maxWidth: 200 }}>Disponível para toda a equipe.</span>
             </div>
           </div>
         )}
       </div>
-      <div style={{ position: 'absolute', right: 48, top: 88, fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontSize: 12, color: HUB_PALETTE.champanhe, letterSpacing: '0.04em', opacity: easterActive ? 0.6 : 0, transform: easterActive ? 'translateY(0)' : 'translateY(-6px)', transition: `all 800ms ${HUB_EASE}`, pointerEvents: 'none', display: typeof window !== 'undefined' && window.innerWidth < 768 ? 'none' : 'block' }}>
+      <div style={{ position: 'absolute', right: 48, top: 88, fontFamily: 'Helvetica Neue', Helvetica, Arial, sans-serif, fontStyle: 'italic', fontSize: 12, color: HUB_PALETTE.champanhe, letterSpacing: '0.04em', opacity: easterActive ? 0.6 : 0, transform: easterActive ? 'translateY(0)' : 'translateY(-6px)', transition: `all 800ms ${HUB_EASE}`, pointerEvents: 'none', display: typeof window !== 'undefined' && window.innerWidth < 768 ? 'none' : 'block' }}>
         em homenagem ao painel de 1992
       </div>
     </section>
@@ -2778,7 +2778,7 @@ function SystemPreview({ kind }) {
   if (kind === 'menu') {
     return (
       <svg viewBox="0 0 240 140" width="100%" height="100%" preserveAspectRatio="none">
-        <text x="20" y="30" fontFamily="Fraunces, serif" fontStyle="italic" fontSize="13" fill={HUB_PALETTE.champanhe}>Mangostin</text>
+        <text x="20" y="30" fontFamily="Helvetica Neue, Helvetica, Arial, sans-serif" fontStyle="italic" fontSize="13" fill={HUB_PALETTE.champanhe}>Mangostin</text>
         <line x1="20" y1="38" x2="220" y2="38" stroke={HUB_PALETTE.areiaDim} strokeOpacity="0.3" />
         {[['Pad Thai tradicional','R$ 96'],['Curry verde de camarão','R$ 124'],['Bao de pato pequim','R$ 78'],['Mochi de coco','R$ 38']].map(([n,p],i) => (
           <g key={i} transform={`translate(0 ${56 + i * 18})`}>
@@ -2852,7 +2852,7 @@ function SystemPanel({ system, index, revealed, isMobile, userEmail, userTipo })
         <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.28em', color: HUB_PALETTE.areiaDim, textTransform: 'uppercase' }}>{system.categoria}</span>
         <span style={{ flexShrink: 0 }}><StatusBadge status={system.status} label={system.statusLabel} /></span>
       </div>
-      <h3 style={{ fontFamily: 'Fraunces, serif', fontWeight: 300, fontSize: isMobile ? 24 : 30, lineHeight: 1.05, letterSpacing: '-0.018em', color: HUB_PALETTE.marfim, margin: '0 0 6px' }}>{system.nome}</h3>
+      <h3 style={{ fontFamily: 'Helvetica Neue', Helvetica, Arial, sans-serif, fontWeight: 300, fontSize: isMobile ? 24 : 30, lineHeight: 1.05, letterSpacing: '-0.018em', color: HUB_PALETTE.marfim, margin: '0 0 6px' }}>{system.nome}</h3>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
         <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.28em', color: HUB_PALETTE.areiaDim, textTransform: 'uppercase' }}>Para</span>
         <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 12.5, fontWeight: 500, color: HUB_PALETTE.champanhe, letterSpacing: '-0.005em' }}>{system.paraQuem}</span>
@@ -2865,7 +2865,7 @@ function SystemPanel({ system, index, revealed, isMobile, userEmail, userTipo })
         <div style={{ position: 'absolute', inset: 0, background: `linear-gradient(180deg, transparent 60%, ${HUB_PALETTE.noite}cc 100%)`, pointerEvents: 'none' }} />
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-        <span style={{ fontFamily: 'Fraunces, serif', fontWeight: 300, fontSize: 19, lineHeight: 1.2, letterSpacing: '-0.01em', color: disabled ? HUB_PALETTE.areiaDim : HUB_PALETTE.champanhe, display: 'inline-flex', alignItems: 'baseline', gap: 12, paddingBottom: 5, borderBottom: `1px solid ${disabled ? HUB_PALETTE.areiaDim + '33' : (hover ? HUB_PALETTE.champanhe : HUB_PALETTE.champanhe + '40')}`, transition: `border-color 600ms ${HUB_EASE}` }}>
+        <span style={{ fontFamily: 'Helvetica Neue', Helvetica, Arial, sans-serif, fontWeight: 300, fontSize: 19, lineHeight: 1.2, letterSpacing: '-0.01em', color: disabled ? HUB_PALETTE.areiaDim : HUB_PALETTE.champanhe, display: 'inline-flex', alignItems: 'baseline', gap: 12, paddingBottom: 5, borderBottom: `1px solid ${disabled ? HUB_PALETTE.areiaDim + '33' : (hover ? HUB_PALETTE.champanhe : HUB_PALETTE.champanhe + '40')}`, transition: `border-color 600ms ${HUB_EASE}` }}>
           {disabled ? 'Em breve' : `Abrir ${system.nome}`}
           {!disabled && <span style={{ display: 'inline-block', fontFamily: 'Inter, sans-serif', fontSize: 15, transform: hover ? 'translateX(10px)' : 'translateX(0)', transition: `transform 700ms ${HUB_EASE}` }}>→</span>}
         </span>
@@ -2883,9 +2883,9 @@ function SectionLabel({ kicker, title, hint }) {
         <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.35em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
           <span style={{ width: 18, height: 1, background: HUB_PALETTE.champanhe }} />{kicker}
         </div>
-        <h2 style={{ fontFamily: 'Fraunces, serif', fontWeight: 300, fontStyle: 'italic', fontSize: 'clamp(34px, 4vw, 52px)', lineHeight: 1.02, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: 0 }}>{title}</h2>
+        <h2 style={{ fontFamily: 'Helvetica Neue', Helvetica, Arial, sans-serif, fontWeight: 300, fontStyle: 'italic', fontSize: 'clamp(34px, 4vw, 52px)', lineHeight: 1.02, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: 0 }}>{title}</h2>
       </div>
-      {hint && <div style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontWeight: 300, fontSize: 14, color: HUB_PALETTE.areiaDim, maxWidth: 280, textAlign: 'right' }}>{hint}</div>}
+      {hint && <div style={{ fontFamily: 'Helvetica Neue', Helvetica, Arial, sans-serif, fontStyle: 'italic', fontWeight: 300, fontSize: 14, color: HUB_PALETTE.areiaDim, maxWidth: 280, textAlign: 'right' }}>{hint}</div>}
     </div>
   );
 }
@@ -2895,7 +2895,7 @@ function SectionLabel({ kicker, title, hint }) {
 function HubFooter({ easterActive, isMobile }) {
   return (
     <footer style={{ maxWidth: 1400, margin: '0 auto', padding: isMobile ? '28px 18px 28px' : '40px 48px 48px', display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', gap: isMobile ? 12 : 32, flexWrap: 'wrap', borderTop: `1px solid ${HUB_PALETTE.areiaDim}1a` }}>
-      <span style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontWeight: 300, fontSize: 16, color: HUB_PALETTE.areiaDim, letterSpacing: '0.005em' }}>
+      <span style={{ fontFamily: 'Helvetica Neue', Helvetica, Arial, sans-serif, fontStyle: 'italic', fontWeight: 300, fontSize: 16, color: HUB_PALETTE.areiaDim, letterSpacing: '0.005em' }}>
         {easterActive ? 'Trinta e três anos depois de Burle Marx, uma nova porta — em código.' : 'Quem é bem atendido, atende bem.'}
       </span>
       <div style={{ display: 'flex', alignItems: 'center', gap: 18, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.28em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim }}>

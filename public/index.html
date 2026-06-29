@@ -7,17 +7,17 @@
   <meta name="description" content="Central de acesso aos sistemas internos do Hotel Gran Marquise." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;1,9..144,300&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html { scroll-behavior: smooth; }
-    body { background: #0A0E1A; }
+    body { background: #202C28; }
     #root { min-height: 100vh; }
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: rgba(201,169,97,0.25); border-radius: 3px; }
-    ::-webkit-scrollbar-thumb:hover { background: rgba(201,169,97,0.45); }
-    ::selection { background: rgba(201,169,97,0.25); }
+    ::-webkit-scrollbar-thumb { background: rgba(156,88,67,0.25); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(156,88,67,0.45); }
+    ::selection { background: rgba(156,88,67,0.25); }
   </style>
 </head>
 <body>
@@ -26,11 +26,11 @@
     URGENTE 2026-06-16: @babel/standalone v8.0.0 quebrou <script type="text/babel">.
     Versão pinada em 7.x estável + handler de erro visível na tela.
   -->
-  <div id="root-fallback" style="display:none;padding:2rem;color:#F5F0E6;font-family:system-ui,sans-serif;max-width:720px;margin:60px auto">
+  <div id="root-fallback" style="display:none;padding:2rem;color:#ECE4D2;font-family:system-ui,sans-serif;max-width:720px;margin:60px auto">
     <h1 style="font-weight:300;font-size:1.8rem;margin-bottom:1rem">Hub Gran Marquise</h1>
-    <p style="color:#D4C4A0;line-height:1.6">Ocorreu um erro ao carregar a interface. Veja o console (F12) para detalhes.</p>
-    <pre id="root-fallback-err" style="margin-top:1.5rem;padding:1rem;background:rgba(255,255,255,0.05);border-left:3px solid #C9A961;font-family:'JetBrains Mono',monospace;font-size:.78rem;overflow:auto;white-space:pre-wrap"></pre>
-    <p style="margin-top:1.5rem;color:#8A7E64;font-size:.85rem">Tente recarregar a página (Ctrl+Shift+R para forçar). Se persistir, contate o TI.</p>
+    <p style="color:#C8B89A;line-height:1.6">Ocorreu um erro ao carregar a interface. Veja o console (F12) para detalhes.</p>
+    <pre id="root-fallback-err" style="margin-top:1.5rem;padding:1rem;background:rgba(255,255,255,0.05);border-left:3px solid #9C5843;font-family:'JetBrains Mono',monospace;font-size:.78rem;overflow:auto;white-space:pre-wrap"></pre>
+    <p style="margin-top:1.5rem;color:#8A7B6A;font-size:.85rem">Tente recarregar a página (Ctrl+Shift+R para forçar). Se persistir, contate o TI.</p>
   </div>
   <script>
     // Captura qualquer erro do Babel/JSX e expõe na tela.
