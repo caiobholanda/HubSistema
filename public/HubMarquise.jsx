@@ -196,7 +196,7 @@ function HubBoot({ onDone }) {
       <img
         src="https://letsimage.s3.amazonaws.com/editor/granmarquise/imgs/1760033174793-hotelgranmarquise_pos_footer.png"
         alt="Gran Marquise"
-        style={{ height: 80, width: 'auto', filter: 'brightness(0) invert(1)', opacity: 0.9 }}
+        style={{ height: 80, width: 'auto', filter: HUB_PALETTE.noite === HUB_THEMES.dark.noite ? 'brightness(0) invert(1)' : 'none', opacity: 0.9 }}
       />
     </div>
   );
@@ -412,7 +412,7 @@ function HubLogin({ onLogin }) {
           <img
             src="https://letsimage.s3.amazonaws.com/editor/granmarquise/imgs/1760033174793-hotelgranmarquise_pos_footer.png"
             alt="Gran Marquise"
-            style={{ height: trocaForcada ? 56 : 46, width: 'auto', filter: 'brightness(0) invert(1)', opacity: 0.9, marginBottom: trocaForcada ? 24 : 20 }}
+            style={{ height: trocaForcada ? 56 : 46, width: 'auto', filter: HUB_PALETTE.noite === HUB_THEMES.dark.noite ? 'brightness(0) invert(1)' : 'none', opacity: 0.9, marginBottom: trocaForcada ? 24 : 20 }}
           />
           <h1 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 300, fontStyle: 'italic', fontSize: trocaForcada ? 44 : 36, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: 0, lineHeight: 1 }}>{trocaForcada ? 'Defina sua nova senha.' : 'Entrar.'}</h1>
           {trocaForcada && (
@@ -2936,6 +2936,9 @@ function HubMarquise() {
   // Persiste qualquer mudanca para outras abas/sessoes desta origem.
   useEffect(() => {
     try { localStorage.setItem('gm-theme', theme); } catch {}
+  }, [theme]);
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
   // Estado persistido entre reloads (F5 / Ctrl+Shift+R nao volta para a tela inicial)
   const [showAdmin, setShowAdmin] = useState(() => {
