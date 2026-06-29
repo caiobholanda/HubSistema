@@ -2669,7 +2669,7 @@ function HubHero({ revealed, easterActive, isMobile, userName, sistemasVisiveis 
   const periodo = horaFortaleza < 5 ? 'Boa madrugada' : horaFortaleza < 12 ? 'Bom dia' : horaFortaleza < 18 ? 'Boa tarde' : 'Boa noite';
 
   return (
-    <section style={{ maxWidth: 1400, margin: '0 auto', padding: isMobile ? '20px 18px 14px' : '28px 48px 20px', position: 'relative' }}>
+    <section style={{ maxWidth: 1400, margin: '0 auto', padding: isMobile ? '20px 18px 12px' : '28px 48px 12px', position: 'relative' }}>
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: isMobile ? 16 : 40, flexWrap: 'wrap', position: 'relative', zIndex: 1 }}>
         <div style={{ flex: '1 1 0', minWidth: 0 }}>
           <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.4em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, opacity: revealed ? 1 : 0, transform: revealed ? 'translateY(0)' : 'translateY(12px)', transition: `all 900ms ${HUB_EASE}`, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 14 }}>
@@ -2860,14 +2860,12 @@ function SystemPanel({ system, index, revealed, isMobile, userEmail, userTipo })
 
 function SectionLabel({ kicker, title, hint }) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 36, gap: 24, flexWrap: 'wrap' }}>
-      <div>
-        <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.35em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ width: 18, height: 1, background: HUB_PALETTE.champanhe }} />{kicker}
-        </div>
-        <h2 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 300, fontStyle: 'italic', fontSize: 'clamp(34px, 4vw, 52px)', lineHeight: 1.02, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: 0 }}>{title}</h2>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, gap: 24, flexWrap: 'wrap' }}>
+      <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.35em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, display: 'flex', alignItems: 'center', gap: 12 }}>
+        <span style={{ width: 18, height: 1, background: HUB_PALETTE.champanhe }} />{kicker}
+        {title && <span style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontWeight: 300, letterSpacing: '0.01em', textTransform: 'none', color: HUB_PALETTE.areia, fontSize: 13 }}>— {title}</span>}
       </div>
-      {hint && <div style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontWeight: 300, fontSize: 14, color: HUB_PALETTE.areiaDim, maxWidth: 280, textAlign: 'right' }}>{hint}</div>}
+      {hint && <div style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontWeight: 300, fontSize: 13, color: HUB_PALETTE.areiaDim, maxWidth: 320, textAlign: 'right' }}>{hint}</div>}
     </div>
   );
 }
@@ -3137,7 +3135,7 @@ function HubMarquise() {
           <main style={{ position: 'relative' }}>
             <HubDecoration />
             <HubHero revealed={revealed} easterActive={easter} isMobile={isMobile} userName={userName} sistemasVisiveis={sistemasVisiveis} />
-            <section style={{ maxWidth: 1400, margin: '0 auto', padding: isMobile ? '20px 18px 36px' : '24px 48px 48px' }}>
+            <section style={{ maxWidth: 1400, margin: '0 auto', padding: isMobile ? '16px 18px 36px' : '12px 48px 48px' }}>
               <SectionLabel kicker="No ar" title="Pronto para usar." hint={isMobile ? null : 'Clique no painel para abrir o sistema em uma aba nova.'} />
               <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(420px, 1fr))', gap: 0, borderTop: `1px solid ${HUB_PALETTE.areiaDim}2a` }}>
                 {sistemasVisiveis.map((sys, i, arr) => (
