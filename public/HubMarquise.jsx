@@ -534,9 +534,9 @@ function HubLogin({ onLogin }) {
           </div>
           {erro && <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#E07A5F', paddingTop: 4, display: 'flex', alignItems: 'center', gap: 8 }}><span>—</span> {erro}</div>}
           <button type="submit" disabled={loading}
-            style={{ marginTop: 8, width: '100%', padding: '15px', background: 'transparent', border: `1px solid ${HUB_PALETTE.champanhe}`, color: loading ? HUB_PALETTE.areiaDim : HUB_PALETTE.champanhe, fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.3em', textTransform: 'uppercase', cursor: loading ? 'not-allowed' : 'pointer', transition: `background 300ms ${HUB_EASE}` }}
-            onMouseEnter={e => { if (!loading) e.target.style.background = 'rgba(156,88,67,0.1)'; }}
-            onMouseLeave={e => { e.target.style.background = 'transparent'; }}>
+            style={{ marginTop: 8, width: '100%', padding: '15px', background: loading ? 'rgba(156,88,67,0.5)' : HUB_PALETTE.champanhe, border: 'none', borderRadius: 0, color: '#fff', fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.3em', textTransform: 'uppercase', cursor: loading ? 'not-allowed' : 'pointer', transition: `background 300ms ${HUB_EASE}, box-shadow 200ms ${HUB_EASE}`, boxShadow: loading ? 'none' : '0 4px 16px -2px rgba(156,88,67,0.45)', opacity: loading ? 0.7 : 1 }}
+            onMouseEnter={e => { if (!loading) { e.target.style.background = '#B56B52'; e.target.style.boxShadow = '0 8px 24px -4px rgba(156,88,67,0.55)'; } }}
+            onMouseLeave={e => { if (!loading) { e.target.style.background = HUB_PALETTE.champanhe; e.target.style.boxShadow = '0 4px 16px -2px rgba(156,88,67,0.45)'; } }}>
             {loading ? 'Verificando...' : 'Entrar'}
           </button>
 
