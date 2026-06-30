@@ -625,8 +625,7 @@ function LinkForm({ form, setForm, onSave, onCancel, linkErro, linkSaving }) {
         <div>
           <div style={labelStyle}>Status *</div>
           <select value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))} style={{ ...inputStyle, cursor: 'pointer' }}>
-            <option value="no-ar" style={optStyle}>Ativo</option>
-            <option value="inativo" style={optStyle}>Inativo</option>
+            {Object.entries(STATUS_LABELS).map(([v, l]) => <option key={v} value={v} style={optStyle}>{l}</option>)}
           </select>
         </div>
         <div style={{ gridColumn: '1 / -1' }}>
@@ -639,11 +638,16 @@ function LinkForm({ form, setForm, onSave, onCancel, linkErro, linkSaving }) {
         </div>
         <div>
           <div style={labelStyle}>Para quem</div>
-          <input value={form.paraQuem} onChange={e => setForm(p => ({ ...p, paraQuem: e.target.value }))} placeholder="Ex: Todos os setores" style={inputStyle} />
+          <input list="lf-para-quem" value={form.paraQuem} onChange={e => setForm(p => ({ ...p, paraQuem: e.target.value }))} placeholder="Ex: Todos os setores" style={inputStyle} />
+          <datalist id="lf-para-quem">
+            <option value="Todos os setores" />
+            <option value="Equipe do Spa" />
+            <option value="Equipe de TI" />
+          </datalist>
         </div>
         <div style={{ gridColumn: '1 / -1' }}>
           <div style={labelStyle}>Descrição</div>
-          <input value={form.descricao} onChange={e => setForm(p => ({ ...p, descricao: e.target.value }))} placeholder="Breve descrição do sistema" style={inputStyle} />
+          <textarea value={form.descricao} onChange={e => setForm(p => ({ ...p, descricao: e.target.value }))} placeholder="Breve descrição do sistema" rows={3} style={{ ...inputStyle, resize: 'vertical' }} />
         </div>
       </div>
       {linkErro && <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: '#E07A5F', marginBottom: 12 }}>{linkErro}</div>}
