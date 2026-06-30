@@ -823,7 +823,7 @@ function LiberacaoPanel({ sistemaId, sistemaNome, isMobile, users, acessoPadrao 
   const subTitulo = { fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.28em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 8 };
   const lista = { display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 };
   const item = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '10px 12px', border: `1px solid ${HUB_PALETTE.areiaDim}22`, fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.marfim };
-  const btn = { background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}44`, color: HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', padding: '5px 10px', cursor: busy ? 'wait' : 'pointer' };
+  const btn = { background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}44`, color: HUB_PALETTE.areiaDim, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 11, letterSpacing: '0.02em', textTransform: 'none', padding: '5px 10px', cursor: busy ? 'wait' : 'pointer' };
 
   if (acessoPadrao) {
     return (
@@ -860,7 +860,7 @@ function LiberacaoPanel({ sistemaId, sistemaNome, isMobile, users, acessoPadrao 
             onFocus={() => setSugAberto(true)}
             onBlur={() => setTimeout(() => setSugAberto(false), 180)}
             placeholder="Digite para buscar um e-mail cadastrado…"
-            style={{ width: '100%', boxSizing: 'border-box', background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}44`, color: HUB_PALETTE.marfim, padding: '10px 14px', fontFamily: 'Inter, sans-serif', fontSize: 13 }} />
+            style={{ width: '100%', boxSizing: 'border-box', background: 'transparent', border: `1px solid ${HUB_PALETTE.champanhe}`, color: HUB_PALETTE.marfim, padding: '10px 14px', fontFamily: 'Inter, sans-serif', fontSize: 13 }} />
           {sugAberto && popRect && (() => {
             const q = (novoEmail || '').trim().toLowerCase();
             const adminsSet = new Set((items || []).filter(x => x.papel && x.papel !== 'usuario').map(x => (x.email || '').toLowerCase()));
@@ -902,7 +902,7 @@ function LiberacaoPanel({ sistemaId, sistemaNome, isMobile, users, acessoPadrao 
         </div>
         {ehPesquisa && (
           <select value={novoPapel} onChange={e => setNovoPapel(e.target.value)} disabled={busy}
-            style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim, border: `1px solid ${HUB_PALETTE.areiaDim}44`, padding: '10px 12px', fontFamily: 'Inter, sans-serif', fontSize: 13 }}
+            style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim, border: `1px solid ${HUB_PALETTE.champanhe}`, padding: '10px 12px', fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 13 }}
             title="Papel: master vê e edita tudo · admin só vê · spa edita Spa · satisfação edita Relatórios">
             <option value="master"     style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim }}>Master</option>
             <option value="admin"      style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim }}>Admin (só ver)</option>
@@ -910,7 +910,7 @@ function LiberacaoPanel({ sistemaId, sistemaNome, isMobile, users, acessoPadrao 
             <option value="satisfacao" style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim }}>Satisfação</option>
           </select>
         )}
-        <button onClick={adicionar} disabled={busy} style={{ background: HUB_PALETTE.champanhe + '22', border: `1px solid ${HUB_PALETTE.champanhe}55`, color: HUB_PALETTE.champanhe, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', padding: '10px 18px', cursor: busy ? 'wait' : 'pointer' }}>
+        <button onClick={adicionar} disabled={busy} style={{ background: HUB_PALETTE.champanhe + '22', border: `1px solid ${HUB_PALETTE.champanhe}55`, color: HUB_PALETTE.champanhe, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 13, letterSpacing: '0.02em', textTransform: 'none', padding: '10px 18px', cursor: busy ? 'wait' : 'pointer' }}>
           + Adicionar
         </button>
       </div>
@@ -953,7 +953,7 @@ function LiberacaoPanel({ sistemaId, sistemaNome, isMobile, users, acessoPadrao 
             <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{x.email}</span>
             {ehPesquisa ? (
               <select value={x.papel || 'admin'} onChange={e => trocarPapel(x.email, e.target.value)} disabled={busy}
-                style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim, border: `1px solid ${HUB_PALETTE.areiaDim}44`, padding: '4px 8px', fontFamily: 'Inter, sans-serif', fontSize: 12 }}
+                style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim, border: `1px solid ${HUB_PALETTE.champanhe}`, padding: '4px 8px', fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 12 }}
                 title="Mudar papel">
                 <option value="master" style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim }}>Master</option>
                 <option value="admin"  style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim }}>Admin</option>
