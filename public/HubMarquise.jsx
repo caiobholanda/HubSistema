@@ -2617,7 +2617,7 @@ function HistoricoUsuarioModal({ usuarioId, nome, isMobile, cs, onClose, tipo })
             <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe }}>Histórico</div>
             <div style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontSize: 22, color: HUB_PALETTE.marfim, marginTop: 4 }}>{nome}</div>
           </div>
-          <button onClick={onClose} style={cs.btnGhost}>Fechar</button>
+          <button onClick={onClose} style={{ ...cs.btnGhost, fontFamily: 'Inter, sans-serif', letterSpacing: 'normal', textTransform: 'none' }}>Fechar</button>
         </div>
         <div style={{ display: 'flex', gap: 0, borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, padding: '0 24px' }}>
           {[{ id: 'chamados', label: 'Chamados', count: chamados?.length, plus: false }, { id: 'atividade', label: 'Atividade de acesso', count: contaLogs, plus: truncado }].map(t => (
@@ -2661,8 +2661,8 @@ function HistoricoUsuarioModal({ usuarioId, nome, isMobile, cs, onClose, tipo })
                     <div style={{ width: 3, minWidth: 3, alignSelf: 'stretch', background: cor, borderRadius: 2, marginTop: 2 }} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.marfim, fontWeight: 500 }}>{labelEvento(l.evento, l.detalhes)}</div>
-                      <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: HUB_PALETTE.areiaDim, marginTop: 2 }}>
-                        {fmtData(l.criado_em)}{l.ip ? <span style={{ marginLeft: 10, fontFamily: 'JetBrains Mono, monospace', fontSize: 11 }}>{l.ip}</span> : null}
+                      <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: 'rgba(32, 44, 40, 0.70)', marginTop: 2 }}>
+                        {fmtData(l.criado_em)}{l.ip ? <span style={{ marginLeft: 10 }}>{l.ip}</span> : null}
                       </div>
                     </div>
                   </div>
