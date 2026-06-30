@@ -1281,7 +1281,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
                                 onClick={() => setConfirmToggle({ email: u.email, systemId: sys.id, nome: u.nome, sistemaNome: sys.nome })}
                                 title="Clique para remover acesso"
                                 style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areia, background: `${HUB_PALETTE.areiaDim}10`, border: `1px solid ${HUB_PALETTE.areiaDim}22`, padding: '4px 12px', cursor: 'pointer', userSelect: 'none' }}
-                                onMouseEnter={e => { e.currentTarget.style.background = '#E07A5F18'; e.currentTarget.style.borderColor = '#E07A5F44'; e.currentTarget.style.color = '#E07A5F'; }}
+                                onMouseEnter={e => { e.currentTarget.style.background = '#9C5843'; e.currentTarget.style.borderColor = '#9C5843'; e.currentTarget.style.color = '#ECE4D2'; }}
                                 onMouseLeave={e => { e.currentTarget.style.background = `${HUB_PALETTE.areiaDim}10`; e.currentTarget.style.borderColor = `${HUB_PALETTE.areiaDim}22`; e.currentTarget.style.color = HUB_PALETTE.areia; }}>
                                 {u.nome.split(' ')[0]}{u.setor ? <span style={{ fontSize: 11, marginLeft: 6, opacity: 0.7 }}>{u.setor}</span> : null}
                               </span>
