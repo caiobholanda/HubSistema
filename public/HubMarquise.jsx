@@ -2087,7 +2087,7 @@ function ContasPanel({ isMobile }) {
       <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.35em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
         <span style={{ width: 18, height: 1, background: HUB_PALETTE.champanhe }} />Contas
       </div>
-      <h2 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 300, fontStyle: 'italic', fontSize: 40, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: '0 0 10px' }}>Gerenciar contas.</h2>
+      <h2 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 400, fontSize: 40, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: '0 0 10px' }}>Gerenciar contas.</h2>
       <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: HUB_PALETTE.areiaDim, lineHeight: 1.5, margin: 0 }}>
         Crie, edite ou desative admins do TI e usuários do portal de chamados. Os dados ficam no sistema-chamados; aqui é só a interface.
       </p>
@@ -2136,12 +2136,12 @@ function ContasPanel({ isMobile }) {
           return (
             <div key={row.id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '22px 4px', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, opacity: ativo ? 1 : 0.55, flexWrap: 'wrap' }}>
               <div style={{ flex: 1, minWidth: 260 }}>
-                <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 17, color: HUB_PALETTE.marfim, fontWeight: 600, lineHeight: 1.3 }}>
+                <div style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 17, color: HUB_PALETTE.marfim, fontWeight: 600, lineHeight: 1.3 }}>
                   {isAdmin ? row.nome_completo : row.nome}
                   {isAdmin && row.is_master ? <span style={{ marginLeft: 10, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, padding: '3px 10px', border: `1px solid ${HUB_PALETTE.champanhe}88`, verticalAlign: 'middle' }}>Master</span> : null}
                   {!ativo ? <span style={{ marginLeft: 10, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#E07A5F', padding: '3px 10px', border: '1px solid #E07A5F66', verticalAlign: 'middle' }}>Inativo</span> : null}
                 </div>
-                <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: HUB_PALETTE.areia, marginTop: 6, lineHeight: 1.5 }}>
+                <div style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 14, color: HUB_PALETTE.areia, marginTop: 6, lineHeight: 1.5 }}>
                   {row.email ? <span style={{ color: HUB_PALETTE.marfim }}>{row.email}</span> : '—'}
                   {row.setor ? <span style={{ color: HUB_PALETTE.areiaDim }}> · </span> : null}
                   {row.setor ? <span><span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginRight: 6 }}>setor</span>{row.setor}</span> : null}
