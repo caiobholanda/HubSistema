@@ -963,6 +963,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
   const [users, setUsers] = useState([]);
   const [permissions, setPermissions] = useState({});
   const [saving, setSaving] = useState(null);
+  const [confirmToggle, setConfirmToggle] = useState(null); // null | { email, systemId, nome, sistemaNome }
 
   // Links tab state
   const [editingId, setEditingId] = useState(null);
@@ -1254,7 +1255,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                             {comAcesso.map(u => (
                               <span key={u.email}
-                                onClick={() => toggleSystem(u.email, sys.id)}
+                                onClick={() => setConfirmToggle({ email: u.email, systemId: sys.id, nome: u.nome, sistemaNome: sys.nome })}
                                 title="Clique para remover acesso"
                                 style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areia, background: `${HUB_PALETTE.areiaDim}10`, border: `1px solid ${HUB_PALETTE.areiaDim}22`, padding: '4px 12px', cursor: 'pointer', userSelect: 'none' }}
                                 onMouseEnter={e => { e.currentTarget.style.background = '#E07A5F18'; e.currentTarget.style.borderColor = '#E07A5F44'; e.currentTarget.style.color = '#E07A5F'; }}
@@ -1351,6 +1352,34 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
           {linkToast.msg}
         </div>
       )}
+      {confirmToggle && ReactDOM.createPortal(
+        <div style={{ position: 'fixed', inset: 0, zIndex: 210, background: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, maxWidth: 420, width: '100%', padding: isMobile ? '24px 20px' : '32px 36px', boxShadow: '0 24px 64px rgba(0,0,0,0.6)' }}>
+            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: '#9C5843', marginBottom: 6 }}>Confirmar remoção</div>
+            <h3 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontWeight: 300, fontSize: 22, color: HUB_PALETTE.marfim, margin: '0 0 10px', lineHeight: 1.25 }}>
+              Remover acesso de {confirmToggle.sistemaNome}?
+            </h3>
+            <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areia, margin: '0 0 4px', lineHeight: 1.5 }}>
+              <strong style={{ color: HUB_PALETTE.marfim }}>{confirmToggle.nome}</strong>
+            </p>
+            <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areia, margin: '0 0 24px', lineHeight: 1.5 }}>
+              O usuário perderá acesso a este sistema. Pode ser revertido clicando em "Liberar" na lista abaixo.
+            </p>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button onClick={() => setConfirmToggle(null)}
+                style={{ background: 'transparent', color: HUB_PALETTE.marfim, border: `1px solid ${HUB_PALETTE.areiaDim}77`, padding: '10px 18px', fontFamily: 'JetBrains Mono, monospace', fontSize: 11, fontWeight: 500, letterSpacing: '0.2em', textTransform: 'uppercase', cursor: 'pointer' }}>
+                Cancelar
+              </button>
+              <button onClick={() => { const { email, systemId } = confirmToggle; setConfirmToggle(null); toggleSystem(email, systemId); }}
+                style={{ background: '#9C5843', border: '1px solid #9C5843', color: '#ECE4D2', fontFamily: 'Inter, sans-serif', fontSize: 13, letterSpacing: 'normal', textTransform: 'none', padding: '10px 22px', cursor: 'pointer' }}>
+                Remover acesso
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
       {/* Fase 3: modal de edicao de link (substitui edicao inline). */}
       {editingId && (() => {
         const sys = hubSystems.find(s => s.id === editingId);
