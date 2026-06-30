@@ -718,6 +718,7 @@ function LiberacaoPanel({ sistemaId, sistemaNome, isMobile, users }) {
   const [novoPapel, setNovoPapel] = useState('admin');
   const [erro, setErro] = useState('');
   const [busy, setBusy] = useState(false);
+  const [confirmRemover, setConfirmRemover] = useState(null); // null | { email }
   const [sugAberto, setSugAberto] = useState(false);
   // pesquisa-satisfacao tem 4 papeis granulares; demais sistemas so 'admin'.
   const ehPesquisa = sistemaId === 'pesquisa-satisfacao';
@@ -797,7 +798,13 @@ function LiberacaoPanel({ sistemaId, sistemaNome, isMobile, users }) {
       await Promise.all([carregar(), recarregarUsuarios()]);
     } finally { setBusy(false); }
   }
-  async function remover(email) {
+  function remover(email) {
+    setConfirmRemover({ email });
+  }
+  async function executarRemover() {
+    if (!confirmRemover) return;
+    const { email } = confirmRemover;
+    setConfirmRemover(null);
     setBusy(true);
     try {
       await hubFetch(`/api/admin/site-permissions?email=${encodeURIComponent(email)}&sistema_id=${encodeURIComponent(sistemaId)}`, { method: 'DELETE' });
@@ -890,6 +897,33 @@ function LiberacaoPanel({ sistemaId, sistemaNome, isMobile, users }) {
         </button>
       </div>
       {erro && <div style={{ color: '#E07A5F', fontFamily: 'Inter, sans-serif', fontSize: 13, marginBottom: 14 }}>{erro}</div>}
+
+      {confirmRemover && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 210, background: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, maxWidth: 420, width: '100%', padding: isMobile ? '24px 20px' : '32px 36px', boxShadow: '0 24px 64px rgba(0,0,0,0.6)' }}>
+            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: '#9C5843', marginBottom: 6 }}>Confirmar remoção</div>
+            <h3 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontWeight: 300, fontSize: 22, color: HUB_PALETTE.marfim, margin: '0 0 10px', lineHeight: 1.25 }}>
+              Remover acesso de {sistemaNome}?
+            </h3>
+            <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areia, margin: '0 0 4px', lineHeight: 1.5 }}>
+              <strong style={{ color: HUB_PALETTE.marfim }}>{confirmRemover.email}</strong>
+            </p>
+            <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areia, margin: '0 0 24px', lineHeight: 1.5 }}>
+              Perderá o acesso de admin no próximo login. Esta ação pode ser desfeita adicionando o e-mail novamente.
+            </p>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button onClick={() => setConfirmRemover(null)}
+                style={{ background: 'transparent', color: HUB_PALETTE.marfim, border: `1px solid ${HUB_PALETTE.areiaDim}77`, padding: '10px 18px', fontFamily: 'JetBrains Mono, monospace', fontSize: 11, fontWeight: 500, letterSpacing: '0.2em', textTransform: 'uppercase', cursor: 'pointer' }}>
+                Cancelar
+              </button>
+              <button onClick={executarRemover}
+                style={{ background: '#9C5843', border: '1px solid #9C5843', color: '#ECE4D2', fontFamily: 'Inter, sans-serif', fontSize: 13, letterSpacing: 'normal', textTransform: 'none', padding: '10px 22px', cursor: 'pointer' }}>
+                Remover acesso
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div style={subTitulo}>Admins ({admins.length})</div>
       <div style={lista}>
