@@ -2168,7 +2168,7 @@ function ContasPanel({ isMobile }) {
               <button onClick={() => startEdit(isAdmin ? 'admin' : 'usuario', row)} style={cs.btnGhost}>Editar</button>
               {ehEuMesmo(isAdmin ? 'admin' : 'usuario', row) ? (
                 <span title="Você não pode ativar/desativar sua própria conta"
-                  style={{ ...cs.btnGhost, background: HUB_PALETTE.marfim, color: HUB_PALETTE.noite, borderColor: HUB_PALETTE.marfim, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 700, fontStyle: 'normal', letterSpacing: 0, textTransform: 'none', cursor: 'not-allowed' }}>
+                  style={{ ...cs.btnGhost, background: HUB_PALETTE.marfim, color: HUB_PALETTE.noite, borderColor: HUB_PALETTE.noite + '50', fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 700, fontStyle: 'normal', fontSize: 13, letterSpacing: '0.05em', textTransform: 'none', cursor: 'not-allowed' }}>
                   Você
                 </span>
               ) : (
