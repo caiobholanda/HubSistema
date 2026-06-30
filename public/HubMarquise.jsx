@@ -126,7 +126,6 @@ const HUB_SYSTEMS = [
   num: '01',
   categoria: 'Suporte · Atendimento interno',
   nome: 'Chamados TI',
-  paraQuem: 'Todos os setores',
   descricao: 'Para pedir ajuda da equipe de TI do hotel — Você abre o chamado, anexa fotos se quiser, e acompanha o atendimento.',
   detalhe: 'Em uso por todos os setores do hotel.',
   status: 'no-ar',
@@ -142,7 +141,6 @@ const HUB_SYSTEMS = [
   num: '02',
   categoria: 'Comunicação · Interno',
   nome: 'Lista de Ramais',
-  paraQuem: 'Todos os setores',
   descricao: 'Diretório de ramais e contatos internos do hotel — consulte o ramal de qualquer setor ou colaborador sem precisar ligar para a recepção.',
   detalhe: 'Acesso pelo navegador.',
   status: 'no-ar',
@@ -158,7 +156,6 @@ const HUB_SYSTEMS = [
   num: '03',
   categoria: 'Spa · Atendimento ao hóspede',
   nome: 'Pesquisa de Satisfação',
-  paraQuem: 'Equipe do Spa',
   descricao: 'Coleta de feedback dos hóspedes após os tratamentos no Spa — avaliação dos serviços, instalações, massoterapeutas e experiência geral.',
   detalhe: 'Acesso restrito à equipe do Spa e TI.',
   status: 'no-ar',
@@ -632,18 +629,9 @@ function LinkForm({ form, setForm, onSave, onCancel, linkErro, linkSaving }) {
           <div style={labelStyle}>URL</div>
           <input value={form.url} onChange={e => setForm(p => ({ ...p, url: e.target.value }))} placeholder="https://..." style={inputStyle} />
         </div>
-        <div>
+        <div style={{ gridColumn: '1 / -1' }}>
           <div style={labelStyle}>Categoria</div>
           <input value={form.categoria} onChange={e => setForm(p => ({ ...p, categoria: e.target.value }))} placeholder="Ex: Operação · Hospedagem" style={inputStyle} />
-        </div>
-        <div>
-          <div style={labelStyle}>Para quem</div>
-          <input list="lf-para-quem" value={form.paraQuem} onChange={e => setForm(p => ({ ...p, paraQuem: e.target.value }))} placeholder="Ex: Todos os setores" style={inputStyle} />
-          <datalist id="lf-para-quem">
-            <option value="Todos os setores" />
-            <option value="Equipe do Spa" />
-            <option value="Equipe de TI" />
-          </datalist>
         </div>
         <div style={{ gridColumn: '1 / -1' }}>
           <div style={labelStyle}>Descrição</div>
@@ -1001,7 +989,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
   // Snapshot do link no momento do startEdit; usado para detectar 'nada mudou'.
   const [editOriginal, setEditOriginal] = useState({});
   const [addingNew, setAddingNew] = useState(false);
-  const [newForm, setNewForm] = useState({ nome: '', url: '', status: 'no-ar', categoria: '', descricao: '', paraQuem: '', acessoPadrao: false });
+  const [newForm, setNewForm] = useState({ nome: '', url: '', status: 'no-ar', categoria: '', descricao: '', acessoPadrao: false });
   const [linkSaving, setLinkSaving] = useState(false);
   const [linkErro, setLinkErro] = useState('');
   const [expandedLink, setExpandedLink] = useState(null);
@@ -1084,7 +1072,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
 
   function startEdit(sys) {
     setEditingId(sys.id);
-    const initial = { nome: sys.nome, url: sys.url, status: sys.status, categoria: sys.categoria || '', descricao: sys.descricao || '', paraQuem: sys.paraQuem || '', acessoPadrao: !!sys.acessoPadrao };
+    const initial = { nome: sys.nome, url: sys.url, status: sys.status, categoria: sys.categoria || '', descricao: sys.descricao || '', acessoPadrao: !!sys.acessoPadrao };
     setEditForm(initial);
     setEditOriginal(initial);
     setLinkErro('');
@@ -1093,7 +1081,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
   async function saveEdit() {
     if (!editForm.nome || !editForm.status) { setLinkErro('Nome e status são obrigatórios'); return; }
     // Bloqueia salvar se nada mudou em relacao ao snapshot do startEdit.
-    const camposLink = ['nome', 'url', 'status', 'categoria', 'descricao', 'paraQuem', 'acessoPadrao'];
+    const camposLink = ['nome', 'url', 'status', 'categoria', 'descricao', 'acessoPadrao'];
     const algumMudou = camposLink.some(k => (editOriginal[k] ?? '') !== (editForm[k] ?? ''));
     if (!algumMudou) {
       const msg = 'Faça alguma alteração antes de salvar.';
@@ -1161,7 +1149,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
       }
       setHubSystems(prev => [...prev, d.sistema]);
       setAddingNew(false);
-      setNewForm({ nome: '', url: '', status: 'no-ar', categoria: '', descricao: '', paraQuem: '', acessoPadrao: false });
+      setNewForm({ nome: '', url: '', status: 'no-ar', categoria: '', descricao: '', acessoPadrao: false });
       notifyHubMutation();
       notifyLink('Link criado.');
     } catch {
@@ -3021,10 +3009,6 @@ function SystemPanel({ system, index, revealed, isMobile, userEmail, userTipo })
         <span style={{ flexShrink: 0 }}><StatusBadge status={system.status} label={system.statusLabel} /></span>
       </div>
       <h3 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 300, fontSize: isMobile ? 24 : 30, lineHeight: 1.05, letterSpacing: '-0.018em', color: HUB_PALETTE.marfim, margin: '0 0 6px' }}>{system.nome}</h3>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-        <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.28em', color: HUB_PALETTE.areiaDim, textTransform: 'uppercase' }}>Para</span>
-        <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 12.5, fontWeight: 500, color: HUB_PALETTE.champanhe, letterSpacing: '-0.005em' }}>{system.paraQuem}</span>
-      </div>
       <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, lineHeight: 1.55, letterSpacing: '-0.005em', color: HUB_PALETTE.areia, margin: '0 0 22px' }}>{system.descricao}</p>
       <div style={{ position: 'relative', height: 110, marginBottom: 22, background: HUB_PALETTE.previewBg, border: `1px solid ${HUB_PALETTE.areiaDim}1f`, overflow: 'hidden' }}>
         <div style={{ position: 'absolute', inset: 0, opacity: hover ? 1 : 0.35, transform: hover ? 'scale(1)' : 'scale(0.985)', transition: `opacity 700ms ${HUB_EASE}, transform 1100ms ${HUB_EASE}` }}>
