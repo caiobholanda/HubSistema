@@ -1729,9 +1729,14 @@ function SetoresPanel({ isMobile }) {
 
     {/* Toolbar */}
     <div style={{ display: 'flex', gap: 12, marginBottom: 18, flexWrap: 'wrap' }}>
-      <input type="text" placeholder="Filtrar por nome..." value={busca} onChange={e => setBusca(e.target.value)}
-        autoComplete="off" name="setores-busca-livre" spellCheck={false}
-        style={{ ...cs.input, flex: 1, minWidth: 260 }} />
+      <div style={{ position: 'relative', flex: 1, minWidth: 260 }}>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={HUB_PALETTE.areiaDim} strokeWidth="1.5" strokeLinecap="round" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input type="text" placeholder="Filtrar por nome..." value={busca} onChange={e => setBusca(e.target.value)}
+          autoComplete="off" name="setores-busca-livre" spellCheck={false}
+          style={{ ...cs.input, paddingLeft: 34 }} />
+      </div>
       <button onClick={startNovo} style={cs.btnPrim}>+ Novo setor</button>
     </div>
 
@@ -2123,9 +2128,14 @@ function ContasPanel({ isMobile }) {
 
     {/* Toolbar */}
     <div style={{ display: 'flex', gap: 12, marginBottom: 18, flexWrap: 'wrap' }}>
-      <input type="text" placeholder="Filtrar por nome, email, login, ramal, setor..." value={busca} onChange={e => setBusca(e.target.value)}
-        autoComplete="off" name="contas-busca-livre"
-        style={{ ...cs.input, flex: 1, minWidth: 260 }} title="Aceita múltiplas palavras (AND) e flags 'master' / 'inativo'" />
+      <div style={{ position: 'relative', flex: 1, minWidth: 260 }}>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={HUB_PALETTE.areiaDim} strokeWidth="1.5" strokeLinecap="round" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input type="text" placeholder="Filtrar por nome, email, login, ramal, setor..." value={busca} onChange={e => setBusca(e.target.value)}
+          autoComplete="off" name="contas-busca-livre"
+          style={{ ...cs.input, paddingLeft: 34 }} title="Aceita múltiplas palavras (AND) e flags 'master' / 'inativo'" />
+      </div>
       <button onClick={() => startNew(isAdmin ? 'admin' : 'usuario')} style={{ ...cs.btnPrim, background: HUB_PALETTE.dourado }}>
         + Novo {isAdmin ? 'admin' : 'usuário'}
       </button>
@@ -2459,7 +2469,12 @@ function ContaForm({ tipo, isMobile, cs, erro, saving, initial, initialEtiquetas
 
           {(etiquetas || []).length > 0 && (<>
             <label style={{ ...cs.label, marginTop: 18 }}>Etiquetas (áreas de atuação)</label>
-            <input style={{ ...cs.input, marginBottom: 8 }} value={etBusca} onChange={e => setEtBusca(e.target.value)} placeholder="Buscar etiqueta..." />
+            <div style={{ position: 'relative', marginBottom: 8 }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={HUB_PALETTE.areiaDim} strokeWidth="1.5" strokeLinecap="round" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+              <input style={{ ...cs.input, paddingLeft: 34 }} value={etBusca} onChange={e => setEtBusca(e.target.value)} placeholder="Buscar etiqueta..." />
+            </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, maxHeight: 160, overflowY: 'auto', border: `1px solid ${HUB_PALETTE.areiaDim}22`, padding: 10 }}>
               {etFiltradas.map(e => {
                 const on = etSel.has(e.slug);
