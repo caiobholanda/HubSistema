@@ -2480,7 +2480,7 @@ function ContaForm({ tipo, isMobile, cs, erro, saving, initial, initialEtiquetas
                 const on = etSel.has(e.slug);
                 return (
                   <button key={e.slug} type="button" onClick={() => toggleEt(e.slug)}
-                    style={{ background: on ? HUB_PALETTE.champanhe + '22' : 'transparent', border: `1px solid ${on ? HUB_PALETTE.champanhe : HUB_PALETTE.areiaDim + '55'}`, color: on ? HUB_PALETTE.champanhe : HUB_PALETTE.areia, fontFamily: 'Inter, sans-serif', fontSize: 12, padding: '4px 10px', borderRadius: 999, cursor: 'pointer' }}>
+                    style={{ background: on ? '#996442' : 'transparent', border: `1px solid ${on ? '#996442' : HUB_PALETTE.areiaDim + '55'}`, color: on ? '#ECE4D2' : HUB_PALETTE.areia, fontFamily: 'Inter, sans-serif', fontSize: 12, padding: '4px 10px', borderRadius: 999, cursor: 'pointer' }}>
                     {e.nome || e.slug}
                   </button>
                 );
