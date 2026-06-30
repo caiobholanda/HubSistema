@@ -2524,7 +2524,7 @@ function HistoricoUsuarioModal({ usuarioId, nome, isMobile, cs, onClose, tipo })
       fetch(`/api/admin/chamados-usuarios/${usuarioId}/chamados`, { headers: { Authorization: `Bearer ${token}` } })
         .then(r => r.json()).then(d => setChamados(d.ok ? (d.chamados || []) : [])).catch(() => setChamados([]));
     } else {
-      setChamados([]); // admin nao tem 'chamados' associados na mesma forma
+      setChamados([]);
     }
     const rotaLogs = ehAdmin
       ? `/api/admin/chamados-admins/${usuarioId}/logs`
@@ -2539,28 +2539,75 @@ function HistoricoUsuarioModal({ usuarioId, nome, isMobile, cs, onClose, tipo })
     const iso = s.includes('T') ? s : s.replace(' ', 'T');
     return new Date(iso.endsWith('Z') ? iso : iso + 'Z').toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short', timeZone: 'America/Fortaleza' });
   }
-  // Renderiza evento desconhecido como 'abrir_chamados', 'logout_ramais', etc.
-  // de forma legivel.
-  function labelEvento(ev) {
+  function localDateKey(s) {
+    if (!s) return '';
+    const iso = s.includes('T') ? s : s.replace(' ', 'T');
+    return new Date(iso.endsWith('Z') ? iso : iso + 'Z').toLocaleDateString('pt-BR', { timeZone: 'America/Fortaleza' });
+  }
+  function localDateHeader(s) {
+    if (!s) return '';
+    const iso = s.includes('T') ? s : s.replace(' ', 'T');
+    const d = new Date(iso.endsWith('Z') ? iso : iso + 'Z');
+    const hoje = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Fortaleza' });
+    const ontem = new Date(Date.now() - 86400000).toLocaleDateString('pt-BR', { timeZone: 'America/Fortaleza' });
+    const key = d.toLocaleDateString('pt-BR', { timeZone: 'America/Fortaleza' });
+    const longo = d.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric', timeZone: 'America/Fortaleza' });
+    if (key === hoje) return `Hoje · ${longo.split(',')[1]?.trim() || longo}`;
+    if (key === ontem) return `Ontem · ${longo.split(',')[1]?.trim() || longo}`;
+    return longo;
+  }
+
+  const NOMES_SISTEMA = {
+    chamados: 'Chamados TI', ramais: 'Lista de Ramais',
+    'pesquisa-satisfacao': 'Pesquisa de Satisfação', pesquisa: 'Pesquisa de Satisfação',
+  };
+  function labelEvento(ev, detalhes) {
     const MAP = {
       login_sucesso: 'Login realizado', login_falha: 'Tentativa de login (senha incorreta)',
       logout: 'Logout', reset_solicitado: 'Reset de senha solicitado',
       reset_email_enviado: 'E-mail de reset enviado', reset_concluido: 'Senha redefinida',
       reset_link_expirado: 'Link de reset expirado', reset_link_ja_usado: 'Link de reset já utilizado',
       login_hub: 'Entrou no Hub', logout_hub: 'Saiu do Hub',
-      logout_chamados: 'Saiu do Chamados', logout_ramais: 'Saiu da Lista de Ramais', logout_pesquisa: 'Saiu da Pesquisa de Satisfação',
+      logout_chamados: 'Saiu do Chamados', logout_ramais: 'Saiu da Lista de Ramais',
+      logout_pesquisa: 'Saiu da Pesquisa de Satisfação', 'logout_pesquisa-satisfacao': 'Saiu da Pesquisa de Satisfação',
     };
     if (MAP[ev]) return MAP[ev];
     if (ev && ev.startsWith('abrir_')) {
-      const id = ev.slice(6).replace(/[-_]/g, ' ');
-      return `Abriu sistema: ${id.charAt(0).toUpperCase() + id.slice(1)}`;
+      const sistemaId = ev.slice(6);
+      const nome = (detalhes && typeof detalhes === 'string' ? detalhes : '') || NOMES_SISTEMA[sistemaId] || (sistemaId.charAt(0).toUpperCase() + sistemaId.slice(1).replace(/[-_]/g, ' '));
+      return `Abriu sistema: ${nome}`;
     }
     if (ev && ev.startsWith('logout_')) {
-      return `Saiu de ${ev.slice(7)}`;
+      const sistemaId = ev.slice(7);
+      return `Saiu de ${NOMES_SISTEMA[sistemaId] || sistemaId}`;
     }
     return ev || '—';
   }
-  const EVENTO_LABEL = new Proxy({}, { get: (_t, k) => labelEvento(k) });
+  function tipoEvento(ev) {
+    if (!ev) return 'neutro';
+    if (ev === 'login_hub' || ev === 'login_sucesso') return 'login';
+    if (ev === 'logout_hub' || ev === 'logout' || ev.startsWith('logout_')) return 'logout';
+    if (ev === 'login_falha') return 'alerta';
+    if (ev.startsWith('abrir_')) return 'acesso';
+    if (ev.startsWith('reset_')) return 'reset';
+    return 'neutro';
+  }
+  const COR_TIPO = { login: '#7cb342', logout: '#9E6B43', alerta: '#E07A5F', acesso: HUB_PALETTE.champanhe, reset: '#5B8FA8', neutro: HUB_PALETTE.areiaDim };
+
+  const logsComSeparadores = React.useMemo(() => {
+    if (!logs) return [];
+    const rows = [];
+    let lastKey = null;
+    for (const l of logs) {
+      const key = localDateKey(l.criado_em);
+      if (key !== lastKey) { rows.push({ tipo: 'header', key, label: localDateHeader(l.criado_em) }); lastKey = key; }
+      rows.push({ tipo: 'item', l });
+    }
+    return rows;
+  }, [logs]);
+
+  const contaLogs = logs ? logs.length : null;
+  const truncado = contaLogs >= 200;
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.68)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
@@ -2573,10 +2620,10 @@ function HistoricoUsuarioModal({ usuarioId, nome, isMobile, cs, onClose, tipo })
           <button onClick={onClose} style={cs.btnGhost}>Fechar</button>
         </div>
         <div style={{ display: 'flex', gap: 0, borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, padding: '0 24px' }}>
-          {[{ id: 'chamados', label: 'Chamados', count: chamados?.length }, { id: 'atividade', label: 'Atividade de acesso', count: logs?.length }].map(t => (
+          {[{ id: 'chamados', label: 'Chamados', count: chamados?.length, plus: false }, { id: 'atividade', label: 'Atividade de acesso', count: contaLogs, plus: truncado }].map(t => (
             <button key={t.id} onClick={() => setAba(t.id)}
               style={{ background: 'transparent', border: 'none', borderBottom: `2px solid ${aba === t.id ? HUB_PALETTE.champanhe : 'transparent'}`, color: aba === t.id ? HUB_PALETTE.champanhe : HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', padding: '12px 18px 10px', cursor: 'pointer' }}>
-              {t.label}{t.count != null ? <span style={{ marginLeft: 6, fontSize: 9 }}>{t.count}</span> : null}
+              {t.label}{t.count != null ? <span style={{ marginLeft: 6, fontSize: 9 }}>{t.count}{t.plus ? '+' : ''}</span> : null}
             </button>
           ))}
         </div>
@@ -2601,14 +2648,31 @@ function HistoricoUsuarioModal({ usuarioId, nome, isMobile, cs, onClose, tipo })
           {aba === 'atividade' && (logs === null ? <Carregando /> :
             logs.length === 0 ? <Vazio msg="Sem atividade registrada." /> :
             <div style={{ display: 'flex', flexDirection: 'column' }}>
-              {logs.map((l, i) => (
-                <div key={i} style={{ display: 'flex', flexDirection: 'column', padding: '10px 0', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22` }}>
-                  <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.marfim, fontWeight: 500 }}>{EVENTO_LABEL[l.evento] || l.evento}</div>
-                  <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: HUB_PALETTE.areiaDim, marginTop: 2 }}>
-                    {fmtData(l.criado_em)}{l.ip ? <span style={{ marginLeft: 10, fontFamily: 'JetBrains Mono, monospace' }}>{l.ip}</span> : null}
+              {logsComSeparadores.map((row, i) => {
+                if (row.tipo === 'header') return (
+                  <div key={`h-${row.key}`} style={{ padding: '16px 0 6px', fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, borderBottom: `1px solid ${HUB_PALETTE.areiaDim}18` }}>
+                    {row.label}
                   </div>
+                );
+                const l = row.l;
+                const cor = COR_TIPO[tipoEvento(l.evento)];
+                return (
+                  <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '10px 0', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}18` }}>
+                    <div style={{ width: 3, minWidth: 3, alignSelf: 'stretch', background: cor, borderRadius: 2, marginTop: 2 }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.marfim, fontWeight: 500 }}>{labelEvento(l.evento, l.detalhes)}</div>
+                      <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: HUB_PALETTE.areiaDim, marginTop: 2 }}>
+                        {fmtData(l.criado_em)}{l.ip ? <span style={{ marginLeft: 10, fontFamily: 'JetBrains Mono, monospace', fontSize: 11 }}>{l.ip}</span> : null}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              {truncado && (
+                <div style={{ padding: '14px 0 4px', fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, textAlign: 'center' }}>
+                  Exibindo os 200 registros mais recentes
                 </div>
-              ))}
+              )}
             </div>
           )}
         </div>
