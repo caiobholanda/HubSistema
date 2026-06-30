@@ -1313,7 +1313,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
                                 style={{ width: '100%', boxSizing: 'border-box', background: `${HUB_PALETTE.areiaDim}10`, border: `1px solid ${HUB_PALETTE.areiaDim}33`, color: HUB_PALETTE.marfim, fontFamily: 'Inter, sans-serif', fontSize: 13, padding: '7px 12px 7px 30px', outline: 'none' }}
                               />
                             </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                            <div style={{ maxHeight: 220, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2, border: `1px solid ${HUB_PALETTE.areiaDim}18`, scrollbarWidth: 'thin', scrollbarColor: `${HUB_PALETTE.areiaDim}44 transparent` }}>
                               {semAcesso
                                 .filter(u => u.nome.toLowerCase().includes(filtroSemAcesso.toLowerCase()) || (u.setor && u.setor.toLowerCase().includes(filtroSemAcesso.toLowerCase())))
                                 .sort((a, b) => {
@@ -1323,7 +1323,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
                                   return (a.nome || '').toLowerCase().localeCompare((b.nome || '').toLowerCase(), 'pt');
                                 })
                                 .map(u => (
-                                <div key={u.email} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                                <div key={u.email} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '6px 10px', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}10` }}>
                                   <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areiaDim }}>{u.nome}{u.setor ? <span style={{ fontSize: 11, marginLeft: 6 }}>{u.setor}</span> : null}</span>
                                   <button
                                     onClick={() => toggleSystem(u.email, sys.id)}
