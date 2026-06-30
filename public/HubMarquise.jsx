@@ -613,7 +613,7 @@ function LinkForm({ form, setForm, onSave, onCancel, linkErro, linkSaving }) {
     fontFamily: 'Inter, sans-serif', fontSize: 13,
     padding: '8px 12px', outline: 'none', marginBottom: 8,
   };
-  const labelStyle = { fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 6 };
+  const labelStyle = { fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 6 };
   const optStyle = { background: HUB_PALETTE.noiteAlt, color: HUB_PALETTE.marfim };
   return (
     <div style={{ background: `${HUB_PALETTE.areiaDim}08`, border: `1px solid ${HUB_PALETTE.areiaDim}22`, padding: 24, marginBottom: 2 }}>
@@ -648,10 +648,10 @@ function LinkForm({ form, setForm, onSave, onCancel, linkErro, linkSaving }) {
       </div>
       {linkErro && <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: '#E07A5F', marginBottom: 12 }}>{linkErro}</div>}
       <div style={{ display: 'flex', gap: 10 }}>
-        <button onClick={onSave} disabled={linkSaving} style={{ background: `${HUB_PALETTE.champanhe}18`, border: `1px solid ${HUB_PALETTE.champanhe}55`, color: HUB_PALETTE.champanhe, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.25em', textTransform: 'uppercase', padding: '8px 20px', cursor: linkSaving ? 'wait' : 'pointer' }}>
+        <button onClick={onSave} disabled={linkSaving} style={{ background: `${HUB_PALETTE.champanhe}18`, border: `1px solid ${HUB_PALETTE.champanhe}55`, color: HUB_PALETTE.champanhe, fontFamily: 'JetBrains Mono, monospace', fontSize: 12, letterSpacing: '0.2em', textTransform: 'uppercase', padding: '12px 22px', cursor: linkSaving ? 'wait' : 'pointer' }}>
           {linkSaving ? 'Salvando...' : 'Salvar'}
         </button>
-        <button onClick={onCancel} style={{ background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}33`, color: HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.25em', textTransform: 'uppercase', padding: '8px 20px', cursor: 'pointer' }}>
+        <button onClick={onCancel} style={{ background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}33`, color: HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 12, letterSpacing: '0.2em', textTransform: 'uppercase', padding: '12px 22px', cursor: 'pointer' }}>
           Cancelar
         </button>
       </div>
