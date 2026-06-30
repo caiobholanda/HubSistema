@@ -1770,21 +1770,21 @@ function SetoresPanel({ isMobile }) {
         onSave={(nome) => salvar(nome, editing ? editing.id : null)} />
     )}
 
-    {/* Modal Confirmar exclusão */}
+    {/* Modal Confirmar inativação de setor */}
     {confirmar && (
       <div
         style={{ position: 'fixed', inset: 0, zIndex: 160, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
         <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, maxWidth: 420, width: '100%', padding: isMobile ? '24px 20px' : '32px 36px' }}>
-          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: '#E07A5F', marginBottom: 6 }}>Confirmar exclusão</div>
+          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: '#9C5843', marginBottom: 6 }}>Confirmar inativação</div>
           <h3 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontWeight: 300, fontSize: 22, color: HUB_PALETTE.marfim, margin: '0 0 14px', lineHeight: 1.25 }}>
-            Excluir o setor "{confirmar.nome}"?
+            Inativar o setor "{confirmar.nome}"?
           </h3>
           <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areia, margin: '0 0 22px', lineHeight: 1.5 }}>
-            Esta ação não pode ser desfeita.
+            O setor será removido da lista. Chamados existentes não são afetados.
           </p>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
             <button onClick={() => setConfirmar(null)} style={cs.btnGhost}>Cancelar</button>
-            <button onClick={confirmarExclusao} style={cs.btnDanger}>Excluir</button>
+            <button onClick={confirmarExclusao} style={{ ...cs.btnPrim, color: '#ECE4D2', fontFamily: 'Inter, sans-serif', letterSpacing: 'normal', textTransform: 'none' }}>Inativar</button>
           </div>
         </div>
       </div>
@@ -2245,7 +2245,7 @@ function ContasPanel({ isMobile }) {
               <button onClick={() => setConfirmAtivo(null)} disabled={togglingAtivo} style={cs.btnGhost}>Cancelar</button>
               <button onClick={executarToggleAtivo} disabled={togglingAtivo}
                 style={ativar
-                  ? cs.btnPrim
+                  ? { ...cs.btnPrim, background: '#202C28', color: '#ECE4D2', border: '1px solid #202C28', fontFamily: 'Inter, sans-serif', letterSpacing: 'normal', textTransform: 'none' }
                   : { ...cs.btnPrim, background: '#9C5843', color: '#ECE4D2' }}>
                 {togglingAtivo ? '...' : (ativar ? 'Ativar' : 'Desativar')}
               </button>
