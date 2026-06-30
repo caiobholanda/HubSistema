@@ -167,11 +167,14 @@ function temAcessoAoSistema(permissions, email, systemId, ehAdmin) {
 
 function getUserSistemas(email, tipo, isMaster) {
   const data = readData();
-  const sistemasAtuaisIds = (data.sistemas || DEFAULT_SISTEMAS).map(s => s.id);
+  const sistemas = data.sistemas || DEFAULT_SISTEMAS;
+  const sistemasAtuaisIds = sistemas.map(s => s.id);
   const ehAdmin = tipo === 'admin' || !!isMaster;
   if (ehAdmin) return sistemasAtuaisIds;
+  const padraoIds = sistemas.filter(s => s.acessoPadrao).map(s => s.id);
   const p = data.permissions[email];
-  return Array.isArray(p) ? p.filter(id => sistemasAtuaisIds.includes(id)) : [];
+  const explicitos = Array.isArray(p) ? p.filter(id => sistemasAtuaisIds.includes(id)) : [];
+  return [...new Set([...explicitos, ...padraoIds])];
 }
 
 // Garante que usuario nao-admin tenha entrada explicita no primeiro login.
@@ -182,8 +185,19 @@ function snapshotPermissoesSeNaoTiver(email, tipo) {
   const data = readData();
   if (!data.permissions) data.permissions = {};
   if (Object.prototype.hasOwnProperty.call(data.permissions, email)) return;
-  data.permissions[email] = [];
+  const padraoIds = (data.sistemas || DEFAULT_SISTEMAS).filter(s => s.acessoPadrao).map(s => s.id);
+  data.permissions[email] = padraoIds;
   writeData(data);
+}
+
+function autoAssociarTodos(data, sistemaId) {
+  if (!data.permissions) return;
+  for (const email of Object.keys(data.permissions)) {
+    const p = data.permissions[email];
+    if (Array.isArray(p) && !p.includes(sistemaId)) {
+      data.permissions[email] = [...p, sistemaId];
+    }
+  }
 }
 
 // ─── Sistemas (links do Hub) ─────────────────────────────────────────────────
@@ -438,44 +452,41 @@ app.get('/api/admin/all-users', requireAdmin, async (_req, res) => {
 });
 
 app.post('/api/admin/sistemas', requireAdmin, (req, res) => {
-  const { nome, url, status, categoria, descricao, paraQuem } = req.body || {};
+  const { nome, url, status, categoria, descricao, paraQuem, acessoPadrao } = req.body || {};
   if (!nome || !status) return res.status(400).json({ ok: false, erro: 'Nome e status são obrigatórios' });
   const data = readData();
   const sistemas = getSistemas();
   const id = nome.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
   if (sistemas.find(s => s.id === id)) return res.status(409).json({ ok: false, erro: 'Já existe um sistema com esse nome' });
   const num = String(sistemas.length + 1).padStart(2, '0');
-  const novo = { id, num, nome, url: url || '#', status, categoria: categoria || '', descricao: descricao || '', paraQuem: paraQuem || '' };
+  const novo = { id, num, nome, url: url || '#', status, categoria: categoria || '', descricao: descricao || '', paraQuem: paraQuem || '', acessoPadrao: !!acessoPadrao };
   data.sistemas = [...sistemas, novo];
-
-  // Novo link aparece apenas para admins por padrao — sob fail-closed isto e
-  // automatico (usuario sem o id no array nao ve o link). Nao precisamos mais
-  // do snapshot defensivo aqui.
   data.permissions = data.permissions || {};
-
+  if (acessoPadrao) autoAssociarTodos(data, id);
   writeData(data);
   appendAudit({
     by_email: req.hubUser.email, by_nome: req.hubUser.nome,
     action: 'criar', target_tipo: 'link',
     target_id: id, target_nome: nome,
-    campos: { nome, url: url || '#', status, categoria: categoria || '', paraQuem: paraQuem || '' },
+    campos: { nome, url: url || '#', status, categoria: categoria || '', paraQuem: paraQuem || '', acessoPadrao: !!acessoPadrao },
   });
   res.json({ ok: true, sistema: novo });
 });
 
 app.put('/api/admin/sistemas/:id', requireAdmin, (req, res) => {
-  const { nome, url, status, categoria, descricao, paraQuem } = req.body || {};
+  const { nome, url, status, categoria, descricao, paraQuem, acessoPadrao } = req.body || {};
   const data = readData();
   const sistemas = getSistemas();
   const idx = sistemas.findIndex(s => s.id === req.params.id);
   if (idx === -1) return res.status(404).json({ ok: false, erro: 'Sistema não encontrado' });
   const antes = { ...sistemas[idx] };
-  sistemas[idx] = { ...sistemas[idx], ...(nome && { nome }), url: url !== undefined ? url : sistemas[idx].url, ...(status && { status }), categoria: categoria !== undefined ? categoria : sistemas[idx].categoria, descricao: descricao !== undefined ? descricao : sistemas[idx].descricao, paraQuem: paraQuem !== undefined ? paraQuem : sistemas[idx].paraQuem };
+  sistemas[idx] = { ...sistemas[idx], ...(nome && { nome }), url: url !== undefined ? url : sistemas[idx].url, ...(status && { status }), categoria: categoria !== undefined ? categoria : sistemas[idx].categoria, descricao: descricao !== undefined ? descricao : sistemas[idx].descricao, paraQuem: paraQuem !== undefined ? paraQuem : sistemas[idx].paraQuem, acessoPadrao: acessoPadrao !== undefined ? !!acessoPadrao : !!sistemas[idx].acessoPadrao };
   data.sistemas = sistemas;
+  if (acessoPadrao && !antes.acessoPadrao) autoAssociarTodos(data, req.params.id);
   writeData(data);
   // So loga campos efetivamente alterados
   const diff = {};
-  for (const k of ['nome', 'url', 'status', 'categoria', 'descricao', 'paraQuem']) {
+  for (const k of ['nome', 'url', 'status', 'categoria', 'descricao', 'paraQuem', 'acessoPadrao']) {
     if (antes[k] !== sistemas[idx][k]) diff[k] = sistemas[idx][k];
   }
   // Quando o unico campo alterado e' o status, deriva 'ativar' ou 'inativar'

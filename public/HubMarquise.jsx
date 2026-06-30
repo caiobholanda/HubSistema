@@ -650,6 +650,20 @@ function LinkForm({ form, setForm, onSave, onCancel, linkErro, linkSaving }) {
           <textarea value={form.descricao} onChange={e => setForm(p => ({ ...p, descricao: e.target.value }))} placeholder="Breve descrição do sistema" rows={3} style={{ ...inputStyle, resize: 'vertical' }} />
         </div>
       </div>
+      {/* Acesso Padrão */}
+      <div style={{ gridColumn: '1 / -1', marginBottom: 12 }}>
+        <div
+          onClick={() => setForm(p => ({ ...p, acessoPadrao: !p.acessoPadrao }))}
+          style={{ display: 'flex', alignItems: 'flex-start', gap: 14, cursor: 'pointer', padding: '12px 16px', border: `1px solid ${form.acessoPadrao ? '#996442' : HUB_PALETTE.areiaDim + '33'}`, background: form.acessoPadrao ? '#99644210' : 'transparent', userSelect: 'none' }}>
+          <span style={{ flexShrink: 0, width: 16, height: 16, marginTop: 1, border: `1.5px solid ${form.acessoPadrao ? '#996442' : HUB_PALETTE.areiaDim + '88'}`, background: form.acessoPadrao ? '#996442' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {form.acessoPadrao && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><polyline points="1,4 3.5,6.5 9,1" stroke="#ECE4D2" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+          </span>
+          <span style={{ flex: 1 }}>
+            <span style={{ display: 'block', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', color: form.acessoPadrao ? '#996442' : HUB_PALETTE.areiaDim, marginBottom: 3 }}>Acesso Padrão</span>
+            <span style={{ display: 'block', fontFamily: 'Inter, sans-serif', fontSize: 12, color: HUB_PALETTE.areia, lineHeight: 1.45 }}>Tornar este aplicativo visível para todos os colaboradores. Ao ativar, todos os usuários serão associados automaticamente.</span>
+          </span>
+        </div>
+      </div>
       {linkErro && <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: '#E07A5F', marginBottom: 12 }}>{linkErro}</div>}
       <div style={{ display: 'flex', gap: 10 }}>
         <button onClick={onSave} disabled={linkSaving} style={{ background: '#996442', border: '1px solid #996442', color: '#ECE4D2', fontFamily: 'Inter, sans-serif', fontSize: 12, letterSpacing: 'normal', textTransform: 'none', padding: '12px 22px', cursor: linkSaving ? 'wait' : 'pointer' }}>
@@ -698,7 +712,7 @@ function LinkEditModal({ sys, form, setForm, onSave, onCancel, linkErro, linkSav
             </div>
           )}
           {aba === 'liberacao' && (
-            <LiberacaoPanel sistemaId={sys.id} sistemaNome={sys.nome} isMobile={isMobile} users={users} />
+            <LiberacaoPanel sistemaId={sys.id} sistemaNome={sys.nome} isMobile={isMobile} users={users} acessoPadrao={!!sys.acessoPadrao} />
           )}
         </div>
       </div>
@@ -712,7 +726,7 @@ function LinkEditModal({ sys, form, setForm, onSave, onCancel, linkErro, linkSav
 // Acesso comum (usuario) e' implicito — quem ve o link no Hub recebe
 // cookie de usuario automaticamente ao fazer SSO. Por isso nao ha lista
 // de "usuarios" aqui.
-function LiberacaoPanel({ sistemaId, sistemaNome, isMobile, users }) {
+function LiberacaoPanel({ sistemaId, sistemaNome, isMobile, users, acessoPadrao }) {
   const [items, setItems] = useState(null); // null=loading, []=vazio
   const [novoEmail, setNovoEmail] = useState('');
   const [novoPapel, setNovoPapel] = useState('admin');
@@ -822,6 +836,22 @@ function LiberacaoPanel({ sistemaId, sistemaNome, isMobile, users }) {
   const lista = { display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 };
   const item = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '10px 12px', border: `1px solid ${HUB_PALETTE.areiaDim}22`, fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.marfim };
   const btn = { background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}44`, color: HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', padding: '5px 10px', cursor: busy ? 'wait' : 'pointer' };
+
+  if (acessoPadrao) {
+    return (
+      <div style={{ padding: isMobile ? '12px' : '18px 24px 24px' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, padding: '16px 18px', border: `1px solid #99644244`, background: '#99644208' }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#996442" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 1 }}><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+          <div>
+            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: '#996442', marginBottom: 6 }}>Aplicativo Padrão</div>
+            <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areia, margin: 0, lineHeight: 1.55 }}>
+              Todos os usuários ativos possuem acesso padrão a este sistema. O gerenciamento individual de acesso não está disponível para aplicativos padrão.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ padding: isMobile ? '12px' : '18px 24px 24px' }}>
@@ -971,7 +1001,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
   // Snapshot do link no momento do startEdit; usado para detectar 'nada mudou'.
   const [editOriginal, setEditOriginal] = useState({});
   const [addingNew, setAddingNew] = useState(false);
-  const [newForm, setNewForm] = useState({ nome: '', url: '', status: 'no-ar', categoria: '', descricao: '', paraQuem: '' });
+  const [newForm, setNewForm] = useState({ nome: '', url: '', status: 'no-ar', categoria: '', descricao: '', paraQuem: '', acessoPadrao: false });
   const [linkSaving, setLinkSaving] = useState(false);
   const [linkErro, setLinkErro] = useState('');
   const [expandedLink, setExpandedLink] = useState(null);
@@ -1054,7 +1084,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
 
   function startEdit(sys) {
     setEditingId(sys.id);
-    const initial = { nome: sys.nome, url: sys.url, status: sys.status, categoria: sys.categoria || '', descricao: sys.descricao || '', paraQuem: sys.paraQuem || '' };
+    const initial = { nome: sys.nome, url: sys.url, status: sys.status, categoria: sys.categoria || '', descricao: sys.descricao || '', paraQuem: sys.paraQuem || '', acessoPadrao: !!sys.acessoPadrao };
     setEditForm(initial);
     setEditOriginal(initial);
     setLinkErro('');
@@ -1063,7 +1093,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
   async function saveEdit() {
     if (!editForm.nome || !editForm.status) { setLinkErro('Nome e status são obrigatórios'); return; }
     // Bloqueia salvar se nada mudou em relacao ao snapshot do startEdit.
-    const camposLink = ['nome', 'url', 'status', 'categoria', 'descricao', 'paraQuem'];
+    const camposLink = ['nome', 'url', 'status', 'categoria', 'descricao', 'paraQuem', 'acessoPadrao'];
     const algumMudou = camposLink.some(k => (editOriginal[k] ?? '') !== (editForm[k] ?? ''));
     if (!algumMudou) {
       const msg = 'Faça alguma alteração antes de salvar.';
@@ -1131,7 +1161,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
       }
       setHubSystems(prev => [...prev, d.sistema]);
       setAddingNew(false);
-      setNewForm({ nome: '', url: '', status: 'no-ar', categoria: '', descricao: '', paraQuem: '' });
+      setNewForm({ nome: '', url: '', status: 'no-ar', categoria: '', descricao: '', paraQuem: '', acessoPadrao: false });
       notifyHubMutation();
       notifyLink('Link criado.');
     } catch {
@@ -1249,7 +1279,12 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
                           <span style={{ width: 6, height: 6, borderRadius: '50%', background: HUB_PALETTE.jangadaGlow, display: 'inline-block' }} />
                           Com acesso ({comAcesso.length})
                         </div>
-                        {comAcesso.length === 0 ? (
+                        {sys.acessoPadrao ? (
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#996442', background: '#99644210', border: '1px solid #99644233', padding: '6px 14px' }}>
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#996442" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                            Acesso Padrão — todos os colaboradores
+                          </div>
+                        ) : comAcesso.length === 0 ? (
                           <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areiaDim, fontStyle: 'italic' }}>Nenhum usuário com acesso.</span>
                         ) : (
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
