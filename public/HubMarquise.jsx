@@ -2118,7 +2118,7 @@ function ContasPanel({ isMobile }) {
       <input type="text" placeholder="Filtrar por nome, email, login, ramal, setor..." value={busca} onChange={e => setBusca(e.target.value)}
         autoComplete="off" name="contas-busca-livre"
         style={{ ...cs.input, flex: 1, minWidth: 260 }} title="Aceita múltiplas palavras (AND) e flags 'master' / 'inativo'" />
-      <button onClick={() => startNew(isAdmin ? 'admin' : 'usuario')} style={cs.btnPrim}>
+      <button onClick={() => startNew(isAdmin ? 'admin' : 'usuario')} style={{ ...cs.btnPrim, background: HUB_PALETTE.dourado }}>
         + Novo {isAdmin ? 'admin' : 'usuário'}
       </button>
     </div>
@@ -2173,7 +2173,7 @@ function ContasPanel({ isMobile }) {
                 </span>
               ) : (
                 <button onClick={() => pedirConfirmacaoToggle(isAdmin ? 'admin' : 'usuario', row)}
-                  style={{ ...cs.btnGhost, color: ativo ? '#E07A5F' : HUB_PALETTE.champanhe, borderColor: (ativo ? '#E07A5F' : HUB_PALETTE.champanhe) + '66' }}>
+                  style={{ ...cs.btnGhost, color: HUB_PALETTE.champanhe, borderColor: HUB_PALETTE.champanhe + '66' }}>
                   {ativo ? 'Inativar' : 'Ativar'}
                 </button>
               )}
