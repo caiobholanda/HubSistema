@@ -1854,7 +1854,7 @@ function ContasPanel({ isMobile }) {
   const [erro, setErro] = useState('');
   const [toast, setToast] = useState('');
   const [historicoUsuario, setHistoricoUsuario] = useState(null); // { id, nome }
-  const [revelado, setRevelado] = useState({}); // { tipo-id: true }
+  const [resetandoSenha, setResetandoSenha] = useState({}); // { tipo-id: true } — loading por card
   const [confirmAtivo, setConfirmAtivo] = useState(null); // { tipo, row, ativar:boolean }
   const [togglingAtivo, setTogglingAtivo] = useState(false);
 
@@ -1868,7 +1868,20 @@ function ContasPanel({ isMobile }) {
 
   function token() { return localStorage.getItem('hub_sso_token'); }
   function notify(msg) { setToast(msg); setTimeout(() => setToast(''), 2600); }
-  function toggleRevelar(key) { setRevelado(p => ({ ...p, [key]: !p[key] })); }
+  async function enviarLinkReset(tipo, id) {
+    const key = (tipo === 'admin' ? 'a' : 'u') + id;
+    setResetandoSenha(p => ({ ...p, [key]: true }));
+    try {
+      const rota = tipo === 'admin'
+        ? `/api/admin/chamados-admins/${id}/reset-link`
+        : `/api/admin/chamados-usuarios/${id}/reset-link`;
+      const r = await fetch(rota, { method: 'POST', headers: { Authorization: `Bearer ${token()}` } });
+      const d = await r.json();
+      if (r.ok && d.ok) notify('Link de redefinição enviado por e-mail.');
+      else notify(d.erro || 'Erro ao enviar link.');
+    } catch { notify('Erro de conexão.'); }
+    setResetandoSenha(p => ({ ...p, [key]: false }));
+  }
 
   async function loadSetoresEEtiquetas() {
     try {
@@ -1901,10 +1914,6 @@ function ContasPanel({ isMobile }) {
 
   async function startEdit(tipo, row) {
     setErro('');
-    // senhaInicial = senha em texto plano salva no banco (pode ser vazia se ainda
-    // nao foi capturada). O modal pre-preenche; salvarEdit so envia "senha" se
-    // o valor for diferente do inicial (evita PATCH desnecessario).
-    const senhaInicial = row.senha_plain || '';
     if (tipo === 'admin') {
       let slugs = [];
       try {
@@ -1912,15 +1921,15 @@ function ContasPanel({ isMobile }) {
         const d = await r.json();
         if (d.ok) slugs = d.slugs || [];
       } catch {}
-      setEditing({ tipo, id: row.id, etiquetas: slugs, senhaInicial, dados: {
+      setEditing({ tipo, id: row.id, etiquetas: slugs, dados: {
         nome_completo: row.nome_completo, email: row.email || '',
         ramal: row.ramal || '', is_master: !!row.is_master,
-        senha: senhaInicial, ativo: !!row.ativo,
+        senha: '', ativo: !!row.ativo,
       }});
     } else {
-      setEditing({ tipo, id: row.id, senhaInicial, dados: {
+      setEditing({ tipo, id: row.id, dados: {
         nome: row.nome, email: row.email || '', setor: row.setor || '',
-        ramal: row.ramal || '', senha: senhaInicial, ativo: row.ativo !== 0,
+        ramal: row.ramal || '', senha: '', ativo: row.ativo !== 0,
       }});
     }
   }
@@ -1953,9 +1962,8 @@ function ContasPanel({ isMobile }) {
     setSaving(true); setErro('');
     const rota = tipo === 'admin' ? `/api/admin/chamados-admins/${id}` : `/api/admin/chamados-usuarios/${id}`;
     const body = { ...dados };
-    // Envia "senha" so se foi efetivamente alterada (comparar com senhaInicial do startEdit)
-    const senhaInicial = (editing && editing.senhaInicial) || '';
-    const senhaMudou = !!body.senha && body.senha !== senhaInicial;
+    // Envia "senha" apenas se o admin digitou algo no campo (campo começa vazio)
+    const senhaMudou = !!body.senha;
     if (!senhaMudou) delete body.senha;
 
     // Bloqueia salvar quando NADA mudou em relacao ao snapshot do startEdit.
@@ -2133,7 +2141,7 @@ function ContasPanel({ isMobile }) {
         {filtrada.map(row => {
           const ativo = isAdmin ? row.ativo === 1 : row.ativo !== 0;
           const key = (isAdmin ? 'a' : 'u') + row.id;
-          const showSenha = revelado[key];
+          const resetando = !!resetandoSenha[key];
           return (
             <div key={row.id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '22px 4px', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, opacity: ativo ? 1 : 0.55, flexWrap: 'wrap' }}>
               <div style={{ flex: 1, minWidth: 260 }}>
@@ -2151,21 +2159,16 @@ function ContasPanel({ isMobile }) {
                   {isAdmin && row.usuario ? <span style={{ color: HUB_PALETTE.areiaDim }}> · </span> : null}
                   {isAdmin && row.usuario ? <span><span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginRight: 6 }}>login</span>{row.usuario}</span> : null}
                 </div>
-                {row.senha_plain && (
-                  <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim }}>senha</span>
-                    <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 15, fontWeight: 500, color: HUB_PALETTE.champanhe, background: HUB_PALETTE.champanhe + '15', padding: '4px 12px', userSelect: 'all', borderRadius: 2, letterSpacing: showSenha ? 0 : '0.15em' }}>
-                      {showSenha ? row.senha_plain : '••••••••'}
-                    </span>
-                    <button onClick={() => toggleRevelar(key)}
-                      style={{ background: 'transparent', border: 'none', color: HUB_PALETTE.champanhe, fontSize: 11, fontFamily: 'JetBrains Mono, monospace', fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase', cursor: 'pointer', padding: 0 }}>
-                      {showSenha ? 'ocultar' : 'revelar'}
-                    </button>
-                  </div>
-                )}
               </div>
               <button onClick={() => setHistoricoUsuario({ id: row.id, nome: isAdmin ? row.nome_completo : row.nome, tipo: isAdmin ? 'admin' : 'usuario' })} style={cs.btnGhost}>Histórico</button>
               <button onClick={() => startEdit(isAdmin ? 'admin' : 'usuario', row)} style={cs.btnGhost}>Editar</button>
+              <button
+                onClick={() => enviarLinkReset(isAdmin ? 'admin' : 'usuario', row.id)}
+                disabled={resetando || !row.email}
+                title={!row.email ? 'Sem e-mail cadastrado' : 'Enviar link de redefinição de senha por e-mail (válido 24h)'}
+                style={{ ...cs.btnGhost, color: resetando ? HUB_PALETTE.areiaDim : HUB_PALETTE.jangada, borderColor: HUB_PALETTE.jangada + '66', cursor: resetando || !row.email ? 'not-allowed' : 'pointer' }}>
+                {resetando ? '…' : 'Redefinir senha'}
+              </button>
               {ehEuMesmo(isAdmin ? 'admin' : 'usuario', row) ? (
                 <span title="Você não pode ativar/desativar sua própria conta"
                   style={{ ...cs.btnGhost, background: HUB_PALETTE.marfim + '12', color: HUB_PALETTE.marfim, borderColor: HUB_PALETTE.marfim + 'BB', fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 700, fontStyle: 'normal', fontSize: 12, letterSpacing: '0.12em', textTransform: 'none', cursor: 'not-allowed' }}>

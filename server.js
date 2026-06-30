@@ -722,6 +722,36 @@ app.delete('/api/admin/chamados-usuarios/:id', requireAdmin, async (req, res) =>
   }
   res.status(r.status).json(r.data);
 });
+app.post('/api/admin/chamados-admins/:id/reset-link', requireAdmin, async (req, res) => {
+  const id = req.params.id;
+  const antes = await _buscarAdminAlvo(id);
+  const r = await proxyChamados(`/admins/${encodeURIComponent(id)}/reset-link`, { method: 'POST' });
+  if (r.status >= 200 && r.status < 300 && r.data && r.data.ok) {
+    appendAudit({
+      by_email: req.hubUser.email, by_nome: req.hubUser.nome,
+      action: 'reset_link', target_tipo: 'admin',
+      target_id: Number(id),
+      target_nome: (antes && antes.nome_completo) || null,
+      campos: { link_24h_enviado: true },
+    });
+  }
+  res.status(r.status).json(r.data);
+});
+app.post('/api/admin/chamados-usuarios/:id/reset-link', requireAdmin, async (req, res) => {
+  const id = req.params.id;
+  const antes = await _buscarUsuarioAlvo(id);
+  const r = await proxyChamados(`/portal-usuarios/${encodeURIComponent(id)}/reset-link`, { method: 'POST' });
+  if (r.status >= 200 && r.status < 300 && r.data && r.data.ok) {
+    appendAudit({
+      by_email: req.hubUser.email, by_nome: req.hubUser.nome,
+      action: 'reset_link', target_tipo: 'usuario',
+      target_id: Number(id),
+      target_nome: (antes && antes.nome) || null,
+      campos: { link_24h_enviado: true },
+    });
+  }
+  res.status(r.status).json(r.data);
+});
 app.get('/api/admin/chamados-admins/:id/logs', requireAdmin, async (req, res) => {
   const r = await proxyChamados(`/admins/${encodeURIComponent(req.params.id)}/logs`);
   res.status(r.status).json(r.data);
