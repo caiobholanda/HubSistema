@@ -280,6 +280,7 @@ function HubLogin({ onLogin }) {
     s.textContent = `
       @keyframes hubShake { 0%,100% { transform: translateX(0); } 16% { transform: translateX(-7px); } 33% { transform: translateX(7px); } 50% { transform: translateX(-4px); } 66% { transform: translateX(4px); } 83% { transform: translateX(-2px); } }
       @keyframes hubSlideIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+      input:-webkit-autofill, input:-webkit-autofill:hover, input:-webkit-autofill:focus, input:-webkit-autofill:active { -webkit-box-shadow: 0 0 0 1000px #202C28 inset !important; -webkit-text-fill-color: #ECE4D2 !important; caret-color: #ECE4D2; transition: background-color 5000s ease-in-out 0s; }
     `;
     document.head.appendChild(s);
   }, []);
@@ -399,7 +400,7 @@ function HubLogin({ onLogin }) {
   return (
     <div style={{
       position: 'fixed', inset: 0, zIndex: 90,
-      background: HUB_PALETTE.noite,
+      background: `radial-gradient(ellipse 90% 55% at 12% 8%, ${HUB_PALETTE.champanhe}13 0%, transparent 65%), radial-gradient(ellipse 65% 75% at 88% 92%, ${HUB_PALETTE.jangada}0c 0%, transparent 65%), ${HUB_PALETTE.noite}`,
       display: 'flex', flexDirection: 'column',
       alignItems: 'center', justifyContent: 'center',
       opacity: visible ? 1 : 0,
@@ -520,9 +521,9 @@ function HubLogin({ onLogin }) {
           </div>
           {erro && <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#E07A5F', paddingTop: 4, display: 'flex', alignItems: 'center', gap: 8 }}><span>—</span> {erro}</div>}
           <button type="submit" disabled={loading}
-            style={{ marginTop: 8, width: '100%', padding: '15px', background: loading ? 'rgba(156,88,67,0.5)' : HUB_PALETTE.champanhe, border: 'none', borderRadius: 0, color: '#fff', fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.3em', textTransform: 'uppercase', cursor: loading ? 'not-allowed' : 'pointer', transition: `background 300ms ${HUB_EASE}, box-shadow 200ms ${HUB_EASE}`, boxShadow: loading ? 'none' : '0 4px 16px -2px rgba(156,88,67,0.45)', opacity: loading ? 0.7 : 1 }}
-            onMouseEnter={e => { if (!loading) { e.target.style.background = '#B56B52'; e.target.style.boxShadow = '0 8px 24px -4px rgba(156,88,67,0.55)'; } }}
-            onMouseLeave={e => { if (!loading) { e.target.style.background = HUB_PALETTE.champanhe; e.target.style.boxShadow = '0 4px 16px -2px rgba(156,88,67,0.45)'; } }}>
+            style={{ marginTop: 10, width: '100%', padding: '14px', background: 'transparent', border: `1px solid ${loading ? HUB_PALETTE.champanhe + '44' : HUB_PALETTE.champanhe + 'aa'}`, borderRadius: 0, color: loading ? HUB_PALETTE.areiaDim : HUB_PALETTE.champanhe, fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.3em', textTransform: 'uppercase', cursor: loading ? 'not-allowed' : 'pointer', transition: `background 300ms ${HUB_EASE}, border-color 250ms ${HUB_EASE}, color 250ms ${HUB_EASE}`, opacity: loading ? 0.55 : 1 }}
+            onMouseEnter={e => { if (!loading) { e.target.style.background = 'rgba(156,88,67,0.1)'; e.target.style.borderColor = HUB_PALETTE.champanhe; } }}
+            onMouseLeave={e => { if (!loading) { e.target.style.background = 'transparent'; e.target.style.borderColor = HUB_PALETTE.champanhe + 'aa'; } }}>
             {loading ? 'Verificando...' : 'Entrar'}
           </button>
 
