@@ -2246,7 +2246,7 @@ function ContasPanel({ isMobile }) {
               <button onClick={executarToggleAtivo} disabled={togglingAtivo}
                 style={ativar
                   ? cs.btnPrim
-                  : { ...cs.btnGhost, color: '#E07A5F', borderColor: '#E07A5F88', fontWeight: 600 }}>
+                  : { ...cs.btnPrim, background: '#9C5843', color: '#ECE4D2' }}>
                 {togglingAtivo ? '...' : (ativar ? 'Ativar' : 'Desativar')}
               </button>
             </div>
