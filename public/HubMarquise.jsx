@@ -2881,11 +2881,13 @@ function HubHero({ revealed, easterActive, isMobile, userName, sistemasVisiveis 
 // ─── Status Badge ─────────────────────────────────────────────────────────────
 
 function StatusBadge({ status, label }) {
+  const fallback = { 'no-ar': 'Disponível', 'construcao': 'Em construção', 'beta': 'Beta', 'concept': 'Conceito', 'inativo': 'Inativo' };
+  const displayLabel = label ?? fallback[status] ?? status;
   if (status === 'no-ar') {
     return (
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
         <span style={{ width: 8, height: 8, borderRadius: '50%', background: HUB_PALETTE.jangadaGlow, animation: `hubPulse 2200ms ${HUB_EASE} infinite` }} />
-        <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.24em', textTransform: 'uppercase', color: HUB_PALETTE.jangadaGlow }}>{label}</span>
+        <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.24em', textTransform: 'uppercase', color: HUB_PALETTE.jangadaGlow }}>{displayLabel}</span>
       </span>
     );
   }
@@ -2894,7 +2896,7 @@ function StatusBadge({ status, label }) {
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
       <span style={{ color, fontSize: 11 }}>{glyph}</span>
-      <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.24em', textTransform: 'uppercase', color }}>{label}</span>
+      <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.24em', textTransform: 'uppercase', color }}>{displayLabel}</span>
     </span>
   );
 }
