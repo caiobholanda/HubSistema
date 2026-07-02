@@ -23,22 +23,38 @@ app.use(express.static(path.join(__dirname, 'public')));
 const { migrarSlugs } = require('./src/migrations');
 const sitePerm = require('./src/site-permissions');
 
+const HUB_DATA_TMP = HUB_DATA_FILE + '.tmp';
+
+function _parseDataFile(filePath) {
+  const raw = fs.readFileSync(filePath, 'utf8');
+  const data = JSON.parse(raw);
+  migrarSlugs(data);
+  sitePerm.migrarSitePermissoes(data);
+  return data;
+}
+
 function readData() {
   try {
     if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-    if (!fs.existsSync(HUB_DATA_FILE)) return { users: [], permissions: {} };
-    const data = JSON.parse(fs.readFileSync(HUB_DATA_FILE, 'utf8'));
-    migrarSlugs(data);
-    sitePerm.migrarSitePermissoes(data); // popula registros-semente uma unica vez
-    return data;
+    if (fs.existsSync(HUB_DATA_FILE)) return _parseDataFile(HUB_DATA_FILE);
+    // Arquivo principal ausente: tenta recuperar do .tmp (escrita interrompida)
+    if (fs.existsSync(HUB_DATA_TMP)) return _parseDataFile(HUB_DATA_TMP);
+    return { users: [], permissions: {} };
   } catch {
+    // Arquivo principal corrompido: tenta .tmp como fallback
+    try {
+      if (fs.existsSync(HUB_DATA_TMP)) return _parseDataFile(HUB_DATA_TMP);
+    } catch {}
     return { users: [], permissions: {} };
   }
 }
 
 function writeData(data) {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-  fs.writeFileSync(HUB_DATA_FILE, JSON.stringify(data, null, 2), 'utf8');
+  // Escrita atomica: grava no .tmp e depois renomeia sobre o arquivo principal.
+  // Impede que um SIGTERM durante a escrita corrompa hub_data.json.
+  fs.writeFileSync(HUB_DATA_TMP, JSON.stringify(data, null, 2), 'utf8');
+  fs.renameSync(HUB_DATA_TMP, HUB_DATA_FILE);
 }
 
 // Append-only audit log persistido em hub_data.json (cap 5000 entradas).
@@ -455,7 +471,8 @@ app.post('/api/admin/sistemas', requireAdmin, (req, res) => {
   const { nome, url, status, categoria, descricao, acessoPadrao } = req.body || {};
   if (!nome || !status) return res.status(400).json({ ok: false, erro: 'Nome e status são obrigatórios' });
   const data = readData();
-  const sistemas = getSistemas();
+  if (!Array.isArray(data.sistemas)) data.sistemas = JSON.parse(JSON.stringify(DEFAULT_SISTEMAS));
+  const sistemas = data.sistemas;
   const id = nome.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
   if (sistemas.find(s => s.id === id)) return res.status(409).json({ ok: false, erro: 'Já existe um sistema com esse nome' });
   const num = String(sistemas.length + 1).padStart(2, '0');
@@ -476,7 +493,8 @@ app.post('/api/admin/sistemas', requireAdmin, (req, res) => {
 app.put('/api/admin/sistemas/:id', requireAdmin, (req, res) => {
   const { nome, url, status, categoria, descricao, acessoPadrao } = req.body || {};
   const data = readData();
-  const sistemas = getSistemas();
+  if (!Array.isArray(data.sistemas)) data.sistemas = JSON.parse(JSON.stringify(DEFAULT_SISTEMAS));
+  const sistemas = data.sistemas;
   const idx = sistemas.findIndex(s => s.id === req.params.id);
   if (idx === -1) return res.status(404).json({ ok: false, erro: 'Sistema não encontrado' });
   const antes = { ...sistemas[idx] };
@@ -508,7 +526,8 @@ app.put('/api/admin/sistemas/:id', requireAdmin, (req, res) => {
 
 app.delete('/api/admin/sistemas/:id', requireAdmin, (req, res) => {
   const data = readData();
-  const sistemas = getSistemas();
+  if (!Array.isArray(data.sistemas)) data.sistemas = JSON.parse(JSON.stringify(DEFAULT_SISTEMAS));
+  const sistemas = data.sistemas;
   const antes = sistemas.find(s => s.id === req.params.id);
   data.sistemas = sistemas.filter(s => s.id !== req.params.id);
   writeData(data);
@@ -927,5 +946,20 @@ app.get('/api/hub/site-roles', (req, res) => {
 // ─── Static fallback ─────────────────────────────────────────────────────────
 
 app.get('*', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+
+// Garante que hub_data.json sempre tem a chave 'sistemas' antes de servir.
+// Impede que um login apos arquivo corrompido/ausente salve sem sistemas.
+(function initSistemas() {
+  try {
+    const data = readData();
+    if (!Array.isArray(data.sistemas)) {
+      data.sistemas = JSON.parse(JSON.stringify(DEFAULT_SISTEMAS));
+      writeData(data);
+      console.log('[init] sistemas inicializados com DEFAULT_SISTEMAS');
+    }
+  } catch (e) {
+    console.error('[init] falha ao inicializar sistemas:', e.message);
+  }
+}());
 
 app.listen(PORT, () => console.log(`Hub rodando em http://localhost:${PORT}`));
