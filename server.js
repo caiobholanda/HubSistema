@@ -54,7 +54,14 @@ function writeData(data) {
   // Escrita atomica: grava no .tmp e depois renomeia sobre o arquivo principal.
   // Impede que um SIGTERM durante a escrita corrompa hub_data.json.
   fs.writeFileSync(HUB_DATA_TMP, JSON.stringify(data, null, 2), 'utf8');
-  fs.renameSync(HUB_DATA_TMP, HUB_DATA_FILE);
+  // No Windows, renameSync falha com EPERM se o destino ja existe; usa
+  // copyFileSync+unlink como fallback (nao atomico, mas funciona em dev local).
+  try {
+    fs.renameSync(HUB_DATA_TMP, HUB_DATA_FILE);
+  } catch {
+    fs.copyFileSync(HUB_DATA_TMP, HUB_DATA_FILE);
+    try { fs.unlinkSync(HUB_DATA_TMP); } catch {}
+  }
 }
 
 // Append-only audit log persistido em hub_data.json (cap 5000 entradas).
@@ -810,6 +817,7 @@ app.get('/api/admin/audit-log', requireAdmin, (req, res) => {
 app.delete('/api/admin/permissions/:email', requireAdmin, (req, res) => {
   const email = decodeURIComponent(req.params.email);
   const data = readData();
+  if (!data.permissions) data.permissions = {};
   delete data.permissions[email];
   writeData(data);
   notifyUser(email, null);
