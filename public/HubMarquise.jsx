@@ -173,28 +173,81 @@ const HUB_SYSTEMS = [
 // ─── Boot ─────────────────────────────────────────────────────────────────────
 
 function HubBoot({ onDone }) {
-  const [phase, setPhase] = useState('drawing');
+  const [phase, setPhase] = useState('show');
+  const [anim, setAnim] = useState(0);
+
   useEffect(() => {
-    const t1 = setTimeout(() => setPhase('fade'), 1500);
-    const t2 = setTimeout(() => onDone(), 2100);
-    return () => { clearTimeout(t1); clearTimeout(t2); };
+    const start = performance.now();
+    const SPEED = 1.5;
+    let raf;
+    const tick = (now) => {
+      const elapsed = (now - start) / 1000 * SPEED;
+      setAnim(elapsed);
+      if (elapsed < 2.5) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    const t1 = setTimeout(() => setPhase('fade'), 2300);
+    const t2 = setTimeout(() => onDone(), 2900);
+    return () => { cancelAnimationFrame(raf); clearTimeout(t1); clearTimeout(t2); };
   }, [onDone]);
+
+  const t = anim;
+  const N = 40, R = 130, RI = 48, K = 2.3;
+  const stepA = (Math.PI * 2) / N;
+  const eco = (x) => 1 - Math.pow(1 - Math.max(0, Math.min(1, x)), 3);
+  const fp = (start, dur) => eco((t - start) / (dur || 0.7));
+
+  const rot = -26 + 26 * eco(t / 2.3);
+  const sc = 0.9 + 0.1 * eco(t / 2.3);
+
+  const lines = [];
+  for (let i = 0; i < N; i++) {
+    const a = i * stepA - Math.PI / 2;
+    for (const s of [-1, 1]) {
+      const a2 = a + s * K * stepA;
+      const delay = 0.08 + (i / N) * 1.0 + (s === 1 ? 0.05 : 0);
+      const p = eco((t - delay) / 0.85);
+      lines.push(
+        <line key={i + '_' + s}
+          x1={Math.cos(a) * RI} y1={Math.sin(a) * RI}
+          x2={Math.cos(a2) * R} y2={Math.sin(a2) * R}
+          pathLength="1" strokeDasharray="1" strokeDashoffset={1 - p}
+          stroke={HUB_PALETTE.champanhe} strokeWidth="1.8" strokeLinecap="round"
+          opacity={p > 0 ? 1 : 0}
+        />
+      );
+    }
+  }
+
+  const pHotel = fp(1.25, 0.8);
+  const pGran  = fp(1.5,  0.8);
+  const pMar   = fp(1.7,  0.85);
+  const lsP    = eco((t - 1.25) / 0.9);
+  const ink    = HUB_PALETTE.marfim;
+  const dim    = (p) => ({ opacity: p, transform: `translateY(${(1 - p) * 14}px)` });
 
   return (
     <div style={{
       position: 'fixed', inset: 0, zIndex: 100,
       background: HUB_PALETTE.noite,
-      display: 'flex', flexDirection: 'column',
-      alignItems: 'center', justifyContent: 'center',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
       opacity: phase === 'fade' ? 0 : 1,
       transition: `opacity 600ms ${HUB_EASE}`,
-      pointerEvents: phase === 'fade' ? 'none' : 'auto'
+      pointerEvents: phase === 'fade' ? 'none' : 'auto',
+      overflow: 'hidden'
     }}>
-      <img
-        src="https://letsimage.s3.amazonaws.com/editor/granmarquise/imgs/1760033174793-hotelgranmarquise_pos_footer.png"
-        alt="Gran Marquise"
-        style={{ height: 80, width: 'auto', filter: HUB_PALETTE.noite === HUB_THEMES.dark.noite ? 'brightness(0) invert(1)' : 'none', opacity: 0.9 }}
-      />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 32 }}>
+        <svg width={R * 2 + 10} height={R * 2 + 10}
+          viewBox={`${-R - 5} ${-R - 5} ${R * 2 + 10} ${R * 2 + 10}`}
+          style={{ display: 'block', transform: `rotate(${rot}deg) scale(${sc})`, flexShrink: 0 }}>
+          {lines}
+        </svg>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+          <div style={{ fontFamily: "'Helvetica Neue',Arial,sans-serif", fontSize: 12, fontWeight: 400, letterSpacing: (0.58 - 0.16 * lsP) + 'em', color: ink, lineHeight: 1, marginBottom: 4, ...dim(pHotel) }}>HOTEL</div>
+          <div style={{ fontFamily: "'Helvetica Neue',Arial,sans-serif", fontSize: 40, fontWeight: 300, letterSpacing: '0.055em', color: ink, lineHeight: 1.1, ...dim(pGran) }}>GRAN</div>
+          <div style={{ fontFamily: "'Helvetica Neue',Arial,sans-serif", fontSize: 40, fontWeight: 300, letterSpacing: '0.055em', color: ink, lineHeight: 1.1, ...dim(pMar) }}>MARQUISE</div>
+        </div>
+      </div>
     </div>
   );
 }
