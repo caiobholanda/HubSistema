@@ -8,6 +8,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const SSO_SECRET = process.env.SSO_SECRET || 'dev-sso-secret';
 const CHAMADOS_URL = process.env.CHAMADOS_URL || 'https://sistema-chamados-granmarquise.fly.dev';
+const PESQUISA_URL = process.env.PESQUISA_URL || 'https://pesquisa-satisfacao.fly.dev';
 const DATA_DIR = path.join(__dirname, 'data');
 const HUB_DATA_FILE = path.join(DATA_DIR, 'hub_data.json');
 
@@ -545,6 +546,34 @@ app.delete('/api/admin/sistemas/:id', requireAdmin, (req, res) => {
     campos: {},
   });
   res.json({ ok: true });
+});
+
+// ─── Proxy pesquisa-satisfacao (massoterapeutas) ────────────────────────────
+async function proxyPesquisa(path, { method = 'GET', body = null } = {}) {
+  try {
+    const r = await fetch(`${PESQUISA_URL}/api/hub${path}`, {
+      method,
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${SSO_SECRET}` },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    const data = await r.json().catch(() => ({}));
+    return { status: r.status, data };
+  } catch (err) {
+    console.error('[proxyPesquisa]', path, err.message);
+    return { status: 502, data: { ok: false, erro: 'Pesquisa offline' } };
+  }
+}
+
+app.get('/api/admin/massagistas', requireAdmin, async (_req, res) => {
+  const r = await proxyPesquisa('/massagistas');
+  res.status(r.status).json(r.data);
+});
+app.patch('/api/admin/massagistas/:id/ativo', requireAdmin, async (req, res) => {
+  const r = await proxyPesquisa(`/massagistas/${encodeURIComponent(req.params.id)}/ativo`, {
+    method: 'PATCH',
+    body: req.body,
+  });
+  res.status(r.status).json(r.data);
 });
 
 // ─── Proxy de CRUD de admins/usuarios para o sistema-chamados ──────────────

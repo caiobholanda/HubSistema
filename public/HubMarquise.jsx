@@ -1217,6 +1217,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
   const ABAS = [
     { id: 'contas', label: 'Usuários' },
     { id: 'setores', label: 'Setores' },
+    { id: 'massagistas', label: 'Massoterapeutas' },
     { id: 'links', label: 'Links' },
     { id: 'historico', label: 'Histórico' },
   ];
@@ -1418,6 +1419,9 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
 
         {/* ── Aba Setores ── */}
         {aba === 'setores' && <SetoresPanel isMobile={isMobile} />}
+
+        {/* ── Aba Massoterapeutas ── */}
+        {aba === 'massagistas' && <MassoterapeutasPanel isMobile={isMobile} />}
 
         {/* ── Aba Historico ── */}
         {aba === 'historico' && <HistoricoPanel isMobile={isMobile} />}
@@ -1764,6 +1768,128 @@ function HistoricoPanel({ isMobile }) {
             })}
           </div>
         ))}
+      </div>
+    )}
+  </>);
+}
+
+// ─── Massoterapeutas (ativar/inativar via S2S pesquisa-satisfacao) ──────────
+function MassoterapeutasPanel({ isMobile }) {
+  const [lista, setLista] = useState(null);
+  const [erro, setErro] = useState('');
+  const [toggling, setToggling] = useState(null);
+  const [toast, setToast] = useState(null);
+
+  function notify(msg, isErr) {
+    setToast({ msg, isErr: !!isErr });
+    setTimeout(() => setToast(null), 2600);
+  }
+
+  async function load() {
+    setErro('');
+    try {
+      const r = await hubFetch('/api/admin/massagistas');
+      const d = await r.json();
+      if (!d.ok) throw new Error(d.erro || 'Erro ao carregar');
+      setLista(d.items || []);
+    } catch (e) {
+      setErro(e.message || 'Erro de conexão');
+      setLista([]);
+    }
+  }
+
+  useEffect(() => { load(); }, []);
+
+  async function toggleAtivo(m) {
+    setToggling(m.id);
+    try {
+      const r = await hubFetch(`/api/admin/massagistas/${m.id}/ativo`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ativo: m.ativo ? 0 : 1 }),
+      });
+      const d = await r.json();
+      if (!d.ok) throw new Error(d.erro || 'Falha');
+      setLista(prev => prev.map(x => x.id === m.id ? { ...x, ativo: x.ativo ? 0 : 1 } : x));
+      notify(m.ativo ? `${m.nome} inativada.` : `${m.nome} ativada.`);
+    } catch (e) {
+      notify(e.message || 'Erro', true);
+    } finally {
+      setToggling(null);
+    }
+  }
+
+  const cs = {
+    label: { fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim },
+  };
+
+  return (<>
+    <div style={{ marginBottom: 40 }}>
+      <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.35em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
+        <span style={{ width: 18, height: 1, background: HUB_PALETTE.champanhe }} />Massoterapeutas
+      </div>
+      <h2 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 300, fontStyle: 'italic', fontSize: 40, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: '0 0 10px' }}>Massoterapeutas do Spa.</h2>
+      <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: HUB_PALETTE.areiaDim, lineHeight: 1.5, margin: 0 }}>
+        Ative ou inative massoterapeutas na pesquisa de satisfação.
+      </p>
+    </div>
+
+    {lista === null && !erro && (
+      <div style={{ color: HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.18em' }}>Carregando…</div>
+    )}
+    {erro && (
+      <div style={{ color: '#E07A5F', fontFamily: 'Inter, sans-serif', fontSize: 14, marginBottom: 16 }}>{erro}</div>
+    )}
+
+    {Array.isArray(lista) && lista.length === 0 && !erro && (
+      <div style={{ color: HUB_PALETTE.areiaDim, fontFamily: 'Inter, sans-serif', fontSize: 14 }}>Nenhuma massoterapeuta cadastrada.</div>
+    )}
+
+    {Array.isArray(lista) && lista.length > 0 && (
+      <div style={{ display: 'flex', flexDirection: 'column', borderTop: `1px solid ${HUB_PALETTE.areiaDim}22` }}>
+        {lista.map(m => {
+          const isAtiva = !!m.ativo;
+          const isBusy = toggling === m.id;
+          return (
+            <div key={m.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: isMobile ? '14px 0' : '16px 0', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, gap: 12 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 15, fontWeight: 500, color: isAtiva ? HUB_PALETTE.marfim : HUB_PALETTE.areiaDim, marginBottom: 2 }}>
+                  {m.nome}
+                  {!isAtiva && <span style={{ marginLeft: 10, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, padding: '2px 8px', border: `1px solid ${HUB_PALETTE.areiaDim}44`, verticalAlign: 'middle' }}>inativa</span>}
+                </div>
+                <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.18em', color: HUB_PALETTE.areiaDim }}>
+                  {[m.funcao, m.matricula ? `#${m.matricula}` : null, m.vinculo].filter(Boolean).join(' · ')}
+                </div>
+              </div>
+              <button
+                disabled={isBusy}
+                onClick={() => toggleAtivo(m)}
+                style={{
+                  background: 'transparent',
+                  border: `1px solid ${isAtiva ? HUB_PALETTE.areiaDim + '55' : HUB_PALETTE.champanhe + '88'}`,
+                  color: isAtiva ? HUB_PALETTE.areiaDim : HUB_PALETTE.champanhe,
+                  fontFamily: 'JetBrains Mono, monospace',
+                  fontSize: 9,
+                  letterSpacing: '0.22em',
+                  textTransform: 'uppercase',
+                  padding: '7px 14px',
+                  cursor: isBusy ? 'not-allowed' : 'pointer',
+                  opacity: isBusy ? 0.5 : 1,
+                  flexShrink: 0,
+                  transition: 'color 150ms, border-color 150ms',
+                }}
+              >
+                {isBusy ? '…' : isAtiva ? 'Inativar' : 'Ativar'}
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    )}
+
+    {toast && (
+      <div style={{ position: 'fixed', bottom: 32, left: '50%', transform: 'translateX(-50%)', zIndex: 200, background: toast.isErr ? '#E07A5F' : HUB_PALETTE.champanhe, color: toast.isErr ? '#fff' : HUB_PALETTE.noite, fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase', padding: '12px 22px' }}>
+        {toast.msg}
       </div>
     )}
   </>);
