@@ -2070,13 +2070,14 @@ function ContasPanel({ isMobile }) {
       } catch {}
       setEditing({ tipo, id: row.id, etiquetas: slugs, dados: {
         nome_completo: row.nome_completo, email: row.email || '',
-        ramal: row.ramal || '', is_master: !!row.is_master,
-        senha: '', ativo: !!row.ativo,
+        ramal: row.ramal || '', cargo: row.cargo || '', matricula: row.matricula || '',
+        is_master: !!row.is_master, senha: '', ativo: !!row.ativo,
       }});
     } else {
       setEditing({ tipo, id: row.id, dados: {
         nome: row.nome, email: row.email || '', setor: row.setor || '',
-        ramal: row.ramal || '', senha: '', ativo: row.ativo !== 0,
+        ramal: row.ramal || '', cargo: row.cargo || '', matricula: row.matricula || '',
+        senha: '', ativo: row.ativo !== 0,
       }});
     }
   }
@@ -2117,8 +2118,8 @@ function ContasPanel({ isMobile }) {
     // Inclui campos textuais, ativo/is_master, senha e etiquetas (admin).
     const original = (editing && editing.dados) || {};
     const camposParaComparar = tipo === 'admin'
-      ? ['nome_completo', 'email', 'ramal', 'is_master', 'ativo']
-      : ['nome', 'email', 'setor', 'ramal', 'ativo'];
+      ? ['nome_completo', 'email', 'ramal', 'cargo', 'matricula', 'is_master', 'ativo']
+      : ['nome', 'email', 'setor', 'ramal', 'cargo', 'matricula', 'ativo'];
     const algumCampoMudou = camposParaComparar.some(k => {
       const a = original[k]; const b = dados[k];
       // Normaliza bool/int (ativo=1 == true).
@@ -2407,8 +2408,8 @@ function ContasPanel({ isMobile }) {
 
 function ContaForm({ tipo, isMobile, cs, erro, saving, initial, initialEtiquetas, isEdit, ehEuMesmo, setores, etiquetas, onCancel, onSave }) {
   const [d, setD] = useState(initial || (tipo === 'admin'
-    ? { nome_completo: '', email: '', ramal: '', is_master: false, senha: '' }
-    : { nome: '', email: '', setor: '', ramal: '', senha: '' }));
+    ? { nome_completo: '', email: '', ramal: '', cargo: '', matricula: '', is_master: false, senha: '' }
+    : { nome: '', email: '', setor: '', ramal: '', cargo: '', matricula: '', senha: '' }));
   const [showSenha, setShowSenha] = useState(false);
   const [etSel, setEtSel] = useState(new Set(initialEtiquetas || []));
   const [etBusca, setEtBusca] = useState('');
@@ -2581,6 +2582,23 @@ function ContaForm({ tipo, isMobile, cs, erro, saving, initial, initialEtiquetas
         <input style={cs.input} value={d.ramal}
           autoComplete="off" name="conta-ramal-randomg7h8" inputMode="numeric"
           onChange={e => set('ramal', e.target.value)} maxLength={isAdmin ? 20 : 4} />
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 14 }}>
+          <div>
+            <label style={cs.label}>Cargo <span style={{ textTransform: 'none', letterSpacing: 0, opacity: .6 }}>(opcional)</span></label>
+            <input style={{ ...cs.input, marginTop: 6 }} value={d.cargo || ''}
+              autoComplete="off" name="conta-cargo-randomk1l2" spellCheck={false}
+              placeholder="Ex: Massoterapeuta"
+              onChange={e => set('cargo', e.target.value)} />
+          </div>
+          <div>
+            <label style={cs.label}>Matrícula <span style={{ textTransform: 'none', letterSpacing: 0, opacity: .6 }}>(opcional)</span></label>
+            <input style={{ ...cs.input, marginTop: 6 }} value={d.matricula || ''}
+              autoComplete="off" name="conta-matricula-randomm3n4" spellCheck={false}
+              placeholder="Ex: 00123"
+              onChange={e => set('matricula', e.target.value)} />
+          </div>
+        </div>
 
         <label style={{ ...cs.label, marginTop: 14 }}>Senha {isEdit && <span style={{ textTransform: 'none', letterSpacing: 0, opacity: .6 }}>(altere para definir uma nova)</span>}</label>
         <div style={{ position: 'relative' }}>
