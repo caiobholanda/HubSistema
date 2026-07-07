@@ -1022,6 +1022,77 @@ app.get('/api/hub/site-roles', (req, res) => {
   });
 });
 
+// ─── Feriados (CRUD) ─────────────────────────────────────────────────────────
+
+const FERIADOS_TIPOS = new Set(['nacional', 'estadual', 'municipal', 'interno']);
+
+app.get('/api/admin/feriados', requireAdmin, (req, res) => {
+  const data = readData();
+  let feriados = Array.isArray(data.feriados) ? data.feriados : [];
+  const ano = req.query.ano ? parseInt(req.query.ano, 10) : null;
+  if (ano) feriados = feriados.filter(f => f.data && f.data.startsWith(String(ano)));
+  feriados = feriados.slice().sort((a, b) => a.data.localeCompare(b.data));
+  res.json({ ok: true, feriados });
+});
+
+app.post('/api/admin/feriados', requireAdmin, (req, res) => {
+  const { data: dataFeriado, nome, tipo } = req.body || {};
+  if (!dataFeriado || !nome) return res.status(400).json({ ok: false, erro: 'data e nome obrigatórios' });
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dataFeriado)) return res.status(400).json({ ok: false, erro: 'data inválida (YYYY-MM-DD)' });
+  if (tipo && !FERIADOS_TIPOS.has(tipo)) return res.status(400).json({ ok: false, erro: 'tipo inválido' });
+  const data = readData();
+  if (!Array.isArray(data.feriados)) data.feriados = [];
+  const id = Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+  const feriado = { id, data: dataFeriado, nome: nome.trim(), tipo: tipo || 'nacional' };
+  data.feriados.push(feriado);
+  writeData(data);
+  appendAudit({
+    by_email: req.hubUser.email, by_nome: req.hubUser.nome,
+    action: 'criar', target_tipo: 'feriado',
+    target_id: id, target_nome: nome.trim(),
+    campos: { data: dataFeriado, tipo: tipo || 'nacional' },
+  });
+  res.json({ ok: true, feriado });
+});
+
+app.put('/api/admin/feriados/:id', requireAdmin, (req, res) => {
+  const { id } = req.params;
+  const { data: dataFeriado, nome, tipo } = req.body || {};
+  if (!dataFeriado || !nome) return res.status(400).json({ ok: false, erro: 'data e nome obrigatórios' });
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dataFeriado)) return res.status(400).json({ ok: false, erro: 'data inválida (YYYY-MM-DD)' });
+  if (tipo && !FERIADOS_TIPOS.has(tipo)) return res.status(400).json({ ok: false, erro: 'tipo inválido' });
+  const data = readData();
+  if (!Array.isArray(data.feriados)) return res.status(404).json({ ok: false, erro: 'Feriado não encontrado' });
+  const idx = data.feriados.findIndex(f => f.id === id);
+  if (idx === -1) return res.status(404).json({ ok: false, erro: 'Feriado não encontrado' });
+  data.feriados[idx] = { ...data.feriados[idx], data: dataFeriado, nome: nome.trim(), tipo: tipo || data.feriados[idx].tipo || 'nacional' };
+  writeData(data);
+  appendAudit({
+    by_email: req.hubUser.email, by_nome: req.hubUser.nome,
+    action: 'editar', target_tipo: 'feriado',
+    target_id: id, target_nome: nome.trim(),
+    campos: { data: dataFeriado, tipo: tipo || 'nacional' },
+  });
+  res.json({ ok: true, feriado: data.feriados[idx] });
+});
+
+app.delete('/api/admin/feriados/:id', requireAdmin, (req, res) => {
+  const { id } = req.params;
+  const data = readData();
+  if (!Array.isArray(data.feriados)) return res.status(404).json({ ok: false, erro: 'Feriado não encontrado' });
+  const idx = data.feriados.findIndex(f => f.id === id);
+  if (idx === -1) return res.status(404).json({ ok: false, erro: 'Feriado não encontrado' });
+  const [removed] = data.feriados.splice(idx, 1);
+  writeData(data);
+  appendAudit({
+    by_email: req.hubUser.email, by_nome: req.hubUser.nome,
+    action: 'excluir', target_tipo: 'feriado',
+    target_id: id, target_nome: removed.nome,
+    campos: {},
+  });
+  res.json({ ok: true });
+});
+
 // ─── Static fallback ─────────────────────────────────────────────────────────
 
 app.get('*', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
@@ -1042,5 +1113,57 @@ app.get('*', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'index.h
 }());
 
 _sanitizarAuditLog();
+
+(function initFeriados() {
+  try {
+    const data = readData();
+    if (Array.isArray(data.feriados) && data.feriados.length > 0) return;
+    const SEED = [
+      // 2026 — fixos
+      { data: '2026-01-01', nome: 'Ano Novo', tipo: 'nacional' },
+      { data: '2026-02-16', nome: 'Segunda-feira de Carnaval', tipo: 'municipal' },
+      { data: '2026-02-17', nome: 'Terça-feira de Carnaval', tipo: 'municipal' },
+      { data: '2026-03-19', nome: 'São José', tipo: 'estadual' },
+      { data: '2026-03-25', nome: 'Data Magna do Ceará', tipo: 'estadual' },
+      { data: '2026-04-03', nome: 'Sexta-feira Santa', tipo: 'nacional' },
+      { data: '2026-04-13', nome: 'Aniversário 300 anos de Fortaleza', tipo: 'municipal' },
+      { data: '2026-04-21', nome: 'Tiradentes', tipo: 'nacional' },
+      { data: '2026-05-01', nome: 'Dia do Trabalho', tipo: 'nacional' },
+      { data: '2026-06-04', nome: 'Corpus Christi', tipo: 'municipal' },
+      { data: '2026-08-15', nome: 'Nossa Senhora da Assunção', tipo: 'municipal' },
+      { data: '2026-09-07', nome: 'Independência do Brasil', tipo: 'nacional' },
+      { data: '2026-10-12', nome: 'Nossa Senhora Aparecida', tipo: 'nacional' },
+      { data: '2026-11-02', nome: 'Finados', tipo: 'nacional' },
+      { data: '2026-11-15', nome: 'Proclamação da República', tipo: 'nacional' },
+      { data: '2026-11-20', nome: 'Consciência Negra', tipo: 'nacional' },
+      { data: '2026-12-25', nome: 'Natal', tipo: 'nacional' },
+      // 2027 — fixos + móveis
+      { data: '2027-01-01', nome: 'Ano Novo', tipo: 'nacional' },
+      { data: '2027-02-08', nome: 'Segunda-feira de Carnaval', tipo: 'municipal' },
+      { data: '2027-02-09', nome: 'Terça-feira de Carnaval', tipo: 'municipal' },
+      { data: '2027-03-19', nome: 'São José', tipo: 'estadual' },
+      { data: '2027-03-25', nome: 'Data Magna do Ceará', tipo: 'estadual' },
+      { data: '2027-03-26', nome: 'Sexta-feira Santa', tipo: 'nacional' },
+      { data: '2027-04-21', nome: 'Tiradentes', tipo: 'nacional' },
+      { data: '2027-05-01', nome: 'Dia do Trabalho', tipo: 'nacional' },
+      { data: '2027-05-27', nome: 'Corpus Christi', tipo: 'municipal' },
+      { data: '2027-08-15', nome: 'Nossa Senhora da Assunção', tipo: 'municipal' },
+      { data: '2027-09-07', nome: 'Independência do Brasil', tipo: 'nacional' },
+      { data: '2027-10-12', nome: 'Nossa Senhora Aparecida', tipo: 'nacional' },
+      { data: '2027-11-02', nome: 'Finados', tipo: 'nacional' },
+      { data: '2027-11-15', nome: 'Proclamação da República', tipo: 'nacional' },
+      { data: '2027-11-20', nome: 'Consciência Negra', tipo: 'nacional' },
+      { data: '2027-12-25', nome: 'Natal', tipo: 'nacional' },
+    ];
+    data.feriados = SEED.map((f, i) => ({
+      id: (Date.now() + i) + '_' + Math.random().toString(36).slice(2, 8),
+      ...f,
+    }));
+    writeData(data);
+    console.log('[init] feriados inicializados com seed 2026-2027');
+  } catch (e) {
+    console.error('[init] falha ao inicializar feriados:', e.message);
+  }
+}());
 
 app.listen(PORT, () => console.log(`Hub rodando em http://localhost:${PORT}`));

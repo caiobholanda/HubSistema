@@ -1075,7 +1075,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
   const [aba, _setAba] = useState(() => {
     try {
       const v = sessionStorage.getItem('hub_admin_aba');
-      return ['contas', 'setores', 'links', 'historico'].includes(v) ? v : 'contas';
+      return ['contas', 'setores', 'links', 'historico', 'feriados'].includes(v) ? v : 'contas';
     } catch { return 'contas'; }
   });
   const setAba = (v) => { try { sessionStorage.setItem('hub_admin_aba', v); } catch {} _setAba(v); };
@@ -1267,6 +1267,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
     { id: 'contas', label: 'Usuários' },
     { id: 'setores', label: 'Setores' },
     { id: 'links', label: 'Links' },
+    { id: 'feriados', label: 'Feriados' },
     { id: 'historico', label: 'Histórico' },
   ];
 
@@ -1467,6 +1468,9 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
 
         {/* ── Aba Setores ── */}
         {aba === 'setores' && <SetoresPanel isMobile={isMobile} />}
+
+        {/* ── Aba Feriados ── */}
+        {aba === 'feriados' && <FeriadosPanel isMobile={isMobile} />}
 
         {/* ── Aba Historico ── */}
         {aba === 'historico' && <HistoricoPanel isMobile={isMobile} />}
@@ -2140,6 +2144,233 @@ function SetorForm({ isMobile, cs, erro, saving, initialNome, isEdit, onCancel, 
             placeholder="Ex: Recepção, Financeiro, TI…" />
           {erro && (
             <div style={{ marginTop: 14, padding: '10px 12px', border: '1px solid #E07A5F66', color: '#E07A5F', fontSize: 13, fontFamily: 'Inter, sans-serif' }}>
+              {erro}
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: 10, marginTop: 22, justifyContent: 'flex-end' }}>
+            <button type="button" onClick={onCancel} disabled={saving} style={cs.btnGhost}>Cancelar</button>
+            <button type="submit" disabled={saving} style={cs.btnPrim}>{saving ? '...' : (isEdit ? 'Salvar' : 'Criar')}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ─── Feriados (CRUD) ─────────────────────────────────────────────────────────
+const TIPO_FERIADO_LABEL = { nacional: 'Nacional', estadual: 'Estadual CE', municipal: 'Municipal For.', interno: 'Interno' };
+const TIPO_FERIADO_COR = { nacional: '#996442', estadual: '#9C5843', municipal: '#5f7a5f', interno: '#555' };
+
+function FeriadosPanel({ isMobile }) {
+  const anoAtual = new Date().getFullYear();
+  const [ano, setAno] = useState(anoAtual);
+  const [lista, setLista] = useState(null);
+  const [editing, setEditing] = useState(null); // feriado object
+  const [creating, setCreating] = useState(false);
+  const [confirmar, setConfirmar] = useState(null); // { id, nome }
+  const [saving, setSaving] = useState(false);
+  const [erro, setErro] = useState('');
+  const [toast, setToast] = useState('');
+
+  function token() { return localStorage.getItem('hub_sso_token'); }
+  function notify(msg, isErr) { setToast({ msg, err: !!isErr }); setTimeout(() => setToast(''), 2800); }
+
+  async function carregar(a) {
+    try {
+      const r = await fetch(`/api/admin/feriados?ano=${a || ano}`, { headers: { Authorization: `Bearer ${token()}` } });
+      const d = await r.json();
+      if (r.ok && d.ok) setLista(d.feriados || []);
+      else { setLista([]); notify(d.erro || 'Erro ao carregar feriados', true); }
+    } catch { setLista([]); notify('Erro de conexão', true); }
+  }
+  useEffect(() => { carregar(ano); }, [ano]);
+
+  function mudarAno(v) { setAno(v); setEditing(null); setCreating(false); setErro(''); }
+  function startNovo() { setErro(''); setCreating(true); }
+  function startEdit(f) { setErro(''); setEditing(f); }
+  function fechar() { setEditing(null); setCreating(false); setErro(''); }
+
+  async function salvar(campos) {
+    setSaving(true); setErro('');
+    const url = editing ? `/api/admin/feriados/${editing.id}` : '/api/admin/feriados';
+    const method = editing ? 'PUT' : 'POST';
+    try {
+      const r = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
+        body: JSON.stringify(campos),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.ok) { setErro(d.erro || `Erro ${r.status}`); setSaving(false); return; }
+      notify(editing ? 'Feriado atualizado' : 'Feriado criado');
+      fechar();
+      await carregar(ano);
+    } catch { setErro('Erro de conexão'); }
+    setSaving(false);
+  }
+
+  async function confirmarExclusao() {
+    if (!confirmar) return;
+    const id = confirmar.id;
+    setConfirmar(null);
+    try {
+      const r = await fetch(`/api/admin/feriados/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token()}` },
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.ok) { notify(d.erro || 'Erro ao excluir', true); return; }
+      notify('Feriado excluído');
+      await carregar(ano);
+    } catch { notify('Erro de conexão', true); }
+  }
+
+  function fmtData(iso) {
+    if (!iso) return '';
+    const [y, m, d] = iso.split('-');
+    return `${d}/${m}/${y}`;
+  }
+
+  const cs = {
+    input: { width: '100%', boxSizing: 'border-box', background: HUB_PALETTE.areiaDim + '0a', border: `1px solid ${HUB_PALETTE.areiaDim}33`, color: HUB_PALETTE.marfim, fontFamily: 'Inter, sans-serif', fontSize: 14, padding: '10px 14px', outline: 'none' },
+    label: { fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 6, display: 'block' },
+    btnPrim: { background: HUB_PALETTE.champanhe, color: HUB_PALETTE.noite, border: 'none', padding: '12px 22px', fontFamily: 'JetBrains Mono, monospace', fontSize: 12, fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase', cursor: 'pointer' },
+    btnGhost: { background: 'transparent', color: HUB_PALETTE.marfim, border: `1px solid ${HUB_PALETTE.areiaDim}77`, padding: '12px 22px', fontFamily: 'JetBrains Mono, monospace', fontSize: 12, fontWeight: 500, letterSpacing: '0.2em', textTransform: 'uppercase', cursor: 'pointer' },
+    btnDanger: { background: 'transparent', color: '#E07A5F', border: '1px solid #E07A5F88', padding: '12px 22px', fontFamily: 'JetBrains Mono, monospace', fontSize: 12, fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase', cursor: 'pointer' },
+  };
+
+  const anos = [];
+  for (let y = anoAtual - 1; y <= anoAtual + 3; y++) anos.push(y);
+
+  return (<>
+    <div style={{ marginBottom: 28 }}>
+      <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.35em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
+        <span style={{ width: 18, height: 1, background: HUB_PALETTE.champanhe }} />Feriados
+      </div>
+      <h2 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 300, fontStyle: 'italic', fontSize: 40, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: '0 0 10px' }}>Feriados do hotel.</h2>
+      <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: HUB_PALETTE.areiaDim, lineHeight: 1.5, margin: 0 }}>
+        Feriados usados na construção da escala do SPA. Colaboradores que trabalham em feriados têm direito a <strong style={{ color: HUB_PALETTE.areia }}>CF — Compensação de Feriado</strong>.
+      </p>
+    </div>
+
+    {/* Toolbar */}
+    <div style={{ display: 'flex', gap: 12, marginBottom: 18, flexWrap: 'wrap', alignItems: 'center' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim }}>Ano</span>
+        <select value={ano} onChange={e => mudarAno(Number(e.target.value))}
+          style={{ ...cs.input, width: 'auto', padding: '8px 12px', cursor: 'pointer' }}>
+          {anos.map(y => <option key={y} value={y}>{y}</option>)}
+        </select>
+      </div>
+      <div style={{ flex: 1 }} />
+      <button onClick={startNovo} style={cs.btnPrim}>+ Novo feriado</button>
+    </div>
+
+    {/* Lista */}
+    {lista === null ? (
+      <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.2em', color: HUB_PALETTE.areiaDim, textTransform: 'uppercase', padding: '40px 0' }}>Carregando...</div>
+    ) : lista.length === 0 ? (
+      <div style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontSize: 16, color: HUB_PALETTE.areiaDim, padding: '40px 0' }}>
+        Nenhum feriado cadastrado para {ano}.
+      </div>
+    ) : (
+      <div style={{ display: 'flex', flexDirection: 'column', borderTop: `1px solid ${HUB_PALETTE.areiaDim}22` }}>
+        {lista.map(f => (
+          <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px 4px', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, flexWrap: 'wrap' }}>
+            <div style={{ minWidth: 96, fontFamily: 'JetBrains Mono, monospace', fontSize: 13, color: HUB_PALETTE.champanhe, letterSpacing: '0.05em' }}>
+              {fmtData(f.data)}
+            </div>
+            <div style={{ flex: 1, minWidth: 180, fontFamily: 'Inter, sans-serif', fontSize: 16, color: HUB_PALETTE.marfim, fontWeight: 500 }}>
+              {f.nome}
+            </div>
+            <div style={{ padding: '3px 10px', border: `1px solid ${TIPO_FERIADO_COR[f.tipo] || '#555'}66`, color: TIPO_FERIADO_COR[f.tipo] || '#aaa', fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase' }}>
+              {TIPO_FERIADO_LABEL[f.tipo] || f.tipo}
+            </div>
+            <button onClick={() => startEdit(f)} style={{ ...cs.btnGhost, padding: '8px 16px', fontSize: 11 }}>Editar</button>
+            <button onClick={() => setConfirmar({ id: f.id, nome: f.nome })} style={{ ...cs.btnDanger, padding: '8px 16px', fontSize: 11 }}>Excluir</button>
+          </div>
+        ))}
+      </div>
+    )}
+
+    {/* Modal Criar/Editar */}
+    {(creating || editing) && (
+      <FeriadoForm isMobile={isMobile} cs={cs} erro={erro} saving={saving}
+        initial={editing || null}
+        isEdit={!!editing}
+        onCancel={fechar}
+        onSave={salvar} />
+    )}
+
+    {/* Modal Confirmar exclusão */}
+    {confirmar && (
+      <div style={{ position: 'fixed', inset: 0, zIndex: 160, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+        <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, maxWidth: 420, width: '100%', padding: isMobile ? '24px 20px' : '32px 36px' }}>
+          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: '#9C5843', marginBottom: 6 }}>Confirmar exclusão</div>
+          <h3 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontWeight: 300, fontSize: 22, color: HUB_PALETTE.marfim, margin: '0 0 14px', lineHeight: 1.25 }}>
+            Excluir "{confirmar.nome}"?
+          </h3>
+          <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areia, margin: '0 0 22px', lineHeight: 1.5 }}>
+            Esta ação não pode ser desfeita.
+          </p>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+            <button onClick={() => setConfirmar(null)} style={cs.btnGhost}>Cancelar</button>
+            <button onClick={confirmarExclusao} style={{ ...cs.btnPrim, background: '#E07A5F', color: '#fff' }}>Excluir</button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {toast && (
+      <div style={{ position: 'fixed', bottom: 32, left: '50%', transform: 'translateX(-50%)', zIndex: 200, background: toast.err ? '#E07A5F' : HUB_PALETTE.champanhe, color: toast.err ? '#fff' : HUB_PALETTE.noite, fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase', padding: '12px 22px' }}>
+        {toast.msg}
+      </div>
+    )}
+  </>);
+}
+
+function FeriadoForm({ isMobile, cs, erro, saving, initial, isEdit, onCancel, onSave }) {
+  const [dataField, setDataField] = useState(initial ? initial.data : '');
+  const [nome, setNome] = useState(initial ? initial.nome : '');
+  const [tipo, setTipo] = useState(initial ? (initial.tipo || 'nacional') : 'nacional');
+  const inputRef = useRef(null);
+  useEffect(() => {
+    const t = setTimeout(() => { if (inputRef.current) inputRef.current.focus(); }, 60);
+    return () => clearTimeout(t);
+  }, []);
+  function handleKey(e) {
+    if (e.key === 'Escape' && !saving) { e.preventDefault(); onCancel(); }
+  }
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 150, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, maxWidth: 480, width: '100%', padding: isMobile ? '24px 20px' : '32px 36px' }}>
+        <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 6 }}>Feriado</div>
+        <h3 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontWeight: 300, fontSize: 26, color: HUB_PALETTE.marfim, margin: '0 0 22px' }}>
+          {isEdit ? 'Editar feriado' : 'Novo feriado'}
+        </h3>
+        <form autoComplete="off" onSubmit={e => { e.preventDefault(); onSave({ data: dataField, nome, tipo }); }} onKeyDown={handleKey}>
+          <div style={{ marginBottom: 16 }}>
+            <label style={cs.label}>Data *</label>
+            <input type="date" style={cs.input} value={dataField} onChange={e => setDataField(e.target.value)} required />
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <label style={cs.label}>Nome *</label>
+            <input ref={inputRef} style={cs.input} value={nome} maxLength={120}
+              autoComplete="off" spellCheck={false}
+              onChange={e => setNome(e.target.value)}
+              placeholder="Ex: Natal, Tiradentes, Corpus Christi…" required />
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <label style={cs.label}>Tipo</label>
+            <select style={{ ...cs.input, cursor: 'pointer' }} value={tipo} onChange={e => setTipo(e.target.value)}>
+              <option value="nacional">Nacional</option>
+              <option value="estadual">Estadual CE</option>
+              <option value="municipal">Municipal Fortaleza</option>
+              <option value="interno">Interno</option>
+            </select>
+          </div>
+          {erro && (
+            <div style={{ marginBottom: 14, padding: '10px 12px', border: '1px solid #E07A5F66', color: '#E07A5F', fontSize: 13, fontFamily: 'Inter, sans-serif' }}>
               {erro}
             </div>
           )}
