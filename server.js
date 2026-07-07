@@ -1146,6 +1146,70 @@ app.delete('/api/admin/ausencias/:id', requireAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
+// ─── Programação de Férias (CRUD) ────────────────────────────────────────────
+
+function _feriasSobrepostas(lista, massagista_id, data_inicio, data_fim, excludeId) {
+  return lista
+    .filter(f => String(f.massagista_id) === String(massagista_id) && f.id !== excludeId)
+    .some(f => f.data_inicio <= data_fim && f.data_fim >= data_inicio);
+}
+
+app.get('/api/admin/ferias', requireAdmin, (req, res) => {
+  const data = readData();
+  let ferias = Array.isArray(data.ferias) ? data.ferias : [];
+  if (req.query.massagista_id) ferias = ferias.filter(f => String(f.massagista_id) === String(req.query.massagista_id));
+  ferias = ferias.slice().sort((a, b) => a.data_inicio.localeCompare(b.data_inicio));
+  res.json({ ok: true, ferias });
+});
+
+app.post('/api/admin/ferias', requireAdmin, (req, res) => {
+  const { massagista_id, massagista_nome, data_inicio, data_fim, observacao } = req.body || {};
+  if (!massagista_id || !data_inicio || !data_fim) return res.status(400).json({ ok: false, erro: 'massagista_id, data_inicio e data_fim são obrigatórios' });
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(data_inicio) || !/^\d{4}-\d{2}-\d{2}$/.test(data_fim)) return res.status(400).json({ ok: false, erro: 'Datas inválidas (YYYY-MM-DD)' });
+  if (data_inicio > data_fim) return res.status(400).json({ ok: false, erro: 'Data de início deve ser anterior à data de fim' });
+  const data = readData();
+  if (!Array.isArray(data.ferias)) data.ferias = [];
+  if (_feriasSobrepostas(data.ferias, massagista_id, data_inicio, data_fim, null))
+    return res.status(409).json({ ok: false, erro: 'O período se sobrepõe a férias já programadas para este profissional' });
+  const id = Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+  const ferias = { id, massagista_id: Number(massagista_id), massagista_nome: (massagista_nome || '').trim(), data_inicio, data_fim, observacao: (observacao || '').trim() };
+  data.ferias.push(ferias);
+  writeData(data);
+  appendAudit({ by_email: req.hubUser.email, by_nome: req.hubUser.nome, action: 'criar', target_tipo: 'ferias', target_id: id, target_nome: ferias.massagista_nome, campos: { data_inicio, data_fim } });
+  res.json({ ok: true, ferias });
+});
+
+app.put('/api/admin/ferias/:id', requireAdmin, (req, res) => {
+  const { id } = req.params;
+  const { data_inicio, data_fim, observacao } = req.body || {};
+  if (!data_inicio || !data_fim) return res.status(400).json({ ok: false, erro: 'data_inicio e data_fim são obrigatórios' });
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(data_inicio) || !/^\d{4}-\d{2}-\d{2}$/.test(data_fim)) return res.status(400).json({ ok: false, erro: 'Datas inválidas (YYYY-MM-DD)' });
+  if (data_inicio > data_fim) return res.status(400).json({ ok: false, erro: 'Data de início deve ser anterior à data de fim' });
+  const data = readData();
+  if (!Array.isArray(data.ferias)) return res.status(404).json({ ok: false, erro: 'Férias não encontradas' });
+  const idx = data.ferias.findIndex(f => f.id === id);
+  if (idx === -1) return res.status(404).json({ ok: false, erro: 'Férias não encontradas' });
+  const { massagista_id, massagista_nome } = data.ferias[idx];
+  if (_feriasSobrepostas(data.ferias, massagista_id, data_inicio, data_fim, id))
+    return res.status(409).json({ ok: false, erro: 'O período se sobrepõe a férias já programadas para este profissional' });
+  data.ferias[idx] = { ...data.ferias[idx], data_inicio, data_fim, observacao: (observacao || '').trim() };
+  writeData(data);
+  appendAudit({ by_email: req.hubUser.email, by_nome: req.hubUser.nome, action: 'editar', target_tipo: 'ferias', target_id: id, target_nome: massagista_nome, campos: { data_inicio, data_fim } });
+  res.json({ ok: true, ferias: data.ferias[idx] });
+});
+
+app.delete('/api/admin/ferias/:id', requireAdmin, (req, res) => {
+  const { id } = req.params;
+  const data = readData();
+  if (!Array.isArray(data.ferias)) return res.status(404).json({ ok: false, erro: 'Férias não encontradas' });
+  const idx = data.ferias.findIndex(f => f.id === id);
+  if (idx === -1) return res.status(404).json({ ok: false, erro: 'Férias não encontradas' });
+  const [removed] = data.ferias.splice(idx, 1);
+  writeData(data);
+  appendAudit({ by_email: req.hubUser.email, by_nome: req.hubUser.nome, action: 'excluir', target_tipo: 'ferias', target_id: id, target_nome: removed.massagista_nome, campos: {} });
+  res.json({ ok: true });
+});
+
 // ─── Static fallback ─────────────────────────────────────────────────────────
 
 app.get('*', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
@@ -1241,6 +1305,19 @@ _sanitizarAuditLog();
     console.log('[init] ausencias inicializadas com seed');
   } catch (e) {
     console.error('[init] falha ao inicializar ausencias:', e.message);
+  }
+}());
+
+(function initFerias() {
+  try {
+    const data = readData();
+    if (!Array.isArray(data.ferias)) {
+      data.ferias = [];
+      writeData(data);
+      console.log('[init] ferias inicializadas');
+    }
+  } catch (e) {
+    console.error('[init] falha ao inicializar ferias:', e.message);
   }
 }());
 
