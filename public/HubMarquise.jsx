@@ -997,27 +997,49 @@ function LiberacaoPanel({ sistemaId, sistemaNome, isMobile, users, acessoPadrao 
         document.body
       )}
 
-      <div style={subTitulo}>Admins ({admins.length})</div>
+      <div style={subTitulo}>Acessos ({admins.length})</div>
       <div style={lista}>
         {items === null && <div style={{ ...item, color: HUB_PALETTE.areiaDim, fontStyle: 'italic' }}>Carregando…</div>}
         {items !== null && admins.length === 0 && <div style={{ ...item, color: HUB_PALETTE.areiaDim, fontStyle: 'italic' }}>Nenhum admin definido. Adicione contas acima.</div>}
-        {admins.map(x => (
-          <div key={'a-' + x.email} style={item}>
-            <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{x.email}</span>
-            {ehPesquisa ? (
-              <select value={x.papel || 'admin'} onChange={e => trocarPapel(x.email, e.target.value)} disabled={busy}
-                style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim, border: `1px solid ${HUB_PALETTE.champanhe}`, padding: '4px 8px', fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 12 }}
-                title="Mudar papel">
-                <option value="master"         style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim }}>Master</option>
-                <option value="admin"          style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim }}>Admin</option>
-                <option value="spa"            style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim }}>Spa</option>
-                <option value="satisfacao"     style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim }}>Satisfação</option>
-                <option value="massoterapeuta" style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim }}>Massoterapeuta</option>
-              </select>
-            ) : null}
-            <button onClick={() => remover(x.email)} disabled={busy} style={{ ...btn, color: '#E07A5F', borderColor: '#E07A5F44' }} title="Remover acesso de admin">× Remover</button>
-          </div>
-        ))}
+        {items !== null && admins.length > 0 && (() => {
+          const PAPEL_ORDEM = ['master', 'spa', 'satisfacao', 'admin', 'massoterapeuta'];
+          const PAPEL_LABEL = { master: 'Master', spa: 'Spa', satisfacao: 'Satisfação', admin: 'Admin', massoterapeuta: 'Massoterapeuta' };
+          const grupos = PAPEL_ORDEM
+            .map(papel => ({
+              papel,
+              label: PAPEL_LABEL[papel],
+              items: admins.filter(x => (x.papel || 'admin') === papel).sort((a, b) => a.email.localeCompare(b.email)),
+            }))
+            .filter(g => g.items.length > 0);
+          return grupos.map((grupo, gi) => (
+            <React.Fragment key={grupo.papel}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: gi === 0 ? '4px 0 6px' : '18px 0 6px' }}>
+                <div style={{ flex: 1, height: '1px', background: `${HUB_PALETTE.champanhe}28` }} />
+                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 8.5, letterSpacing: '0.32em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, whiteSpace: 'nowrap' }}>
+                  {grupo.label}&nbsp;·&nbsp;{grupo.items.length}
+                </span>
+                <div style={{ flex: 1, height: '1px', background: `${HUB_PALETTE.champanhe}28` }} />
+              </div>
+              {grupo.items.map(x => (
+                <div key={'a-' + x.email} style={item}>
+                  <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{x.email}</span>
+                  {ehPesquisa ? (
+                    <select value={x.papel || 'admin'} onChange={e => trocarPapel(x.email, e.target.value)} disabled={busy}
+                      style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim, border: `1px solid ${HUB_PALETTE.champanhe}`, padding: '4px 8px', fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 12 }}
+                      title="Mudar papel">
+                      <option value="master"         style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim }}>Master</option>
+                      <option value="admin"          style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim }}>Admin</option>
+                      <option value="spa"            style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim }}>Spa</option>
+                      <option value="satisfacao"     style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim }}>Satisfação</option>
+                      <option value="massoterapeuta" style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim }}>Massoterapeuta</option>
+                    </select>
+                  ) : null}
+                  <button onClick={() => remover(x.email)} disabled={busy} style={{ ...btn, color: '#E07A5F', borderColor: '#E07A5F44' }} title="Remover acesso de admin">× Remover</button>
+                </div>
+              ))}
+            </React.Fragment>
+          ));
+        })()}
       </div>
 
     </div>
