@@ -784,6 +784,10 @@ function LiberacaoPanel({ sistemaId, sistemaNome, isMobile, users, acessoPadrao 
   // Ref do input para posicionar a dropbox por cima do modal (position fixed).
   const inputWrapRef = useRef(null);
   const [popRect, setPopRect] = useState(null);
+  const [massaLista, setMassaLista] = useState(null);
+  const [massaErro, setMassaErro] = useState('');
+  const [massaToggling, setMassaToggling] = useState(null);
+  const [massaToast, setMassaToast] = useState(null);
 
   async function recarregarUsuarios() {
     try {
@@ -867,6 +871,40 @@ function LiberacaoPanel({ sistemaId, sistemaNome, isMobile, users, acessoPadrao 
       await Promise.all([carregar(), recarregarUsuarios()]);
     } finally { setBusy(false); }
   }
+
+  async function carregarMassas() {
+    setMassaErro('');
+    try {
+      const r = await hubFetch('/api/admin/massagistas');
+      const d = await r.json();
+      if (!d.ok) throw new Error(d.erro || 'Erro ao carregar');
+      setMassaLista(d.items || []);
+    } catch (e) {
+      setMassaErro(e.message || 'Erro de conexão');
+      setMassaLista([]);
+    }
+  }
+  async function toggleMassa(m) {
+    setMassaToggling(m.id);
+    try {
+      const r = await hubFetch(`/api/admin/massagistas/${m.id}/ativo`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ativo: m.ativo ? 0 : 1 }),
+      });
+      const d = await r.json();
+      if (!d.ok) throw new Error(d.erro || 'Falha');
+      setMassaLista(prev => prev.map(x => x.id === m.id ? { ...x, ativo: x.ativo ? 0 : 1 } : x));
+      setMassaToast({ msg: m.ativo ? `${m.nome} inativada.` : `${m.nome} ativada.`, isErr: false });
+      setTimeout(() => setMassaToast(null), 2600);
+    } catch (e) {
+      setMassaToast({ msg: e.message || 'Erro', isErr: true });
+      setTimeout(() => setMassaToast(null), 2600);
+    } finally {
+      setMassaToggling(null);
+    }
+  }
+  useEffect(() => { if (ehPesquisa) carregarMassas(); }, [ehPesquisa]);
 
   // Lista mostra qualquer registro de permissao explicita (admin, master,
   // spa, satisfacao). Filtra apenas 'usuario' (acesso comum) que e' implicito.
@@ -1018,6 +1056,52 @@ function LiberacaoPanel({ sistemaId, sistemaNome, isMobile, users, acessoPadrao 
           </div>
         ))}
       </div>
+
+      {ehPesquisa && (<>
+        <div style={{ borderTop: `1px solid ${HUB_PALETTE.areiaDim}22`, margin: '24px 0 20px' }} />
+        <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.28em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ width: 14, height: 1, background: HUB_PALETTE.areiaDim + '66' }} />
+          Massoterapeutas
+        </div>
+        {massaErro && <div style={{ color: '#E07A5F', fontFamily: 'Inter, sans-serif', fontSize: 13, marginBottom: 12 }}>{massaErro}</div>}
+        {massaLista === null && !massaErro && (
+          <div style={{ color: HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.18em', marginBottom: 12 }}>Carregando…</div>
+        )}
+        {Array.isArray(massaLista) && massaLista.length === 0 && !massaErro && (
+          <div style={{ color: HUB_PALETTE.areiaDim, fontFamily: 'Inter, sans-serif', fontSize: 13, marginBottom: 12 }}>Nenhuma massoterapeuta cadastrada.</div>
+        )}
+        {Array.isArray(massaLista) && massaLista.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', borderTop: `1px solid ${HUB_PALETTE.areiaDim}22` }}>
+            {massaLista.map(m => {
+              const isAtiva = !!m.ativo;
+              const isBusy = massaToggling === m.id;
+              return (
+                <div key={m.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, gap: 12 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, fontWeight: 500, color: isAtiva ? HUB_PALETTE.marfim : HUB_PALETTE.areiaDim, marginBottom: 2 }}>
+                      {m.nome}
+                      {!isAtiva && <span style={{ marginLeft: 10, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, padding: '2px 8px', border: `1px solid ${HUB_PALETTE.areiaDim}44`, verticalAlign: 'middle' }}>inativa</span>}
+                    </div>
+                    <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.18em', color: HUB_PALETTE.areiaDim }}>
+                      {[m.funcao, m.matricula ? `#${m.matricula}` : null, m.vinculo].filter(Boolean).join(' · ')}
+                    </div>
+                  </div>
+                  <button disabled={isBusy} onClick={() => toggleMassa(m)}
+                    style={{ background: 'transparent', border: `1px solid ${isAtiva ? HUB_PALETTE.areiaDim + '55' : HUB_PALETTE.champanhe + '88'}`, color: isAtiva ? HUB_PALETTE.areiaDim : HUB_PALETTE.champanhe, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', padding: '6px 12px', cursor: isBusy ? 'not-allowed' : 'pointer', opacity: isBusy ? 0.5 : 1, flexShrink: 0, transition: 'color 150ms, border-color 150ms' }}>
+                    {isBusy ? '…' : isAtiva ? 'Inativar' : 'Ativar'}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        {massaToast && ReactDOM.createPortal(
+          <div style={{ position: 'fixed', bottom: 32, left: '50%', transform: 'translateX(-50%)', zIndex: 220, background: massaToast.isErr ? '#E07A5F' : HUB_PALETTE.champanhe, color: massaToast.isErr ? '#fff' : HUB_PALETTE.noite, fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase', padding: '12px 22px' }}>
+            {massaToast.msg}
+          </div>,
+          document.body
+        )}
+      </>)}
     </div>
   );
 }
@@ -1217,7 +1301,6 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
   const ABAS = [
     { id: 'contas', label: 'Usuários' },
     { id: 'setores', label: 'Setores' },
-    { id: 'massagistas', label: 'Massoterapeutas' },
     { id: 'links', label: 'Links' },
     { id: 'historico', label: 'Histórico' },
   ];
@@ -1419,9 +1502,6 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
 
         {/* ── Aba Setores ── */}
         {aba === 'setores' && <SetoresPanel isMobile={isMobile} />}
-
-        {/* ── Aba Massoterapeutas ── */}
-        {aba === 'massagistas' && <MassoterapeutasPanel isMobile={isMobile} />}
 
         {/* ── Aba Historico ── */}
         {aba === 'historico' && <HistoricoPanel isMobile={isMobile} />}
