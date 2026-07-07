@@ -1075,7 +1075,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
   const [aba, _setAba] = useState(() => {
     try {
       const v = sessionStorage.getItem('hub_admin_aba');
-      return ['contas', 'setores', 'links', 'historico', 'feriados'].includes(v) ? v : 'contas';
+      return ['contas', 'setores', 'links', 'historico', 'feriados', 'ausencias'].includes(v) ? v : 'contas';
     } catch { return 'contas'; }
   });
   const setAba = (v) => { try { sessionStorage.setItem('hub_admin_aba', v); } catch {} _setAba(v); };
@@ -1268,6 +1268,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
     { id: 'setores', label: 'Setores' },
     { id: 'links', label: 'Links' },
     { id: 'feriados', label: 'Feriados' },
+    { id: 'ausencias', label: 'Ausências' },
     { id: 'historico', label: 'Histórico' },
   ];
 
@@ -1471,6 +1472,9 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
 
         {/* ── Aba Feriados ── */}
         {aba === 'feriados' && <FeriadosPanel isMobile={isMobile} />}
+
+        {/* ── Aba Ausências ── */}
+        {aba === 'ausencias' && <AusenciasPanel isMobile={isMobile} />}
 
         {/* ── Aba Historico ── */}
         {aba === 'historico' && <HistoricoPanel isMobile={isMobile} />}
@@ -2371,6 +2375,187 @@ function FeriadoForm({ isMobile, cs, erro, saving, initial, isEdit, onCancel, on
           </div>
           {erro && (
             <div style={{ marginBottom: 14, padding: '10px 12px', border: '1px solid #E07A5F66', color: '#E07A5F', fontSize: 13, fontFamily: 'Inter, sans-serif' }}>
+              {erro}
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: 10, marginTop: 22, justifyContent: 'flex-end' }}>
+            <button type="button" onClick={onCancel} disabled={saving} style={cs.btnGhost}>Cancelar</button>
+            <button type="submit" disabled={saving} style={cs.btnPrim}>{saving ? '...' : (isEdit ? 'Salvar' : 'Criar')}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ─── Ausências (CRUD) ────────────────────────────────────────────────────────
+function AusenciasPanel({ isMobile }) {
+  const [lista, setLista] = useState(null);
+  const [editing, setEditing] = useState(null);
+  const [creating, setCreating] = useState(false);
+  const [confirmar, setConfirmar] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [erro, setErro] = useState('');
+  const [toast, setToast] = useState('');
+
+  function token() { return localStorage.getItem('hub_sso_token'); }
+  function notify(msg, isErr) { setToast({ msg, err: !!isErr }); setTimeout(() => setToast(''), 2800); }
+
+  async function carregar() {
+    try {
+      const r = await fetch('/api/admin/ausencias', { headers: { Authorization: `Bearer ${token()}` } });
+      const d = await r.json();
+      if (r.ok && d.ok) setLista(d.ausencias || []);
+      else { setLista([]); notify(d.erro || 'Erro ao carregar', true); }
+    } catch { setLista([]); notify('Erro de conexão', true); }
+  }
+  useEffect(() => { carregar(); }, []);
+
+  function fechar() { setEditing(null); setCreating(false); setErro(''); }
+
+  async function salvar(campos) {
+    setSaving(true); setErro('');
+    const url = editing ? `/api/admin/ausencias/${editing.id}` : '/api/admin/ausencias';
+    const method = editing ? 'PUT' : 'POST';
+    try {
+      const r = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
+        body: JSON.stringify(campos),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.ok) { setErro(d.erro || `Erro ${r.status}`); setSaving(false); return; }
+      notify(editing ? 'Tipo atualizado' : 'Tipo criado');
+      fechar();
+      await carregar();
+    } catch { setErro('Erro de conexão'); }
+    setSaving(false);
+  }
+
+  async function confirmarExclusao() {
+    if (!confirmar) return;
+    const id = confirmar.id;
+    setConfirmar(null);
+    try {
+      const r = await fetch(`/api/admin/ausencias/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token()}` } });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.ok) { notify(d.erro || 'Erro ao excluir', true); return; }
+      notify('Tipo excluído');
+      await carregar();
+    } catch { notify('Erro de conexão', true); }
+  }
+
+  const cs = {
+    input: { width: '100%', boxSizing: 'border-box', background: HUB_PALETTE.areiaDim + '0a', border: `1px solid ${HUB_PALETTE.areiaDim}33`, color: HUB_PALETTE.marfim, fontFamily: 'Inter, sans-serif', fontSize: 14, padding: '10px 14px', outline: 'none' },
+    label: { fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 6, display: 'block' },
+    btnPrim: { background: HUB_PALETTE.champanhe, color: HUB_PALETTE.noite, border: 'none', padding: '12px 22px', fontFamily: 'JetBrains Mono, monospace', fontSize: 12, fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase', cursor: 'pointer' },
+    btnGhost: { background: 'transparent', color: HUB_PALETTE.marfim, border: `1px solid ${HUB_PALETTE.areiaDim}77`, padding: '12px 22px', fontFamily: 'JetBrains Mono, monospace', fontSize: 12, fontWeight: 500, letterSpacing: '0.2em', textTransform: 'uppercase', cursor: 'pointer' },
+    btnDanger: { background: 'transparent', color: '#E07A5F', border: '1px solid #E07A5F88', padding: '12px 22px', fontFamily: 'JetBrains Mono, monospace', fontSize: 12, fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase', cursor: 'pointer' },
+  };
+
+  return (<>
+    <div style={{ marginBottom: 28 }}>
+      <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.35em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
+        <span style={{ width: 18, height: 1, background: HUB_PALETTE.champanhe }} />Ausências
+      </div>
+      <h2 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 300, fontStyle: 'italic', fontSize: 40, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: '0 0 10px' }}>Tipos de ausência.</h2>
+      <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: HUB_PALETTE.areiaDim, lineHeight: 1.5, margin: 0 }}>
+        Legenda usada na escala do SPA. Cada tipo tem uma sigla de identificação rápida.
+      </p>
+    </div>
+
+    <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 18 }}>
+      <button onClick={() => { setErro(''); setCreating(true); }} style={cs.btnPrim}>+ Novo tipo</button>
+    </div>
+
+    {lista === null ? (
+      <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.2em', color: HUB_PALETTE.areiaDim, textTransform: 'uppercase', padding: '40px 0' }}>Carregando...</div>
+    ) : lista.length === 0 ? (
+      <div style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontSize: 16, color: HUB_PALETTE.areiaDim, padding: '40px 0' }}>Nenhum tipo cadastrado ainda.</div>
+    ) : (
+      <div style={{ display: 'flex', flexDirection: 'column', borderTop: `1px solid ${HUB_PALETTE.areiaDim}22` }}>
+        {lista.map(a => (
+          <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px 4px', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, flexWrap: 'wrap' }}>
+            <div style={{ minWidth: 48, textAlign: 'center', padding: '4px 10px', background: HUB_PALETTE.champanhe + '18', border: `1px solid ${HUB_PALETTE.champanhe}44`, fontFamily: 'JetBrains Mono, monospace', fontSize: 13, fontWeight: 700, letterSpacing: '0.12em', color: HUB_PALETTE.champanhe }}>
+              {a.sigla}
+            </div>
+            <div style={{ flex: 1, minWidth: 180, fontFamily: 'Inter, sans-serif', fontSize: 16, color: HUB_PALETTE.marfim, fontWeight: 500 }}>
+              {a.nome}
+            </div>
+            <button onClick={() => { setErro(''); setEditing(a); }} style={{ ...cs.btnGhost, padding: '8px 16px', fontSize: 11 }}>Editar</button>
+            <button onClick={() => setConfirmar({ id: a.id, nome: a.nome })} style={{ ...cs.btnDanger, padding: '8px 16px', fontSize: 11 }}>Excluir</button>
+          </div>
+        ))}
+      </div>
+    )}
+
+    {(creating || editing) && (
+      <AusenciaForm isMobile={isMobile} cs={cs} erro={erro} saving={saving}
+        initial={editing || null} isEdit={!!editing}
+        onCancel={fechar}
+        onSave={salvar} />
+    )}
+
+    {confirmar && (
+      <div style={{ position: 'fixed', inset: 0, zIndex: 160, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+        <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, maxWidth: 420, width: '100%', padding: isMobile ? '24px 20px' : '32px 36px' }}>
+          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: '#9C5843', marginBottom: 6 }}>Confirmar exclusão</div>
+          <h3 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontWeight: 300, fontSize: 22, color: HUB_PALETTE.marfim, margin: '0 0 14px' }}>
+            Excluir "{confirmar.nome}"?
+          </h3>
+          <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areia, margin: '0 0 22px', lineHeight: 1.5 }}>Esta ação não pode ser desfeita.</p>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+            <button onClick={() => setConfirmar(null)} style={cs.btnGhost}>Cancelar</button>
+            <button onClick={confirmarExclusao} style={{ ...cs.btnPrim, background: '#E07A5F', color: '#fff' }}>Excluir</button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {toast && (
+      <div style={{ position: 'fixed', bottom: 32, left: '50%', transform: 'translateX(-50%)', zIndex: 200, background: toast.err ? '#E07A5F' : HUB_PALETTE.champanhe, color: toast.err ? '#fff' : HUB_PALETTE.noite, fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase', padding: '12px 22px' }}>
+        {toast.msg}
+      </div>
+    )}
+  </>);
+}
+
+function AusenciaForm({ isMobile, cs, erro, saving, initial, isEdit, onCancel, onSave }) {
+  const [nome, setNome] = useState(initial ? initial.nome : '');
+  const [sigla, setSigla] = useState(initial ? initial.sigla : '');
+  const nomeRef = useRef(null);
+  useEffect(() => {
+    const t = setTimeout(() => { if (nomeRef.current) nomeRef.current.focus(); }, 60);
+    return () => clearTimeout(t);
+  }, []);
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 150, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, maxWidth: 460, width: '100%', padding: isMobile ? '24px 20px' : '32px 36px' }}>
+        <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 6 }}>Tipo de ausência</div>
+        <h3 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontWeight: 300, fontSize: 26, color: HUB_PALETTE.marfim, margin: '0 0 22px' }}>
+          {isEdit ? 'Editar tipo' : 'Novo tipo'}
+        </h3>
+        <form autoComplete="off" onSubmit={e => { e.preventDefault(); onSave({ nome, sigla }); }}
+          onKeyDown={e => { if (e.key === 'Escape' && !saving) { e.preventDefault(); onCancel(); } }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'end' }}>
+            <div>
+              <label style={cs.label}>Nome *</label>
+              <input ref={nomeRef} style={cs.input} value={nome} maxLength={60}
+                autoComplete="off" spellCheck={false}
+                onChange={e => setNome(e.target.value)}
+                placeholder="Ex: Licença Maternidade" />
+            </div>
+            <div>
+              <label style={cs.label}>Sigla *</label>
+              <input style={{ ...cs.input, width: 80, textTransform: 'uppercase', fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, letterSpacing: '0.1em', textAlign: 'center' }}
+                value={sigla} maxLength={4}
+                autoComplete="off" spellCheck={false}
+                onChange={e => setSigla(e.target.value.toUpperCase())}
+                placeholder="LM" />
+            </div>
+          </div>
+          {erro && (
+            <div style={{ marginTop: 14, padding: '10px 12px', border: '1px solid #E07A5F66', color: '#E07A5F', fontSize: 13, fontFamily: 'Inter, sans-serif' }}>
               {erro}
             </div>
           )}

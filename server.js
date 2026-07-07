@@ -1093,6 +1093,59 @@ app.delete('/api/admin/feriados/:id', requireAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
+// ─── Tipos de Ausência (CRUD) ────────────────────────────────────────────────
+
+app.get('/api/admin/ausencias', requireAdmin, (req, res) => {
+  const data = readData();
+  const ausencias = Array.isArray(data.ausencias) ? data.ausencias : [];
+  res.json({ ok: true, ausencias: ausencias.slice().sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'pt-BR')) });
+});
+
+app.post('/api/admin/ausencias', requireAdmin, (req, res) => {
+  const { nome, sigla } = req.body || {};
+  if (!nome || !sigla) return res.status(400).json({ ok: false, erro: 'nome e sigla obrigatórios' });
+  if (!/^[A-Za-zÀ-ÿ0-9]{1,4}$/.test(sigla.trim())) return res.status(400).json({ ok: false, erro: 'sigla inválida (1–4 caracteres alfanuméricos)' });
+  const data = readData();
+  if (!Array.isArray(data.ausencias)) data.ausencias = [];
+  const siglaUp = sigla.trim().toUpperCase();
+  if (data.ausencias.some(a => a.sigla === siglaUp)) return res.status(409).json({ ok: false, erro: 'Já existe um tipo com esta sigla' });
+  const id = Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+  const ausencia = { id, nome: nome.trim(), sigla: siglaUp };
+  data.ausencias.push(ausencia);
+  writeData(data);
+  appendAudit({ by_email: req.hubUser.email, by_nome: req.hubUser.nome, action: 'criar', target_tipo: 'ausencia', target_id: id, target_nome: nome.trim(), campos: { sigla: siglaUp } });
+  res.json({ ok: true, ausencia });
+});
+
+app.put('/api/admin/ausencias/:id', requireAdmin, (req, res) => {
+  const { id } = req.params;
+  const { nome, sigla } = req.body || {};
+  if (!nome || !sigla) return res.status(400).json({ ok: false, erro: 'nome e sigla obrigatórios' });
+  if (!/^[A-Za-zÀ-ÿ0-9]{1,4}$/.test(sigla.trim())) return res.status(400).json({ ok: false, erro: 'sigla inválida (1–4 caracteres alfanuméricos)' });
+  const data = readData();
+  if (!Array.isArray(data.ausencias)) return res.status(404).json({ ok: false, erro: 'Tipo não encontrado' });
+  const idx = data.ausencias.findIndex(a => a.id === id);
+  if (idx === -1) return res.status(404).json({ ok: false, erro: 'Tipo não encontrado' });
+  const siglaUp = sigla.trim().toUpperCase();
+  if (data.ausencias.some((a, i) => a.sigla === siglaUp && i !== idx)) return res.status(409).json({ ok: false, erro: 'Já existe um tipo com esta sigla' });
+  data.ausencias[idx] = { ...data.ausencias[idx], nome: nome.trim(), sigla: siglaUp };
+  writeData(data);
+  appendAudit({ by_email: req.hubUser.email, by_nome: req.hubUser.nome, action: 'editar', target_tipo: 'ausencia', target_id: id, target_nome: nome.trim(), campos: { sigla: siglaUp } });
+  res.json({ ok: true, ausencia: data.ausencias[idx] });
+});
+
+app.delete('/api/admin/ausencias/:id', requireAdmin, (req, res) => {
+  const { id } = req.params;
+  const data = readData();
+  if (!Array.isArray(data.ausencias)) return res.status(404).json({ ok: false, erro: 'Tipo não encontrado' });
+  const idx = data.ausencias.findIndex(a => a.id === id);
+  if (idx === -1) return res.status(404).json({ ok: false, erro: 'Tipo não encontrado' });
+  const [removed] = data.ausencias.splice(idx, 1);
+  writeData(data);
+  appendAudit({ by_email: req.hubUser.email, by_nome: req.hubUser.nome, action: 'excluir', target_tipo: 'ausencia', target_id: id, target_nome: removed.nome, campos: {} });
+  res.json({ ok: true });
+});
+
 // ─── Static fallback ─────────────────────────────────────────────────────────
 
 app.get('*', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
@@ -1163,6 +1216,31 @@ _sanitizarAuditLog();
     console.log('[init] feriados inicializados com seed 2026-2027');
   } catch (e) {
     console.error('[init] falha ao inicializar feriados:', e.message);
+  }
+}());
+
+(function initAusencias() {
+  try {
+    const data = readData();
+    if (Array.isArray(data.ausencias) && data.ausencias.length > 0) return;
+    const SEED = [
+      { nome: 'Feriados', sigla: 'FE' },
+      { nome: 'Atestado Médico', sigla: 'AT' },
+      { nome: 'Compensação Hora', sigla: 'CH' },
+      { nome: 'Comp. Feriado', sigla: 'CF' },
+      { nome: 'Folga', sigla: 'X' },
+      { nome: 'Falta', sigla: 'F' },
+      { nome: 'Licença Casamento', sigla: 'LC' },
+      { nome: 'Licença Sindical', sigla: 'LS' },
+    ];
+    data.ausencias = SEED.map((a, i) => ({
+      id: (Date.now() + i) + '_' + Math.random().toString(36).slice(2, 8),
+      ...a,
+    }));
+    writeData(data);
+    console.log('[init] ausencias inicializadas com seed');
+  } catch (e) {
+    console.error('[init] falha ao inicializar ausencias:', e.message);
   }
 }());
 
