@@ -44,12 +44,16 @@ HubSistemas/
 ### Funções utilitárias
 | Função | Linhas | Detalhe |
 |---|---|---|
-| `appendAudit(entry)` | 70-80 | Cap em **5000 entradas** (FIFO) |
+| `_sanitizarStr(s)` | ~68 | Remove U+FFFD de string; usa `RE_FFFD = new RegExp(...)` |
+| `_sanitizarAuditLog()` | ~73 | Startup migration: corrige encoding + nula target_nome inválido |
+| `appendAudit(entry)` | ~107 | Cap em **5000 entradas** (FIFO) |
 | `requireAdmin(req,res,next)` | 251-263 | JWT Bearer; exige `payload.tipo === 'admin'` |
 | `autoAssociarTodos()` | 217-225 | Vincula usuários aos sistemas padrão |
 | `notifyUser(userId, payload)` | 244-247 | SSE push para cliente específico |
 | `proxyPesquisa(req, res)` | 552-565 | Proxy → pesquisa-satisfacao.fly.dev; **502** se offline |
 | `proxyChamados(req, res)` | 581-594 | Proxy → sistema-chamados-granmarquise.fly.dev |
+
+**Startup order:** `initSistemas()` → `_sanitizarAuditLog()` → `app.listen()`
 
 ### DEFAULT_SISTEMAS (linhas 229-233)
 1. `pesquisa-satisfacao` → pesquisa-satisfacao.fly.dev
@@ -130,12 +134,14 @@ light: { noite: '#ECE4D2' }
 | `HubLogin` | POST /api/login |
 | `HubNav` | Navegação + SSE status indicator |
 | `HubSistemas` | Grid de cards com ping de status |
-| `HubAdmin` | Painel admin com abas |
+| `HubAdmin` | Painel admin com abas; `isMobile < 768` + `isPhone < 480` |
 | `UsuariosPanel` | CRUD usuários |
 | `SistemasPanel` | CRUD sistemas |
 | `PermissoesPanel` | Editor de permissões por site |
-| `HistoricoPanel` | Audit log; ACTION_LABEL map com 15 ações |
-| `ContasPanel` | Gestão de contas (sub-abas) |
+| `HistoricoPanel` | Audit log; `_NOMES_ACAO_INVALIDOS` Set filtra target_nome corrompido |
+| `ContasPanel` | Gestão de contas; `buscaFiltrada` para contadores corretos; `isPhone < 480` |
+| `LiberacaoPanel` | Liberar acesso; autocomplete email com navegação teclado (`sugHighlight`) |
+| `LinkEditModal` | Modal sticky: header+tabs com `flexShrink:0` + `background` + `overflow:hidden` |
 | `SitePermissionsModal` | Modal de papéis por site |
 | `PerfilModal` | Troca de senha própria |
 | `NotificacaoToast` | Toast de notificações SSE |

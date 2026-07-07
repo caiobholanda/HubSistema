@@ -65,6 +65,48 @@ function writeData(data) {
   }
 }
 
+function _sanitizarStr(s) {
+  if (typeof s !== 'string') return s;
+  // U+FFFD: replacement character gerado por bytes Latin-1 mal-decodificados
+  return s.replace(/�/g, '');
+}
+
+function _sanitizarAuditLog() {
+  try {
+    const data = readData();
+    if (!Array.isArray(data.audit_log)) return;
+    let dirty = false;
+    const NOMES_ACAO_INVALIDOS = new Set(['desativado', 'ativado', 'excluído', 'excluido', 'criado', 'editado', 'promovido', 'rebaixado']);
+    const STR_KEYS = ['by_nome', 'target_nome', 'by_email'];
+    for (const e of data.audit_log) {
+      if (typeof e.target_nome === 'string' && NOMES_ACAO_INVALIDOS.has(e.target_nome.toLowerCase())) {
+        e.target_nome = null;
+        dirty = true;
+      }
+      for (const k of STR_KEYS) {
+        if (typeof e[k] === 'string' && e[k].indexOf('�') !== -1) {
+          e[k] = _sanitizarStr(e[k]);
+          dirty = true;
+        }
+      }
+      if (e.campos && typeof e.campos === 'object') {
+        for (const k of Object.keys(e.campos)) {
+          if (typeof e.campos[k] === 'string' && e.campos[k].indexOf('�') !== -1) {
+            e.campos[k] = _sanitizarStr(e.campos[k]);
+            dirty = true;
+          }
+        }
+      }
+    }
+    if (dirty) {
+      writeData(data);
+      console.log('[init] audit_log sanitizado — U+FFFD removidos');
+    }
+  } catch (err) {
+    console.error('[init] falha ao sanitizar audit_log:', err.message);
+  }
+}
+
 // Append-only audit log persistido em hub_data.json (cap 5000 entradas).
 // Cada entrada: { id, at, by_email, by_nome, action, target_tipo, target_id, target_nome, campos }
 function appendAudit(entry) {
@@ -998,5 +1040,7 @@ app.get('*', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'index.h
     console.error('[init] falha ao inicializar sistemas:', e.message);
   }
 }());
+
+_sanitizarAuditLog();
 
 app.listen(PORT, () => console.log(`Hub rodando em http://localhost:${PORT}`));

@@ -725,16 +725,16 @@ function LinkForm({ form, setForm, onSave, onCancel, linkErro, linkSaving }) {
 function LinkEditModal({ sys, form, setForm, onSave, onCancel, linkErro, linkSaving, isMobile, users }) {
   const [aba, setAba] = useState('edicao'); // 'edicao' | 'liberacao'
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 180, background: 'rgba(0,0,0,0.62)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, overflowY: 'auto' }}>
-      <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, maxWidth: 720, width: '100%', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ padding: '18px 24px', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 180, background: 'rgba(0,0,0,0.62)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, overflow: 'hidden' }}>
+      <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, maxWidth: 720, width: '100%', maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div style={{ flexShrink: 0, padding: '18px 24px', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, background: HUB_PALETTE.noite }}>
           <div>
             <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe }}>Editar link</div>
             <div style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontSize: 22, color: HUB_PALETTE.marfim, marginTop: 4 }}>{sys.nome}</div>
           </div>
           <button onClick={onCancel} aria-label="Fechar" style={{ background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}33`, color: HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 14, padding: '6px 12px', cursor: 'pointer' }}>×</button>
         </div>
-        <div style={{ display: 'flex', gap: 0, borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, padding: '0 24px' }}>
+        <div style={{ flexShrink: 0, display: 'flex', gap: 0, borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, padding: '0 24px', background: HUB_PALETTE.noite }}>
           {/* Aba Liberacao escondida para 'chamados' — la os cookies de admin
               sao decididos automaticamente pelo banco do proprio sistema-chamados
               (admin do TI vs usuario do portal), nao por allowlist do Hub.
@@ -746,7 +746,7 @@ function LinkEditModal({ sys, form, setForm, onSave, onCancel, linkErro, linkSav
             </button>
           ))}
         </div>
-        <div style={{ flex: 1, overflowY: 'auto' }}>
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
           {aba === 'edicao' && (
             <div style={{ padding: isMobile ? '12px' : '4px 24px 8px' }}>
               <LinkForm form={form} setForm={setForm} onSave={onSave} onCancel={onCancel} linkErro={linkErro} linkSaving={linkSaving} />
@@ -775,6 +775,7 @@ function LiberacaoPanel({ sistemaId, sistemaNome, isMobile, users, acessoPadrao 
   const [busy, setBusy] = useState(false);
   const [confirmRemover, setConfirmRemover] = useState(null); // null | { email }
   const [sugAberto, setSugAberto] = useState(false);
+  const [sugHighlight, setSugHighlight] = useState(0);
   // pesquisa-satisfacao tem 4 papeis granulares; demais sistemas so 'admin'.
   const ehPesquisa = sistemaId === 'pesquisa-satisfacao';
   const PAPEIS_LABEL = { master: 'Master (tudo)', admin: 'Admin (só ver)', spa: 'Spa', satisfacao: 'Satisfação' };
@@ -908,9 +909,29 @@ function LiberacaoPanel({ sistemaId, sistemaNome, isMobile, users, acessoPadrao 
       <div style={{ display: 'flex', gap: 8, marginBottom: 18, flexWrap: 'wrap', alignItems: 'flex-start' }}>
         <div ref={inputWrapRef} style={{ flex: 1, minWidth: 240, position: 'relative' }}>
           <input type="email" value={novoEmail}
-            onChange={e => { setNovoEmail(e.target.value); setSugAberto(true); }}
+            onChange={e => { setNovoEmail(e.target.value); setSugAberto(true); setSugHighlight(0); }}
             onFocus={() => setSugAberto(true)}
             onBlur={() => setTimeout(() => setSugAberto(false), 180)}
+            aria-label="E-mail do usuário a liberar acesso"
+            aria-autocomplete="list"
+            aria-expanded={sugAberto}
+            onKeyDown={e => {
+              if (!sugAberto) return;
+              const adminsSet = new Set((items || []).filter(x => x.papel && x.papel !== 'usuario').map(x => (x.email || '').toLowerCase()));
+              const q = (novoEmail || '').trim().toLowerCase();
+              const cands = (usersFresh || [])
+                .filter(u => u && u.email && !adminsSet.has(u.email.toLowerCase()))
+                .filter(u => !q || u.email.toLowerCase().includes(q) || (u.nome || '').toLowerCase().includes(q))
+                .sort((a, b) => {
+                  const da = (a.tipo === 'admin' || a.is_master) ? 0 : 1;
+                  const db = (b.tipo === 'admin' || b.is_master) ? 0 : 1;
+                  return da !== db ? da - db : (a.nome || a.email || '').localeCompare(b.nome || b.email || '', 'pt-BR', { sensitivity: 'base' });
+                }).slice(0, 30);
+              if (e.key === 'ArrowDown') { e.preventDefault(); setSugHighlight(h => Math.min(h + 1, cands.length - 1)); }
+              else if (e.key === 'ArrowUp') { e.preventDefault(); setSugHighlight(h => Math.max(h - 1, 0)); }
+              else if (e.key === 'Enter' && cands[sugHighlight]) { e.preventDefault(); setNovoEmail(cands[sugHighlight].email); setSugAberto(false); }
+              else if (e.key === 'Escape') { setSugAberto(false); }
+            }}
             placeholder="Digite para buscar um e-mail cadastrado…"
             style={{ width: '100%', boxSizing: 'border-box', background: 'transparent', border: `1px solid ${HUB_PALETTE.champanhe}`, color: HUB_PALETTE.marfim, padding: '10px 14px', fontFamily: 'Inter, sans-serif', fontSize: 13 }} />
           {sugAberto && popRect && (() => {
@@ -932,14 +953,13 @@ function LiberacaoPanel({ sistemaId, sistemaNome, isMobile, users, acessoPadrao 
             if (!candidatos.length) return null;
             return (
               <div style={{ position: 'fixed', top: popRect.top, left: popRect.left, width: popRect.width, background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}77`, zIndex: 9999, maxHeight: 280, overflowY: 'auto', boxShadow: '0 12px 32px rgba(0,0,0,0.55)' }}>
-                {candidatos.map(u => {
+                {candidatos.map((u, ci) => {
                   const ehAdmin = u.tipo === 'admin' || u.is_master;
                   return (
                     <div key={u.email}
                       onMouseDown={e => { e.preventDefault(); setNovoEmail(u.email); setSugAberto(false); }}
-                      style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}1a`, fontFamily: 'Inter, sans-serif', fontSize: 12.5, color: HUB_PALETTE.marfim, display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center' }}
-                      onMouseEnter={e => e.currentTarget.style.background = HUB_PALETTE.areiaDim + '14'}
-                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                      onMouseEnter={() => setSugHighlight(ci)}
+                      style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}1a`, fontFamily: 'Inter, sans-serif', fontSize: 12.5, color: HUB_PALETTE.marfim, display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', background: ci === sugHighlight ? HUB_PALETTE.areiaDim + '22' : 'transparent', transition: 'background 120ms' }}>
                       <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {u.email}
                         {ehAdmin && <span style={{ marginLeft: 8, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, border: `1px solid ${HUB_PALETTE.champanhe}55`, padding: '1px 6px' }}>admin TI</span>}
@@ -954,6 +974,7 @@ function LiberacaoPanel({ sistemaId, sistemaNome, isMobile, users, acessoPadrao 
         </div>
         {ehPesquisa && (
           <select value={novoPapel} onChange={e => setNovoPapel(e.target.value)} disabled={busy}
+            aria-label="Papel do usuário no sistema"
             style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim, border: `1px solid ${HUB_PALETTE.champanhe}`, padding: '10px 12px', fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 13 }}
             title="Papel: master vê e edita tudo · admin só vê · spa edita Spa · satisfação edita Relatórios · massoterapeuta acessa ficha de anamnese">
             <option value="master"          style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim }}>Master</option>
@@ -1050,6 +1071,7 @@ function LiberacaoPanel({ sistemaId, sistemaNome, isMobile, users, acessoPadrao 
 
 function HubAdmin({ onClose, hubSystems, setHubSystems }) {
   const isMobile = useWindowWidth() < 768;
+  const isPhone = useWindowWidth() < 480;
   const [aba, _setAba] = useState(() => {
     try {
       const v = sessionStorage.getItem('hub_admin_aba');
@@ -1278,7 +1300,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
       </div>
 
       {/* Content */}
-      <div style={{ maxWidth: 900, margin: '0 auto', padding: isMobile ? '24px 18px 80px' : '48px 48px 80px', width: '100%' }}>
+      <div style={{ maxWidth: 900, margin: '0 auto', padding: isPhone ? '16px 12px 80px' : isMobile ? '24px 18px 80px' : '48px 48px 80px', width: '100%' }}>
 
         {/* ── Aba Links ── */}
         {aba === 'links' && (<>
@@ -1498,6 +1520,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
 }
 
 // ─── Historico (audit log de Administracao Hub) ─────────────────────────────
+const _NOMES_ACAO_INVALIDOS = new Set(['desativado', 'ativado', 'excluído', 'excluido', 'criado', 'editado', 'promovido', 'rebaixado']);
 function HistoricoPanel({ isMobile }) {
   const [log, setLog] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -1587,7 +1610,8 @@ function HistoricoPanel({ isMobile }) {
   function descreverEvento(e) {
     const tipoCap = TARGET_LABEL[e.target_tipo] || e.target_tipo;
     const tipoMin = (tipoCap || '').toLowerCase();
-    const alvo = e.target_nome || `#${e.target_id || ''}`;
+    const nomeRaw = typeof e.target_nome === 'string' && _NOMES_ACAO_INVALIDOS.has(e.target_nome.toLowerCase()) ? null : e.target_nome;
+    const alvo = nomeRaw || `#${e.target_id || ''}`;
     const c = e.campos || {};
     const keys = Object.keys(c);
 
@@ -2131,6 +2155,7 @@ function SetorForm({ isMobile, cs, erro, saving, initialNome, isEdit, onCancel, 
 
 // ─── Contas (CRUD de admins do TI e usuarios do portal) ─────────────────────
 function ContasPanel({ isMobile }) {
+  const isPhone = useWindowWidth() < 480;
   const [subAba, _setSubAba] = useState(() => {
     try { return sessionStorage.getItem('hub_contas_subaba') || 'usuarios'; } catch { return 'usuarios'; }
   });
@@ -2363,12 +2388,11 @@ function ContasPanel({ isMobile }) {
     ].filter(Boolean).map(s => String(s).toLowerCase());
     return campos.some(c => c.includes(t));
   }
-  const filtrada = (lista || [])
+  const buscaFiltrada = tokens.length ? (lista || []).filter(r => tokens.every(t => matchToken(r, t))) : (lista || []);
+  const filtrada = buscaFiltrada
     .filter(r => {
       const ativo = isAdmin ? r.ativo === 1 : r.ativo !== 0;
-      if (wantAtivo !== ativo) return false;
-      if (!tokens.length) return true;
-      return tokens.every(t => matchToken(r, t));
+      return wantAtivo === ativo;
     })
     .slice()
     .sort((a, b) => {
@@ -2376,16 +2400,18 @@ function ContasPanel({ isMobile }) {
       const nomeB = (isAdmin ? b.nome_completo : b.nome) || '';
       return nomeA.localeCompare(nomeB, 'pt-BR', { sensitivity: 'base' });
     });
-  const totalAtivos = (lista || []).filter(r => isAdmin ? r.ativo === 1 : r.ativo !== 0).length;
-  const totalInativos = (lista || []).filter(r => isAdmin ? r.ativo === 0 : r.ativo === 0).length;
+  const totalAtivos = buscaFiltrada.filter(r => isAdmin ? r.ativo === 1 : r.ativo !== 0).length;
+  const totalInativos = buscaFiltrada.filter(r => isAdmin ? r.ativo !== 1 : r.ativo === 0).length;
 
+  const btnPad = isPhone ? '8px 12px' : '12px 22px';
+  const btnFs = isPhone ? 10 : 12;
   const cs = {
     bg: HUB_PALETTE.areiaDim + '0a',
     border: HUB_PALETTE.areiaDim + '33',
     input: { width: '100%', boxSizing: 'border-box', background: HUB_PALETTE.areiaDim + '0a', border: `1px solid ${HUB_PALETTE.areiaDim}33`, color: HUB_PALETTE.marfim, fontFamily: 'Inter, sans-serif', fontSize: 14, padding: '10px 14px', outline: 'none' },
     label: { fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 6, display: 'block' },
-    btnPrim: { background: HUB_PALETTE.champanhe, color: HUB_PALETTE.noite, border: 'none', padding: '12px 22px', fontFamily: 'JetBrains Mono, monospace', fontSize: 12, fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase', cursor: 'pointer' },
-    btnGhost: { background: 'transparent', color: HUB_PALETTE.marfim, border: `1px solid ${HUB_PALETTE.areiaDim}77`, padding: '12px 22px', fontFamily: 'JetBrains Mono, monospace', fontSize: 12, fontWeight: 500, letterSpacing: '0.2em', textTransform: 'uppercase', cursor: 'pointer' },
+    btnPrim: { background: HUB_PALETTE.champanhe, color: HUB_PALETTE.noite, border: 'none', padding: btnPad, fontFamily: 'JetBrains Mono, monospace', fontSize: btnFs, fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase', cursor: 'pointer' },
+    btnGhost: { background: 'transparent', color: HUB_PALETTE.marfim, border: `1px solid ${HUB_PALETTE.areiaDim}77`, padding: btnPad, fontFamily: 'JetBrains Mono, monospace', fontSize: btnFs, fontWeight: 500, letterSpacing: '0.2em', textTransform: 'uppercase', cursor: 'pointer' },
   };
 
   return (<>
@@ -2426,6 +2452,7 @@ function ContasPanel({ isMobile }) {
         </svg>
         <input type="text" placeholder="Filtrar por nome, email, login, ramal, setor..." value={busca} onChange={e => setBusca(e.target.value)}
           autoComplete="off" name="contas-busca-livre"
+          aria-label="Filtrar contas por nome, e-mail, ramal ou setor"
           style={{ ...cs.input, paddingLeft: 34 }} title="Aceita múltiplas palavras (AND) e flags 'master' / 'inativo'" />
       </div>
       <button onClick={() => startNew(isAdmin ? 'admin' : 'usuario')} style={{ ...cs.btnPrim, background: HUB_PALETTE.dourado }}>
@@ -2455,7 +2482,7 @@ function ContasPanel({ isMobile }) {
                 <div style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 14, color: HUB_PALETTE.areia, marginTop: 6, lineHeight: 1.5 }}>
                   {row.email ? <span style={{ color: HUB_PALETTE.marfim }}>{row.email}</span> : '—'}
                   {row.setor ? <span style={{ color: HUB_PALETTE.areiaDim }}> · </span> : null}
-                  {row.setor ? <span><span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginRight: 6 }}>setor</span>{row.setor}</span> : null}
+                  {row.setor ? <span><span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginRight: 6 }}>setor</span>{row.setor}{!isAdmin && setoresLista.length > 0 && !setoresLista.some(s => (s.nome ?? s.name) === row.setor) ? <span title="Setor não consta na lista oficial — edite o usuário para corrigir" style={{ marginLeft: 6, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#E07A5F', border: '1px solid #E07A5F66', padding: '1px 5px', verticalAlign: 'middle' }}>legado</span> : null}</span> : null}
                   {row.ramal ? <span style={{ color: HUB_PALETTE.areiaDim }}> · </span> : null}
                   {row.ramal ? <span><span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginRight: 6 }}>ramal</span>{row.ramal}</span> : null}
                   {isAdmin && row.usuario ? <span style={{ color: HUB_PALETTE.areiaDim }}> · </span> : null}
@@ -2680,11 +2707,13 @@ function ContaForm({ tipo, isMobile, cs, erro, saving, initial, initialEtiquetas
         <label style={cs.label}>Nome</label>
         <input style={cs.input} value={isAdmin ? d.nome_completo : d.nome}
           autoComplete="off" name="conta-nome-randoma1b2" spellCheck={false}
+          aria-label="Nome completo"
           onChange={e => set(isAdmin ? 'nome_completo' : 'nome', e.target.value)} />
 
         <label style={{ ...cs.label, marginTop: 14 }}>E-mail</label>
         <input style={cs.input} type="text" value={d.email}
           autoComplete="off" name="conta-email-randomc3d4" spellCheck={false} inputMode="email"
+          aria-label="E-mail"
           onChange={e => set('email', e.target.value)} placeholder="usuario@granmarquise.com.br" />
 
         {!isAdmin && (<>
@@ -2692,6 +2721,7 @@ function ContaForm({ tipo, isMobile, cs, erro, saving, initial, initialEtiquetas
           <div ref={setorWrapRef} style={{ position: 'relative' }}>
             <input style={cs.input} type="text" value={d.setor || ''}
               autoComplete="off" name="conta-setor-randome5f6" spellCheck={false}
+              aria-label="Setor de trabalho"
               placeholder="Digite ou selecione"
               disabled={semListaSetores && !setorLegado}
               onFocus={() => setSetorOpen(true)}
@@ -2721,8 +2751,8 @@ function ContaForm({ tipo, isMobile, cs, erro, saving, initial, initialEtiquetas
             </div>
           )}
           {setorLegado && (
-            <div style={{ marginTop: 6, fontFamily: 'Inter, sans-serif', fontSize: 11, color: HUB_PALETTE.areiaDim }}>
-              Setor atual não está na lista oficial. Pode salvar como está ou escolher um setor válido.
+            <div style={{ marginTop: 6, fontFamily: 'Inter, sans-serif', fontSize: 11, color: '#E07A5F', border: '1px solid #E07A5F44', padding: '6px 10px' }}>
+              ⚠ Setor desatualizado — selecione um da lista para manter consistência dos dados.
             </div>
           )}
         </>)}
@@ -2730,6 +2760,7 @@ function ContaForm({ tipo, isMobile, cs, erro, saving, initial, initialEtiquetas
         <label style={{ ...cs.label, marginTop: 14 }}>Ramal {!isAdmin && <span style={{ textTransform: 'none', letterSpacing: 0, opacity: .6 }}>(4 dígitos)</span>}</label>
         <input style={cs.input} value={d.ramal}
           autoComplete="off" name="conta-ramal-randomg7h8" inputMode="numeric"
+          aria-label={isAdmin ? 'Ramal' : 'Ramal (4 dígitos)'}
           onChange={e => set('ramal', e.target.value)} maxLength={isAdmin ? 20 : 4} />
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 14 }}>
@@ -2737,6 +2768,7 @@ function ContaForm({ tipo, isMobile, cs, erro, saving, initial, initialEtiquetas
             <label style={cs.label}>Cargo <span style={{ textTransform: 'none', letterSpacing: 0, opacity: .6 }}>(opcional)</span></label>
             <input style={{ ...cs.input, marginTop: 6 }} value={d.cargo || ''}
               autoComplete="off" name="conta-cargo-randomk1l2" spellCheck={false}
+              aria-label="Cargo (opcional)"
               placeholder="Ex: Massoterapeuta"
               onChange={e => set('cargo', e.target.value)} />
           </div>
@@ -2744,6 +2776,7 @@ function ContaForm({ tipo, isMobile, cs, erro, saving, initial, initialEtiquetas
             <label style={cs.label}>Matrícula <span style={{ textTransform: 'none', letterSpacing: 0, opacity: .6 }}>(opcional)</span></label>
             <input style={{ ...cs.input, marginTop: 6 }} value={d.matricula || ''}
               autoComplete="off" name="conta-matricula-randomm3n4" spellCheck={false}
+              aria-label="Matrícula (opcional)"
               placeholder="Ex: 00123"
               onChange={e => set('matricula', e.target.value)} />
           </div>
@@ -2753,6 +2786,7 @@ function ContaForm({ tipo, isMobile, cs, erro, saving, initial, initialEtiquetas
         <div style={{ position: 'relative' }}>
           <input style={{ ...cs.input, paddingRight: 56 }} type={showSenha ? 'text' : 'password'} value={d.senha}
             autoComplete="new-password" name="conta-senha-randomi9j0" spellCheck={false}
+            aria-label="Senha"
             onChange={e => set('senha', e.target.value)}
             placeholder="Mín. 8 com maiúscula, minúscula, número e especial" />
           <button type="button" onClick={() => setShowSenha(v => !v)}
