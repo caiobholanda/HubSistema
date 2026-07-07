@@ -2790,7 +2790,7 @@ function ContaForm({ tipo, isMobile, cs, erro, saving, initial, initialEtiquetas
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 14 }}>
+        {d.setor && d.setor.toLowerCase().includes('spa') && <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 14 }}>
           <div>
             <label style={cs.label}>Vínculo <span style={{ textTransform: 'none', letterSpacing: 0, opacity: .6 }}>(opcional)</span></label>
             <select
@@ -2855,8 +2855,8 @@ function ContaForm({ tipo, isMobile, cs, erro, saving, initial, initialEtiquetas
               Bilíngue
             </button>
           </div>
-        </div>
-        {d.bilingue && (() => {
+        </div>}
+        {d.setor && d.setor.toLowerCase().includes('spa') && d.bilingue && (() => {
           const IDIOMAS = ['Inglês', 'Espanhol', 'Francês', 'Italiano', 'Alemão', 'Mandarim'];
           const selecionados = new Set((d.idiomas || '').split(',').filter(Boolean));
           const toggle = lang => {
