@@ -2385,6 +2385,8 @@ function ContasPanel({ isMobile }) {
       r.usuario,
       r.ramal,
       r.setor,
+      r.cargo,
+      r.matricula,
     ].filter(Boolean).map(s => String(s).toLowerCase());
     return campos.some(c => c.includes(t));
   }
@@ -2450,9 +2452,9 @@ function ContasPanel({ isMobile }) {
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={HUB_PALETTE.areiaDim} strokeWidth="1.5" strokeLinecap="round" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
           <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
         </svg>
-        <input type="text" placeholder="Filtrar por nome, email, login, ramal, setor..." value={busca} onChange={e => setBusca(e.target.value)}
+        <input type="text" placeholder="Filtrar por nome, email, login, ramal, setor, cargo, matrícula..." value={busca} onChange={e => setBusca(e.target.value)}
           autoComplete="off" name="contas-busca-livre"
-          aria-label="Filtrar contas por nome, e-mail, ramal ou setor"
+          aria-label="Filtrar contas por nome, e-mail, ramal, setor, cargo ou matrícula"
           style={{ ...cs.input, paddingLeft: 34 }} title="Aceita múltiplas palavras (AND) e flags 'master' / 'inativo'" />
       </div>
       <button onClick={() => startNew(isAdmin ? 'admin' : 'usuario')} style={{ ...cs.btnPrim, background: HUB_PALETTE.dourado }}>
@@ -2485,6 +2487,10 @@ function ContasPanel({ isMobile }) {
                   {row.setor ? <span><span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginRight: 6 }}>setor</span>{row.setor}{!isAdmin && setoresLista.length > 0 && !setoresLista.some(s => (s.nome ?? s.name) === row.setor) ? <span title="Setor não consta na lista oficial — edite o usuário para corrigir" style={{ marginLeft: 6, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#E07A5F', border: '1px solid #E07A5F66', padding: '1px 5px', verticalAlign: 'middle' }}>legado</span> : null}</span> : null}
                   {row.ramal ? <span style={{ color: HUB_PALETTE.areiaDim }}> · </span> : null}
                   {row.ramal ? <span><span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginRight: 6 }}>ramal</span>{row.ramal}</span> : null}
+                  {row.cargo ? <span style={{ color: HUB_PALETTE.areiaDim }}> · </span> : null}
+                  {row.cargo ? <span><span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginRight: 6 }}>cargo</span>{row.cargo}</span> : null}
+                  {row.matricula ? <span style={{ color: HUB_PALETTE.areiaDim }}> · </span> : null}
+                  {row.matricula ? <span><span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginRight: 6 }}>mat.</span>{row.matricula}</span> : null}
                   {isAdmin && row.usuario ? <span style={{ color: HUB_PALETTE.areiaDim }}> · </span> : null}
                   {isAdmin && row.usuario ? <span><span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginRight: 6 }}>login</span>{row.usuario}</span> : null}
                 </div>
