@@ -1111,7 +1111,10 @@ function LiberacaoPanel({ sistemaId, sistemaNome, isMobile, users, acessoPadrao 
 function HubAdmin({ onClose, hubSystems, setHubSystems }) {
   const isMobile = useWindowWidth() < 768;
   const [aba, _setAba] = useState(() => {
-    try { return sessionStorage.getItem('hub_admin_aba') || 'contas'; } catch { return 'contas'; }
+    try {
+      const v = sessionStorage.getItem('hub_admin_aba');
+      return ['contas', 'setores', 'links', 'historico'].includes(v) ? v : 'contas';
+    } catch { return 'contas'; }
   });
   const setAba = (v) => { try { sessionStorage.setItem('hub_admin_aba', v); } catch {} _setAba(v); };
   const [loading, setLoading] = useState(true);
