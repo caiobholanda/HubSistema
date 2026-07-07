@@ -2476,6 +2476,7 @@ function ContasPanel({ isMobile }) {
       setEditing({ tipo, id: row.id, etiquetas: slugs, dados: {
         nome_completo: row.nome_completo, email: row.email || '',
         ramal: row.ramal || '', cargo: row.cargo || '', matricula: row.matricula || '',
+        data_admissao: row.data_admissao || '', data_nascimento: row.data_nascimento || '',
         vinculo: row.vinculo || '', bilingue: !!row.bilingue, idiomas: row.idiomas || '',
         is_master: !!row.is_master, senha: '', ativo: !!row.ativo,
       }});
@@ -2483,6 +2484,7 @@ function ContasPanel({ isMobile }) {
       setEditing({ tipo, id: row.id, dados: {
         nome: row.nome, email: row.email || '', setor: row.setor || '',
         ramal: row.ramal || '', cargo: row.cargo || '', matricula: row.matricula || '',
+        data_admissao: row.data_admissao || '', data_nascimento: row.data_nascimento || '',
         vinculo: row.vinculo || '', bilingue: !!row.bilingue, idiomas: row.idiomas || '',
         senha: '', ativo: row.ativo !== 0,
       }});
@@ -2525,8 +2527,8 @@ function ContasPanel({ isMobile }) {
     // Inclui campos textuais, ativo/is_master, senha e etiquetas (admin).
     const original = (editing && editing.dados) || {};
     const camposParaComparar = tipo === 'admin'
-      ? ['nome_completo', 'email', 'ramal', 'cargo', 'matricula', 'vinculo', 'bilingue', 'idiomas', 'is_master', 'ativo']
-      : ['nome', 'email', 'setor', 'ramal', 'cargo', 'matricula', 'vinculo', 'bilingue', 'idiomas', 'ativo'];
+      ? ['nome_completo', 'email', 'ramal', 'cargo', 'matricula', 'data_admissao', 'data_nascimento', 'vinculo', 'bilingue', 'idiomas', 'is_master', 'ativo']
+      : ['nome', 'email', 'setor', 'ramal', 'cargo', 'matricula', 'data_admissao', 'data_nascimento', 'vinculo', 'bilingue', 'idiomas', 'ativo'];
     const algumCampoMudou = camposParaComparar.some(k => {
       const a = original[k]; const b = dados[k];
       // Normaliza bool/int (ativo=1 == true).
@@ -2823,8 +2825,8 @@ function ContasPanel({ isMobile }) {
 
 function ContaForm({ tipo, isMobile, cs, erro, saving, initial, initialEtiquetas, isEdit, ehEuMesmo, setores, etiquetas, onCancel, onSave }) {
   const [d, setD] = useState(initial || (tipo === 'admin'
-    ? { nome_completo: '', email: '', ramal: '', cargo: '', matricula: '', vinculo: '', bilingue: false, idiomas: '', is_master: false, senha: '' }
-    : { nome: '', email: '', setor: '', ramal: '', cargo: '', matricula: '', vinculo: '', bilingue: false, idiomas: '', senha: '' }));
+    ? { nome_completo: '', email: '', ramal: '', cargo: '', matricula: '', data_admissao: '', data_nascimento: '', vinculo: '', bilingue: false, idiomas: '', is_master: false, senha: '' }
+    : { nome: '', email: '', setor: '', ramal: '', cargo: '', matricula: '', data_admissao: '', data_nascimento: '', vinculo: '', bilingue: false, idiomas: '', senha: '' }));
   const [showSenha, setShowSenha] = useState(false);
   const [etSel, setEtSel] = useState(new Set(initialEtiquetas || []));
   const [etBusca, setEtBusca] = useState('');
@@ -3018,6 +3020,21 @@ function ContaForm({ tipo, isMobile, cs, erro, saving, initial, initialEtiquetas
               aria-label="Matrícula (opcional)"
               placeholder="Ex: 00123"
               onChange={e => set('matricula', e.target.value)} />
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 14 }}>
+          <div>
+            <label style={cs.label}>Admissão <span style={{ textTransform: 'none', letterSpacing: 0, opacity: .6 }}>(opcional)</span></label>
+            <input type="date" style={{ ...cs.input, marginTop: 6 }} value={d.data_admissao || ''}
+              aria-label="Data de admissão"
+              onChange={e => set('data_admissao', e.target.value)} />
+          </div>
+          <div>
+            <label style={cs.label}>Nascimento <span style={{ textTransform: 'none', letterSpacing: 0, opacity: .6 }}>(opcional)</span></label>
+            <input type="date" style={{ ...cs.input, marginTop: 6 }} value={d.data_nascimento || ''}
+              aria-label="Data de nascimento"
+              onChange={e => set('data_nascimento', e.target.value)} />
           </div>
         </div>
 
