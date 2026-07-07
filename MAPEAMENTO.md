@@ -139,7 +139,7 @@ light: { noite: '#ECE4D2' }
 | `SistemasPanel` | CRUD sistemas |
 | `PermissoesPanel` | Editor de permissões por site |
 | `HistoricoPanel` | Audit log; `_NOMES_ACAO_INVALIDOS` Set filtra target_nome corrompido |
-| `ContasPanel` | Gestão de contas; `buscaFiltrada` para contadores corretos; `isPhone < 480` |
+| `ContasPanel` | Gestão de contas; `buscaFiltrada` para contadores corretos; `isPhone < 480`; rows exibem cargo+matricula; matchToken busca cargo+matricula |
 | `LiberacaoPanel` | Liberar acesso; autocomplete email com navegação teclado (`sugHighlight`) |
 | `LinkEditModal` | Modal sticky: header+tabs com `flexShrink:0` + `background` + `overflow:hidden` |
 | `SitePermissionsModal` | Modal de papéis por site |
