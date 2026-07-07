@@ -2245,12 +2245,14 @@ function ContasPanel({ isMobile }) {
       setEditing({ tipo, id: row.id, etiquetas: slugs, dados: {
         nome_completo: row.nome_completo, email: row.email || '',
         ramal: row.ramal || '', cargo: row.cargo || '', matricula: row.matricula || '',
+        vinculo: row.vinculo || '', bilingue: !!row.bilingue, idiomas: row.idiomas || '',
         is_master: !!row.is_master, senha: '', ativo: !!row.ativo,
       }});
     } else {
       setEditing({ tipo, id: row.id, dados: {
         nome: row.nome, email: row.email || '', setor: row.setor || '',
         ramal: row.ramal || '', cargo: row.cargo || '', matricula: row.matricula || '',
+        vinculo: row.vinculo || '', bilingue: !!row.bilingue, idiomas: row.idiomas || '',
         senha: '', ativo: row.ativo !== 0,
       }});
     }
@@ -2292,8 +2294,8 @@ function ContasPanel({ isMobile }) {
     // Inclui campos textuais, ativo/is_master, senha e etiquetas (admin).
     const original = (editing && editing.dados) || {};
     const camposParaComparar = tipo === 'admin'
-      ? ['nome_completo', 'email', 'ramal', 'cargo', 'matricula', 'is_master', 'ativo']
-      : ['nome', 'email', 'setor', 'ramal', 'cargo', 'matricula', 'ativo'];
+      ? ['nome_completo', 'email', 'ramal', 'cargo', 'matricula', 'vinculo', 'bilingue', 'idiomas', 'is_master', 'ativo']
+      : ['nome', 'email', 'setor', 'ramal', 'cargo', 'matricula', 'vinculo', 'bilingue', 'idiomas', 'ativo'];
     const algumCampoMudou = camposParaComparar.some(k => {
       const a = original[k]; const b = dados[k];
       // Normaliza bool/int (ativo=1 == true).
@@ -2590,8 +2592,8 @@ function ContasPanel({ isMobile }) {
 
 function ContaForm({ tipo, isMobile, cs, erro, saving, initial, initialEtiquetas, isEdit, ehEuMesmo, setores, etiquetas, onCancel, onSave }) {
   const [d, setD] = useState(initial || (tipo === 'admin'
-    ? { nome_completo: '', email: '', ramal: '', cargo: '', matricula: '', is_master: false, senha: '' }
-    : { nome: '', email: '', setor: '', ramal: '', cargo: '', matricula: '', senha: '' }));
+    ? { nome_completo: '', email: '', ramal: '', cargo: '', matricula: '', vinculo: '', bilingue: false, idiomas: '', is_master: false, senha: '' }
+    : { nome: '', email: '', setor: '', ramal: '', cargo: '', matricula: '', vinculo: '', bilingue: false, idiomas: '', senha: '' }));
   const [showSenha, setShowSenha] = useState(false);
   const [etSel, setEtSel] = useState(new Set(initialEtiquetas || []));
   const [etBusca, setEtBusca] = useState('');
@@ -2787,6 +2789,104 @@ function ContaForm({ tipo, isMobile, cs, erro, saving, initial, initialEtiquetas
               onChange={e => set('matricula', e.target.value)} />
           </div>
         </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 14 }}>
+          <div>
+            <label style={cs.label}>Vínculo <span style={{ textTransform: 'none', letterSpacing: 0, opacity: .6 }}>(opcional)</span></label>
+            <select
+              style={{
+                ...cs.input,
+                marginTop: 6,
+                appearance: 'none',
+                WebkitAppearance: 'none',
+                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238A7B6A' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
+                backgroundRepeat: 'no-repeat',
+                backgroundPosition: 'right 14px center',
+                paddingRight: 36,
+                cursor: 'pointer',
+              }}
+              value={d.vinculo || ''}
+              onChange={e => set('vinculo', e.target.value)}
+              aria-label="Vínculo (opcional)"
+            >
+              <option value="">—</option>
+              <option value="Pleno">Pleno</option>
+              <option value="Part Time">Part Time</option>
+              <option value="Estagiário">Estagiário</option>
+            </select>
+          </div>
+          <div>
+            <label style={cs.label}>Idiomas <span style={{ textTransform: 'none', letterSpacing: 0, opacity: .6 }}>(opcional)</span></label>
+            <button
+              type="button"
+              onClick={() => { set('bilingue', !d.bilingue); if (d.bilingue) set('idiomas', ''); }}
+              style={{
+                marginTop: 6,
+                width: '100%',
+                boxSizing: 'border-box',
+                padding: '10px 14px',
+                background: d.bilingue ? HUB_PALETTE.dourado + '18' : HUB_PALETTE.areiaDim + '0a',
+                border: `1px solid ${d.bilingue ? HUB_PALETTE.dourado + '88' : HUB_PALETTE.areiaDim + '33'}`,
+                color: d.bilingue ? HUB_PALETTE.areia : HUB_PALETTE.areiaDim,
+                fontFamily: 'Inter, sans-serif',
+                fontSize: 14,
+                textAlign: 'left',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                transition: 'border-color 180ms, background 180ms, color 180ms',
+              }}
+              aria-pressed={!!d.bilingue}
+            >
+              <span style={{
+                width: 14, height: 14, flexShrink: 0,
+                border: `1px solid ${d.bilingue ? HUB_PALETTE.dourado : HUB_PALETTE.areiaDim + '88'}`,
+                background: d.bilingue ? HUB_PALETTE.dourado : 'transparent',
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                transition: 'background 180ms, border-color 180ms',
+              }}>
+                {d.bilingue && (
+                  <svg width="8" height="6" viewBox="0 0 8 6" fill="none">
+                    <path d="M1 3l2 2 4-4" stroke={HUB_PALETTE.noite} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                )}
+              </span>
+              Bilíngue
+            </button>
+          </div>
+        </div>
+        {d.bilingue && (() => {
+          const IDIOMAS = ['Inglês', 'Espanhol', 'Francês', 'Italiano', 'Alemão', 'Mandarim'];
+          const selecionados = new Set((d.idiomas || '').split(',').filter(Boolean));
+          const toggle = lang => {
+            const s = new Set(selecionados);
+            s.has(lang) ? s.delete(lang) : s.add(lang);
+            set('idiomas', [...s].join(','));
+          };
+          return (
+            <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {IDIOMAS.map(lang => {
+                const on = selecionados.has(lang);
+                return (
+                  <button key={lang} type="button" onClick={() => toggle(lang)}
+                    style={{
+                      padding: '4px 11px',
+                      background: on ? HUB_PALETTE.dourado + '22' : 'transparent',
+                      border: `1px solid ${on ? HUB_PALETTE.dourado + 'cc' : HUB_PALETTE.areiaDim + '44'}`,
+                      color: on ? HUB_PALETTE.areia : HUB_PALETTE.areiaDim,
+                      fontFamily: 'JetBrains Mono, monospace', fontSize: 9,
+                      letterSpacing: '0.18em', textTransform: 'uppercase',
+                      cursor: 'pointer', borderRadius: 2,
+                      transition: 'border-color 150ms, background 150ms, color 150ms',
+                    }}>
+                    {lang}
+                  </button>
+                );
+              })}
+            </div>
+          );
+        })()}
 
         <label style={{ ...cs.label, marginTop: 14 }}>Senha {isEdit && <span style={{ textTransform: 'none', letterSpacing: 0, opacity: .6 }}>(altere para definir uma nova)</span>}</label>
         <div style={{ position: 'relative' }}>
