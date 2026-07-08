@@ -31,6 +31,7 @@ function _parseDataFile(filePath) {
   const data = JSON.parse(raw);
   migrarSlugs(data);
   sitePerm.migrarSitePermissoes(data);
+  sitePerm.migrarSitePermissoesV2(data);
   return data;
 }
 

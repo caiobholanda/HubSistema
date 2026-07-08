@@ -86,6 +86,27 @@ function sitesUsuario(data, email) {
 // - 'master'     → so para pesquisa-satisfacao: pode tudo
 // - 'spa'        → so para pesquisa-satisfacao: ve area do Spa
 // - 'satisfacao' → so para pesquisa-satisfacao: ve relatorios/historico
+// Migration v2: recepcionistas com acesso spa
+const MIGRATION_SEED_V2 = [
+  { email: 'georgia.gomes@granmarquise.com.br', sistema_id: 'pesquisa-satisfacao', papel: 'spa' },
+  { email: 'julia.santos@granmarquise.com.br',  sistema_id: 'pesquisa-satisfacao', papel: 'spa' },
+];
+
+function migrarSitePermissoesV2(data) {
+  if (!data || typeof data !== 'object') return data;
+  if (data._site_permissions_v2_seeded) return data;
+  if (!Array.isArray(data.site_permissions)) data.site_permissions = [];
+  for (const entry of MIGRATION_SEED_V2) {
+    const e = _norm(entry.email);
+    const s = entry.sistema_id;
+    const p = entry.papel;
+    const ja = data.site_permissions.some(r => _norm(r.email) === e && r.sistema_id === s);
+    if (!ja) data.site_permissions.push({ email: e, sistema_id: s, papel: p });
+  }
+  data._site_permissions_v2_seeded = true;
+  return data;
+}
+
 const PAPEIS_VALIDOS = new Set(['admin', 'usuario', 'master', 'spa', 'satisfacao']);
 function setPapel(data, email, sistema_id, papel) {
   if (!PAPEIS_VALIDOS.has(papel)) return { ok: false, erro: 'papel invalido' };
@@ -119,8 +140,10 @@ function listarTodos(data) {
 
 module.exports = {
   MIGRATION_SEED,
+  MIGRATION_SEED_V2,
   PAPEIS_VALIDOS,
   migrarSitePermissoes,
+  migrarSitePermissoesV2,
   listarPapeis,
   sitesOndeEhAdmin,
   sitesUsuario,
