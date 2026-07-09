@@ -3783,10 +3783,13 @@ function SystemPanel({ system, index, revealed, isMobile, userEmail, userTipo })
       try { return localStorage.getItem('gm-theme') === 'dark' ? 'dark' : 'light'; } catch { return 'light'; }
     })();
     let url;
-    if (token) {
-      const destPath = destUrl.slice(system.url.length) || '/';
+    let parsedDest = null;
+    try { parsedDest = new URL(destUrl); } catch { /* invalid or '#' — fallback to direct open */ }
+    if (token && parsedDest) {
+      const origin = parsedDest.origin;
+      const destPath = (parsedDest.pathname + parsedDest.search) || '/';
       const nextParam = destPath !== '/' ? `&next=${encodeURIComponent(destPath)}` : '';
-      url = `${system.url}/sso?sso_token=${encodeURIComponent(token)}${nextParam}&theme=${themeAtual}`;
+      url = `${origin}/sso?sso_token=${encodeURIComponent(token)}${nextParam}&theme=${themeAtual}`;
     } else {
       const sep = destUrl.includes('?') ? '&' : '?';
       url = `${destUrl}${sep}theme=${themeAtual}`;
