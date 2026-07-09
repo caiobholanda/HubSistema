@@ -32,6 +32,7 @@ function _parseDataFile(filePath) {
   migrarSlugs(data);
   sitePerm.migrarSitePermissoes(data);
   sitePerm.migrarSitePermissoesV2(data);
+  sitePerm.migrarPermissionsV3(data);
   return data;
 }
 
@@ -241,7 +242,12 @@ function getUserSistemas(email, tipo, isMaster) {
   const padraoIds = sistemas.filter(s => s.acessoPadrao).map(s => s.id);
   const p = data.permissions[email];
   const explicitos = Array.isArray(p) ? p.filter(id => sistemasAtuaisIds.includes(id)) : [];
-  return [...new Set([...explicitos, ...padraoIds])];
+  // Fonte nova: site_permissions gravada por LiberacaoPanel
+  const e = sitePerm._norm(email);
+  const viaSitePerm = (data.site_permissions || [])
+    .filter(r => sitePerm._norm(r.email) === e && sistemasAtuaisIds.includes(r.sistema_id))
+    .map(r => r.sistema_id);
+  return [...new Set([...explicitos, ...viaSitePerm, ...padraoIds])];
 }
 
 // Garante que usuario nao-admin tenha entrada explicita no primeiro login.
@@ -930,13 +936,17 @@ app.post('/api/admin/site-permissions', requireAdmin, (req, res) => {
   if (!r.ok) return res.status(400).json({ ok: false, erro: r.erro });
   writeData(dados);
   if (r.mudou) {
+    // Notifica o usuario via SSE para refletir o novo acesso sem reload
+    const emailNorm = sitePerm._norm(email);
+    const tu = (dados.users || []).find(u => sitePerm._norm(u.email) === emailNorm) || {};
+    notifyUser(emailNorm, getUserSistemas(emailNorm, tu.tipo || 'usuario', !!tu.is_master));
     const sistemasMap = Object.fromEntries((dados.sistemas || DEFAULT_SISTEMAS).map(s => [s.id, s.nome]));
     appendAudit({
       by_email: req.hubUser.email, by_nome: req.hubUser.nome,
       action: papel === 'usuario' ? 'site_usuario_liberar' : 'site_admin_liberar',
       target_tipo: 'permissao', target_id: null,
-      target_nome: sitePerm._norm(email),
-      campos: { email: sitePerm._norm(email), link: sistemasMap[sistema_id] || sistema_id, papel, papel_anterior: r.anterior || null },
+      target_nome: emailNorm,
+      campos: { email: emailNorm, link: sistemasMap[sistema_id] || sistema_id, papel, papel_anterior: r.anterior || null },
     });
   }
   res.json({ ok: true });
@@ -951,12 +961,16 @@ app.delete('/api/admin/site-permissions', requireAdmin, (req, res) => {
   const r = sitePerm.removerPapel(dados, email, sistema_id);
   writeData(dados);
   if (r.mudou) {
+    // Notifica o usuario via SSE para remover o painel sem reload
+    const emailNorm = sitePerm._norm(email);
+    const tu = (dados.users || []).find(u => sitePerm._norm(u.email) === emailNorm) || {};
+    notifyUser(emailNorm, getUserSistemas(emailNorm, tu.tipo || 'usuario', !!tu.is_master));
     const sistemasMap = Object.fromEntries((dados.sistemas || DEFAULT_SISTEMAS).map(s => [s.id, s.nome]));
     appendAudit({
       by_email: req.hubUser.email, by_nome: req.hubUser.nome,
       action: 'site_acesso_remover', target_tipo: 'permissao', target_id: null,
-      target_nome: sitePerm._norm(email),
-      campos: { email: sitePerm._norm(email), link: sistemasMap[sistema_id] || sistema_id },
+      target_nome: emailNorm,
+      campos: { email: emailNorm, link: sistemasMap[sistema_id] || sistema_id },
     });
   }
   res.json({ ok: true });

@@ -138,12 +138,38 @@ function listarTodos(data) {
   return Array.isArray(data.site_permissions) ? data.site_permissions.slice() : [];
 }
 
+// Migration v3: copia data.permissions (fonte antiga, lida por getUserSistemas)
+// para site_permissions (fonte nova, gravada por LiberacaoPanel), usando
+// papel:'usuario'. Nao sobrescreve entradas ja existentes (preserva admin/spa/etc).
+// Unifica a fonte de verdade sem perder liberacoes existentes.
+function migrarPermissionsV3(data) {
+  if (!data || typeof data !== 'object') return data;
+  if (data._permissions_migrated_v3) return data;
+  if (!Array.isArray(data.site_permissions)) data.site_permissions = [];
+  const perms = data.permissions;
+  if (perms && typeof perms === 'object') {
+    for (const email of Object.keys(perms)) {
+      const e = _norm(email);
+      if (!e) continue;
+      const sistemas = perms[email];
+      if (!Array.isArray(sistemas)) continue;
+      for (const sid of sistemas) {
+        const ja = data.site_permissions.some(r => _norm(r.email) === e && r.sistema_id === sid);
+        if (!ja) data.site_permissions.push({ email: e, sistema_id: sid, papel: 'usuario' });
+      }
+    }
+  }
+  data._permissions_migrated_v3 = true;
+  return data;
+}
+
 module.exports = {
   MIGRATION_SEED,
   MIGRATION_SEED_V2,
   PAPEIS_VALIDOS,
   migrarSitePermissoes,
   migrarSitePermissoesV2,
+  migrarPermissionsV3,
   listarPapeis,
   sitesOndeEhAdmin,
   sitesUsuario,
