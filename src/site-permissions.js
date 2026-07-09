@@ -107,7 +107,7 @@ function migrarSitePermissoesV2(data) {
   return data;
 }
 
-const PAPEIS_VALIDOS = new Set(['admin', 'usuario', 'master', 'spa', 'satisfacao']);
+const PAPEIS_VALIDOS = new Set(['admin', 'usuario', 'master', 'spa', 'satisfacao', 'massoterapeuta']);
 function setPapel(data, email, sistema_id, papel) {
   if (!PAPEIS_VALIDOS.has(papel)) return { ok: false, erro: 'papel invalido' };
   if (!email || !sistema_id) return { ok: false, erro: 'email e sistema_id obrigatorios' };

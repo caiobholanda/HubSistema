@@ -924,9 +924,9 @@ app.get('/api/admin/site-permissions', requireAdmin, (_req, res) => {
 app.post('/api/admin/site-permissions', requireAdmin, (req, res) => {
   const { email, sistema_id, papel } = req.body || {};
   if (!email || !sistema_id) return res.status(400).json({ ok: false, erro: 'email e sistema_id obrigatorios' });
-  // master/spa/satisfacao so fazem sentido em pesquisa-satisfacao;
+  // papeis granulares so fazem sentido em pesquisa-satisfacao;
   // demais sites aceitam apenas admin/usuario.
-  const granulares = ['master', 'spa', 'satisfacao'];
+  const granulares = ['master', 'spa', 'satisfacao', 'massoterapeuta'];
   if (!sitePerm.PAPEIS_VALIDOS.has(papel)) return res.status(400).json({ ok: false, erro: 'papel invalido' });
   if (granulares.includes(papel) && sistema_id !== 'pesquisa-satisfacao') {
     return res.status(400).json({ ok: false, erro: `papel '${papel}' so e' valido em pesquisa-satisfacao` });
