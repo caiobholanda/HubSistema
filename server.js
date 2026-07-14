@@ -1565,4 +1565,20 @@ _sanitizarAuditLog();
 }());
 
 
+(function migrarVistaUHs() {
+  try {
+    const data = readData();
+    if (!Array.isArray(data.uhs)) return;
+    let changed = 0;
+    data.uhs.forEach(u => {
+      const slot = parseInt(u.numero.split('/')[0].slice(-2), 10);
+      const vista = slot >= 1 && slot <= 5 ? 'frente-mar' : 'lateral';
+      if (u.vista !== vista) { u.vista = vista; changed++; }
+    });
+    if (changed > 0) { writeData(data); console.log(`[migrar] vista preenchida em ${changed} UHs`); }
+  } catch (e) {
+    console.error('[migrar] falha ao migrar vista:', e.message);
+  }
+}());
+
 app.listen(PORT, () => console.log(`Hub rodando em http://localhost:${PORT}`));
