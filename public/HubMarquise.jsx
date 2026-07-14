@@ -2589,6 +2589,8 @@ function MapaUHsModal({ uhs, categorias, onClose, onEditUH }) {
     return m;
   }, [categorias]);
 
+  const CELL_W = 68, CELL_GAP = 3;
+
   const porAndar = useMemo(() => {
     const m = {};
     uhs.forEach(u => {
@@ -2596,6 +2598,11 @@ function MapaUHsModal({ uhs, categorias, onClose, onEditUH }) {
       if (!m[a]) m[a] = [];
       m[a].push(u);
     });
+    Object.values(m).forEach(arr => arr.sort((a, b) => {
+      const slotA = parseInt(a.numero.split('/')[0].slice(-2), 10);
+      const slotB = parseInt(b.numero.split('/')[0].slice(-2), 10);
+      return slotA - slotB;
+    }));
     return Object.entries(m).sort((a, b) => parseInt(b[0], 10) - parseInt(a[0], 10));
   }, [uhs]);
 
@@ -2690,14 +2697,15 @@ function MapaUHsModal({ uhs, categorias, onClose, onEditUH }) {
                 const cat = catMap[u.categoria_id] || {};
                 const cor = cat.cor || '#555';
                 const isHov = hoveredId === u.id;
-                const isWide = u.numero.includes('/');
+                const spans = u.numero.split('/').length;
+                const cellWidth = spans * CELL_W + (spans - 1) * CELL_GAP;
                 return (
                   <div key={u.id}
                     onMouseEnter={() => { setHoveredId(u.id); setHoveredLegend(null); }}
                     onMouseLeave={() => setHoveredId(null)}
                     onClick={() => onEditUH(u)}
                     style={{
-                      width: isWide ? 104 : 68,
+                      width: cellWidth,
                       height: 43,
                       background: isHov ? cor : cor + '90',
                       border: `2px solid ${isHov ? cor : cor + 'cc'}`,
