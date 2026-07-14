@@ -2582,7 +2582,7 @@ function _parseAndar(numero) {
   return 0;
 }
 
-function MapaUHsModal({ uhs, categorias, onClose }) {
+function MapaUHsModal({ uhs, categorias, onClose, onEditUH }) {
   const catMap = useMemo(() => {
     const m = {};
     categorias.forEach(c => { m[c.id] = c; });
@@ -2603,136 +2603,152 @@ function MapaUHsModal({ uhs, categorias, onClose }) {
   const [hoveredLegend, setHoveredLegend] = useState(null);
   const hoveredUH = hoveredId ? uhs.find(u => u.id === hoveredId) : null;
 
+  const FLAGS_LEG = [
+    { color: HUB_PALETTE.champanhe, label: 'GC',    nome: 'Gran Class', desc: 'Categoria premium do hotel' },
+    { color: '#3498DB',             label: 'ADAPT',  nome: 'Adaptado',   desc: 'Adaptado para necessidades especiais' },
+    { color: '#27AE60',             label: 'VAR',    nome: 'Varanda',    desc: 'Unidade com varanda' },
+  ];
+
+  function renderInfoBar() {
+    if (hoveredUH) {
+      const cat = catMap[hoveredUH.categoria_id] || {};
+      return (<>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexShrink: 0 }}>
+          <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 26, fontWeight: 700, color: cat.cor || HUB_PALETTE.champanhe, letterSpacing: '-0.02em' }}>{hoveredUH.numero}</span>
+          <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: HUB_PALETTE.areiaDim }}>{_parseAndar(hoveredUH.numero)}º andar</span>
+        </div>
+        <span style={{ width: 1, height: 28, background: HUB_PALETTE.areiaDim + '30', flexShrink: 0 }} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 1, flexShrink: 0 }}>
+          <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, fontWeight: 700, color: cat.cor || HUB_PALETTE.areiaDim, letterSpacing: '0.08em' }}>{cat.sigla || '—'}</span>
+          <span style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontSize: 15, color: HUB_PALETTE.marfim }}>{cat.nome || hoveredUH.categoria_id}</span>
+        </div>
+        <span style={{ width: 1, height: 28, background: HUB_PALETTE.areiaDim + '30', flexShrink: 0 }} />
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+          {hoveredUH.leito && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: HUB_PALETTE.areia, padding: '3px 8px', border: `1px solid ${HUB_PALETTE.areiaDim}28` }}>{hoveredUH.leito}</span>}
+          {hoveredUH.banheiro && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: HUB_PALETTE.areia, padding: '3px 8px', border: `1px solid ${HUB_PALETTE.areiaDim}28` }}>{hoveredUH.banheiro}</span>}
+          {hoveredUH.vista && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: '#3498DB', padding: '3px 8px', border: '1px solid #3498DB33' }}>{hoveredUH.vista === 'frente-mar' ? 'Frente mar' : 'Lateral'}</span>}
+          {hoveredUH.gran_class && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: HUB_PALETTE.champanhe, padding: '3px 8px', border: `1px solid ${HUB_PALETTE.champanhe}44` }}>Gran Class</span>}
+          {hoveredUH.adaptado && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: '#3498DB', padding: '3px 8px', border: '1px solid #3498DB44' }}>Adaptado</span>}
+          {hoveredUH.varanda && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: '#27AE60', padding: '3px 8px', border: '1px solid #27AE6044' }}>Varanda</span>}
+          {hoveredUH.obs && <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: HUB_PALETTE.areiaDim, fontStyle: 'italic' }}>{hoveredUH.obs}</span>}
+        </div>
+        <div style={{ marginLeft: 'auto', flexShrink: 0 }}>
+          <button onClick={() => onEditUH(hoveredUH)}
+            style={{ background: HUB_PALETTE.champanhe, border: `1px solid ${HUB_PALETTE.champanhe}`, color: HUB_PALETTE.noite, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', padding: '7px 16px', cursor: 'pointer', fontWeight: 700 }}>
+            Editar UH
+          </button>
+        </div>
+      </>);
+    }
+    if (hoveredLegend) {
+      return hoveredLegend.tipo === 'cat' ? (<>
+        <span style={{ width: 14, height: 14, background: hoveredLegend.cor, display: 'inline-block', flexShrink: 0 }} />
+        <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 18, fontWeight: 700, color: hoveredLegend.cor, letterSpacing: '0.08em' }}>{hoveredLegend.sigla}</span>
+        <span style={{ width: 1, height: 24, background: HUB_PALETTE.areiaDim + '30', flexShrink: 0 }} />
+        <span style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontSize: 18, color: HUB_PALETTE.marfim }}>{hoveredLegend.nome}</span>
+      </>) : (<>
+        <span style={{ width: 10, height: 10, borderRadius: '50%', background: hoveredLegend.cor, display: 'inline-block', flexShrink: 0 }} />
+        <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 15, fontWeight: 700, color: hoveredLegend.cor }}>{hoveredLegend.label}</span>
+        <span style={{ width: 1, height: 24, background: HUB_PALETTE.areiaDim + '30', flexShrink: 0 }} />
+        <span style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontSize: 18, color: HUB_PALETTE.marfim }}>{hoveredLegend.nome}</span>
+        <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: HUB_PALETTE.areiaDim }}>{hoveredLegend.desc}</span>
+      </>);
+    }
+    return <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areiaDim + '77', fontStyle: 'italic' }}>Passe o mouse sobre uma UH para ver detalhes · Clique para editar</span>;
+  }
+
   return ReactDOM.createPortal(
-    <div style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,0,0,0.96)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      <div style={{ background: HUB_PALETTE.headerBg, backdropFilter: 'blur(10px)', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, padding: '20px 36px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-        <div>
-          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.35em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 5 }}>Visualização · Gran Marquise</div>
-          <div style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontWeight: 300, fontSize: 26, color: HUB_PALETTE.marfim }}>Mapa de Unidades Habitacionais</div>
-        </div>
-        <button onClick={onClose}
-          style={{ background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}44`, color: HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.2em', textTransform: 'uppercase', padding: '10px 20px', cursor: 'pointer' }}
-          onMouseEnter={e => { e.currentTarget.style.color = HUB_PALETTE.marfim; e.currentTarget.style.borderColor = HUB_PALETTE.areiaDim + '88'; }}
-          onMouseLeave={e => { e.currentTarget.style.color = HUB_PALETTE.areiaDim; e.currentTarget.style.borderColor = HUB_PALETTE.areiaDim + '44'; }}>
-          Fechar ✕
-        </button>
-      </div>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 300, background: HUB_PALETTE.noite, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
-      <div style={{ flex: 1, overflowY: 'auto', padding: '16px 28px 80px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        {/* Legenda compacta */}
-        <div style={{ width: '100%', maxWidth: 1100, marginBottom: 16, paddingBottom: 14, borderBottom: `1px solid ${HUB_PALETTE.areiaDim}20`, display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, flex: 1 }}>
-            {categorias.slice().sort((a, b) => a.sigla.localeCompare(b.sigla)).map(c => (
-              <div key={c.id}
-                onMouseEnter={() => setHoveredLegend({ tipo: 'cat', sigla: c.sigla, nome: c.nome, cor: c.cor })}
-                onMouseLeave={() => setHoveredLegend(null)}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 8px', background: hoveredLegend && hoveredLegend.sigla === c.sigla ? c.cor + '30' : c.cor + '18', border: `1px solid ${hoveredLegend && hoveredLegend.sigla === c.sigla ? c.cor + 'aa' : c.cor + '50'}`, cursor: 'default', transition: 'background 100ms, border-color 100ms' }}>
-                <span style={{ width: 8, height: 8, background: c.cor, display: 'inline-block', flexShrink: 0 }} />
-                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.08em', color: c.cor, fontWeight: 700 }}>{c.sigla}</span>
-              </div>
-            ))}
-          </div>
-          <div style={{ display: 'flex', gap: 6, flexShrink: 0, paddingLeft: 12, borderLeft: `1px solid ${HUB_PALETTE.areiaDim}22` }}>
-            {[
-              { color: HUB_PALETTE.champanhe, label: 'GC', nome: 'Gran Class', desc: 'Unidade Gran Class — categoria premium do hotel' },
-              { color: '#3498DB', label: 'ADAPT', nome: 'Adaptado', desc: 'Unidade adaptada para necessidades especiais' },
-              { color: '#27AE60', label: 'VAR', nome: 'Varanda', desc: 'Unidade com varanda' },
-            ].map(({ color, label, nome, desc }) => (
-              <div key={label}
-                onMouseEnter={() => setHoveredLegend({ tipo: 'flag', label, nome, cor: color, desc })}
-                onMouseLeave={() => setHoveredLegend(null)}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 8px', border: `1px solid ${hoveredLegend && hoveredLegend.label === label ? color + 'aa' : color + '44'}`, background: hoveredLegend && hoveredLegend.label === label ? color + '22' : 'transparent', cursor: 'default', transition: 'background 100ms, border-color 100ms' }}>
-                <span style={{ width: 6, height: 6, borderRadius: '50%', background: color, display: 'inline-block' }} />
-                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color }}>{label}</span>
-              </div>
-            ))}
+      {/* Topo: título + fechar */}
+      <div style={{ background: HUB_PALETTE.noiteAlt, borderBottom: `1px solid ${HUB_PALETTE.areiaDim}20`, padding: '16px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div style={{ width: 3, height: 32, background: HUB_PALETTE.champanhe }} />
+          <div>
+            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.35em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 3 }}>Gran Marquise · Visualização</div>
+            <div style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontWeight: 300, fontSize: 22, color: HUB_PALETTE.marfim }}>Mapa de Unidades Habitacionais</div>
           </div>
         </div>
-
-        {/* Grid por andares — centralizado */}
-        <div style={{ overflowX: 'auto', width: '100%', display: 'flex', justifyContent: 'center', flex: 1 }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            {porAndar.map(([andar, uhsAndar]) => (
-              <div key={andar} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                <div style={{ width: 38, flexShrink: 0, fontFamily: 'JetBrains Mono, monospace', fontSize: 12, fontWeight: 600, color: HUB_PALETTE.areia, textAlign: 'right', paddingRight: 10 }}>{andar}º</div>
-                {uhsAndar.map(u => {
-                  const cat = catMap[u.categoria_id] || {};
-                  const cor = cat.cor || '#555';
-                  const isHov = hoveredId === u.id;
-                  const isWide = u.numero.includes('/');
-                  return (
-                    <div key={u.id}
-                      onMouseEnter={() => setHoveredId(u.id)}
-                      onMouseLeave={() => setHoveredId(null)}
-                      style={{
-                        width: isWide ? 70 : 44,
-                        height: 40,
-                        background: isHov ? cor : cor + '55',
-                        border: `2px solid ${isHov ? cor : cor + '88'}`,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        cursor: 'pointer', transition: 'all 80ms ease',
-                        position: 'relative', flexShrink: 0,
-                        boxShadow: isHov ? `0 0 10px ${cor}55` : 'none',
-                      }}>
-                      <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: isHov ? '#fff' : '#ffffffbb', fontWeight: 700, lineHeight: 1, userSelect: 'none', pointerEvents: 'none' }}>
-                        {u.numero.split('/')[0].slice(-2)}
-                      </span>
-                      {u.gran_class && <span style={{ position: 'absolute', top: 2, right: 2, width: 6, height: 6, borderRadius: '50%', background: HUB_PALETTE.champanhe, boxShadow: `0 0 4px ${HUB_PALETTE.champanhe}`, pointerEvents: 'none' }} />}
-                      {u.adaptado && <span style={{ position: 'absolute', bottom: 2, left: 2, width: 6, height: 6, borderRadius: '50%', background: '#3498DB', pointerEvents: 'none' }} />}
-                      {u.varanda && <span style={{ position: 'absolute', bottom: 2, right: 2, width: 6, height: 6, borderRadius: '50%', background: '#27AE60', pointerEvents: 'none' }} />}
-                    </div>
-                  );
-                })}
-              </div>
-            ))}
-          </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: HUB_PALETTE.areiaDim }}>{uhs.length} UHs · {categorias.length} cat.</span>
+          <button onClick={onClose}
+            style={{ background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}44`, color: HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.2em', textTransform: 'uppercase', padding: '9px 18px', cursor: 'pointer' }}
+            onMouseEnter={e => { e.currentTarget.style.color = HUB_PALETTE.marfim; e.currentTarget.style.borderColor = HUB_PALETTE.areiaDim + '88'; }}
+            onMouseLeave={e => { e.currentTarget.style.color = HUB_PALETTE.areiaDim; e.currentTarget.style.borderColor = HUB_PALETTE.areiaDim + '44'; }}>
+            Fechar ✕
+          </button>
         </div>
       </div>
 
-      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 10, background: HUB_PALETTE.noite, borderTop: `2px solid ${HUB_PALETTE.areiaDim}22`, padding: '18px 40px', minHeight: 68, display: 'flex', alignItems: 'center', gap: 28 }}>
-        {hoveredUH ? (() => {
-          const cat = catMap[hoveredUH.categoria_id] || {};
-          return (<>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexShrink: 0 }}>
-              <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 28, fontWeight: 700, color: cat.cor || HUB_PALETTE.champanhe, letterSpacing: '-0.02em' }}>{hoveredUH.numero}</span>
-              <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: HUB_PALETTE.areiaDim }}>{_parseAndar(hoveredUH.numero)}º andar</span>
+      {/* Barra de info — em cima, logo abaixo do header */}
+      <div style={{ background: HUB_PALETTE.noiteAlt + 'cc', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}18`, padding: '12px 32px', minHeight: 52, display: 'flex', alignItems: 'center', gap: 18, flexShrink: 0 }}>
+        {renderInfoBar()}
+      </div>
+
+      {/* Grid central */}
+      <div style={{ flex: 1, overflowY: 'auto', overflowX: 'auto', padding: '20px 32px', display: 'flex', justifyContent: 'center', alignItems: 'flex-start' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          {porAndar.map(([andar, uhsAndar]) => (
+            <div key={andar} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+              <div style={{ width: 36, flexShrink: 0, fontFamily: 'JetBrains Mono, monospace', fontSize: 11, fontWeight: 600, color: HUB_PALETTE.areiaDim, textAlign: 'right', paddingRight: 10 }}>{andar}º</div>
+              {uhsAndar.map(u => {
+                const cat = catMap[u.categoria_id] || {};
+                const cor = cat.cor || '#555';
+                const isHov = hoveredId === u.id;
+                const isWide = u.numero.includes('/');
+                return (
+                  <div key={u.id}
+                    onMouseEnter={() => { setHoveredId(u.id); setHoveredLegend(null); }}
+                    onMouseLeave={() => setHoveredId(null)}
+                    onClick={() => onEditUH(u)}
+                    style={{
+                      width: isWide ? 70 : 44,
+                      height: 40,
+                      background: isHov ? cor : cor + '50',
+                      border: `2px solid ${isHov ? cor : cor + '80'}`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      cursor: 'pointer', transition: 'all 80ms ease',
+                      position: 'relative', flexShrink: 0,
+                      boxShadow: isHov ? `0 0 12px ${cor}55, inset 0 0 8px ${cor}22` : 'none',
+                    }}>
+                    <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: isHov ? '#fff' : '#ffffffaa', fontWeight: 700, lineHeight: 1, userSelect: 'none', pointerEvents: 'none' }}>
+                      {u.numero.split('/')[0].slice(-2)}
+                    </span>
+                    {u.gran_class && <span style={{ position: 'absolute', top: 2, right: 2, width: 6, height: 6, borderRadius: '50%', background: HUB_PALETTE.champanhe, boxShadow: `0 0 4px ${HUB_PALETTE.champanhe}`, pointerEvents: 'none' }} />}
+                    {u.adaptado && <span style={{ position: 'absolute', bottom: 2, left: 2, width: 6, height: 6, borderRadius: '50%', background: '#3498DB', pointerEvents: 'none' }} />}
+                    {u.varanda && <span style={{ position: 'absolute', bottom: 2, right: 2, width: 6, height: 6, borderRadius: '50%', background: '#27AE60', pointerEvents: 'none' }} />}
+                  </div>
+                );
+              })}
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flexShrink: 0 }}>
-              <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 13, fontWeight: 700, color: cat.cor || HUB_PALETTE.areiaDim }}>{cat.sigla || '—'}</span>
-              <span style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontSize: 17, color: HUB_PALETTE.marfim }}>{cat.nome || hoveredUH.categoria_id}</span>
+          ))}
+        </div>
+      </div>
+
+      {/* Etiquetas da legenda — em baixo */}
+      <div style={{ background: HUB_PALETTE.noiteAlt, borderTop: `1px solid ${HUB_PALETTE.areiaDim}18`, padding: '10px 32px', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', flexShrink: 0 }}>
+        <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.25em', color: HUB_PALETTE.areiaDim, textTransform: 'uppercase', flexShrink: 0 }}>Legenda</span>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>
+          {categorias.slice().sort((a, b) => a.sigla.localeCompare(b.sigla)).map(c => (
+            <div key={c.id}
+              onMouseEnter={() => { setHoveredLegend({ tipo: 'cat', sigla: c.sigla, nome: c.nome, cor: c.cor }); setHoveredId(null); }}
+              onMouseLeave={() => setHoveredLegend(null)}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 8px', background: hoveredLegend && hoveredLegend.sigla === c.sigla ? c.cor + '30' : c.cor + '15', border: `1px solid ${hoveredLegend && hoveredLegend.sigla === c.sigla ? c.cor + 'bb' : c.cor + '44'}`, cursor: 'default', transition: 'all 100ms' }}>
+              <span style={{ width: 7, height: 7, background: c.cor, display: 'inline-block', flexShrink: 0 }} />
+              <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.06em', color: c.cor, fontWeight: 700 }}>{c.sigla}</span>
             </div>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-              {hoveredUH.leito && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: HUB_PALETTE.areia, padding: '4px 10px', border: `1px solid ${HUB_PALETTE.areiaDim}30` }}>{hoveredUH.leito}</span>}
-              {hoveredUH.banheiro && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: HUB_PALETTE.areia, padding: '4px 10px', border: `1px solid ${HUB_PALETTE.areiaDim}30` }}>{hoveredUH.banheiro}</span>}
-              {hoveredUH.vista && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: '#3498DB', padding: '4px 10px', border: '1px solid #3498DB33' }}>{hoveredUH.vista === 'frente-mar' ? 'Frente mar' : 'Lateral'}</span>}
-              {hoveredUH.gran_class && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: HUB_PALETTE.champanhe, padding: '4px 10px', border: `1px solid ${HUB_PALETTE.champanhe}55` }}>Gran Class</span>}
-              {hoveredUH.adaptado && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: '#3498DB', padding: '4px 10px', border: '1px solid #3498DB55' }}>Adaptado</span>}
-              {hoveredUH.varanda && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: '#27AE60', padding: '4px 10px', border: '1px solid #27AE6055' }}>Varanda</span>}
-              {hoveredUH.obs && <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: HUB_PALETTE.areiaDim, fontStyle: 'italic' }}>{hoveredUH.obs}</span>}
+          ))}
+          <div style={{ width: 1, height: 14, background: HUB_PALETTE.areiaDim + '33', margin: '0 6px', flexShrink: 0 }} />
+          {FLAGS_LEG.map(({ color, label, nome, desc }) => (
+            <div key={label}
+              onMouseEnter={() => { setHoveredLegend({ tipo: 'flag', label, nome, cor: color, desc }); setHoveredId(null); }}
+              onMouseLeave={() => setHoveredLegend(null)}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 8px', border: `1px solid ${hoveredLegend && hoveredLegend.label === label ? color + 'bb' : color + '44'}`, background: hoveredLegend && hoveredLegend.label === label ? color + '22' : 'transparent', cursor: 'default', transition: 'all 100ms' }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: color, display: 'inline-block' }} />
+              <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color }}>{label}</span>
             </div>
-          </>);
-        })() : hoveredLegend ? (
-          hoveredLegend.tipo === 'cat' ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
-                <span style={{ width: 16, height: 16, background: hoveredLegend.cor, display: 'inline-block', flexShrink: 0 }} />
-                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 20, fontWeight: 700, color: hoveredLegend.cor, letterSpacing: '0.06em' }}>{hoveredLegend.sigla}</span>
-              </div>
-              <span style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontSize: 20, color: HUB_PALETTE.marfim }}>{hoveredLegend.nome}</span>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-                <span style={{ width: 12, height: 12, borderRadius: '50%', background: hoveredLegend.cor, display: 'inline-block', flexShrink: 0 }} />
-                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 16, fontWeight: 700, color: hoveredLegend.cor }}>{hoveredLegend.label}</span>
-              </div>
-              <span style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontSize: 20, color: HUB_PALETTE.marfim }}>{hoveredLegend.nome}</span>
-              <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areiaDim }}>{hoveredLegend.desc}</span>
-            </div>
-          )
-        ) : (
-          <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 15, color: HUB_PALETTE.areiaDim + '88', fontStyle: 'italic' }}>Passe o mouse sobre uma UH ou etiqueta da legenda para ver os detalhes</span>
-        )}
+          ))}
+        </div>
       </div>
     </div>,
     document.body
@@ -2779,7 +2795,7 @@ function UHForm({ uh, categorias, isMobile, onSave, onCancel, saving, erro }) {
   ];
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 350, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
       <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, maxWidth: 620, width: '100%', padding: isMobile ? '28px 22px' : '40px 48px', maxHeight: '92vh', overflowY: 'auto' }}>
         <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.28em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 8 }}>Unidade Habitacional</div>
         <h3 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontWeight: 300, fontSize: 32, color: HUB_PALETTE.marfim, margin: '0 0 28px' }}>
@@ -2894,7 +2910,7 @@ function CategoriaUHForm({ cat, isMobile, onSave, onCancel, saving, erro }) {
   };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 350, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
       <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, maxWidth: 500, width: '100%', padding: isMobile ? '28px 22px' : '40px 44px' }}>
         <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.28em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 8 }}>Categoria de UH</div>
         <h3 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontWeight: 300, fontSize: 32, color: HUB_PALETTE.marfim, margin: '0 0 28px' }}>
@@ -3381,7 +3397,7 @@ function UHsPanel({ isMobile }) {
     )}
 
     {/* Mapa */}
-    {mapaAberto && <MapaUHsModal uhs={uhs || []} categorias={categorias} onClose={() => setMapaAberto(false)} />}
+    {mapaAberto && <MapaUHsModal uhs={uhs || []} categorias={categorias} onClose={() => setMapaAberto(false)} onEditUH={u => { setEditingUH(u); setErro(''); }} />}
   </>);
 }
 
