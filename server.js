@@ -1162,6 +1162,110 @@ app.delete('/api/admin/ausencias/:id', requireAdmin, (req, res) => {
 });
 
 
+// ─── Categorias de UH (CRUD) ─────────────────────────────────────────────────
+
+app.get('/api/admin/categorias-uh', requireAdmin, (req, res) => {
+  const data = readData();
+  const cats = Array.isArray(data.categorias_uh) ? data.categorias_uh : [];
+  res.json({ ok: true, categorias: cats.slice().sort((a, b) => (a.sigla || '').localeCompare(b.sigla || '')) });
+});
+
+app.post('/api/admin/categorias-uh', requireAdmin, (req, res) => {
+  const { sigla, nome, cor } = req.body || {};
+  if (!sigla || !nome) return res.status(400).json({ ok: false, erro: 'sigla e nome obrigatórios' });
+  const data = readData();
+  if (!Array.isArray(data.categorias_uh)) data.categorias_uh = [];
+  const siglaUp = sigla.trim().toUpperCase();
+  if (data.categorias_uh.some(c => c.sigla === siglaUp)) return res.status(409).json({ ok: false, erro: 'Sigla já existe' });
+  const cat = { id: siglaUp, sigla: siglaUp, nome: nome.trim(), cor: (cor || '#666666').trim() };
+  data.categorias_uh.push(cat);
+  writeData(data);
+  appendAudit({ by_email: req.hubUser.email, by_nome: req.hubUser.nome, action: 'criar', target_tipo: 'categoria_uh', target_id: siglaUp, target_nome: nome.trim(), campos: { sigla: siglaUp, cor: cat.cor } });
+  res.json({ ok: true, categoria: cat });
+});
+
+app.put('/api/admin/categorias-uh/:id', requireAdmin, (req, res) => {
+  const { id } = req.params;
+  const { nome, cor } = req.body || {};
+  if (!nome) return res.status(400).json({ ok: false, erro: 'nome obrigatório' });
+  const data = readData();
+  if (!Array.isArray(data.categorias_uh)) return res.status(404).json({ ok: false, erro: 'Não encontrado' });
+  const idx = data.categorias_uh.findIndex(c => c.id === id);
+  if (idx === -1) return res.status(404).json({ ok: false, erro: 'Não encontrado' });
+  const before = { ...data.categorias_uh[idx] };
+  data.categorias_uh[idx] = { ...data.categorias_uh[idx], nome: nome.trim(), cor: cor ? cor.trim() : data.categorias_uh[idx].cor };
+  writeData(data);
+  appendAudit({ by_email: req.hubUser.email, by_nome: req.hubUser.nome, action: 'editar', target_tipo: 'categoria_uh', target_id: id, target_nome: nome.trim(), campos: _diff(before, data.categorias_uh[idx]) });
+  res.json({ ok: true, categoria: data.categorias_uh[idx] });
+});
+
+app.delete('/api/admin/categorias-uh/:id', requireAdmin, (req, res) => {
+  const { id } = req.params;
+  const data = readData();
+  if (!Array.isArray(data.categorias_uh)) return res.status(404).json({ ok: false, erro: 'Não encontrado' });
+  const idx = data.categorias_uh.findIndex(c => c.id === id);
+  if (idx === -1) return res.status(404).json({ ok: false, erro: 'Não encontrado' });
+  const [removed] = data.categorias_uh.splice(idx, 1);
+  writeData(data);
+  appendAudit({ by_email: req.hubUser.email, by_nome: req.hubUser.nome, action: 'excluir', target_tipo: 'categoria_uh', target_id: id, target_nome: removed.nome, campos: {} });
+  res.json({ ok: true });
+});
+
+
+// ─── UHs — Unidades Habitacionais (CRUD) ─────────────────────────────────────
+
+app.get('/api/admin/uhs', requireAdmin, (req, res) => {
+  const data = readData();
+  const uhs = Array.isArray(data.uhs) ? data.uhs : [];
+  res.json({ ok: true, uhs });
+});
+
+app.post('/api/admin/uhs', requireAdmin, (req, res) => {
+  const { numero, categoria_id, leito, banheiro, gran_class, vista, varanda, adaptado, obs } = req.body || {};
+  if (!numero) return res.status(400).json({ ok: false, erro: 'número obrigatório' });
+  const data = readData();
+  if (!Array.isArray(data.uhs)) data.uhs = [];
+  const num = numero.trim();
+  if (data.uhs.some(u => u.id === num)) return res.status(409).json({ ok: false, erro: 'UH já existe' });
+  const uh = { id: num, numero: num, categoria_id: categoria_id || '', leito: leito || '', banheiro: banheiro || '', gran_class: !!gran_class, vista: vista || '', varanda: !!varanda, adaptado: !!adaptado, obs: (obs || '').trim() };
+  data.uhs.push(uh);
+  writeData(data);
+  appendAudit({ by_email: req.hubUser.email, by_nome: req.hubUser.nome, action: 'criar', target_tipo: 'uh', target_id: num, target_nome: num, campos: uh });
+  res.json({ ok: true, uh });
+});
+
+app.put('/api/admin/uhs/:id', requireAdmin, (req, res) => {
+  const { id } = req.params;
+  const body = req.body || {};
+  const data = readData();
+  if (!Array.isArray(data.uhs)) return res.status(404).json({ ok: false, erro: 'UH não encontrada' });
+  const idx = data.uhs.findIndex(u => u.id === id);
+  if (idx === -1) return res.status(404).json({ ok: false, erro: 'UH não encontrada' });
+  const before = { ...data.uhs[idx] };
+  const fields = ['categoria_id', 'leito', 'banheiro', 'vista', 'obs'];
+  const bools  = ['gran_class', 'varanda', 'adaptado'];
+  const upd = { ...before };
+  fields.forEach(f => { if (body[f] !== undefined) upd[f] = (body[f] || '').toString().trim(); });
+  bools.forEach(f => { if (body[f] !== undefined) upd[f] = !!body[f]; });
+  data.uhs[idx] = upd;
+  writeData(data);
+  appendAudit({ by_email: req.hubUser.email, by_nome: req.hubUser.nome, action: 'editar', target_tipo: 'uh', target_id: id, target_nome: id, campos: _diff(before, upd) });
+  res.json({ ok: true, uh: upd });
+});
+
+app.delete('/api/admin/uhs/:id', requireAdmin, (req, res) => {
+  const { id } = req.params;
+  const data = readData();
+  if (!Array.isArray(data.uhs)) return res.status(404).json({ ok: false, erro: 'UH não encontrada' });
+  const idx = data.uhs.findIndex(u => u.id === id);
+  if (idx === -1) return res.status(404).json({ ok: false, erro: 'UH não encontrada' });
+  data.uhs.splice(idx, 1);
+  writeData(data);
+  appendAudit({ by_email: req.hubUser.email, by_nome: req.hubUser.nome, action: 'excluir', target_tipo: 'uh', target_id: id, target_nome: id, campos: {} });
+  res.json({ ok: true });
+});
+
+
 // ─── Static fallback ─────────────────────────────────────────────────────────
 
 app.get('*', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
@@ -1257,6 +1361,206 @@ _sanitizarAuditLog();
     console.log('[init] ausencias inicializadas com seed');
   } catch (e) {
     console.error('[init] falha ao inicializar ausencias:', e.message);
+  }
+}());
+
+(function initCategoriasUH() {
+  try {
+    const data = readData();
+    if (Array.isArray(data.categorias_uh) && data.categorias_uh.length > 0) return;
+    const SEED = [
+      { sigla: 'EXE',  nome: 'Suite Executiva',           cor: '#4A7C59' },
+      { sigla: 'GJR',  nome: 'Gran Junior',                cor: '#2E86AB' },
+      { sigla: 'GLXD', nome: 'Gran Luxo Double',           cor: '#7B2D8B' },
+      { sigla: 'GSPD', nome: 'Gran Superior Double',       cor: '#1A6B3C' },
+      { sigla: 'GSPT', nome: 'Gran Superior Twin',         cor: '#16A085' },
+      { sigla: 'GSTD', nome: 'Gran Studio',                cor: '#C0392B' },
+      { sigla: 'GSTR', nome: 'Gran Superior Triplo',       cor: '#D35400' },
+      { sigla: 'GSDA', nome: 'Gran Sup. DBL Adaptado',     cor: '#1565C0' },
+      { sigla: 'GSTT', nome: 'Gran Studio Twin',           cor: '#E74C3C' },
+      { sigla: 'JR',   nome: 'Junior',                     cor: '#5BA4CF' },
+      { sigla: 'JRT',  nome: 'Junior Twin',                cor: '#3D7AB5' },
+      { sigla: 'LXD',  nome: 'Luxo Double',                cor: '#9B59B6' },
+      { sigla: 'LXT',  nome: 'Luxo Twin',                  cor: '#BB77D0' },
+      { sigla: 'MAR',  nome: 'Suite Marquise',             cor: '#8B6914' },
+      { sigla: 'PRE',  nome: 'Suite Presidencial',         cor: '#D4AF37' },
+      { sigla: 'SPD',  nome: 'Superior Double',            cor: '#27AE60' },
+      { sigla: 'SPDA', nome: 'Sup. Double Adaptado',       cor: '#2980B9' },
+      { sigla: 'SPT',  nome: 'Superior Twin',              cor: '#1ABC9C' },
+      { sigla: 'SPTA', nome: 'Sup. Twin Adaptado',         cor: '#3498DB' },
+      { sigla: 'STDF', nome: 'Studio Familia',             cor: '#E67E22' },
+      { sigla: 'STR',  nome: 'Superior Triplo',            cor: '#CA6F1E' },
+      { sigla: 'STT',  nome: 'Studio Twin',                cor: '#FF8C42' },
+    ];
+    data.categorias_uh = SEED.map(c => ({ id: c.sigla, ...c }));
+    writeData(data);
+    console.log('[init] categorias_uh inicializadas com seed');
+  } catch (e) {
+    console.error('[init] falha ao inicializar categorias_uh:', e.message);
+  }
+}());
+
+(function initUHs() {
+  try {
+    const data = readData();
+    if (Array.isArray(data.uhs) && data.uhs.length > 0) return;
+    // Compact seed: [numero, cat, leito, ban, gc, varanda, adaptado, obs]
+    const RAW = [
+      // Andar 18 — GC completo (14 UHs)
+      ['1801','GSTT','TWIN','BA',1,0,0,''],
+      ['1802/03/04/05','PRE','KING','HIDRO',1,0,0,'Suite Presidencial'],
+      ['1806','GSPD','KING','BX',1,0,0,''],['1807','GSPD','KING','BX',1,0,0,''],
+      ['1808','GSPD','KING','BX',1,0,0,''],['1809','GSPD','KING','BX',1,0,0,''],
+      ['1810','GSPD','KING','BX',1,0,0,''],['1811','GSPD','KING','BX',1,0,0,''],
+      ['1812','GSPD','KING','BX',1,0,0,''],['1813','GSPD','KING','BX',1,0,0,''],
+      ['1814','GSPD','KING','BX',1,0,0,''],['1815','GSPD','KING','BX',1,0,0,''],
+      ['1816','GSPD','KING','BX',1,0,0,''],['1817','GSTR','TPL','BX',1,0,0,''],
+      // Andar 17 — GC completo (15 UHs)
+      ['1701','GSTD','KING','BA',1,0,0,''],['1702','GLXD','KING','BA',1,0,0,''],
+      ['1703/04/05','MAR','KING','HIDRO',1,0,0,'Suite Marquise'],
+      ['1706','GSPD','KING','BX',1,0,0,''],['1707','GSPD','KING','BX',1,0,0,''],
+      ['1708','GSPD','KING','BX',1,0,0,''],['1709','GSPT','TWIN','BX',1,0,0,''],
+      ['1710','GSPD','KING','BX',1,0,0,''],['1711','GSPT','TWIN','BX',1,0,0,''],
+      ['1712','GSPD','KING','BX',1,0,0,''],['1713','GSPD','KING','BX',1,0,0,''],
+      ['1714','GSPD','KING','BX',1,0,0,''],['1715','GSPT','TWIN','BX',1,0,0,''],
+      ['1716','GSPD','KING','BX',1,0,0,''],['1717','GSTR','TPL','BX',1,0,0,''],
+      // Andar 16 — GC completo (16 UHs)
+      ['1601','GSTD','KING','BA',1,0,0,''],['1602/03','EXE','KING','BA',1,0,0,''],
+      ['1604','GLXD','KING','BA',1,0,0,''],['1605','GJR','KING','BA',1,0,0,''],
+      ['1606','GSPD','KING','BA',1,0,0,''],['1607','GSPD','KING','BA',1,0,0,''],
+      ['1608','GSDA','KING','BX',1,0,1,'Adaptado necessidades especiais'],
+      ['1609','GSPD','KING','BX',1,0,0,''],['1610','GSPD','KING','BA',1,0,0,''],
+      ['1611','GSPD','KING','BA',1,0,0,''],['1612','GSPD','KING','BA',1,0,0,''],
+      ['1613','GSPD','KING','BX',1,0,0,''],['1614','GSPD','KING','BA',1,0,0,''],
+      ['1615','GSPD','KING','BA',1,0,0,''],['1616','GSPD','KING','BX',1,0,0,''],
+      ['1617','GSTR','TPL','BA',1,0,0,''],
+      // Andar 15 — GC parcial 01-05 (16 UHs)
+      ['1501','GSTD','KING','BA',1,0,0,''],['1502/03','EXE','KING','BA',1,0,0,''],
+      ['1504','GLXD','KING','BA',1,0,0,''],['1505','GJR','KING','BA',1,0,0,''],
+      ['1506','SPT','TWIN','BX',0,0,0,''],['1507','SPD','KING','BA',0,0,0,''],
+      ['1508','SPTA','KING','BX',0,0,1,'Adaptado necessidades especiais'],
+      ['1509','SPT','TWIN','BX',0,0,0,''],['1510','SPD','KING','BA',0,0,0,''],
+      ['1511','SPD','KING','BX',0,0,0,''],['1512','SPD','KING','BA',0,0,0,''],
+      ['1513','SPD','KING','BX',0,0,0,''],['1514','SPD','KING','BA',0,0,0,''],
+      ['1515','SPD','KING','BX',0,0,0,''],['1516','SPD','KING','BX',0,0,0,''],
+      ['1517','STR','TPL','BA',0,0,0,''],
+      // Andar 14 — GC parcial 01-05 (16 UHs)
+      ['1401','GSTD','KING','BA',1,0,0,''],['1402/03','EXE','KING','BA',1,0,0,''],
+      ['1404','GLXD','KING','BA',1,0,0,''],['1405','GJR','KING','BA',1,0,0,''],
+      ['1406','SPT','TWIN','BX',0,0,0,''],['1407','SPD','KING','BA',0,0,0,''],
+      ['1408','SPDA','TWIN','BX',0,0,1,'Adaptado necessidades especiais'],
+      ['1409','SPT','TWIN','BX',0,0,0,''],['1410','SPD','KING','BA',0,0,0,''],
+      ['1411','SPD','KING','BX',0,0,0,''],['1412','SPD','KING','BA',0,0,0,''],
+      ['1413','SPD','KING','BX',0,0,0,''],['1414','SPD','KING','BA',0,0,0,''],
+      ['1415','SPD','KING','BX',0,0,0,''],['1416','SPD','KING','BX',0,0,0,''],
+      ['1417','STR','TPL','BA',0,0,0,''],
+      // Andar 13 (17 UHs)
+      ['1301','STDF','QUEEN','BA',0,0,0,''],['1302','LXT','TWIN','BA',0,0,0,''],
+      ['1303','LXD','KING','BA',0,0,0,''],['1304','LXD','KING','BX',0,0,0,''],
+      ['1305','JR','KING','BA',0,0,0,''],['1306','SPT','TWIN','BX',0,0,0,''],
+      ['1307','SPD','KING','BA',0,0,0,''],['1308','SPD','KING','BX',0,0,0,''],
+      ['1309','SPT','TWIN','BX',0,0,0,''],['1310','SPD','KING','BA',0,0,0,''],
+      ['1311','SPT','TWIN','BX',0,0,0,''],['1312','SPD','KING','BA',0,0,0,''],
+      ['1313','SPT','TWIN','BX',0,0,0,''],['1314','SPD','KING','BA',0,0,0,''],
+      ['1315','SPT','TWIN','BX',0,0,0,''],['1316','SPD','KING','BX',0,0,0,''],
+      ['1317','STR','TPL','BA',0,0,0,''],
+      // Andar 12 (17 UHs)
+      ['1201','STDF','QUEEN','BA',0,0,0,''],['1202','LXT','TWIN','BX',0,0,0,''],
+      ['1203','LXD','KING','BX',0,0,0,''],['1204','LXD','KING','BX',0,0,0,''],
+      ['1205','JR','KING','BA',0,0,0,''],['1206','SPD','KING','BX',0,0,0,''],
+      ['1207','SPD','KING','BX',0,0,0,''],['1208','SPD','KING','BX',0,0,0,''],
+      ['1209','SPD','KING','BX',0,0,0,''],['1210','SPD','KING','BX',0,0,0,''],
+      ['1211','SPD','KING','BX',0,0,0,''],['1212','SPD','KING','BX',0,0,0,''],
+      ['1213','SPD','KING','BX',0,0,0,''],['1214','SPD','KING','BX',0,0,0,''],
+      ['1215','SPD','KING','BX',0,0,0,''],['1216','SPD','KING','BX',0,0,0,''],
+      ['1217','STR','TPL','BX',0,0,0,''],
+      // Andar 11 — 100% TWIN (17 UHs)
+      ['1101','STT','TWIN','BA',0,0,0,''],['1102','LXT','TWIN','BX',0,0,0,''],
+      ['1103','LXT','TWIN','BX',0,0,0,''],['1104','LXT','TWIN','BX',0,0,0,''],
+      ['1105','JRT','TWIN','BA',0,0,0,''],['1106','SPT','TWIN','BX',0,0,0,''],
+      ['1107','SPT','TWIN','BX',0,0,0,''],['1108','SPT','TWIN','BX',0,0,0,''],
+      ['1109','SPT','TWIN','BX',0,0,0,''],['1110','SPT','TWIN','BX',0,0,0,''],
+      ['1111','SPT','TWIN','BX',0,0,0,''],['1112','SPT','TWIN','BX',0,0,0,''],
+      ['1113','SPT','TWIN','BX',0,0,0,''],['1114','SPT','TWIN','BX',0,0,0,''],
+      ['1115','SPT','TWIN','BX',0,0,0,''],['1116','SPT','TWIN','BX',0,0,0,''],
+      ['1117','STR','TPL','BX',0,0,0,''],
+      // Andar 10 (17 UHs)
+      ['1001','STDF','QUEEN','BX',0,0,0,''],['1002','LXT','TWIN','BX',0,0,0,''],
+      ['1003','LXD','KING','BX',0,0,0,''],['1004','LXD','KING','BX',0,0,0,''],
+      ['1005','JR','KING','BX',0,0,0,''],['1006','SPT','TWIN','BX',0,0,0,''],
+      ['1007','SPD','KING','BX',0,0,0,''],['1008','SPD','KING','BX',0,0,0,''],
+      ['1009','SPT','TWIN','BX',0,0,0,''],['1010','SPD','KING','BX',0,0,0,''],
+      ['1011','SPT','TWIN','BX',0,0,0,''],['1012','SPD','KING','BX',0,0,0,''],
+      ['1013','SPT','TWIN','BX',0,0,0,''],['1014','SPD','KING','BX',0,0,0,''],
+      ['1015','SPT','TWIN','BX',0,0,0,''],['1016','SPD','KING','BX',0,0,0,''],
+      ['1017','STR','TPL','BX',0,0,0,''],
+      // Andar 9 (17 UHs)
+      ['901','STDF','QUEEN','BX',0,0,0,''],['902','LXD','KING','BX',0,0,0,''],
+      ['903','LXD','KING','BX',0,1,0,'Varanda'],['904','LXD','KING','BX',0,0,0,''],
+      ['905','JR','KING','BX',0,0,0,''],['906','SPD','KING','BX',0,0,0,''],
+      ['907','SPD','KING','BX',0,0,0,''],['908','SPD','KING','BX',0,0,0,''],
+      ['909','SPD','KING','BX',0,0,0,''],['910','SPD','KING','BX',0,0,0,''],
+      ['911','SPD','KING','BX',0,0,0,''],['912','SPD','KING','BX',0,0,0,''],
+      ['913','SPD','KING','BX',0,0,0,''],['914','SPD','KING','BX',0,0,0,''],
+      ['915','SPD','KING','BX',0,0,0,''],['916','SPD','KING','BX',0,0,0,''],
+      ['917','STR','TPL','BX',0,0,0,''],
+      // Andar 8 (17 UHs)
+      ['801','STDF','QUEEN','BA',0,0,0,''],['802','LXD','KING','BX',0,0,0,''],
+      ['803','LXD','KING','BX',0,0,0,''],['804','LXD','KING','BX',0,0,0,''],
+      ['805','JR','KING','BA',0,0,0,''],['806','SPT','TWIN','BX',0,0,0,''],
+      ['807','SPD','KING','BX',0,0,0,''],['808','SPD','KING','BX',0,0,0,''],
+      ['809','SPT','TWIN','BX',0,0,0,''],['810','SPD','KING','BX',0,0,0,''],
+      ['811','SPT','TWIN','BX',0,0,0,''],['812','SPD','KING','BX',0,0,0,''],
+      ['813','SPT','TWIN','BX',0,0,0,''],['814','SPD','KING','BX',0,0,0,''],
+      ['815','SPT','TWIN','BX',0,0,0,''],['816','SPD','KING','BX',0,0,0,''],
+      ['817','STR','TPL','BX',0,0,0,''],
+      // Andar 7 (17 UHs — varandas 01-05)
+      ['701','STDF','QUEEN','BX',0,1,0,'Varanda'],['702','LXD','KING','BX',0,0,0,''],
+      ['703','LXD','KING','BX',0,1,0,'Varanda'],['704','LXD','KING','BX',0,0,0,''],
+      ['705','JR','KING','BA',0,1,0,'Varanda'],['706','SPT','TWIN','BX',0,0,0,''],
+      ['707','SPD','KING','BX',0,0,0,''],['708','SPD','KING','BX',0,0,0,''],
+      ['709','SPT','TWIN','BX',0,0,0,''],['710','SPD','KING','BX',0,0,0,''],
+      ['711','SPT','TWIN','BX',0,0,0,''],['712','SPD','KING','BX',0,0,0,''],
+      ['713','SPT','TWIN','BX',0,0,0,''],['714','SPD','KING','BX',0,0,0,''],
+      ['715','SPT','TWIN','BX',0,0,0,''],['716','SPD','KING','BX',0,0,0,''],
+      ['717','STR','TPL','BX',0,0,0,''],
+      // Andar 6 (17 UHs — varandas 01-05)
+      ['601','STDF','QUEEN','BA',0,1,0,'Varanda'],['602','LXD','KING','BX',0,0,0,''],
+      ['603','LXD','KING','BX',0,0,0,''],['604','LXD','KING','BX',0,0,0,''],
+      ['605','JR','KING','BX',0,1,0,'Varanda'],['606','SPT','TWIN','BX',0,0,0,''],
+      ['607','SPD','KING','BX',0,0,0,''],['608','SPD','KING','BX',0,0,0,''],
+      ['609','SPT','TWIN','BX',0,0,0,''],['610','SPD','KING','BX',0,0,0,''],
+      ['611','SPT','TWIN','BX',0,0,0,''],['612','SPD','KING','BX',0,0,0,''],
+      ['613','SPT','TWIN','BX',0,0,0,''],['614','SPD','KING','BX',0,0,0,''],
+      ['615','SPT','TWIN','BX',0,0,0,''],['616','SPD','KING','BX',0,0,0,''],
+      ['617','STR','TPL','BX',0,0,0,''],
+      // Andar 5 (17 UHs — varandas 01-05)
+      ['501','STDF','QUEEN','BA',0,1,0,'Varanda'],['502','LXD','KING','BX',0,1,0,'Varanda'],
+      ['503','LXD','KING','BX',0,1,0,'Varanda'],['504','LXD','KING','BX',0,1,0,'Varanda'],
+      ['505','JR','KING','BA',0,1,0,'Varanda'],['506','SPT','TWIN','BX',0,0,0,''],
+      ['507','SPD','KING','BX',0,0,0,''],['508','SPD','KING','BX',0,0,0,''],
+      ['509','SPT','TWIN','BX',0,0,0,''],['510','SPD','KING','BX',0,0,0,''],
+      ['511','SPT','TWIN','BX',0,0,0,''],['512','SPD','KING','BX',0,0,0,''],
+      ['513','SPT','TWIN','BX',0,0,0,''],['514','SPD','KING','BX',0,0,0,''],
+      ['515','SPT','TWIN','BX',0,0,0,''],['516','SPD','KING','BX',0,0,0,''],
+      ['517','STR','TPL','BX',0,0,0,''],
+    ];
+    data.uhs = RAW.map(([numero, categoria_id, leito, banheiro, gc, varanda, adaptado, obs]) => ({
+      id: numero,
+      numero,
+      categoria_id,
+      leito,
+      banheiro,
+      gran_class: !!gc,
+      vista: '',
+      varanda: !!varanda,
+      adaptado: !!adaptado,
+      obs,
+    }));
+    writeData(data);
+    console.log(`[init] ${data.uhs.length} UHs inicializadas com seed`);
+  } catch (e) {
+    console.error('[init] falha ao inicializar uhs:', e.message);
   }
 }());
 

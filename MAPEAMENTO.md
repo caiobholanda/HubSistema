@@ -1,6 +1,6 @@
 # HubSistemas — Mapeamento Arquitetural
 
-> Gerado por 50+ agentes em 2026-07-07. Atualizar sempre que alterar o projeto.
+> Gerado por 50+ agentes em 2026-07-07. Última atualização: 2026-07-14 (feature UHs).
 
 **URL produção:** hub-granmarquise.fly.dev  
 **Stack:** Node.js + Express 4 / React 18 UMD + Babel standalone (sem build)  
@@ -12,10 +12,10 @@
 
 ```
 HubSistemas/
-├── server.js               # 1002 linhas — servidor completo
+├── server.js               # ~1306 linhas — servidor completo
 ├── public/
 │   ├── index.html          # shell HTML + window.onerror handler (sem React ErrorBoundary)
-│   └── HubMarquise.jsx     # 3528 linhas — toda a UI React
+│   └── HubMarquise.jsx     # ~4224 linhas — toda a UI React
 ├── src/
 │   ├── permissions.js      # diffPermissoes, fail-closed
 │   ├── site-permissions.js # PAPEIS_VALIDOS, MIGRATION_SEED, _norm()
@@ -29,7 +29,7 @@ HubSistemas/
 
 ---
 
-## server.js (1002 linhas)
+## server.js (~1306 linhas)
 
 ### Variáveis de ambiente
 - `PORT` (padrão 3000)
@@ -38,7 +38,7 @@ HubSistemas/
 
 ### hub_data.json
 ```json
-{ "sistemas": [...], "usuarios": [...], "audit": [...] }
+{ "sistemas": [...], "usuarios": [...], "audit": [...], "categorias_uh": [...], "uhs": [...] }
 ```
 
 ### Funções utilitárias
@@ -53,14 +53,22 @@ HubSistemas/
 | `proxyPesquisa(req, res)` | 552-565 | Proxy → pesquisa-satisfacao.fly.dev; **502** se offline |
 | `proxyChamados(req, res)` | 581-594 | Proxy → sistema-chamados-granmarquise.fly.dev |
 
-**Startup order:** `initSistemas()` → `_sanitizarAuditLog()` → `app.listen()`
+**Startup order:** `initSistemas()` → `_sanitizarAuditLog()` → `initCategoriasUH()` → `initUHs()` → `app.listen()`
 
 ### DEFAULT_SISTEMAS (linhas 229-233)
 1. `pesquisa-satisfacao` → pesquisa-satisfacao.fly.dev
 2. `sistema-chamados` → sistema-chamados-granmarquise.fly.dev
 3. `diretorio-ramais` → diretorio-ramais-granmarquise.fly.dev
 
-### Rotas (42 no total)
+### Rotas (50 no total)
+
+**UHs & Categorias** (admin)
+- `GET /api/admin/categorias-uh`, `POST`, `PUT /:id`, `DELETE /:id`
+- `GET /api/admin/uhs`, `POST`, `PUT /:id`, `DELETE /:id`
+- UH fields: `numero, categoria_id, leito (KING/TWIN/QUEEN/TPL), banheiro (BA/BX/HIDRO), vista, obs, gran_class, varanda, adaptado`
+- Seed: 22 categorias (PRE/MAR/EXE/GJR/JR/…) + 230 UHs (andares 5-18) na init
+
+### Rotas (42 originais)
 
 **Auth**
 - `POST /api/login` → JWT `{ id, email, tipo, site_roles }`
@@ -93,7 +101,21 @@ HubSistemas/
 
 ---
 
-## HubMarquise.jsx (3528 linhas)
+## HubMarquise.jsx (~4224 linhas)
+
+### Novos componentes (2026-07-14 — aba UHs)
+| Componente | Descrição |
+|---|---|
+| `_parseAndar(numero)` | Extrai andar do número da UH (ex: "1802/03" → 18) |
+| `MapaUHsModal` | Modal full-screen com mapa visual por andar; células coloridas com dots GC/adapt/varanda |
+| `UHForm` | Modal de criação/edição de UH (numero readonly no edit, categoria select, leito/banheiro/vista, checkboxes) |
+| `CategoriaUHForm` | Modal de criação/edição de categoria com color picker + preview badge |
+| `UHsPanel` | Painel principal da aba "UHs": sub-tabs UHs/Categorias, 4 filtros, CRUD completo |
+
+### Nova aba admin
+- `'aptos'` adicionado a ABAS e valid tabs. Renderiza `<UHsPanel />`
+
+## HubMarquise.jsx (3528 linhas — pré 2026-07-14)
 
 ### Temas (HUB_THEMES)
 ```javascript

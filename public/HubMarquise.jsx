@@ -1,4 +1,4 @@
-﻿const { useState, useEffect, useRef } = React;
+﻿const { useState, useEffect, useRef, useMemo } = React;
 
 function useWindowWidth() {
   const [w, setW] = useState(window.innerWidth);
@@ -1075,7 +1075,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
   const [aba, _setAba] = useState(() => {
     try {
       const v = sessionStorage.getItem('hub_admin_aba');
-      return ['contas', 'setores', 'links', 'historico', 'feriados', 'ausencias'].includes(v) ? v : 'contas';
+      return ['contas', 'setores', 'links', 'historico', 'feriados', 'ausencias', 'aptos'].includes(v) ? v : 'contas';
     } catch { return 'contas'; }
   });
   const setAba = (v) => { try { sessionStorage.setItem('hub_admin_aba', v); } catch {} _setAba(v); };
@@ -1269,6 +1269,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
     { id: 'links', label: 'Links' },
     { id: 'feriados', label: 'Feriados' },
     { id: 'ausencias', label: 'Ausências' },
+    { id: 'aptos', label: 'UHs' },
     { id: 'historico', label: 'Histórico' },
   ];
 
@@ -1475,6 +1476,9 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
 
         {/* ── Aba Ausências ── */}
         {aba === 'ausencias' && <AusenciasPanel isMobile={isMobile} />}
+
+        {/* ── Aba UHs ── */}
+        {aba === 'aptos' && <UHsPanel isMobile={isMobile} />}
 
         {/* ── Aba Historico ── */}
         {aba === 'historico' && <HistoricoPanel isMobile={isMobile} />}
@@ -2568,6 +2572,694 @@ function AusenciaForm({ isMobile, cs, erro, saving, initial, isEdit, onCancel, o
     </div>
   );
 }
+
+// ─── UHs — Mapa visual ───────────────────────────────────────────────────────
+
+function _parseAndar(numero) {
+  const base = numero.split('/')[0];
+  if (base.length >= 4) return parseInt(base.slice(0, base.length - 2), 10);
+  if (base.length === 3) return parseInt(base.slice(0, 1), 10);
+  return 0;
+}
+
+function MapaUHsModal({ uhs, categorias, onClose }) {
+  const catMap = useMemo(() => {
+    const m = {};
+    categorias.forEach(c => { m[c.id] = c; });
+    return m;
+  }, [categorias]);
+
+  const porAndar = useMemo(() => {
+    const m = {};
+    uhs.forEach(u => {
+      const a = _parseAndar(u.numero);
+      if (!m[a]) m[a] = [];
+      m[a].push(u);
+    });
+    return Object.entries(m).sort((a, b) => parseInt(b[0], 10) - parseInt(a[0], 10));
+  }, [uhs]);
+
+  const [hoveredId, setHoveredId] = useState(null);
+  const hoveredUH = hoveredId ? uhs.find(u => u.id === hoveredId) : null;
+
+  return ReactDOM.createPortal(
+    <div style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,0,0,0.94)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      {/* Header */}
+      <div style={{ background: HUB_PALETTE.headerBg, backdropFilter: 'blur(10px)', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, padding: '14px 28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+        <div>
+          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.35em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 3 }}>Visualização · Gran Marquise</div>
+          <div style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontWeight: 300, fontSize: 20, color: HUB_PALETTE.marfim }}>Mapa de Unidades Habitacionais</div>
+        </div>
+        <button onClick={onClose}
+          style={{ background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}44`, color: HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', padding: '8px 16px', cursor: 'pointer' }}
+          onMouseEnter={e => { e.currentTarget.style.color = HUB_PALETTE.marfim; e.currentTarget.style.borderColor = HUB_PALETTE.areiaDim + '88'; }}
+          onMouseLeave={e => { e.currentTarget.style.color = HUB_PALETTE.areiaDim; e.currentTarget.style.borderColor = HUB_PALETTE.areiaDim + '44'; }}>
+          Fechar ✕
+        </button>
+      </div>
+
+      <div style={{ flex: 1, overflowY: 'auto', padding: '20px 28px 80px' }}>
+        {/* Legend */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 20, paddingBottom: 16, borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22` }}>
+          {categorias.map(c => (
+            <div key={c.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '2px 8px', background: c.cor + '14', border: `1px solid ${c.cor}40` }}>
+              <span style={{ width: 7, height: 7, background: c.cor, display: 'inline-block', flexShrink: 0 }} />
+              <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 8, letterSpacing: '0.1em', color: c.cor, fontWeight: 700 }}>{c.sigla}</span>
+              <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 9, color: HUB_PALETTE.areia }}>{c.nome}</span>
+            </div>
+          ))}
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '2px 8px', border: `1px solid ${HUB_PALETTE.champanhe}44` }}>
+            <span style={{ width: 5, height: 5, borderRadius: '50%', background: HUB_PALETTE.champanhe, display: 'inline-block' }} />
+            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 8, color: HUB_PALETTE.champanhe }}>GC — Gran Class</span>
+          </div>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '2px 8px', border: `1px solid #3498DB44` }}>
+            <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#3498DB', display: 'inline-block' }} />
+            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 8, color: '#3498DB' }}>Adaptado</span>
+          </div>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '2px 8px', border: `1px solid #27AE6044` }}>
+            <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#27AE60', display: 'inline-block' }} />
+            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 8, color: '#27AE60' }}>Varanda</span>
+          </div>
+        </div>
+
+        {/* Floor rows */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {porAndar.map(([andar, uhsAndar]) => (
+            <div key={andar} style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <div style={{ width: 28, flexShrink: 0, fontFamily: 'JetBrains Mono, monospace', fontSize: 8, color: HUB_PALETTE.areiaDim, textAlign: 'right', paddingRight: 6 }}>{andar}º</div>
+              {uhsAndar.map(u => {
+                const cat = catMap[u.categoria_id] || {};
+                const cor = cat.cor || '#555';
+                const isHov = hoveredId === u.id;
+                const isWide = u.numero.includes('/');
+                return (
+                  <div key={u.id}
+                    onMouseEnter={() => setHoveredId(u.id)}
+                    onMouseLeave={() => setHoveredId(null)}
+                    style={{
+                      width: isWide ? 50 : 32,
+                      height: 26,
+                      background: isHov ? cor : cor + '44',
+                      border: `1px solid ${cor}${isHov ? 'ff' : '66'}`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      cursor: 'pointer',
+                      transition: 'all 100ms ease',
+                      position: 'relative',
+                      flexShrink: 0,
+                    }}>
+                    <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 7, color: isHov ? '#fff' : cor, fontWeight: 700, lineHeight: 1, userSelect: 'none', pointerEvents: 'none' }}>
+                      {u.numero.split('/')[0].slice(-2)}
+                    </span>
+                    {u.gran_class && <span style={{ position: 'absolute', top: 1, right: 1, width: 4, height: 4, borderRadius: '50%', background: HUB_PALETTE.champanhe, pointerEvents: 'none' }} />}
+                    {u.adaptado && <span style={{ position: 'absolute', bottom: 1, left: 1, width: 4, height: 4, borderRadius: '50%', background: '#3498DB', pointerEvents: 'none' }} />}
+                    {u.varanda && <span style={{ position: 'absolute', bottom: 1, right: 1, width: 4, height: 4, borderRadius: '50%', background: '#27AE60', pointerEvents: 'none' }} />}
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Tooltip fixo no rodapé */}
+      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 10, background: HUB_PALETTE.noite, borderTop: `1px solid ${HUB_PALETTE.areiaDim}22`, padding: '10px 28px', minHeight: 44, display: 'flex', alignItems: 'center', gap: 16 }}>
+        {hoveredUH ? (() => {
+          const cat = catMap[hoveredUH.categoria_id] || {};
+          return (<>
+            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 14, fontWeight: 700, color: cat.cor || HUB_PALETTE.champanhe }}>{hoveredUH.numero}</span>
+            <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.marfim }}>{cat.nome || hoveredUH.categoria_id}</span>
+            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: HUB_PALETTE.areiaDim }}>{hoveredUH.leito}{hoveredUH.banheiro ? ` · ${hoveredUH.banheiro}` : ''}</span>
+            {hoveredUH.gran_class && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: HUB_PALETTE.champanhe, padding: '2px 7px', border: `1px solid ${HUB_PALETTE.champanhe}55` }}>GC</span>}
+            {hoveredUH.adaptado && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: '#3498DB', padding: '2px 7px', border: '1px solid #3498DB55' }}>ADAPT</span>}
+            {hoveredUH.varanda && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: '#27AE60', padding: '2px 7px', border: '1px solid #27AE6055' }}>VAR</span>}
+            {hoveredUH.vista && <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, color: HUB_PALETTE.areiaDim }}>{hoveredUH.vista === 'frente-mar' ? 'Frente mar' : 'Lateral'}</span>}
+            {hoveredUH.obs && <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, color: HUB_PALETTE.areiaDim, fontStyle: 'italic' }}>{hoveredUH.obs}</span>}
+          </>);
+        })() : (
+          <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: HUB_PALETTE.areiaDim, fontStyle: 'italic' }}>Passe o mouse sobre uma UH para ver os detalhes</span>
+        )}
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+// ─── UHs — Formulário de edição ───────────────────────────────────────────────
+
+function UHForm({ uh, categorias, isMobile, onSave, onCancel, saving, erro }) {
+  const isEdit = !!uh;
+  const [form, setForm] = useState(isEdit ? {
+    numero: uh.numero,
+    categoria_id: uh.categoria_id || '',
+    leito: uh.leito || '',
+    banheiro: uh.banheiro || '',
+    gran_class: !!uh.gran_class,
+    vista: uh.vista || '',
+    varanda: !!uh.varanda,
+    adaptado: !!uh.adaptado,
+    obs: uh.obs || '',
+  } : {
+    numero: '', categoria_id: '', leito: 'KING', banheiro: 'BX',
+    gran_class: false, vista: '', varanda: false, adaptado: false, obs: '',
+  });
+
+  const nomeRef = useRef(null);
+  useEffect(() => {
+    const t = setTimeout(() => { if (nomeRef.current) nomeRef.current.focus(); }, 60);
+    return () => clearTimeout(t);
+  }, []);
+
+  const cs = {
+    label: { display: 'block', fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.25em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 6 },
+    input: { width: '100%', boxSizing: 'border-box', background: HUB_PALETTE.areiaDim + '0a', border: `1px solid ${HUB_PALETTE.areiaDim}33`, color: HUB_PALETTE.marfim, fontFamily: 'Inter, sans-serif', fontSize: 14, padding: '10px 14px', outline: 'none' },
+    select: { width: '100%', boxSizing: 'border-box', background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, color: HUB_PALETTE.marfim, fontFamily: 'Inter, sans-serif', fontSize: 14, padding: '10px 14px', outline: 'none', cursor: 'pointer' },
+    btnPrim: { background: HUB_PALETTE.champanhe, border: `1px solid ${HUB_PALETTE.champanhe}`, color: HUB_PALETTE.noite, fontFamily: 'Inter, sans-serif', fontSize: 13, padding: '10px 22px', cursor: 'pointer', fontWeight: 500 },
+    btnGhost: { background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}44`, color: HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.2em', textTransform: 'uppercase', padding: '10px 16px', cursor: 'pointer' },
+  };
+
+  const FLAGS = [
+    { key: 'gran_class', label: 'Gran Class', color: HUB_PALETTE.champanhe },
+    { key: 'varanda',    label: 'Varanda',    color: '#27AE60' },
+    { key: 'adaptado',  label: 'Adaptado',   color: '#3498DB' },
+  ];
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, maxWidth: 580, width: '100%', padding: isMobile ? '24px 20px' : '32px 40px', maxHeight: '90vh', overflowY: 'auto' }}>
+        <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 6 }}>Unidade Habitacional</div>
+        <h3 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontWeight: 300, fontSize: 26, color: HUB_PALETTE.marfim, margin: '0 0 24px' }}>
+          {isEdit ? `Editar UH ${uh.numero}` : 'Nova UH'}
+        </h3>
+
+        <form autoComplete="off" onSubmit={e => { e.preventDefault(); onSave(form); }}
+          onKeyDown={e => { if (e.key === 'Escape' && !saving) { e.preventDefault(); onCancel(); } }}>
+
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16, marginBottom: 16 }}>
+            <div>
+              <label style={cs.label}>Nº da UH *</label>
+              <input ref={nomeRef}
+                style={{ ...cs.input, ...(isEdit ? { opacity: 0.5, cursor: 'not-allowed' } : {}) }}
+                value={form.numero} maxLength={20} readOnly={isEdit}
+                autoComplete="off" spellCheck={false}
+                onChange={e => !isEdit && setForm(p => ({ ...p, numero: e.target.value }))}
+                placeholder="Ex: 1201 ou 1802/03/04/05" />
+            </div>
+            <div>
+              <label style={cs.label}>Categoria *</label>
+              <select style={cs.select} value={form.categoria_id}
+                onChange={e => setForm(p => ({ ...p, categoria_id: e.target.value }))}>
+                <option value="">— Selecionar —</option>
+                {categorias.slice().sort((a, b) => a.sigla.localeCompare(b.sigla)).map(c => (
+                  <option key={c.id} value={c.id}>{c.sigla} — {c.nome}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label style={cs.label}>Tipo de Leito</label>
+              <select style={cs.select} value={form.leito}
+                onChange={e => setForm(p => ({ ...p, leito: e.target.value }))}>
+                <option value="">— Selecionar —</option>
+                <option value="KING">KING — 2,00×2,00m</option>
+                <option value="TWIN">TWIN — 2× 1,20×2,00m</option>
+                <option value="QUEEN">QUEEN — 2× 1,60×2,00m</option>
+                <option value="TPL">TPL — Triplo</option>
+              </select>
+            </div>
+            <div>
+              <label style={cs.label}>Tipo de Banheiro</label>
+              <select style={cs.select} value={form.banheiro}
+                onChange={e => setForm(p => ({ ...p, banheiro: e.target.value }))}>
+                <option value="">— Selecionar —</option>
+                <option value="BA">BA — Banheira</option>
+                <option value="BX">BX — Box</option>
+                <option value="HIDRO">HIDRO — Hidromassagem</option>
+              </select>
+            </div>
+            <div>
+              <label style={cs.label}>Vista</label>
+              <select style={cs.select} value={form.vista}
+                onChange={e => setForm(p => ({ ...p, vista: e.target.value }))}>
+                <option value="">— Não informado —</option>
+                <option value="frente-mar">Frente Mar</option>
+                <option value="lateral">Lateral</option>
+              </select>
+            </div>
+            <div>
+              <label style={cs.label}>Observações</label>
+              <input style={cs.input} value={form.obs} maxLength={120}
+                autoComplete="off" spellCheck={false}
+                onChange={e => setForm(p => ({ ...p, obs: e.target.value }))}
+                placeholder="Observações gerais" />
+            </div>
+          </div>
+
+          {/* Checkboxes */}
+          <div style={{ display: 'flex', gap: 24, marginBottom: 20, flexWrap: 'wrap' }}>
+            {FLAGS.map(({ key, label, color }) => (
+              <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', userSelect: 'none' }}>
+                <div onClick={() => setForm(p => ({ ...p, [key]: !p[key] }))}
+                  style={{ width: 18, height: 18, border: `2px solid ${form[key] ? color : HUB_PALETTE.areiaDim + '44'}`, background: form[key] ? color + '22' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 150ms', flexShrink: 0 }}>
+                  {form[key] && <span style={{ width: 8, height: 8, background: color, display: 'block' }} />}
+                </div>
+                <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: form[key] ? color : HUB_PALETTE.areia }}>{label}</span>
+              </label>
+            ))}
+          </div>
+
+          {erro && <div style={{ marginBottom: 16, padding: '10px 12px', border: '1px solid #E07A5F66', color: '#E07A5F', fontSize: 13, fontFamily: 'Inter, sans-serif' }}>{erro}</div>}
+
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+            <button type="button" onClick={onCancel} disabled={saving} style={cs.btnGhost}>Cancelar</button>
+            <button type="submit" disabled={saving} style={cs.btnPrim}>{saving ? '...' : (isEdit ? 'Salvar' : 'Criar UH')}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ─── UHs — Formulário de categoria ───────────────────────────────────────────
+
+function CategoriaUHForm({ cat, isMobile, onSave, onCancel, saving, erro }) {
+  const isEdit = !!cat;
+  const [form, setForm] = useState(isEdit
+    ? { sigla: cat.sigla, nome: cat.nome, cor: cat.cor || '#666666' }
+    : { sigla: '', nome: '', cor: '#9B59B6' }
+  );
+  const nomeRef = useRef(null);
+  useEffect(() => {
+    const t = setTimeout(() => { if (nomeRef.current) nomeRef.current.focus(); }, 60);
+    return () => clearTimeout(t);
+  }, []);
+
+  const cs = {
+    label: { display: 'block', fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.25em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 6 },
+    input: { width: '100%', boxSizing: 'border-box', background: HUB_PALETTE.areiaDim + '0a', border: `1px solid ${HUB_PALETTE.areiaDim}33`, color: HUB_PALETTE.marfim, fontFamily: 'Inter, sans-serif', fontSize: 14, padding: '10px 14px', outline: 'none' },
+    btnPrim: { background: HUB_PALETTE.champanhe, border: `1px solid ${HUB_PALETTE.champanhe}`, color: HUB_PALETTE.noite, fontFamily: 'Inter, sans-serif', fontSize: 13, padding: '10px 22px', cursor: 'pointer', fontWeight: 500 },
+    btnGhost: { background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}44`, color: HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.2em', textTransform: 'uppercase', padding: '10px 16px', cursor: 'pointer' },
+  };
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, maxWidth: 460, width: '100%', padding: isMobile ? '24px 20px' : '32px 36px' }}>
+        <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 6 }}>Categoria de UH</div>
+        <h3 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontWeight: 300, fontSize: 26, color: HUB_PALETTE.marfim, margin: '0 0 24px' }}>
+          {isEdit ? 'Editar categoria' : 'Nova categoria'}
+        </h3>
+
+        <form autoComplete="off" onSubmit={e => { e.preventDefault(); onSave(form); }}
+          onKeyDown={e => { if (e.key === 'Escape' && !saving) { e.preventDefault(); onCancel(); } }}>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'end', marginBottom: 16 }}>
+            <div>
+              <label style={cs.label}>Nome *</label>
+              <input ref={nomeRef} style={cs.input} value={form.nome} maxLength={60}
+                autoComplete="off" spellCheck={false}
+                onChange={e => setForm(p => ({ ...p, nome: e.target.value }))}
+                placeholder="Ex: Superior Double" />
+            </div>
+            <div>
+              <label style={cs.label}>Sigla *</label>
+              <input
+                style={{ ...cs.input, width: 90, textTransform: 'uppercase', fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, letterSpacing: '0.1em', textAlign: 'center', ...(isEdit ? { opacity: 0.5, cursor: 'not-allowed' } : {}) }}
+                value={form.sigla} maxLength={6} readOnly={isEdit}
+                autoComplete="off" spellCheck={false}
+                onChange={e => !isEdit && setForm(p => ({ ...p, sigla: e.target.value.toUpperCase() }))}
+                placeholder="SPD" />
+            </div>
+          </div>
+
+          <div style={{ marginBottom: 20 }}>
+            <label style={cs.label}>Cor</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <input type="color" value={form.cor}
+                onChange={e => setForm(p => ({ ...p, cor: e.target.value }))}
+                style={{ width: 44, height: 38, border: `1px solid ${HUB_PALETTE.areiaDim}33`, background: 'transparent', cursor: 'pointer', padding: 2 }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', background: form.cor + '1a', border: `1px solid ${form.cor}55`, flex: 1 }}>
+                <span style={{ width: 12, height: 12, background: form.cor, display: 'inline-block', flexShrink: 0 }} />
+                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, fontWeight: 700, color: form.cor, minWidth: 36 }}>{form.sigla || '—'}</span>
+                <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.marfim }}>{form.nome || 'Nome da categoria'}</span>
+              </div>
+            </div>
+          </div>
+
+          {erro && <div style={{ marginBottom: 16, padding: '10px 12px', border: '1px solid #E07A5F66', color: '#E07A5F', fontSize: 13, fontFamily: 'Inter, sans-serif' }}>{erro}</div>}
+
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+            <button type="button" onClick={onCancel} disabled={saving} style={cs.btnGhost}>Cancelar</button>
+            <button type="submit" disabled={saving} style={cs.btnPrim}>{saving ? '...' : (isEdit ? 'Salvar' : 'Criar')}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ─── UHs — Painel principal ───────────────────────────────────────────────────
+
+function UHsPanel({ isMobile }) {
+  const isPhone = useWindowWidth() < 480;
+  const [subAba, setSubAba] = useState('uhs');
+  const [uhs, setUHs]           = useState(null);
+  const [categorias, setCats]   = useState([]);
+  const [busca, setBusca]       = useState('');
+  const [filtroAndar, setFiltroAndar] = useState('');
+  const [filtroCat, setFiltroCat]     = useState('');
+  const [filtroGC, setFiltroGC]       = useState('');
+  const [editingUH, setEditingUH]     = useState(null);
+  const [creatingUH, setCreatingUH]   = useState(false);
+  const [editingCat, setEditingCat]   = useState(null);
+  const [creatingCat, setCreatingCat] = useState(false);
+  const [confirmar, setConfirmar]     = useState(null); // { tipo, item }
+  const [saving, setSaving]           = useState(false);
+  const [erro, setErro]               = useState('');
+  const [toast, setToast]             = useState(null);
+  const [mapaAberto, setMapaAberto]   = useState(false);
+
+  function token() { return localStorage.getItem('hub_sso_token'); }
+  function notify(msg, isErr) { setToast({ msg, err: !!isErr }); setTimeout(() => setToast(null), 2800); }
+
+  async function carregarUHs() {
+    try {
+      const r = await fetch('/api/admin/uhs', { headers: { Authorization: `Bearer ${token()}` } });
+      const d = await r.json();
+      if (r.ok && d.ok) setUHs(d.uhs || []);
+      else { setUHs([]); notify(d.erro || 'Erro ao carregar', true); }
+    } catch { setUHs([]); notify('Erro de conexão', true); }
+  }
+
+  async function carregarCats() {
+    try {
+      const r = await fetch('/api/admin/categorias-uh', { headers: { Authorization: `Bearer ${token()}` } });
+      const d = await r.json();
+      if (r.ok && d.ok) setCats(d.categorias || []);
+    } catch {}
+  }
+
+  useEffect(() => { carregarUHs(); carregarCats(); }, []);
+
+  const catMap = useMemo(() => {
+    const m = {};
+    categorias.forEach(c => { m[c.id] = c; });
+    return m;
+  }, [categorias]);
+
+  const andares = useMemo(() => {
+    if (!uhs) return [];
+    const s = new Set();
+    uhs.forEach(u => { const a = _parseAndar(u.numero); if (!isNaN(a)) s.add(a); });
+    return Array.from(s).sort((a, b) => b - a);
+  }, [uhs]);
+
+  const uhsFiltradas = useMemo(() => {
+    if (!uhs) return [];
+    return uhs.filter(u => {
+      if (filtroAndar && _parseAndar(u.numero) !== parseInt(filtroAndar, 10)) return false;
+      if (filtroCat && u.categoria_id !== filtroCat) return false;
+      if (filtroGC === 'gc' && !u.gran_class) return false;
+      if (filtroGC === 'std' && u.gran_class) return false;
+      if (busca) {
+        const q = busca.toLowerCase();
+        const cat = catMap[u.categoria_id] || {};
+        return u.numero.includes(busca)
+          || (cat.nome || '').toLowerCase().includes(q)
+          || (cat.sigla || '').toLowerCase().includes(q)
+          || (u.obs || '').toLowerCase().includes(q);
+      }
+      return true;
+    });
+  }, [uhs, busca, filtroAndar, filtroCat, filtroGC, catMap]);
+
+  async function salvarUH(form) {
+    setSaving(true); setErro('');
+    const url = editingUH ? `/api/admin/uhs/${encodeURIComponent(editingUH.id)}` : '/api/admin/uhs';
+    const method = editingUH ? 'PUT' : 'POST';
+    try {
+      const r = await fetch(url, { method, headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` }, body: JSON.stringify(form) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.ok) { setErro(d.erro || `Erro ${r.status}`); setSaving(false); return; }
+      notify(editingUH ? 'UH atualizada' : 'UH criada');
+      setEditingUH(null); setCreatingUH(false); setErro('');
+      carregarUHs();
+    } catch { setErro('Erro de conexão'); }
+    setSaving(false);
+  }
+
+  async function salvarCat(form) {
+    setSaving(true); setErro('');
+    const url = editingCat ? `/api/admin/categorias-uh/${encodeURIComponent(editingCat.id)}` : '/api/admin/categorias-uh';
+    const method = editingCat ? 'PUT' : 'POST';
+    try {
+      const r = await fetch(url, { method, headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` }, body: JSON.stringify(form) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.ok) { setErro(d.erro || `Erro ${r.status}`); setSaving(false); return; }
+      notify(editingCat ? 'Categoria atualizada' : 'Categoria criada');
+      setEditingCat(null); setCreatingCat(false); setErro('');
+      carregarCats();
+    } catch { setErro('Erro de conexão'); }
+    setSaving(false);
+  }
+
+  async function confirmarExclusao() {
+    if (!confirmar) return;
+    const { tipo, item } = confirmar;
+    setConfirmar(null);
+    try {
+      const url = tipo === 'uh' ? `/api/admin/uhs/${encodeURIComponent(item.id)}` : `/api/admin/categorias-uh/${encodeURIComponent(item.id)}`;
+      const r = await fetch(url, { method: 'DELETE', headers: { Authorization: `Bearer ${token()}` } });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.ok) { notify(d.erro || 'Erro ao excluir', true); return; }
+      notify(tipo === 'uh' ? 'UH excluída' : 'Categoria excluída');
+      if (tipo === 'uh') carregarUHs(); else carregarCats();
+    } catch { notify('Erro de conexão', true); }
+  }
+
+  const cs = {
+    label: { display: 'block', fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.25em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 6 },
+    input: { width: '100%', boxSizing: 'border-box', background: HUB_PALETTE.areiaDim + '0a', border: `1px solid ${HUB_PALETTE.areiaDim}33`, color: HUB_PALETTE.marfim, fontFamily: 'Inter, sans-serif', fontSize: 13, padding: '9px 12px', outline: 'none' },
+    select: { boxSizing: 'border-box', background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, color: HUB_PALETTE.marfim, fontFamily: 'Inter, sans-serif', fontSize: 12, padding: '8px 10px', outline: 'none', cursor: 'pointer' },
+    btnPrim: { display: 'inline-flex', alignItems: 'center', gap: 7, background: HUB_PALETTE.champanhe, border: `1px solid ${HUB_PALETTE.champanhe}`, color: HUB_PALETTE.noite, fontFamily: 'Inter, sans-serif', fontSize: 12, padding: '8px 18px', cursor: 'pointer', fontWeight: 500 },
+    btnGhost: { background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}44`, color: HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', padding: '6px 12px', cursor: 'pointer' },
+    btnDanger: { background: 'transparent', border: `1px solid #E07A5F44`, color: '#E07A5F', fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.15em', textTransform: 'uppercase', padding: '6px 10px', cursor: 'pointer' },
+  };
+
+  return (<>
+    {/* Cabeçalho da aba */}
+    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20, gap: 16, flexWrap: 'wrap' }}>
+      <div>
+        <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.35em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ width: 18, height: 1, background: HUB_PALETTE.champanhe }} />Gestão de UHs
+        </div>
+        <h2 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 300, fontStyle: 'italic', fontSize: isPhone ? 28 : 40, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: '0 0 6px' }}>
+          Unidades Habitacionais.
+        </h2>
+        <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areiaDim, margin: 0 }}>
+          {uhs !== null ? `${uhs.length} UHs · ${categorias.length} categorias` : 'Carregando...'}
+        </p>
+      </div>
+      <button onClick={() => setMapaAberto(true)}
+        style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'transparent', border: `1px solid ${HUB_PALETTE.champanhe}55`, color: HUB_PALETTE.champanhe, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.25em', textTransform: 'uppercase', padding: '10px 18px', cursor: 'pointer', flexShrink: 0, marginTop: 4 }}
+        onMouseEnter={e => { e.currentTarget.style.background = HUB_PALETTE.champanhe + '15'; }}
+        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        Ver mapa
+      </button>
+    </div>
+
+    {/* Sub-tabs */}
+    <div style={{ display: 'flex', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, marginBottom: 28 }}>
+      {[
+        { id: 'uhs', label: `UHs${uhs ? ` (${uhs.length})` : ''}` },
+        { id: 'categorias', label: `Categorias (${categorias.length})` },
+      ].map(s => (
+        <button key={s.id} onClick={() => { setSubAba(s.id); setErro(''); }}
+          style={{ background: 'transparent', border: 'none', borderBottom: `2px solid ${subAba === s.id ? HUB_PALETTE.dourado : 'transparent'}`, color: subAba === s.id ? HUB_PALETTE.dourado : HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', padding: '10px 20px 8px', cursor: 'pointer', marginBottom: -1, transition: 'color 180ms, border-color 180ms' }}>
+          {s.label}
+        </button>
+      ))}
+    </div>
+
+    {/* ── Sub-aba UHs ── */}
+    {subAba === 'uhs' && (<>
+      {/* Filtros */}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+        <div style={{ position: 'relative', flex: 1, minWidth: 160 }}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={HUB_PALETTE.areiaDim} strokeWidth="1.5" strokeLinecap="round" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" placeholder="Buscar por nº, categoria ou observação..."
+            value={busca} onChange={e => setBusca(e.target.value)}
+            autoComplete="off" spellCheck={false}
+            style={{ ...cs.input, paddingLeft: 30 }} />
+        </div>
+        <select value={filtroAndar} onChange={e => setFiltroAndar(e.target.value)} style={cs.select}>
+          <option value="">Todos os andares</option>
+          {andares.map(a => <option key={a} value={a}>{a}º andar</option>)}
+        </select>
+        <select value={filtroCat} onChange={e => setFiltroCat(e.target.value)} style={cs.select}>
+          <option value="">Todas as categorias</option>
+          {categorias.slice().sort((a, b) => a.sigla.localeCompare(b.sigla)).map(c => <option key={c.id} value={c.id}>{c.sigla} — {c.nome}</option>)}
+        </select>
+        <select value={filtroGC} onChange={e => setFiltroGC(e.target.value)} style={cs.select}>
+          <option value="">GC + Padrão</option>
+          <option value="gc">Gran Class</option>
+          <option value="std">Padrão</option>
+        </select>
+      </div>
+
+      <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em', color: HUB_PALETTE.areiaDim, marginBottom: 12 }}>
+        {uhs === null ? 'Carregando...' : `${uhsFiltradas.length} de ${uhs.length} UHs`}
+      </div>
+
+      {/* Lista de UHs */}
+      {uhs === null ? (
+        <Carregando />
+      ) : uhsFiltradas.length === 0 ? (
+        <Vazio />
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', borderTop: `1px solid ${HUB_PALETTE.areiaDim}22` }}>
+          {uhsFiltradas.map(u => {
+            const cat = catMap[u.categoria_id] || {};
+            const cor = cat.cor || HUB_PALETTE.areiaDim;
+            return (
+              <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 0', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}18`, flexWrap: isPhone ? 'wrap' : 'nowrap', minWidth: 0 }}>
+                {/* Número + cor */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexShrink: 0, minWidth: 80 }}>
+                  <span style={{ width: 7, height: 7, background: cor, borderRadius: '50%', flexShrink: 0 }} />
+                  <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, fontWeight: 700, color: HUB_PALETTE.marfim }}>{u.numero}</span>
+                </div>
+                {/* Categoria badge */}
+                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.1em', color: cor, padding: '2px 7px', background: cor + '15', border: `1px solid ${cor}40`, flexShrink: 0 }}>
+                  {cat.sigla || u.categoria_id || '—'}
+                </span>
+                {!isPhone && cat.nome && (
+                  <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: HUB_PALETTE.areia, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 130, flexShrink: 1 }}>{cat.nome}</span>
+                )}
+                {/* Leito + banheiro */}
+                <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
+                  {u.leito && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: HUB_PALETTE.areiaDim, padding: '2px 5px', border: `1px solid ${HUB_PALETTE.areiaDim}30` }}>{u.leito}</span>}
+                  {u.banheiro && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: HUB_PALETTE.areiaDim, padding: '2px 5px', border: `1px solid ${HUB_PALETTE.areiaDim}30` }}>{u.banheiro}</span>}
+                </div>
+                {/* Flags */}
+                <div style={{ display: 'flex', gap: 5, flex: 1, minWidth: 0 }}>
+                  {u.gran_class && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: HUB_PALETTE.champanhe, padding: '2px 6px', border: `1px solid ${HUB_PALETTE.champanhe}44`, flexShrink: 0 }}>GC</span>}
+                  {u.adaptado && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: '#3498DB', padding: '2px 6px', border: '1px solid #3498DB44', flexShrink: 0 }}>ADAPT</span>}
+                  {u.varanda && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: '#27AE60', padding: '2px 6px', border: '1px solid #27AE6044', flexShrink: 0 }}>VAR</span>}
+                  {!isPhone && u.obs && <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, color: HUB_PALETTE.areiaDim, fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.obs}</span>}
+                </div>
+                {/* Ações */}
+                <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
+                  <button onClick={() => { setEditingUH(u); setErro(''); }}
+                    style={cs.btnGhost}
+                    onMouseEnter={e => { e.currentTarget.style.color = HUB_PALETTE.marfim; e.currentTarget.style.borderColor = HUB_PALETTE.areiaDim + '66'; }}
+                    onMouseLeave={e => { e.currentTarget.style.color = HUB_PALETTE.areiaDim; e.currentTarget.style.borderColor = HUB_PALETTE.areiaDim + '44'; }}>
+                    Editar
+                  </button>
+                  <button onClick={() => setConfirmar({ tipo: 'uh', item: u })}
+                    style={cs.btnDanger}
+                    onMouseEnter={e => { e.currentTarget.style.background = '#E07A5F15'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}>
+                    ✕
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <button onClick={() => { setCreatingUH(true); setErro(''); }} style={{ ...cs.btnPrim, marginTop: 24 }}>
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Nova UH
+      </button>
+    </>)}
+
+    {/* ── Sub-aba Categorias ── */}
+    {subAba === 'categorias' && (<>
+      {categorias.length === 0 ? (
+        <Vazio />
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginBottom: 24 }}>
+          {categorias.map(c => (
+            <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', border: `1px solid ${HUB_PALETTE.areiaDim}18`, background: c.cor + '08' }}>
+              <div style={{ width: 22, height: 22, background: c.cor, flexShrink: 0 }} />
+              <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', color: c.cor, minWidth: 52, flexShrink: 0 }}>{c.sigla}</span>
+              <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.marfim, flex: 1 }}>{c.nome}</span>
+              {uhs !== null && (
+                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: HUB_PALETTE.areiaDim, flexShrink: 0 }}>
+                  {uhs.filter(u => u.categoria_id === c.id).length} UHs
+                </span>
+              )}
+              <button onClick={() => { setEditingCat(c); setErro(''); }}
+                style={cs.btnGhost}
+                onMouseEnter={e => { e.currentTarget.style.color = HUB_PALETTE.marfim; e.currentTarget.style.borderColor = HUB_PALETTE.areiaDim + '66'; }}
+                onMouseLeave={e => { e.currentTarget.style.color = HUB_PALETTE.areiaDim; e.currentTarget.style.borderColor = HUB_PALETTE.areiaDim + '44'; }}>
+                Editar
+              </button>
+              <button onClick={() => setConfirmar({ tipo: 'cat', item: c })}
+                style={cs.btnDanger}
+                onMouseEnter={e => { e.currentTarget.style.background = '#E07A5F15'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}>
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+      <button onClick={() => { setCreatingCat(true); setErro(''); }} style={cs.btnPrim}>
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Nova categoria
+      </button>
+    </>)}
+
+    {/* Modais de edição */}
+    {(editingUH || creatingUH) && (
+      <UHForm uh={editingUH} categorias={categorias} isMobile={isMobile}
+        onSave={salvarUH} onCancel={() => { setEditingUH(null); setCreatingUH(false); setErro(''); }}
+        saving={saving} erro={erro} />
+    )}
+    {(editingCat || creatingCat) && (
+      <CategoriaUHForm cat={editingCat} isMobile={isMobile}
+        onSave={salvarCat} onCancel={() => { setEditingCat(null); setCreatingCat(false); setErro(''); }}
+        saving={saving} erro={erro} />
+    )}
+
+    {/* Confirmar exclusão */}
+    {confirmar && ReactDOM.createPortal(
+      <div style={{ position: 'fixed', inset: 0, zIndex: 210, background: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+        <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, maxWidth: 400, width: '100%', padding: isMobile ? '24px 20px' : '32px 36px' }}>
+          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: '#9C5843', marginBottom: 6 }}>Confirmar exclusão</div>
+          <h3 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontWeight: 300, fontSize: 22, color: HUB_PALETTE.marfim, margin: '0 0 10px' }}>
+            {confirmar.tipo === 'uh' ? `Excluir UH ${confirmar.item.numero}?` : `Excluir categoria ${confirmar.item.sigla}?`}
+          </h3>
+          <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areia, margin: '0 0 24px', lineHeight: 1.5 }}>Esta ação não pode ser desfeita.</p>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+            <button onClick={() => setConfirmar(null)}
+              style={cs.btnGhost}
+              onMouseEnter={e => { e.currentTarget.style.color = HUB_PALETTE.marfim; }}
+              onMouseLeave={e => { e.currentTarget.style.color = HUB_PALETTE.areiaDim; }}>
+              Cancelar
+            </button>
+            <button onClick={confirmarExclusao}
+              style={{ background: '#9C5843', border: '1px solid #9C5843', color: '#ECE4D2', fontFamily: 'Inter, sans-serif', fontSize: 13, padding: '10px 22px', cursor: 'pointer' }}>
+              Excluir
+            </button>
+          </div>
+        </div>
+      </div>,
+      document.body
+    )}
+
+    {/* Toast */}
+    {toast && (
+      <div style={{ position: 'fixed', bottom: 32, left: '50%', transform: 'translateX(-50%)', zIndex: 220, background: toast.err ? '#E07A5F' : HUB_PALETTE.champanhe, color: toast.err ? '#fff' : HUB_PALETTE.noite, fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase', padding: '12px 22px', whiteSpace: 'nowrap' }}>
+        {toast.msg}
+      </div>
+    )}
+
+    {/* Mapa */}
+    {mapaAberto && <MapaUHsModal uhs={uhs || []} categorias={categorias} onClose={() => setMapaAberto(false)} />}
+  </>);
+}
+
 
 // ─── Contas (CRUD de admins do TI e usuarios do portal) ─────────────────────
 function ContasPanel({ isMobile }) {
