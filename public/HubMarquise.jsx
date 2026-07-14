@@ -2707,19 +2707,23 @@ function MapaUHsModal({ uhs, categorias, onClose, onEditUH }) {
                     style={{
                       width: cellWidth,
                       height: 43,
-                      background: isHov ? cor : cor + '90',
-                      border: `2px solid ${isHov ? cor : cor + 'cc'}`,
+                      background: isHov
+                        ? `linear-gradient(135deg, ${cor}ff 0%, ${cor}cc 100%)`
+                        : `linear-gradient(135deg, ${cor}dd 0%, ${cor}aa 100%)`,
+                      border: `1.5px solid ${isHov ? cor + 'ff' : cor + 'ee'}`,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       cursor: 'pointer', transition: 'all 80ms ease',
                       position: 'relative', flexShrink: 0,
-                      boxShadow: isHov ? `0 0 12px ${cor}55, inset 0 0 8px ${cor}22` : 'none',
+                      boxShadow: isHov
+                        ? `0 2px 14px ${cor}66, inset 0 1px 0 #ffffff22`
+                        : `inset 0 1px 0 #ffffff18, 0 1px 3px #00000033`,
                     }}>
-                    <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: isHov ? '#fff' : '#ffffff55', fontWeight: 700, lineHeight: 1, userSelect: 'none', pointerEvents: 'none', letterSpacing: '0.02em' }}>
+                    <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: isHov ? '#fff' : '#ffffffcc', fontWeight: 700, lineHeight: 1, userSelect: 'none', pointerEvents: 'none', letterSpacing: '0.04em', textShadow: '0 1px 2px #00000055' }}>
                       {u.numero.split('/')[0]}
                     </span>
-                    {u.gran_class && <span style={{ position: 'absolute', top: 2, right: 2, width: 6, height: 6, borderRadius: '50%', background: HUB_PALETTE.champanhe, boxShadow: `0 0 4px ${HUB_PALETTE.champanhe}`, pointerEvents: 'none' }} />}
-                    {u.adaptado && <span style={{ position: 'absolute', bottom: 2, left: 2, width: 6, height: 6, borderRadius: '50%', background: '#3498DB', pointerEvents: 'none' }} />}
-                    {u.varanda && <span style={{ position: 'absolute', bottom: 2, right: 2, width: 6, height: 6, borderRadius: '50%', background: '#27AE60', pointerEvents: 'none' }} />}
+                    {u.gran_class && <span style={{ position: 'absolute', top: 3, right: 3, width: 7, height: 7, borderRadius: '50%', background: HUB_PALETTE.champanhe, boxShadow: `0 0 6px ${HUB_PALETTE.champanhe}cc, 0 0 2px #fff8`, border: '1px solid #ffffff44', pointerEvents: 'none' }} />}
+                    {u.adaptado && <span style={{ position: 'absolute', bottom: 3, left: 3, width: 7, height: 7, borderRadius: '50%', background: '#3498DB', boxShadow: '0 0 5px #3498DBaa', border: '1px solid #ffffff44', pointerEvents: 'none' }} />}
+                    {u.varanda && <span style={{ position: 'absolute', bottom: 3, right: 3, width: 7, height: 7, borderRadius: '50%', background: '#27AE60', boxShadow: '0 0 5px #27AE60aa', border: '1px solid #ffffff44', pointerEvents: 'none' }} />}
                   </div>
                 );
               })}
