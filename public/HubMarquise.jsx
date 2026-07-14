@@ -2632,12 +2632,7 @@ function MapaUHsModal({ uhs, categorias, onClose, onEditUH }) {
           {hoveredUH.varanda && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: '#27AE60', padding: '3px 8px', border: '1px solid #27AE6044' }}>Varanda</span>}
           {hoveredUH.obs && <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: HUB_PALETTE.areiaDim, fontStyle: 'italic' }}>{hoveredUH.obs}</span>}
         </div>
-        <div style={{ marginLeft: 'auto', flexShrink: 0 }}>
-          <button onClick={() => onEditUH(hoveredUH)}
-            style={{ background: HUB_PALETTE.champanhe, border: `1px solid ${HUB_PALETTE.champanhe}`, color: HUB_PALETTE.noite, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', padding: '7px 16px', cursor: 'pointer', fontWeight: 700 }}>
-            Editar UH
-          </button>
-        </div>
+        <span style={{ marginLeft: 'auto', fontFamily: 'Inter, sans-serif', fontSize: 11, color: HUB_PALETTE.areiaDim + '88', fontStyle: 'italic', flexShrink: 0 }}>duplo clique para editar</span>
       </>);
     }
     if (hoveredLegend) {
@@ -2654,7 +2649,7 @@ function MapaUHsModal({ uhs, categorias, onClose, onEditUH }) {
         <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: HUB_PALETTE.areiaDim }}>{hoveredLegend.desc}</span>
       </>);
     }
-    return <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areiaDim + '77', fontStyle: 'italic' }}>Passe o mouse sobre uma UH para ver detalhes · Clique para editar</span>;
+    return <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areiaDim + '77', fontStyle: 'italic' }}>Passe o mouse sobre uma UH para ver detalhes · Duplo clique para editar</span>;
   }
 
   return ReactDOM.createPortal(
@@ -2700,7 +2695,7 @@ function MapaUHsModal({ uhs, categorias, onClose, onEditUH }) {
                   <div key={u.id}
                     onMouseEnter={() => { setHoveredId(u.id); setHoveredLegend(null); }}
                     onMouseLeave={() => setHoveredId(null)}
-                    onClick={() => onEditUH(u)}
+                    onDoubleClick={() => onEditUH(u)}
                     style={{
                       width: isWide ? 90 : 58,
                       height: 40,
