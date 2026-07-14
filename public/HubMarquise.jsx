@@ -2697,8 +2697,8 @@ function MapaUHsModal({ uhs, categorias, onClose, onEditUH }) {
                     onMouseLeave={() => setHoveredId(null)}
                     onClick={() => onEditUH(u)}
                     style={{
-                      width: isWide ? 90 : 58,
-                      height: 40,
+                      width: isWide ? 104 : 68,
+                      height: 43,
                       background: isHov ? cor : cor + '90',
                       border: `2px solid ${isHov ? cor : cor + 'cc'}`,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -2706,7 +2706,7 @@ function MapaUHsModal({ uhs, categorias, onClose, onEditUH }) {
                       position: 'relative', flexShrink: 0,
                       boxShadow: isHov ? `0 0 12px ${cor}55, inset 0 0 8px ${cor}22` : 'none',
                     }}>
-                    <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: isHov ? '#fff' : '#ffffffaa', fontWeight: 700, lineHeight: 1, userSelect: 'none', pointerEvents: 'none', letterSpacing: '0.02em' }}>
+                    <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: isHov ? '#fff' : '#ffffff55', fontWeight: 700, lineHeight: 1, userSelect: 'none', pointerEvents: 'none', letterSpacing: '0.02em' }}>
                       {u.numero.split('/')[0]}
                     </span>
                     {u.gran_class && <span style={{ position: 'absolute', top: 2, right: 2, width: 6, height: 6, borderRadius: '50%', background: HUB_PALETTE.champanhe, boxShadow: `0 0 4px ${HUB_PALETTE.champanhe}`, pointerEvents: 'none' }} />}
