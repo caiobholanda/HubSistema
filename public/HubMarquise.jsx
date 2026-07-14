@@ -2676,7 +2676,7 @@ function MapaUHsModal({ uhs, categorias, onClose, onEditUH }) {
       </div>
 
       {/* Barra de info — em cima, logo abaixo do header */}
-      <div style={{ background: HUB_PALETTE.noiteAlt + 'cc', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}18`, padding: '12px 32px', minHeight: 52, display: 'flex', alignItems: 'center', gap: 18, flexShrink: 0 }}>
+      <div style={{ background: HUB_PALETTE.noiteAlt + 'cc', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}18`, padding: '0 32px', height: 52, display: 'flex', alignItems: 'center', gap: 18, flexShrink: 0, overflow: 'hidden' }}>
         {renderInfoBar()}
       </div>
 
