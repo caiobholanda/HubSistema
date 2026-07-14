@@ -2617,39 +2617,37 @@ function MapaUHsModal({ uhs, categorias, onClose }) {
         </button>
       </div>
 
-      <div style={{ flex: 1, overflowY: 'auto', padding: '24px 36px 96px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        {/* Legenda */}
-        <div style={{ width: '100%', maxWidth: 960, marginBottom: 28, paddingBottom: 20, borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22` }}>
-          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 10 }}>Categorias</div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
-            {categorias.map(c => (
-              <div key={c.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 11px', background: c.cor + '18', border: `1px solid ${c.cor}55` }}>
-                <span style={{ width: 9, height: 9, background: c.cor, display: 'inline-block', flexShrink: 0 }} />
-                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.1em', color: c.cor, fontWeight: 700 }}>{c.sigla}</span>
-                <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, color: HUB_PALETTE.areia }}>{c.nome}</span>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '16px 28px 80px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        {/* Legenda compacta */}
+        <div style={{ width: '100%', maxWidth: 1100, marginBottom: 16, paddingBottom: 14, borderBottom: `1px solid ${HUB_PALETTE.areiaDim}20`, display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, flex: 1 }}>
+            {categorias.slice().sort((a, b) => a.sigla.localeCompare(b.sigla)).map(c => (
+              <div key={c.id} title={c.nome} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 8px', background: c.cor + '18', border: `1px solid ${c.cor}50`, cursor: 'default' }}>
+                <span style={{ width: 8, height: 8, background: c.cor, display: 'inline-block', flexShrink: 0 }} />
+                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.08em', color: c.cor, fontWeight: 700 }}>{c.sigla}</span>
               </div>
             ))}
           </div>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 6, flexShrink: 0, paddingLeft: 12, borderLeft: `1px solid ${HUB_PALETTE.areiaDim}22` }}>
             {[
-              { color: HUB_PALETTE.champanhe, dot: true, label: 'Gran Class' },
-              { color: '#3498DB', dot: true, label: 'Adaptado' },
-              { color: '#27AE60', dot: true, label: 'Varanda' },
+              { color: HUB_PALETTE.champanhe, label: 'GC' },
+              { color: '#3498DB', label: 'ADAPT' },
+              { color: '#27AE60', label: 'VAR' },
             ].map(({ color, label }) => (
-              <div key={label} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 11px', border: `1px solid ${color}44` }}>
-                <span style={{ width: 7, height: 7, borderRadius: '50%', background: color, display: 'inline-block' }} />
-                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color }}>{label}</span>
+              <div key={label} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 8px', border: `1px solid ${color}44` }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: color, display: 'inline-block' }} />
+                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color }}>{label}</span>
               </div>
             ))}
           </div>
         </div>
 
         {/* Grid por andares — centralizado */}
-        <div style={{ overflowX: 'auto', width: '100%', display: 'flex', justifyContent: 'center' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+        <div style={{ overflowX: 'auto', width: '100%', display: 'flex', justifyContent: 'center', flex: 1 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             {porAndar.map(([andar, uhsAndar]) => (
-              <div key={andar} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                <div style={{ width: 44, flexShrink: 0, fontFamily: 'JetBrains Mono, monospace', fontSize: 13, fontWeight: 600, color: HUB_PALETTE.areia, textAlign: 'right', paddingRight: 12 }}>{andar}º</div>
+              <div key={andar} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                <div style={{ width: 38, flexShrink: 0, fontFamily: 'JetBrains Mono, monospace', fontSize: 12, fontWeight: 600, color: HUB_PALETTE.areia, textAlign: 'right', paddingRight: 10 }}>{andar}º</div>
                 {uhsAndar.map(u => {
                   const cat = catMap[u.categoria_id] || {};
                   const cor = cat.cor || '#555';
@@ -2660,21 +2658,21 @@ function MapaUHsModal({ uhs, categorias, onClose }) {
                       onMouseEnter={() => setHoveredId(u.id)}
                       onMouseLeave={() => setHoveredId(null)}
                       style={{
-                        width: isWide ? 84 : 52,
-                        height: 46,
+                        width: isWide ? 70 : 44,
+                        height: 40,
                         background: isHov ? cor : cor + '55',
-                        border: `2px solid ${isHov ? cor : cor + '99'}`,
+                        border: `2px solid ${isHov ? cor : cor + '88'}`,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        cursor: 'pointer', transition: 'all 90ms ease',
+                        cursor: 'pointer', transition: 'all 80ms ease',
                         position: 'relative', flexShrink: 0,
-                        boxShadow: isHov ? `0 0 12px ${cor}66` : 'none',
+                        boxShadow: isHov ? `0 0 10px ${cor}55` : 'none',
                       }}>
-                      <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: isHov ? '#fff' : '#ffffffcc', fontWeight: 700, lineHeight: 1, userSelect: 'none', pointerEvents: 'none' }}>
+                      <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: isHov ? '#fff' : '#ffffffbb', fontWeight: 700, lineHeight: 1, userSelect: 'none', pointerEvents: 'none' }}>
                         {u.numero.split('/')[0].slice(-2)}
                       </span>
-                      {u.gran_class && <span style={{ position: 'absolute', top: 3, right: 3, width: 7, height: 7, borderRadius: '50%', background: HUB_PALETTE.champanhe, boxShadow: `0 0 4px ${HUB_PALETTE.champanhe}`, pointerEvents: 'none' }} />}
-                      {u.adaptado && <span style={{ position: 'absolute', bottom: 3, left: 3, width: 7, height: 7, borderRadius: '50%', background: '#3498DB', pointerEvents: 'none' }} />}
-                      {u.varanda && <span style={{ position: 'absolute', bottom: 3, right: 3, width: 7, height: 7, borderRadius: '50%', background: '#27AE60', pointerEvents: 'none' }} />}
+                      {u.gran_class && <span style={{ position: 'absolute', top: 2, right: 2, width: 6, height: 6, borderRadius: '50%', background: HUB_PALETTE.champanhe, boxShadow: `0 0 4px ${HUB_PALETTE.champanhe}`, pointerEvents: 'none' }} />}
+                      {u.adaptado && <span style={{ position: 'absolute', bottom: 2, left: 2, width: 6, height: 6, borderRadius: '50%', background: '#3498DB', pointerEvents: 'none' }} />}
+                      {u.varanda && <span style={{ position: 'absolute', bottom: 2, right: 2, width: 6, height: 6, borderRadius: '50%', background: '#27AE60', pointerEvents: 'none' }} />}
                     </div>
                   );
                 })}
