@@ -2617,78 +2617,97 @@ function MapaUHsModal({ uhs, categorias, onClose }) {
         </button>
       </div>
 
-      <div style={{ flex: 1, overflowY: 'auto', padding: '24px 36px 96px' }}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 24, paddingBottom: 20, borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22` }}>
-          {categorias.map(c => (
-            <div key={c.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '5px 12px', background: c.cor + '14', border: `1px solid ${c.cor}40` }}>
-              <span style={{ width: 10, height: 10, background: c.cor, display: 'inline-block', flexShrink: 0 }} />
-              <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.1em', color: c.cor, fontWeight: 700 }}>{c.sigla}</span>
-              <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: HUB_PALETTE.areia }}>{c.nome}</span>
-            </div>
-          ))}
-          {[
-            { color: HUB_PALETTE.champanhe, label: 'GC — Gran Class' },
-            { color: '#3498DB', label: 'Adaptado' },
-            { color: '#27AE60', label: 'Varanda' },
-          ].map(({ color, label }) => (
-            <div key={label} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '5px 12px', border: `1px solid ${color}44` }}>
-              <span style={{ width: 7, height: 7, borderRadius: '50%', background: color, display: 'inline-block' }} />
-              <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color }}>{label}</span>
-            </div>
-          ))}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '24px 36px 96px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        {/* Legenda */}
+        <div style={{ width: '100%', maxWidth: 960, marginBottom: 28, paddingBottom: 20, borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22` }}>
+          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 10 }}>Categorias</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
+            {categorias.map(c => (
+              <div key={c.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 11px', background: c.cor + '18', border: `1px solid ${c.cor}55` }}>
+                <span style={{ width: 9, height: 9, background: c.cor, display: 'inline-block', flexShrink: 0 }} />
+                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.1em', color: c.cor, fontWeight: 700 }}>{c.sigla}</span>
+                <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, color: HUB_PALETTE.areia }}>{c.nome}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {[
+              { color: HUB_PALETTE.champanhe, dot: true, label: 'Gran Class' },
+              { color: '#3498DB', dot: true, label: 'Adaptado' },
+              { color: '#27AE60', dot: true, label: 'Varanda' },
+            ].map(({ color, label }) => (
+              <div key={label} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 11px', border: `1px solid ${color}44` }}>
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: color, display: 'inline-block' }} />
+                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color }}>{label}</span>
+              </div>
+            ))}
+          </div>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          {porAndar.map(([andar, uhsAndar]) => (
-            <div key={andar} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-              <div style={{ width: 40, flexShrink: 0, fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: HUB_PALETTE.areia, textAlign: 'right', paddingRight: 10 }}>{andar}º</div>
-              {uhsAndar.map(u => {
-                const cat = catMap[u.categoria_id] || {};
-                const cor = cat.cor || '#555';
-                const isHov = hoveredId === u.id;
-                const isWide = u.numero.includes('/');
-                return (
-                  <div key={u.id}
-                    onMouseEnter={() => setHoveredId(u.id)}
-                    onMouseLeave={() => setHoveredId(null)}
-                    style={{
-                      width: isWide ? 66 : 44,
-                      height: 38,
-                      background: isHov ? cor : cor + '44',
-                      border: `1px solid ${cor}${isHov ? 'ff' : '66'}`,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      cursor: 'pointer', transition: 'all 100ms ease',
-                      position: 'relative', flexShrink: 0,
-                    }}>
-                    <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: isHov ? '#fff' : cor, fontWeight: 700, lineHeight: 1, userSelect: 'none', pointerEvents: 'none' }}>
-                      {u.numero.split('/')[0].slice(-2)}
-                    </span>
-                    {u.gran_class && <span style={{ position: 'absolute', top: 2, right: 2, width: 6, height: 6, borderRadius: '50%', background: HUB_PALETTE.champanhe, pointerEvents: 'none' }} />}
-                    {u.adaptado && <span style={{ position: 'absolute', bottom: 2, left: 2, width: 6, height: 6, borderRadius: '50%', background: '#3498DB', pointerEvents: 'none' }} />}
-                    {u.varanda && <span style={{ position: 'absolute', bottom: 2, right: 2, width: 6, height: 6, borderRadius: '50%', background: '#27AE60', pointerEvents: 'none' }} />}
-                  </div>
-                );
-              })}
-            </div>
-          ))}
+        {/* Grid por andares — centralizado */}
+        <div style={{ overflowX: 'auto', width: '100%', display: 'flex', justifyContent: 'center' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            {porAndar.map(([andar, uhsAndar]) => (
+              <div key={andar} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <div style={{ width: 44, flexShrink: 0, fontFamily: 'JetBrains Mono, monospace', fontSize: 13, fontWeight: 600, color: HUB_PALETTE.areia, textAlign: 'right', paddingRight: 12 }}>{andar}º</div>
+                {uhsAndar.map(u => {
+                  const cat = catMap[u.categoria_id] || {};
+                  const cor = cat.cor || '#555';
+                  const isHov = hoveredId === u.id;
+                  const isWide = u.numero.includes('/');
+                  return (
+                    <div key={u.id}
+                      onMouseEnter={() => setHoveredId(u.id)}
+                      onMouseLeave={() => setHoveredId(null)}
+                      style={{
+                        width: isWide ? 84 : 52,
+                        height: 46,
+                        background: isHov ? cor : cor + '55',
+                        border: `2px solid ${isHov ? cor : cor + '99'}`,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        cursor: 'pointer', transition: 'all 90ms ease',
+                        position: 'relative', flexShrink: 0,
+                        boxShadow: isHov ? `0 0 12px ${cor}66` : 'none',
+                      }}>
+                      <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: isHov ? '#fff' : '#ffffffcc', fontWeight: 700, lineHeight: 1, userSelect: 'none', pointerEvents: 'none' }}>
+                        {u.numero.split('/')[0].slice(-2)}
+                      </span>
+                      {u.gran_class && <span style={{ position: 'absolute', top: 3, right: 3, width: 7, height: 7, borderRadius: '50%', background: HUB_PALETTE.champanhe, boxShadow: `0 0 4px ${HUB_PALETTE.champanhe}`, pointerEvents: 'none' }} />}
+                      {u.adaptado && <span style={{ position: 'absolute', bottom: 3, left: 3, width: 7, height: 7, borderRadius: '50%', background: '#3498DB', pointerEvents: 'none' }} />}
+                      {u.varanda && <span style={{ position: 'absolute', bottom: 3, right: 3, width: 7, height: 7, borderRadius: '50%', background: '#27AE60', pointerEvents: 'none' }} />}
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
-      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 10, background: HUB_PALETTE.noite, borderTop: `1px solid ${HUB_PALETTE.areiaDim}22`, padding: '16px 36px', minHeight: 60, display: 'flex', alignItems: 'center', gap: 24 }}>
+      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 10, background: HUB_PALETTE.noite, borderTop: `2px solid ${HUB_PALETTE.areiaDim}22`, padding: '18px 40px', minHeight: 68, display: 'flex', alignItems: 'center', gap: 28 }}>
         {hoveredUH ? (() => {
           const cat = catMap[hoveredUH.categoria_id] || {};
           return (<>
-            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 22, fontWeight: 700, color: cat.cor || HUB_PALETTE.champanhe }}>{hoveredUH.numero}</span>
-            <span style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontSize: 18, color: HUB_PALETTE.marfim }}>{cat.nome || hoveredUH.categoria_id}</span>
-            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 13, color: HUB_PALETTE.areiaDim }}>{hoveredUH.leito}{hoveredUH.banheiro ? ` · ${hoveredUH.banheiro}` : ''}</span>
-            {hoveredUH.gran_class && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: HUB_PALETTE.champanhe, padding: '4px 10px', border: `1px solid ${HUB_PALETTE.champanhe}55` }}>GC</span>}
-            {hoveredUH.adaptado && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: '#3498DB', padding: '4px 10px', border: '1px solid #3498DB55' }}>ADAPT</span>}
-            {hoveredUH.varanda && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: '#27AE60', padding: '4px 10px', border: '1px solid #27AE6055' }}>VAR</span>}
-            {hoveredUH.vista && <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: HUB_PALETTE.areiaDim }}>{hoveredUH.vista === 'frente-mar' ? 'Frente mar' : 'Lateral'}</span>}
-            {hoveredUH.obs && <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: HUB_PALETTE.areiaDim, fontStyle: 'italic' }}>{hoveredUH.obs}</span>}
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexShrink: 0 }}>
+              <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 28, fontWeight: 700, color: cat.cor || HUB_PALETTE.champanhe, letterSpacing: '-0.02em' }}>{hoveredUH.numero}</span>
+              <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: HUB_PALETTE.areiaDim }}>{_parseAndar(hoveredUH.numero)}º andar</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flexShrink: 0 }}>
+              <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 13, fontWeight: 700, color: cat.cor || HUB_PALETTE.areiaDim }}>{cat.sigla || '—'}</span>
+              <span style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontSize: 17, color: HUB_PALETTE.marfim }}>{cat.nome || hoveredUH.categoria_id}</span>
+            </div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              {hoveredUH.leito && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: HUB_PALETTE.areia, padding: '4px 10px', border: `1px solid ${HUB_PALETTE.areiaDim}30` }}>{hoveredUH.leito}</span>}
+              {hoveredUH.banheiro && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: HUB_PALETTE.areia, padding: '4px 10px', border: `1px solid ${HUB_PALETTE.areiaDim}30` }}>{hoveredUH.banheiro}</span>}
+              {hoveredUH.vista && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: '#3498DB', padding: '4px 10px', border: '1px solid #3498DB33' }}>{hoveredUH.vista === 'frente-mar' ? 'Frente mar' : 'Lateral'}</span>}
+              {hoveredUH.gran_class && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: HUB_PALETTE.champanhe, padding: '4px 10px', border: `1px solid ${HUB_PALETTE.champanhe}55` }}>Gran Class</span>}
+              {hoveredUH.adaptado && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: '#3498DB', padding: '4px 10px', border: '1px solid #3498DB55' }}>Adaptado</span>}
+              {hoveredUH.varanda && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: '#27AE60', padding: '4px 10px', border: '1px solid #27AE6055' }}>Varanda</span>}
+              {hoveredUH.obs && <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: HUB_PALETTE.areiaDim, fontStyle: 'italic' }}>{hoveredUH.obs}</span>}
+            </div>
           </>);
         })() : (
-          <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 15, color: HUB_PALETTE.areiaDim, fontStyle: 'italic' }}>Passe o mouse sobre uma UH para ver os detalhes</span>
+          <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 15, color: HUB_PALETTE.areiaDim + '88', fontStyle: 'italic' }}>Passe o mouse sobre uma UH para ver os detalhes</span>
         )}
       </div>
     </div>,
@@ -2906,6 +2925,90 @@ function CategoriaUHForm({ cat, isMobile, onSave, onCancel, saving, erro }) {
   );
 }
 
+// ─── UHs — Combobox de categoria ─────────────────────────────────────────────
+
+function CatCombobox({ value, categorias, onChange }) {
+  const [texto, setTexto] = useState('');
+  const [aberto, setAberto] = useState(false);
+  const ref = useRef(null);
+
+  const catSelecionada = value ? categorias.find(c => c.id === value) : null;
+
+  const filtradas = useMemo(() => {
+    const sorted = categorias.slice().sort((a, b) => a.sigla.localeCompare(b.sigla));
+    if (!texto.trim()) return sorted;
+    const q = texto.toLowerCase();
+    return sorted.filter(c => c.sigla.toLowerCase().includes(q) || c.nome.toLowerCase().includes(q));
+  }, [texto, categorias]);
+
+  useEffect(() => {
+    function fora(e) { if (ref.current && !ref.current.contains(e.target)) { setAberto(false); setTexto(''); } }
+    document.addEventListener('mousedown', fora);
+    return () => document.removeEventListener('mousedown', fora);
+  }, []);
+
+  function select(c) { onChange(c ? c.id : ''); setTexto(''); setAberto(false); }
+
+  return (
+    <div ref={ref} style={{ position: 'relative', minWidth: 230, flex: 1 }}>
+      <div style={{ position: 'relative' }}>
+        {catSelecionada && !aberto && (
+          <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', width: 9, height: 9, background: catSelecionada.cor, display: 'inline-block', pointerEvents: 'none', flexShrink: 0 }} />
+        )}
+        <input type="text"
+          placeholder="Todas as categorias"
+          value={aberto ? texto : (catSelecionada ? `${catSelecionada.sigla} — ${catSelecionada.nome}` : '')}
+          onFocus={() => { setAberto(true); setTexto(''); }}
+          onChange={e => { setTexto(e.target.value); setAberto(true); }}
+          autoComplete="off" spellCheck={false}
+          style={{
+            boxSizing: 'border-box', width: '100%',
+            background: HUB_PALETTE.noite,
+            border: `1px solid ${aberto ? HUB_PALETTE.dourado + '77' : HUB_PALETTE.areiaDim + '33'}`,
+            color: HUB_PALETTE.marfim,
+            fontFamily: catSelecionada && !aberto ? 'JetBrains Mono, monospace' : 'Inter, sans-serif',
+            fontSize: 14, outline: 'none', cursor: 'text',
+            padding: catSelecionada && !aberto ? '10px 32px 10px 26px' : '10px 32px 10px 12px',
+          }} />
+        {value ? (
+          <button onClick={e => { e.stopPropagation(); select(null); }}
+            style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: HUB_PALETTE.areiaDim, cursor: 'pointer', fontSize: 16, padding: '0 4px', lineHeight: 1 }}>
+            ×
+          </button>
+        ) : (
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={HUB_PALETTE.areiaDim} strokeWidth="2" strokeLinecap="round"
+            style={{ position: 'absolute', right: 11, top: '50%', transform: `translateY(-50%) ${aberto ? 'rotate(180deg)' : ''}`, pointerEvents: 'none', transition: 'transform 150ms' }}>
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        )}
+      </div>
+      {aberto && (
+        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, background: HUB_PALETTE.noiteAlt, border: `1px solid ${HUB_PALETTE.areiaDim}33`, borderTop: 'none', maxHeight: 280, overflowY: 'auto', boxShadow: '0 8px 24px rgba(0,0,0,0.4)' }}>
+          <div onClick={() => select(null)}
+            style={{ padding: '11px 14px', cursor: 'pointer', fontFamily: 'Inter, sans-serif', fontSize: 13, color: !value ? HUB_PALETTE.dourado : HUB_PALETTE.areiaDim, background: !value ? HUB_PALETTE.dourado + '10' : 'transparent', borderLeft: !value ? `3px solid ${HUB_PALETTE.dourado}` : '3px solid transparent' }}
+            onMouseEnter={e => { if (value) e.currentTarget.style.background = HUB_PALETTE.areiaDim + '0d'; }}
+            onMouseLeave={e => { if (value) e.currentTarget.style.background = 'transparent'; }}>
+            Todas as categorias
+          </div>
+          {filtradas.map(c => (
+            <div key={c.id} onClick={() => select(c)}
+              style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', cursor: 'pointer', background: value === c.id ? c.cor + '18' : 'transparent', borderLeft: value === c.id ? `3px solid ${c.cor}` : '3px solid transparent', transition: 'background 80ms' }}
+              onMouseEnter={e => { if (value !== c.id) e.currentTarget.style.background = HUB_PALETTE.areiaDim + '0d'; }}
+              onMouseLeave={e => { if (value !== c.id) e.currentTarget.style.background = 'transparent'; }}>
+              <span style={{ width: 10, height: 10, background: c.cor, display: 'inline-block', flexShrink: 0 }} />
+              <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, fontWeight: 700, color: c.cor, minWidth: 44, letterSpacing: '0.06em' }}>{c.sigla}</span>
+              <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.marfim }}>{c.nome}</span>
+            </div>
+          ))}
+          {filtradas.length === 0 && (
+            <div style={{ padding: '11px 14px', fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areiaDim, fontStyle: 'italic' }}>Nenhuma categoria encontrada</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── UHs — Painel principal ───────────────────────────────────────────────────
 
 function UHsPanel({ isMobile }) {
@@ -3048,13 +3151,27 @@ function UHsPanel({ isMobile }) {
           {uhs !== null ? `${uhs.length} UHs · ${categorias.length} categorias` : 'Carregando...'}
         </p>
       </div>
-      <button onClick={() => setMapaAberto(true)}
-        style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'transparent', border: `1px solid ${HUB_PALETTE.champanhe}55`, color: HUB_PALETTE.champanhe, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.25em', textTransform: 'uppercase', padding: '10px 18px', cursor: 'pointer', flexShrink: 0, marginTop: 4 }}
-        onMouseEnter={e => { e.currentTarget.style.background = HUB_PALETTE.champanhe + '15'; }}
-        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}>
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-        Ver mapa
-      </button>
+      <div style={{ display: 'flex', gap: 8, flexShrink: 0, flexWrap: 'wrap', alignItems: 'center', marginTop: 4 }}>
+        <button onClick={() => { setCreatingUH(true); setErro(''); }}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: HUB_PALETTE.champanhe, border: `1px solid ${HUB_PALETTE.champanhe}`, color: HUB_PALETTE.noite, fontFamily: 'Inter, sans-serif', fontSize: 13, padding: '10px 20px', cursor: 'pointer', fontWeight: 600 }}>
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Nova UH
+        </button>
+        <button onClick={() => { setCreatingCat(true); setErro(''); }}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}44`, color: HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', padding: '10px 16px', cursor: 'pointer' }}
+          onMouseEnter={e => { e.currentTarget.style.color = HUB_PALETTE.marfim; e.currentTarget.style.borderColor = HUB_PALETTE.areiaDim + '77'; }}
+          onMouseLeave={e => { e.currentTarget.style.color = HUB_PALETTE.areiaDim; e.currentTarget.style.borderColor = HUB_PALETTE.areiaDim + '44'; }}>
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Nova categoria
+        </button>
+        <button onClick={() => setMapaAberto(true)}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'transparent', border: `1px solid ${HUB_PALETTE.champanhe}55`, color: HUB_PALETTE.champanhe, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', padding: '10px 16px', cursor: 'pointer' }}
+          onMouseEnter={e => { e.currentTarget.style.background = HUB_PALETTE.champanhe + '12'; }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+          Ver mapa
+        </button>
+      </div>
     </div>
 
     <div style={{ display: 'flex', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, marginBottom: 28 }}>
@@ -3071,25 +3188,21 @@ function UHsPanel({ isMobile }) {
 
     {/* ── Sub-aba UHs ── */}
     {subAba === 'uhs' && (<>
-      {/* Filtros */}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
-        <div style={{ position: 'relative', flex: 1, minWidth: 160 }}>
+        <div style={{ position: 'relative', flex: 2, minWidth: 180 }}>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={HUB_PALETTE.areiaDim} strokeWidth="1.5" strokeLinecap="round" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input type="text" placeholder="Buscar por nº, categoria ou observação..."
+          <input type="text" placeholder="Buscar nº, categoria, observação..."
             value={busca} onChange={e => setBusca(e.target.value)}
             autoComplete="off" spellCheck={false}
-            style={{ ...cs.input, paddingLeft: 30 }} />
+            style={{ ...cs.input, paddingLeft: 32 }} />
         </div>
         <select value={filtroAndar} onChange={e => setFiltroAndar(e.target.value)} style={cs.select}>
           <option value="">Todos os andares</option>
           {andares.map(a => <option key={a} value={a}>{a}º andar</option>)}
         </select>
-        <select value={filtroCat} onChange={e => setFiltroCat(e.target.value)} style={cs.select}>
-          <option value="">Todas as categorias</option>
-          {categorias.slice().sort((a, b) => a.sigla.localeCompare(b.sigla)).map(c => <option key={c.id} value={c.id}>{c.sigla} — {c.nome}</option>)}
-        </select>
+        <CatCombobox value={filtroCat} categorias={categorias} onChange={v => setFiltroCat(v)} />
         <select value={filtroGC} onChange={e => setFiltroGC(e.target.value)} style={cs.select}>
-          <option value="">GC + Padrão</option>
+          <option value="">Todos</option>
           <option value="gc">Gran Class</option>
           <option value="std">Padrão</option>
         </select>
@@ -3152,10 +3265,6 @@ function UHsPanel({ isMobile }) {
         </div>
       )}
 
-      <button onClick={() => { setCreatingUH(true); setErro(''); }} style={{ ...cs.btnPrim, marginTop: 24 }}>
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        Nova UH
-      </button>
     </>)}
 
     {/* ── Sub-aba Categorias ── */}
@@ -3195,10 +3304,6 @@ function UHsPanel({ isMobile }) {
           })}
         </div>
       )}
-      <button onClick={() => { setCreatingCat(true); setErro(''); }} style={cs.btnPrim}>
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        Nova categoria
-      </button>
     </>)}
 
     {/* Modais de edição */}
