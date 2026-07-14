@@ -2603,50 +2603,45 @@ function MapaUHsModal({ uhs, categorias, onClose }) {
   const hoveredUH = hoveredId ? uhs.find(u => u.id === hoveredId) : null;
 
   return ReactDOM.createPortal(
-    <div style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,0,0,0.94)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      {/* Header */}
-      <div style={{ background: HUB_PALETTE.headerBg, backdropFilter: 'blur(10px)', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, padding: '14px 28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,0,0,0.96)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div style={{ background: HUB_PALETTE.headerBg, backdropFilter: 'blur(10px)', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, padding: '20px 36px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
         <div>
-          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.35em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 3 }}>Visualização · Gran Marquise</div>
-          <div style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontWeight: 300, fontSize: 20, color: HUB_PALETTE.marfim }}>Mapa de Unidades Habitacionais</div>
+          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.35em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 5 }}>Visualização · Gran Marquise</div>
+          <div style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontWeight: 300, fontSize: 26, color: HUB_PALETTE.marfim }}>Mapa de Unidades Habitacionais</div>
         </div>
         <button onClick={onClose}
-          style={{ background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}44`, color: HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', padding: '8px 16px', cursor: 'pointer' }}
+          style={{ background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}44`, color: HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.2em', textTransform: 'uppercase', padding: '10px 20px', cursor: 'pointer' }}
           onMouseEnter={e => { e.currentTarget.style.color = HUB_PALETTE.marfim; e.currentTarget.style.borderColor = HUB_PALETTE.areiaDim + '88'; }}
           onMouseLeave={e => { e.currentTarget.style.color = HUB_PALETTE.areiaDim; e.currentTarget.style.borderColor = HUB_PALETTE.areiaDim + '44'; }}>
           Fechar ✕
         </button>
       </div>
 
-      <div style={{ flex: 1, overflowY: 'auto', padding: '20px 28px 80px' }}>
-        {/* Legend */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 20, paddingBottom: 16, borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22` }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '24px 36px 96px' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 24, paddingBottom: 20, borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22` }}>
           {categorias.map(c => (
-            <div key={c.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '2px 8px', background: c.cor + '14', border: `1px solid ${c.cor}40` }}>
-              <span style={{ width: 7, height: 7, background: c.cor, display: 'inline-block', flexShrink: 0 }} />
-              <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 8, letterSpacing: '0.1em', color: c.cor, fontWeight: 700 }}>{c.sigla}</span>
-              <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 9, color: HUB_PALETTE.areia }}>{c.nome}</span>
+            <div key={c.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '5px 12px', background: c.cor + '14', border: `1px solid ${c.cor}40` }}>
+              <span style={{ width: 10, height: 10, background: c.cor, display: 'inline-block', flexShrink: 0 }} />
+              <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.1em', color: c.cor, fontWeight: 700 }}>{c.sigla}</span>
+              <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: HUB_PALETTE.areia }}>{c.nome}</span>
             </div>
           ))}
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '2px 8px', border: `1px solid ${HUB_PALETTE.champanhe}44` }}>
-            <span style={{ width: 5, height: 5, borderRadius: '50%', background: HUB_PALETTE.champanhe, display: 'inline-block' }} />
-            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 8, color: HUB_PALETTE.champanhe }}>GC — Gran Class</span>
-          </div>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '2px 8px', border: `1px solid #3498DB44` }}>
-            <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#3498DB', display: 'inline-block' }} />
-            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 8, color: '#3498DB' }}>Adaptado</span>
-          </div>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '2px 8px', border: `1px solid #27AE6044` }}>
-            <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#27AE60', display: 'inline-block' }} />
-            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 8, color: '#27AE60' }}>Varanda</span>
-          </div>
+          {[
+            { color: HUB_PALETTE.champanhe, label: 'GC — Gran Class' },
+            { color: '#3498DB', label: 'Adaptado' },
+            { color: '#27AE60', label: 'Varanda' },
+          ].map(({ color, label }) => (
+            <div key={label} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '5px 12px', border: `1px solid ${color}44` }}>
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: color, display: 'inline-block' }} />
+              <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color }}>{label}</span>
+            </div>
+          ))}
         </div>
 
-        {/* Floor rows */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           {porAndar.map(([andar, uhsAndar]) => (
-            <div key={andar} style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <div style={{ width: 28, flexShrink: 0, fontFamily: 'JetBrains Mono, monospace', fontSize: 8, color: HUB_PALETTE.areiaDim, textAlign: 'right', paddingRight: 6 }}>{andar}º</div>
+            <div key={andar} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+              <div style={{ width: 40, flexShrink: 0, fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: HUB_PALETTE.areia, textAlign: 'right', paddingRight: 10 }}>{andar}º</div>
               {uhsAndar.map(u => {
                 const cat = catMap[u.categoria_id] || {};
                 const cor = cat.cor || '#555';
@@ -2657,22 +2652,20 @@ function MapaUHsModal({ uhs, categorias, onClose }) {
                     onMouseEnter={() => setHoveredId(u.id)}
                     onMouseLeave={() => setHoveredId(null)}
                     style={{
-                      width: isWide ? 50 : 32,
-                      height: 26,
+                      width: isWide ? 66 : 44,
+                      height: 38,
                       background: isHov ? cor : cor + '44',
                       border: `1px solid ${cor}${isHov ? 'ff' : '66'}`,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      cursor: 'pointer',
-                      transition: 'all 100ms ease',
-                      position: 'relative',
-                      flexShrink: 0,
+                      cursor: 'pointer', transition: 'all 100ms ease',
+                      position: 'relative', flexShrink: 0,
                     }}>
-                    <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 7, color: isHov ? '#fff' : cor, fontWeight: 700, lineHeight: 1, userSelect: 'none', pointerEvents: 'none' }}>
+                    <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: isHov ? '#fff' : cor, fontWeight: 700, lineHeight: 1, userSelect: 'none', pointerEvents: 'none' }}>
                       {u.numero.split('/')[0].slice(-2)}
                     </span>
-                    {u.gran_class && <span style={{ position: 'absolute', top: 1, right: 1, width: 4, height: 4, borderRadius: '50%', background: HUB_PALETTE.champanhe, pointerEvents: 'none' }} />}
-                    {u.adaptado && <span style={{ position: 'absolute', bottom: 1, left: 1, width: 4, height: 4, borderRadius: '50%', background: '#3498DB', pointerEvents: 'none' }} />}
-                    {u.varanda && <span style={{ position: 'absolute', bottom: 1, right: 1, width: 4, height: 4, borderRadius: '50%', background: '#27AE60', pointerEvents: 'none' }} />}
+                    {u.gran_class && <span style={{ position: 'absolute', top: 2, right: 2, width: 6, height: 6, borderRadius: '50%', background: HUB_PALETTE.champanhe, pointerEvents: 'none' }} />}
+                    {u.adaptado && <span style={{ position: 'absolute', bottom: 2, left: 2, width: 6, height: 6, borderRadius: '50%', background: '#3498DB', pointerEvents: 'none' }} />}
+                    {u.varanda && <span style={{ position: 'absolute', bottom: 2, right: 2, width: 6, height: 6, borderRadius: '50%', background: '#27AE60', pointerEvents: 'none' }} />}
                   </div>
                 );
               })}
@@ -2681,22 +2674,21 @@ function MapaUHsModal({ uhs, categorias, onClose }) {
         </div>
       </div>
 
-      {/* Tooltip fixo no rodapé */}
-      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 10, background: HUB_PALETTE.noite, borderTop: `1px solid ${HUB_PALETTE.areiaDim}22`, padding: '10px 28px', minHeight: 44, display: 'flex', alignItems: 'center', gap: 16 }}>
+      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 10, background: HUB_PALETTE.noite, borderTop: `1px solid ${HUB_PALETTE.areiaDim}22`, padding: '16px 36px', minHeight: 60, display: 'flex', alignItems: 'center', gap: 24 }}>
         {hoveredUH ? (() => {
           const cat = catMap[hoveredUH.categoria_id] || {};
           return (<>
-            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 14, fontWeight: 700, color: cat.cor || HUB_PALETTE.champanhe }}>{hoveredUH.numero}</span>
-            <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.marfim }}>{cat.nome || hoveredUH.categoria_id}</span>
-            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: HUB_PALETTE.areiaDim }}>{hoveredUH.leito}{hoveredUH.banheiro ? ` · ${hoveredUH.banheiro}` : ''}</span>
-            {hoveredUH.gran_class && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: HUB_PALETTE.champanhe, padding: '2px 7px', border: `1px solid ${HUB_PALETTE.champanhe}55` }}>GC</span>}
-            {hoveredUH.adaptado && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: '#3498DB', padding: '2px 7px', border: '1px solid #3498DB55' }}>ADAPT</span>}
-            {hoveredUH.varanda && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: '#27AE60', padding: '2px 7px', border: '1px solid #27AE6055' }}>VAR</span>}
-            {hoveredUH.vista && <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, color: HUB_PALETTE.areiaDim }}>{hoveredUH.vista === 'frente-mar' ? 'Frente mar' : 'Lateral'}</span>}
-            {hoveredUH.obs && <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, color: HUB_PALETTE.areiaDim, fontStyle: 'italic' }}>{hoveredUH.obs}</span>}
+            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 22, fontWeight: 700, color: cat.cor || HUB_PALETTE.champanhe }}>{hoveredUH.numero}</span>
+            <span style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontSize: 18, color: HUB_PALETTE.marfim }}>{cat.nome || hoveredUH.categoria_id}</span>
+            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 13, color: HUB_PALETTE.areiaDim }}>{hoveredUH.leito}{hoveredUH.banheiro ? ` · ${hoveredUH.banheiro}` : ''}</span>
+            {hoveredUH.gran_class && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: HUB_PALETTE.champanhe, padding: '4px 10px', border: `1px solid ${HUB_PALETTE.champanhe}55` }}>GC</span>}
+            {hoveredUH.adaptado && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: '#3498DB', padding: '4px 10px', border: '1px solid #3498DB55' }}>ADAPT</span>}
+            {hoveredUH.varanda && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: '#27AE60', padding: '4px 10px', border: '1px solid #27AE6055' }}>VAR</span>}
+            {hoveredUH.vista && <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: HUB_PALETTE.areiaDim }}>{hoveredUH.vista === 'frente-mar' ? 'Frente mar' : 'Lateral'}</span>}
+            {hoveredUH.obs && <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: HUB_PALETTE.areiaDim, fontStyle: 'italic' }}>{hoveredUH.obs}</span>}
           </>);
         })() : (
-          <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: HUB_PALETTE.areiaDim, fontStyle: 'italic' }}>Passe o mouse sobre uma UH para ver os detalhes</span>
+          <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 15, color: HUB_PALETTE.areiaDim, fontStyle: 'italic' }}>Passe o mouse sobre uma UH para ver os detalhes</span>
         )}
       </div>
     </div>,
@@ -2730,11 +2722,11 @@ function UHForm({ uh, categorias, isMobile, onSave, onCancel, saving, erro }) {
   }, []);
 
   const cs = {
-    label: { display: 'block', fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.25em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 6 },
-    input: { width: '100%', boxSizing: 'border-box', background: HUB_PALETTE.areiaDim + '0a', border: `1px solid ${HUB_PALETTE.areiaDim}33`, color: HUB_PALETTE.marfim, fontFamily: 'Inter, sans-serif', fontSize: 14, padding: '10px 14px', outline: 'none' },
-    select: { width: '100%', boxSizing: 'border-box', background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, color: HUB_PALETTE.marfim, fontFamily: 'Inter, sans-serif', fontSize: 14, padding: '10px 14px', outline: 'none', cursor: 'pointer' },
-    btnPrim: { background: HUB_PALETTE.champanhe, border: `1px solid ${HUB_PALETTE.champanhe}`, color: HUB_PALETTE.noite, fontFamily: 'Inter, sans-serif', fontSize: 13, padding: '10px 22px', cursor: 'pointer', fontWeight: 500 },
-    btnGhost: { background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}44`, color: HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.2em', textTransform: 'uppercase', padding: '10px 16px', cursor: 'pointer' },
+    label: { display: 'block', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.28em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 8 },
+    input: { width: '100%', boxSizing: 'border-box', background: HUB_PALETTE.areiaDim + '0a', border: `1px solid ${HUB_PALETTE.areiaDim}33`, color: HUB_PALETTE.marfim, fontFamily: 'Inter, sans-serif', fontSize: 16, padding: '12px 16px', outline: 'none' },
+    select: { width: '100%', boxSizing: 'border-box', background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, color: HUB_PALETTE.marfim, fontFamily: 'Inter, sans-serif', fontSize: 16, padding: '12px 16px', outline: 'none', cursor: 'pointer' },
+    btnPrim: { background: HUB_PALETTE.champanhe, border: `1px solid ${HUB_PALETTE.champanhe}`, color: HUB_PALETTE.noite, fontFamily: 'Inter, sans-serif', fontSize: 14, padding: '12px 26px', cursor: 'pointer', fontWeight: 600 },
+    btnGhost: { background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}44`, color: HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.2em', textTransform: 'uppercase', padding: '12px 18px', cursor: 'pointer' },
   };
 
   const FLAGS = [
@@ -2744,17 +2736,17 @@ function UHForm({ uh, categorias, isMobile, onSave, onCancel, saving, erro }) {
   ];
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-      <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, maxWidth: 580, width: '100%', padding: isMobile ? '24px 20px' : '32px 40px', maxHeight: '90vh', overflowY: 'auto' }}>
-        <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 6 }}>Unidade Habitacional</div>
-        <h3 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontWeight: 300, fontSize: 26, color: HUB_PALETTE.marfim, margin: '0 0 24px' }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, maxWidth: 620, width: '100%', padding: isMobile ? '28px 22px' : '40px 48px', maxHeight: '92vh', overflowY: 'auto' }}>
+        <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.28em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 8 }}>Unidade Habitacional</div>
+        <h3 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontWeight: 300, fontSize: 32, color: HUB_PALETTE.marfim, margin: '0 0 28px' }}>
           {isEdit ? `Editar UH ${uh.numero}` : 'Nova UH'}
         </h3>
 
         <form autoComplete="off" onSubmit={e => { e.preventDefault(); onSave(form); }}
           onKeyDown={e => { if (e.key === 'Escape' && !saving) { e.preventDefault(); onCancel(); } }}>
 
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16, marginBottom: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 20, marginBottom: 20 }}>
             <div>
               <label style={cs.label}>Nº da UH *</label>
               <input ref={nomeRef}
@@ -2813,22 +2805,21 @@ function UHForm({ uh, categorias, isMobile, onSave, onCancel, saving, erro }) {
             </div>
           </div>
 
-          {/* Checkboxes */}
-          <div style={{ display: 'flex', gap: 24, marginBottom: 20, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 28, marginBottom: 24, flexWrap: 'wrap' }}>
             {FLAGS.map(({ key, label, color }) => (
-              <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', userSelect: 'none' }}>
+              <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', userSelect: 'none' }}>
                 <div onClick={() => setForm(p => ({ ...p, [key]: !p[key] }))}
-                  style={{ width: 18, height: 18, border: `2px solid ${form[key] ? color : HUB_PALETTE.areiaDim + '44'}`, background: form[key] ? color + '22' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 150ms', flexShrink: 0 }}>
-                  {form[key] && <span style={{ width: 8, height: 8, background: color, display: 'block' }} />}
+                  style={{ width: 22, height: 22, border: `2px solid ${form[key] ? color : HUB_PALETTE.areiaDim + '44'}`, background: form[key] ? color + '22' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 150ms', flexShrink: 0 }}>
+                  {form[key] && <span style={{ width: 10, height: 10, background: color, display: 'block' }} />}
                 </div>
-                <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: form[key] ? color : HUB_PALETTE.areia }}>{label}</span>
+                <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 15, color: form[key] ? color : HUB_PALETTE.areia }}>{label}</span>
               </label>
             ))}
           </div>
 
-          {erro && <div style={{ marginBottom: 16, padding: '10px 12px', border: '1px solid #E07A5F66', color: '#E07A5F', fontSize: 13, fontFamily: 'Inter, sans-serif' }}>{erro}</div>}
+          {erro && <div style={{ marginBottom: 18, padding: '12px 14px', border: '1px solid #E07A5F66', color: '#E07A5F', fontSize: 14, fontFamily: 'Inter, sans-serif' }}>{erro}</div>}
 
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
             <button type="button" onClick={onCancel} disabled={saving} style={cs.btnGhost}>Cancelar</button>
             <button type="submit" disabled={saving} style={cs.btnPrim}>{saving ? '...' : (isEdit ? 'Salvar' : 'Criar UH')}</button>
           </div>
@@ -2853,24 +2844,24 @@ function CategoriaUHForm({ cat, isMobile, onSave, onCancel, saving, erro }) {
   }, []);
 
   const cs = {
-    label: { display: 'block', fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.25em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 6 },
-    input: { width: '100%', boxSizing: 'border-box', background: HUB_PALETTE.areiaDim + '0a', border: `1px solid ${HUB_PALETTE.areiaDim}33`, color: HUB_PALETTE.marfim, fontFamily: 'Inter, sans-serif', fontSize: 14, padding: '10px 14px', outline: 'none' },
-    btnPrim: { background: HUB_PALETTE.champanhe, border: `1px solid ${HUB_PALETTE.champanhe}`, color: HUB_PALETTE.noite, fontFamily: 'Inter, sans-serif', fontSize: 13, padding: '10px 22px', cursor: 'pointer', fontWeight: 500 },
-    btnGhost: { background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}44`, color: HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.2em', textTransform: 'uppercase', padding: '10px 16px', cursor: 'pointer' },
+    label: { display: 'block', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.28em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 8 },
+    input: { width: '100%', boxSizing: 'border-box', background: HUB_PALETTE.areiaDim + '0a', border: `1px solid ${HUB_PALETTE.areiaDim}33`, color: HUB_PALETTE.marfim, fontFamily: 'Inter, sans-serif', fontSize: 16, padding: '12px 16px', outline: 'none' },
+    btnPrim: { background: HUB_PALETTE.champanhe, border: `1px solid ${HUB_PALETTE.champanhe}`, color: HUB_PALETTE.noite, fontFamily: 'Inter, sans-serif', fontSize: 14, padding: '12px 26px', cursor: 'pointer', fontWeight: 600 },
+    btnGhost: { background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}44`, color: HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.2em', textTransform: 'uppercase', padding: '12px 18px', cursor: 'pointer' },
   };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-      <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, maxWidth: 460, width: '100%', padding: isMobile ? '24px 20px' : '32px 36px' }}>
-        <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 6 }}>Categoria de UH</div>
-        <h3 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontWeight: 300, fontSize: 26, color: HUB_PALETTE.marfim, margin: '0 0 24px' }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, maxWidth: 500, width: '100%', padding: isMobile ? '28px 22px' : '40px 44px' }}>
+        <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.28em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 8 }}>Categoria de UH</div>
+        <h3 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontWeight: 300, fontSize: 32, color: HUB_PALETTE.marfim, margin: '0 0 28px' }}>
           {isEdit ? 'Editar categoria' : 'Nova categoria'}
         </h3>
 
         <form autoComplete="off" onSubmit={e => { e.preventDefault(); onSave(form); }}
           onKeyDown={e => { if (e.key === 'Escape' && !saving) { e.preventDefault(); onCancel(); } }}>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'end', marginBottom: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 14, alignItems: 'end', marginBottom: 20 }}>
             <div>
               <label style={cs.label}>Nome *</label>
               <input ref={nomeRef} style={cs.input} value={form.nome} maxLength={60}
@@ -2881,7 +2872,7 @@ function CategoriaUHForm({ cat, isMobile, onSave, onCancel, saving, erro }) {
             <div>
               <label style={cs.label}>Sigla *</label>
               <input
-                style={{ ...cs.input, width: 90, textTransform: 'uppercase', fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, letterSpacing: '0.1em', textAlign: 'center', ...(isEdit ? { opacity: 0.5, cursor: 'not-allowed' } : {}) }}
+                style={{ ...cs.input, width: 100, textTransform: 'uppercase', fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, letterSpacing: '0.1em', textAlign: 'center', ...(isEdit ? { opacity: 0.5, cursor: 'not-allowed' } : {}) }}
                 value={form.sigla} maxLength={6} readOnly={isEdit}
                 autoComplete="off" spellCheck={false}
                 onChange={e => !isEdit && setForm(p => ({ ...p, sigla: e.target.value.toUpperCase() }))}
@@ -2889,23 +2880,23 @@ function CategoriaUHForm({ cat, isMobile, onSave, onCancel, saving, erro }) {
             </div>
           </div>
 
-          <div style={{ marginBottom: 20 }}>
+          <div style={{ marginBottom: 24 }}>
             <label style={cs.label}>Cor</label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
               <input type="color" value={form.cor}
                 onChange={e => setForm(p => ({ ...p, cor: e.target.value }))}
-                style={{ width: 44, height: 38, border: `1px solid ${HUB_PALETTE.areiaDim}33`, background: 'transparent', cursor: 'pointer', padding: 2 }} />
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', background: form.cor + '1a', border: `1px solid ${form.cor}55`, flex: 1 }}>
-                <span style={{ width: 12, height: 12, background: form.cor, display: 'inline-block', flexShrink: 0 }} />
-                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, fontWeight: 700, color: form.cor, minWidth: 36 }}>{form.sigla || '—'}</span>
-                <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.marfim }}>{form.nome || 'Nome da categoria'}</span>
+                style={{ width: 52, height: 46, border: `1px solid ${HUB_PALETTE.areiaDim}33`, background: 'transparent', cursor: 'pointer', padding: 2 }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 20px', background: form.cor + '1a', border: `1px solid ${form.cor}55`, flex: 1 }}>
+                <span style={{ width: 16, height: 16, background: form.cor, display: 'inline-block', flexShrink: 0 }} />
+                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 15, fontWeight: 700, color: form.cor, minWidth: 44 }}>{form.sigla || '—'}</span>
+                <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 15, color: HUB_PALETTE.marfim }}>{form.nome || 'Nome da categoria'}</span>
               </div>
             </div>
           </div>
 
-          {erro && <div style={{ marginBottom: 16, padding: '10px 12px', border: '1px solid #E07A5F66', color: '#E07A5F', fontSize: 13, fontFamily: 'Inter, sans-serif' }}>{erro}</div>}
+          {erro && <div style={{ marginBottom: 18, padding: '12px 14px', border: '1px solid #E07A5F66', color: '#E07A5F', fontSize: 14, fontFamily: 'Inter, sans-serif' }}>{erro}</div>}
 
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
             <button type="button" onClick={onCancel} disabled={saving} style={cs.btnGhost}>Cancelar</button>
             <button type="submit" disabled={saving} style={cs.btnPrim}>{saving ? '...' : (isEdit ? 'Salvar' : 'Criar')}</button>
           </div>
@@ -3035,12 +3026,12 @@ function UHsPanel({ isMobile }) {
   }
 
   const cs = {
-    label: { display: 'block', fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.25em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 6 },
-    input: { width: '100%', boxSizing: 'border-box', background: HUB_PALETTE.areiaDim + '0a', border: `1px solid ${HUB_PALETTE.areiaDim}33`, color: HUB_PALETTE.marfim, fontFamily: 'Inter, sans-serif', fontSize: 13, padding: '9px 12px', outline: 'none' },
-    select: { boxSizing: 'border-box', background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, color: HUB_PALETTE.marfim, fontFamily: 'Inter, sans-serif', fontSize: 12, padding: '8px 10px', outline: 'none', cursor: 'pointer' },
-    btnPrim: { display: 'inline-flex', alignItems: 'center', gap: 7, background: HUB_PALETTE.champanhe, border: `1px solid ${HUB_PALETTE.champanhe}`, color: HUB_PALETTE.noite, fontFamily: 'Inter, sans-serif', fontSize: 12, padding: '8px 18px', cursor: 'pointer', fontWeight: 500 },
-    btnGhost: { background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}44`, color: HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', padding: '6px 12px', cursor: 'pointer' },
-    btnDanger: { background: 'transparent', border: `1px solid #E07A5F44`, color: '#E07A5F', fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.15em', textTransform: 'uppercase', padding: '6px 10px', cursor: 'pointer' },
+    label: { display: 'block', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.28em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 8 },
+    input: { width: '100%', boxSizing: 'border-box', background: HUB_PALETTE.areiaDim + '0a', border: `1px solid ${HUB_PALETTE.areiaDim}33`, color: HUB_PALETTE.marfim, fontFamily: 'Inter, sans-serif', fontSize: 14, padding: '10px 14px', outline: 'none' },
+    select: { boxSizing: 'border-box', background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, color: HUB_PALETTE.marfim, fontFamily: 'Inter, sans-serif', fontSize: 14, padding: '10px 12px', outline: 'none', cursor: 'pointer' },
+    btnPrim: { display: 'inline-flex', alignItems: 'center', gap: 8, background: HUB_PALETTE.champanhe, border: `1px solid ${HUB_PALETTE.champanhe}`, color: HUB_PALETTE.noite, fontFamily: 'Inter, sans-serif', fontSize: 14, padding: '10px 22px', cursor: 'pointer', fontWeight: 600 },
+    btnGhost: { background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}44`, color: HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.2em', textTransform: 'uppercase', padding: '8px 14px', cursor: 'pointer' },
+    btnDanger: { background: 'transparent', border: `1px solid #E07A5F44`, color: '#E07A5F', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.15em', textTransform: 'uppercase', padding: '8px 12px', cursor: 'pointer' },
   };
 
   return (<>
@@ -3066,14 +3057,13 @@ function UHsPanel({ isMobile }) {
       </button>
     </div>
 
-    {/* Sub-tabs */}
     <div style={{ display: 'flex', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, marginBottom: 28 }}>
       {[
         { id: 'uhs', label: `UHs${uhs ? ` (${uhs.length})` : ''}` },
         { id: 'categorias', label: `Categorias (${categorias.length})` },
       ].map(s => (
         <button key={s.id} onClick={() => { setSubAba(s.id); setErro(''); }}
-          style={{ background: 'transparent', border: 'none', borderBottom: `2px solid ${subAba === s.id ? HUB_PALETTE.dourado : 'transparent'}`, color: subAba === s.id ? HUB_PALETTE.dourado : HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', padding: '10px 20px 8px', cursor: 'pointer', marginBottom: -1, transition: 'color 180ms, border-color 180ms' }}>
+          style={{ background: 'transparent', border: 'none', borderBottom: `2px solid ${subAba === s.id ? HUB_PALETTE.dourado : 'transparent'}`, color: subAba === s.id ? HUB_PALETTE.dourado : HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 12, letterSpacing: '0.22em', textTransform: 'uppercase', padding: '12px 24px 10px', cursor: 'pointer', marginBottom: -1, transition: 'color 180ms, border-color 180ms' }}>
           {s.label}
         </button>
       ))}
@@ -3105,7 +3095,7 @@ function UHsPanel({ isMobile }) {
         </select>
       </div>
 
-      <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em', color: HUB_PALETTE.areiaDim, marginBottom: 12 }}>
+      <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, letterSpacing: '0.18em', color: HUB_PALETTE.areiaDim, marginBottom: 16 }}>
         {uhs === null ? 'Carregando...' : `${uhsFiltradas.length} de ${uhs.length} UHs`}
       </div>
 
@@ -3115,38 +3105,34 @@ function UHsPanel({ isMobile }) {
       ) : uhsFiltradas.length === 0 ? (
         <Vazio />
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', borderTop: `1px solid ${HUB_PALETTE.areiaDim}22` }}>
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
           {uhsFiltradas.map(u => {
             const cat = catMap[u.categoria_id] || {};
             const cor = cat.cor || HUB_PALETTE.areiaDim;
             return (
-              <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 0', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}18`, flexWrap: isPhone ? 'wrap' : 'nowrap', minWidth: 0 }}>
-                {/* Número + cor */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexShrink: 0, minWidth: 80 }}>
-                  <span style={{ width: 7, height: 7, background: cor, borderRadius: '50%', flexShrink: 0 }} />
-                  <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, fontWeight: 700, color: HUB_PALETTE.marfim }}>{u.numero}</span>
+              <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px 0 16px 14px', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}18`, flexWrap: isPhone ? 'wrap' : 'nowrap', minWidth: 0, borderLeft: `3px solid ${cor}`, marginBottom: 2 }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexShrink: 0, minWidth: 110 }}>
+                  <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 20, fontWeight: 700, color: HUB_PALETTE.marfim, letterSpacing: '-0.02em' }}>{u.numero}</span>
+                  <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: HUB_PALETTE.areiaDim }}>{_parseAndar(u.numero)}º</span>
                 </div>
-                {/* Categoria badge */}
-                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.1em', color: cor, padding: '2px 7px', background: cor + '15', border: `1px solid ${cor}40`, flexShrink: 0 }}>
-                  {cat.sigla || u.categoria_id || '—'}
-                </span>
-                {!isPhone && cat.nome && (
-                  <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: HUB_PALETTE.areia, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 130, flexShrink: 1 }}>{cat.nome}</span>
-                )}
-                {/* Leito + banheiro */}
-                <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
-                  {u.leito && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: HUB_PALETTE.areiaDim, padding: '2px 5px', border: `1px solid ${HUB_PALETTE.areiaDim}30` }}>{u.leito}</span>}
-                  {u.banheiro && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: HUB_PALETTE.areiaDim, padding: '2px 5px', border: `1px solid ${HUB_PALETTE.areiaDim}30` }}>{u.banheiro}</span>}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0, minWidth: 120 }}>
+                  <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, letterSpacing: '0.12em', color: cor, padding: '3px 9px', background: cor + '18', border: `1px solid ${cor}44`, alignSelf: 'flex-start' }}>
+                    {cat.sigla || u.categoria_id || '—'}
+                  </span>
+                  {cat.nome && <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areia }}>{cat.nome}</span>}
                 </div>
-                {/* Flags */}
-                <div style={{ display: 'flex', gap: 5, flex: 1, minWidth: 0 }}>
-                  {u.gran_class && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: HUB_PALETTE.champanhe, padding: '2px 6px', border: `1px solid ${HUB_PALETTE.champanhe}44`, flexShrink: 0 }}>GC</span>}
-                  {u.adaptado && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: '#3498DB', padding: '2px 6px', border: '1px solid #3498DB44', flexShrink: 0 }}>ADAPT</span>}
-                  {u.varanda && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: '#27AE60', padding: '2px 6px', border: '1px solid #27AE6044', flexShrink: 0 }}>VAR</span>}
-                  {!isPhone && u.obs && <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, color: HUB_PALETTE.areiaDim, fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.obs}</span>}
+                <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                  {u.leito && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: HUB_PALETTE.areia, padding: '4px 8px', border: `1px solid ${HUB_PALETTE.areiaDim}30` }}>{u.leito}</span>}
+                  {u.banheiro && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: HUB_PALETTE.areia, padding: '4px 8px', border: `1px solid ${HUB_PALETTE.areiaDim}30` }}>{u.banheiro}</span>}
+                  {u.vista === 'frente-mar' && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: '#3498DB', padding: '4px 8px', border: '1px solid #3498DB30' }}>Mar</span>}
                 </div>
-                {/* Ações */}
-                <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
+                <div style={{ display: 'flex', gap: 6, flex: 1, minWidth: 0, flexWrap: 'wrap' }}>
+                  {u.gran_class && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: HUB_PALETTE.champanhe, padding: '4px 9px', border: `1px solid ${HUB_PALETTE.champanhe}55`, flexShrink: 0 }}>GC</span>}
+                  {u.adaptado && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: '#3498DB', padding: '4px 9px', border: '1px solid #3498DB55', flexShrink: 0 }}>ADAPT</span>}
+                  {u.varanda && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: '#27AE60', padding: '4px 9px', border: '1px solid #27AE6055', flexShrink: 0 }}>VAR</span>}
+                  {u.obs && <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areiaDim, fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.obs}</span>}
+                </div>
+                <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                   <button onClick={() => { setEditingUH(u); setErro(''); }}
                     style={cs.btnGhost}
                     onMouseEnter={e => { e.currentTarget.style.color = HUB_PALETTE.marfim; e.currentTarget.style.borderColor = HUB_PALETTE.areiaDim + '66'; }}
@@ -3177,31 +3163,36 @@ function UHsPanel({ isMobile }) {
       {categorias.length === 0 ? (
         <Vazio />
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginBottom: 24 }}>
-          {categorias.map(c => (
-            <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', border: `1px solid ${HUB_PALETTE.areiaDim}18`, background: c.cor + '08' }}>
-              <div style={{ width: 22, height: 22, background: c.cor, flexShrink: 0 }} />
-              <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', color: c.cor, minWidth: 52, flexShrink: 0 }}>{c.sigla}</span>
-              <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.marfim, flex: 1 }}>{c.nome}</span>
-              {uhs !== null && (
-                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: HUB_PALETTE.areiaDim, flexShrink: 0 }}>
-                  {uhs.filter(u => u.categoria_id === c.id).length} UHs
-                </span>
-              )}
-              <button onClick={() => { setEditingCat(c); setErro(''); }}
-                style={cs.btnGhost}
-                onMouseEnter={e => { e.currentTarget.style.color = HUB_PALETTE.marfim; e.currentTarget.style.borderColor = HUB_PALETTE.areiaDim + '66'; }}
-                onMouseLeave={e => { e.currentTarget.style.color = HUB_PALETTE.areiaDim; e.currentTarget.style.borderColor = HUB_PALETTE.areiaDim + '44'; }}>
-                Editar
-              </button>
-              <button onClick={() => setConfirmar({ tipo: 'cat', item: c })}
-                style={cs.btnDanger}
-                onMouseEnter={e => { e.currentTarget.style.background = '#E07A5F15'; }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}>
-                ✕
-              </button>
-            </div>
-          ))}
+        <div style={{ display: 'grid', gridTemplateColumns: isPhone ? '1fr' : 'repeat(2, 1fr)', gap: 8, marginBottom: 24 }}>
+          {categorias.map(c => {
+            const qtd = uhs !== null ? uhs.filter(u => u.categoria_id === c.id).length : null;
+            return (
+              <div key={c.id} style={{ display: 'flex', alignItems: 'stretch', border: `1px solid ${HUB_PALETTE.areiaDim}20`, background: c.cor + '08', overflow: 'hidden' }}>
+                <div style={{ width: 6, flexShrink: 0, background: c.cor }} />
+                <div style={{ flex: 1, padding: '14px 16px', minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 4 }}>
+                    <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 18, fontWeight: 700, letterSpacing: '0.08em', color: c.cor }}>{c.sigla}</span>
+                    {qtd !== null && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: HUB_PALETTE.areiaDim }}>{qtd} UH{qtd !== 1 ? 's' : ''}</span>}
+                  </div>
+                  <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 15, color: HUB_PALETTE.marfim }}>{c.nome}</div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '12px 12px', justifyContent: 'center', flexShrink: 0 }}>
+                  <button onClick={() => { setEditingCat(c); setErro(''); }}
+                    style={cs.btnGhost}
+                    onMouseEnter={e => { e.currentTarget.style.color = HUB_PALETTE.marfim; e.currentTarget.style.borderColor = HUB_PALETTE.areiaDim + '66'; }}
+                    onMouseLeave={e => { e.currentTarget.style.color = HUB_PALETTE.areiaDim; e.currentTarget.style.borderColor = HUB_PALETTE.areiaDim + '44'; }}>
+                    Editar
+                  </button>
+                  <button onClick={() => setConfirmar({ tipo: 'cat', item: c })}
+                    style={cs.btnDanger}
+                    onMouseEnter={e => { e.currentTarget.style.background = '#E07A5F15'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}>
+                    ✕
+                  </button>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
       <button onClick={() => { setCreatingCat(true); setErro(''); }} style={cs.btnPrim}>
