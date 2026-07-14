@@ -2704,8 +2704,8 @@ function MapaUHsModal({ uhs, categorias, onClose, onEditUH }) {
                     style={{
                       width: isWide ? 90 : 58,
                       height: 40,
-                      background: isHov ? cor : cor + '50',
-                      border: `2px solid ${isHov ? cor : cor + '80'}`,
+                      background: isHov ? cor : cor + '90',
+                      border: `2px solid ${isHov ? cor : cor + 'cc'}`,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       cursor: 'pointer', transition: 'all 80ms ease',
                       position: 'relative', flexShrink: 0,
@@ -2733,7 +2733,7 @@ function MapaUHsModal({ uhs, categorias, onClose, onEditUH }) {
             <div key={c.id}
               onMouseEnter={() => { setHoveredLegend({ tipo: 'cat', sigla: c.sigla, nome: c.nome, cor: c.cor }); setHoveredId(null); }}
               onMouseLeave={() => setHoveredLegend(null)}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 8px', background: hoveredLegend && hoveredLegend.sigla === c.sigla ? c.cor + '30' : c.cor + '15', border: `1px solid ${hoveredLegend && hoveredLegend.sigla === c.sigla ? c.cor + 'bb' : c.cor + '44'}`, cursor: 'default', transition: 'all 100ms' }}>
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 8px', background: hoveredLegend && hoveredLegend.sigla === c.sigla ? c.cor + '55' : c.cor + '33', border: `1px solid ${hoveredLegend && hoveredLegend.sigla === c.sigla ? c.cor + 'dd' : c.cor + '88'}`, cursor: 'default', transition: 'all 100ms' }}>
               <span style={{ width: 7, height: 7, background: c.cor, display: 'inline-block', flexShrink: 0 }} />
               <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.06em', color: c.cor, fontWeight: 700 }}>{c.sigla}</span>
             </div>
@@ -2743,7 +2743,7 @@ function MapaUHsModal({ uhs, categorias, onClose, onEditUH }) {
             <div key={label}
               onMouseEnter={() => { setHoveredLegend({ tipo: 'flag', label, nome, cor: color, desc }); setHoveredId(null); }}
               onMouseLeave={() => setHoveredLegend(null)}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 8px', border: `1px solid ${hoveredLegend && hoveredLegend.label === label ? color + 'bb' : color + '44'}`, background: hoveredLegend && hoveredLegend.label === label ? color + '22' : 'transparent', cursor: 'default', transition: 'all 100ms' }}>
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 8px', border: `1px solid ${hoveredLegend && hoveredLegend.label === label ? color + 'dd' : color + '88'}`, background: hoveredLegend && hoveredLegend.label === label ? color + '44' : color + '1a', cursor: 'default', transition: 'all 100ms' }}>
               <span style={{ width: 6, height: 6, borderRadius: '50%', background: color, display: 'inline-block' }} />
               <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color }}>{label}</span>
             </div>
