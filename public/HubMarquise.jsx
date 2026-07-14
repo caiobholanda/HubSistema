@@ -2718,7 +2718,7 @@ function MapaUHsModal({ uhs, categorias, onClose, onEditUH }) {
                         ? `0 2px 14px ${cor}66, inset 0 1px 0 #ffffff22`
                         : `inset 0 1px 0 #ffffff18, 0 1px 3px #00000033`,
                     }}>
-                    <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: isHov ? '#fff' : '#ffffffcc', fontWeight: 700, lineHeight: 1, userSelect: 'none', pointerEvents: 'none', letterSpacing: '0.04em', textShadow: '0 1px 2px #00000055' }}>
+                    <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: isHov ? '#fff' : '#ffffffcc', fontWeight: 700, lineHeight: 1, userSelect: 'none', pointerEvents: 'none', letterSpacing: '0.04em', textShadow: '0 1px 2px #00000055' }}>
                       {u.numero.split('/')[0]}
                     </span>
                     {u.gran_class && <span style={{ position: 'absolute', top: 3, right: 3, width: 7, height: 7, borderRadius: '50%', background: HUB_PALETTE.champanhe, boxShadow: `0 0 6px ${HUB_PALETTE.champanhe}cc, 0 0 2px #fff8`, border: '1px solid #ffffff44', pointerEvents: 'none' }} />}
@@ -2742,7 +2742,7 @@ function MapaUHsModal({ uhs, categorias, onClose, onEditUH }) {
               onMouseLeave={() => setHoveredLegend(null)}
               style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 8px', background: hoveredLegend && hoveredLegend.sigla === c.sigla ? c.cor + '55' : c.cor + '33', border: `1px solid ${hoveredLegend && hoveredLegend.sigla === c.sigla ? c.cor + 'dd' : c.cor + '88'}`, cursor: 'default', transition: 'all 100ms' }}>
               <span style={{ width: 7, height: 7, background: c.cor, display: 'inline-block', flexShrink: 0 }} />
-              <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.06em', color: c.cor, fontWeight: 700 }}>{c.sigla}</span>
+              <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, letterSpacing: '0.06em', color: c.cor, fontWeight: 700 }}>{c.sigla}</span>
             </div>
           ))}
           <div style={{ width: 1, height: 14, background: HUB_PALETTE.areiaDim + '33', margin: '0 6px', flexShrink: 0 }} />
@@ -2752,7 +2752,7 @@ function MapaUHsModal({ uhs, categorias, onClose, onEditUH }) {
               onMouseLeave={() => setHoveredLegend(null)}
               style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 8px', border: `1px solid ${hoveredLegend && hoveredLegend.label === label ? color + 'dd' : color + '88'}`, background: hoveredLegend && hoveredLegend.label === label ? color + '44' : color + '1a', cursor: 'default', transition: 'all 100ms' }}>
               <span style={{ width: 6, height: 6, borderRadius: '50%', background: color, display: 'inline-block' }} />
-              <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color }}>{label}</span>
+              <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color }}>{label}</span>
             </div>
           ))}
         </div>
