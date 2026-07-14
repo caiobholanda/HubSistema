@@ -2702,7 +2702,7 @@ function MapaUHsModal({ uhs, categorias, onClose, onEditUH }) {
                     onMouseLeave={() => setHoveredId(null)}
                     onClick={() => onEditUH(u)}
                     style={{
-                      width: isWide ? 70 : 44,
+                      width: isWide ? 90 : 58,
                       height: 40,
                       background: isHov ? cor : cor + '50',
                       border: `2px solid ${isHov ? cor : cor + '80'}`,
