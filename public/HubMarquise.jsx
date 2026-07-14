@@ -2600,6 +2600,7 @@ function MapaUHsModal({ uhs, categorias, onClose }) {
   }, [uhs]);
 
   const [hoveredId, setHoveredId] = useState(null);
+  const [hoveredLegend, setHoveredLegend] = useState(null);
   const hoveredUH = hoveredId ? uhs.find(u => u.id === hoveredId) : null;
 
   return ReactDOM.createPortal(
@@ -2622,7 +2623,10 @@ function MapaUHsModal({ uhs, categorias, onClose }) {
         <div style={{ width: '100%', maxWidth: 1100, marginBottom: 16, paddingBottom: 14, borderBottom: `1px solid ${HUB_PALETTE.areiaDim}20`, display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, flex: 1 }}>
             {categorias.slice().sort((a, b) => a.sigla.localeCompare(b.sigla)).map(c => (
-              <div key={c.id} title={c.nome} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 8px', background: c.cor + '18', border: `1px solid ${c.cor}50`, cursor: 'default' }}>
+              <div key={c.id}
+                onMouseEnter={() => setHoveredLegend({ tipo: 'cat', sigla: c.sigla, nome: c.nome, cor: c.cor })}
+                onMouseLeave={() => setHoveredLegend(null)}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 8px', background: hoveredLegend && hoveredLegend.sigla === c.sigla ? c.cor + '30' : c.cor + '18', border: `1px solid ${hoveredLegend && hoveredLegend.sigla === c.sigla ? c.cor + 'aa' : c.cor + '50'}`, cursor: 'default', transition: 'background 100ms, border-color 100ms' }}>
                 <span style={{ width: 8, height: 8, background: c.cor, display: 'inline-block', flexShrink: 0 }} />
                 <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.08em', color: c.cor, fontWeight: 700 }}>{c.sigla}</span>
               </div>
@@ -2630,11 +2634,14 @@ function MapaUHsModal({ uhs, categorias, onClose }) {
           </div>
           <div style={{ display: 'flex', gap: 6, flexShrink: 0, paddingLeft: 12, borderLeft: `1px solid ${HUB_PALETTE.areiaDim}22` }}>
             {[
-              { color: HUB_PALETTE.champanhe, label: 'GC' },
-              { color: '#3498DB', label: 'ADAPT' },
-              { color: '#27AE60', label: 'VAR' },
-            ].map(({ color, label }) => (
-              <div key={label} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 8px', border: `1px solid ${color}44` }}>
+              { color: HUB_PALETTE.champanhe, label: 'GC', nome: 'Gran Class', desc: 'Unidade Gran Class — categoria premium do hotel' },
+              { color: '#3498DB', label: 'ADAPT', nome: 'Adaptado', desc: 'Unidade adaptada para necessidades especiais' },
+              { color: '#27AE60', label: 'VAR', nome: 'Varanda', desc: 'Unidade com varanda' },
+            ].map(({ color, label, nome, desc }) => (
+              <div key={label}
+                onMouseEnter={() => setHoveredLegend({ tipo: 'flag', label, nome, cor: color, desc })}
+                onMouseLeave={() => setHoveredLegend(null)}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 8px', border: `1px solid ${hoveredLegend && hoveredLegend.label === label ? color + 'aa' : color + '44'}`, background: hoveredLegend && hoveredLegend.label === label ? color + '22' : 'transparent', cursor: 'default', transition: 'background 100ms, border-color 100ms' }}>
                 <span style={{ width: 6, height: 6, borderRadius: '50%', background: color, display: 'inline-block' }} />
                 <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color }}>{label}</span>
               </div>
@@ -2704,8 +2711,27 @@ function MapaUHsModal({ uhs, categorias, onClose }) {
               {hoveredUH.obs && <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: HUB_PALETTE.areiaDim, fontStyle: 'italic' }}>{hoveredUH.obs}</span>}
             </div>
           </>);
-        })() : (
-          <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 15, color: HUB_PALETTE.areiaDim + '88', fontStyle: 'italic' }}>Passe o mouse sobre uma UH para ver os detalhes</span>
+        })() : hoveredLegend ? (
+          hoveredLegend.tipo === 'cat' ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+                <span style={{ width: 16, height: 16, background: hoveredLegend.cor, display: 'inline-block', flexShrink: 0 }} />
+                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 20, fontWeight: 700, color: hoveredLegend.cor, letterSpacing: '0.06em' }}>{hoveredLegend.sigla}</span>
+              </div>
+              <span style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontSize: 20, color: HUB_PALETTE.marfim }}>{hoveredLegend.nome}</span>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+                <span style={{ width: 12, height: 12, borderRadius: '50%', background: hoveredLegend.cor, display: 'inline-block', flexShrink: 0 }} />
+                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 16, fontWeight: 700, color: hoveredLegend.cor }}>{hoveredLegend.label}</span>
+              </div>
+              <span style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontSize: 20, color: HUB_PALETTE.marfim }}>{hoveredLegend.nome}</span>
+              <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areiaDim }}>{hoveredLegend.desc}</span>
+            </div>
+          )
+        ) : (
+          <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 15, color: HUB_PALETTE.areiaDim + '88', fontStyle: 'italic' }}>Passe o mouse sobre uma UH ou etiqueta da legenda para ver os detalhes</span>
         )}
       </div>
     </div>,
