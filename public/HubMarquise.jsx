@@ -3223,28 +3223,33 @@ function UHsPanel({ isMobile }) {
             const cat = catMap[u.categoria_id] || {};
             const cor = cat.cor || HUB_PALETTE.areiaDim;
             return (
-              <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px 0 16px 14px', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}18`, flexWrap: isPhone ? 'wrap' : 'nowrap', minWidth: 0, borderLeft: `3px solid ${cor}`, marginBottom: 2 }}>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexShrink: 0, minWidth: 110 }}>
-                  <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 20, fontWeight: 700, color: HUB_PALETTE.marfim, letterSpacing: '-0.02em' }}>{u.numero}</span>
-                  <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: HUB_PALETTE.areiaDim }}>{_parseAndar(u.numero)}º</span>
+              <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '14px 16px 14px 16px', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}15`, flexWrap: isPhone ? 'wrap' : 'nowrap', minWidth: 0, borderLeft: `4px solid ${cor}`, background: cor + '06' }}>
+                {/* Número */}
+                <div style={{ flexShrink: 0, minWidth: 100 }}>
+                  <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 22, fontWeight: 700, color: HUB_PALETTE.marfim, letterSpacing: '-0.02em', lineHeight: 1 }}>{u.numero}</div>
+                  <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: HUB_PALETTE.areiaDim, marginTop: 3 }}>{_parseAndar(u.numero)}º andar</div>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0, minWidth: 120 }}>
-                  <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, letterSpacing: '0.12em', color: cor, padding: '3px 9px', background: cor + '18', border: `1px solid ${cor}44`, alignSelf: 'flex-start' }}>
+                {/* Categoria — badge + nome na mesma linha */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
+                  <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', color: cor, padding: '4px 10px', background: cor + '20', border: `1px solid ${cor}55`, flexShrink: 0 }}>
                     {cat.sigla || u.categoria_id || '—'}
                   </span>
-                  {cat.nome && <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areia }}>{cat.nome}</span>}
+                  {cat.nome && <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: HUB_PALETTE.areia, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cat.nome}</span>}
                 </div>
-                <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                  {u.leito && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: HUB_PALETTE.areia, padding: '4px 8px', border: `1px solid ${HUB_PALETTE.areiaDim}30` }}>{u.leito}</span>}
-                  {u.banheiro && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: HUB_PALETTE.areia, padding: '4px 8px', border: `1px solid ${HUB_PALETTE.areiaDim}30` }}>{u.banheiro}</span>}
-                  {u.vista === 'frente-mar' && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: '#3498DB', padding: '4px 8px', border: '1px solid #3498DB30' }}>Mar</span>}
+                {/* Leito / banheiro */}
+                <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
+                  {u.leito && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: HUB_PALETTE.areia, padding: '4px 8px', border: `1px solid ${HUB_PALETTE.areiaDim}28` }}>{u.leito}</span>}
+                  {u.banheiro && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: HUB_PALETTE.areia, padding: '4px 8px', border: `1px solid ${HUB_PALETTE.areiaDim}28` }}>{u.banheiro}</span>}
+                  {u.vista === 'frente-mar' && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: '#3498DB', padding: '4px 8px', border: '1px solid #3498DB33' }}>Mar</span>}
                 </div>
-                <div style={{ display: 'flex', gap: 6, flex: 1, minWidth: 0, flexWrap: 'wrap' }}>
-                  {u.gran_class && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: HUB_PALETTE.champanhe, padding: '4px 9px', border: `1px solid ${HUB_PALETTE.champanhe}55`, flexShrink: 0 }}>GC</span>}
-                  {u.adaptado && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: '#3498DB', padding: '4px 9px', border: '1px solid #3498DB55', flexShrink: 0 }}>ADAPT</span>}
-                  {u.varanda && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: '#27AE60', padding: '4px 9px', border: '1px solid #27AE6055', flexShrink: 0 }}>VAR</span>}
-                  {u.obs && <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areiaDim, fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.obs}</span>}
+                {/* Flags */}
+                <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
+                  {u.gran_class && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: HUB_PALETTE.champanhe, padding: '4px 8px', border: `1px solid ${HUB_PALETTE.champanhe}44`, background: HUB_PALETTE.champanhe + '10' }}>GC</span>}
+                  {u.adaptado && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: '#3498DB', padding: '4px 8px', border: '1px solid #3498DB44', background: '#3498DB10' }}>ADAPT</span>}
+                  {u.varanda && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: '#27AE60', padding: '4px 8px', border: '1px solid #27AE6044', background: '#27AE6010' }}>VAR</span>}
                 </div>
+                {u.obs && !isPhone && <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: HUB_PALETTE.areiaDim, fontStyle: 'italic', flexShrink: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }}>{u.obs}</span>}
+                {/* Ações */}
                 <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                   <button onClick={() => { setEditingUH(u); setErro(''); }}
                     style={cs.btnGhost}
