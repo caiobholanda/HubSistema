@@ -2789,8 +2789,8 @@ function UHForm({ uh, categorias, isMobile, onSave, onCancel, saving, erro }) {
     { key: 'adaptado',  label: 'Adaptado',   color: '#3498DB' },
   ];
 
-  return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 350, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+  return ReactDOM.createPortal(
+    <div style={{ position: 'fixed', inset: 0, zIndex: 400, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
       <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, maxWidth: 620, width: '100%', padding: isMobile ? '28px 22px' : '40px 48px', maxHeight: '92vh', overflowY: 'auto' }}>
         <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.28em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 8 }}>Unidade Habitacional</div>
         <h3 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontWeight: 300, fontSize: 32, color: HUB_PALETTE.marfim, margin: '0 0 28px' }}>
@@ -2879,7 +2879,8 @@ function UHForm({ uh, categorias, isMobile, onSave, onCancel, saving, erro }) {
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -2904,8 +2905,8 @@ function CategoriaUHForm({ cat, isMobile, onSave, onCancel, saving, erro }) {
     btnGhost: { background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}44`, color: HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.2em', textTransform: 'uppercase', padding: '12px 18px', cursor: 'pointer' },
   };
 
-  return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 350, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+  return ReactDOM.createPortal(
+    <div style={{ position: 'fixed', inset: 0, zIndex: 400, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
       <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, maxWidth: 500, width: '100%', padding: isMobile ? '28px 22px' : '40px 44px' }}>
         <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.28em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 8 }}>Categoria de UH</div>
         <h3 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontWeight: 300, fontSize: 32, color: HUB_PALETTE.marfim, margin: '0 0 28px' }}>
@@ -2956,7 +2957,8 @@ function CategoriaUHForm({ cat, isMobile, onSave, onCancel, saving, erro }) {
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
