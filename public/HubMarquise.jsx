@@ -163,6 +163,7 @@ const HUB_SYSTEMS = [
   statusHint: 'Pode usar agora',
   url: 'https://pesquisa-satisfacao.fly.dev',
   adminUrl: 'https://pesquisa-satisfacao.fly.dev/admin',
+  terapeutaUrl: 'https://pesquisa-satisfacao.fly.dev/terapeuta',
   adminEmails: ['estagio.ti@granmarquise.com.br', 'suporte.ti@granmarquise.com.br', 'richard@granmarquise.com.br'],
   repo: 'caiobholanda/PesquisaSatisfacao',
   stack: ['Avaliação pós-tratamento', 'Painel de relatórios', 'Gestão de massoterapeutas'],
@@ -4616,9 +4617,14 @@ function SystemPanel({ system, index, revealed, isMobile, userEmail, userTipo })
     logHubEvento(`abrir_${system.id}`, system.nome);
     const token = localStorage.getItem('hub_sso_token');
     let destUrl = system.url;
-    if (system.adminUrl) {
-      const isAdmin = (system.adminEmails || []).includes(userEmail);
-      if (isAdmin) destUrl = system.adminUrl;
+    const parsedToken = token ? parseJwt(token) : {};
+    const siteRole = parsedToken?.site_roles?.[system.id];
+    if (system.terapeutaUrl && siteRole === 'massoterapeuta') {
+      destUrl = system.terapeutaUrl;
+    } else if (system.adminUrl) {
+      const isAdminRole = siteRole === 'master' || siteRole === 'admin' || siteRole === 'satisfacao' || siteRole === 'spa';
+      const isAdminEmail = (system.adminEmails || []).includes(userEmail);
+      if (isAdminRole || isAdminEmail) destUrl = system.adminUrl;
     }
     // Propaga o tema atual para que o destino abra no mesmo modo (claro/escuro).
     const themeAtual = (() => {
