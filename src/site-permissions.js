@@ -163,13 +163,44 @@ function migrarPermissionsV3(data) {
   return data;
 }
 
+// Migration v4: massoterapeutas do Gran Spa com papel 'massoterapeuta'
+const MIGRATION_SEED_V4 = [
+  { email: 'antonia.sousa@granmarquise.com.br',    sistema_id: 'pesquisa-satisfacao', papel: 'massoterapeuta' },
+  { email: 'germana.silva@granmarquise.com.br',    sistema_id: 'pesquisa-satisfacao', papel: 'massoterapeuta' },
+  { email: 'isadora.menezes@granmarquise.com.br',  sistema_id: 'pesquisa-satisfacao', papel: 'massoterapeuta' },
+  { email: 'karoline.freitas@granmarquise.com.br', sistema_id: 'pesquisa-satisfacao', papel: 'massoterapeuta' },
+  { email: 'mayara.dias@granmarquise.com.br',      sistema_id: 'pesquisa-satisfacao', papel: 'massoterapeuta' },
+  { email: 'valderlania.bezerra@granmarquise.com.br', sistema_id: 'pesquisa-satisfacao', papel: 'massoterapeuta' },
+];
+
+function migrarSitePermissoesV4(data) {
+  if (!data || typeof data !== 'object') return data;
+  if (data._site_permissions_v4_seeded) return data;
+  if (!Array.isArray(data.site_permissions)) data.site_permissions = [];
+  for (const entry of MIGRATION_SEED_V4) {
+    const e = _norm(entry.email);
+    const s = entry.sistema_id;
+    const p = entry.papel;
+    const existente = data.site_permissions.find(r => _norm(r.email) === e && r.sistema_id === s);
+    if (existente) {
+      existente.papel = p;
+    } else {
+      data.site_permissions.push({ email: e, sistema_id: s, papel: p });
+    }
+  }
+  data._site_permissions_v4_seeded = true;
+  return data;
+}
+
 module.exports = {
   MIGRATION_SEED,
   MIGRATION_SEED_V2,
+  MIGRATION_SEED_V4,
   PAPEIS_VALIDOS,
   migrarSitePermissoes,
   migrarSitePermissoesV2,
   migrarPermissionsV3,
+  migrarSitePermissoesV4,
   listarPapeis,
   sitesOndeEhAdmin,
   sitesUsuario,

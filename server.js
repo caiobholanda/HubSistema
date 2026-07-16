@@ -33,6 +33,7 @@ function _parseDataFile(filePath) {
   sitePerm.migrarSitePermissoes(data);
   sitePerm.migrarSitePermissoesV2(data);
   sitePerm.migrarPermissionsV3(data);
+  sitePerm.migrarSitePermissoesV4(data);
   return data;
 }
 
