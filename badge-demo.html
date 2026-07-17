@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Badges de Status — Demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #202C28; color: #ECE4D2; font-family: Inter, sans-serif; min-height: 100vh; padding: 48px 40px; }
+  h2 { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-weight: 300; font-style: italic; font-size: 32px; letter-spacing: -0.02em; margin-bottom: 40px; color: #ECE4D2; }
+  .row { display: flex; align-items: center; gap: 20px; padding: 20px 0; border-bottom: 1px solid rgba(138,123,106,0.13); }
+  .nome { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 17px; font-weight: 600; color: #ECE4D2; min-width: 200px; }
+  .desc { font-family: Inter, sans-serif; font-size: 13px; color: #8A7B6A; flex: 1; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-family: 'JetBrains Mono', monospace; font-size: 9px;
+    letter-spacing: 0.2em; text-transform: uppercase;
+    padding: 3px 10px 3px 8px; border-radius: 0;
+  }
+  .dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+</style>
+</head>
+<body>
+<h2>Badges de status.</h2>
+
+<div class="row">
+  <span class="nome">Colaborador novo</span>
+  <span class="badge" style="color:#D4AC0D;border:1px solid rgba(212,172,13,0.27);background:rgba(212,172,13,0.07)">
+    <span class="dot" style="background:#D4AC0D"></span>Pré-cadastro
+  </span>
+  <span class="desc">Informações básicas criadas, sem acesso ao Hub/APPs ainda.</span>
+</div>
+
+<div class="row">
+  <span class="nome">João da Silva</span>
+  <span class="badge" style="color:#E88B2A;border:1px solid rgba(232,139,42,0.27);background:rgba(232,139,42,0.07)">
+    <span class="dot" style="background:#E88B2A"></span>Ativação pendente
+  </span>
+  <span class="desc">Link temporário enviado — aguardando o colaborador criar a senha.</span>
+</div>
+
+<div class="row">
+  <span class="nome">Maria Fernanda</span>
+  <span class="badge" style="color:#62A852;border:1px solid rgba(98,168,82,0.27);background:rgba(98,168,82,0.07)">
+    <span class="dot" style="background:#62A852"></span>Ativo
+  </span>
+  <span class="desc">Acesso liberado após criação da senha a partir do link.</span>
+</div>
+
+<div class="row">
+  <span class="nome">Carlos Henrique</span>
+  <span class="badge" style="color:#5BA3CC;border:1px solid rgba(91,163,204,0.27);background:rgba(91,163,204,0.07)">
+    <span class="dot" style="background:#5BA3CC"></span>Bloqueado
+  </span>
+  <span class="desc">Acesso suspenso após múltiplas tentativas com senha incorreta.</span>
+</div>
+
+<div class="row">
+  <span class="nome">Pedro Alves</span>
+  <span class="badge" style="color:#607D8B;border:1px solid rgba(96,125,139,0.27);background:rgba(96,125,139,0.07)">
+    <span class="dot" style="background:#607D8B"></span>Desligado
+  </span>
+  <span class="desc">Acesso encerrado, histórico mantido.</span>
+</div>
+
+</body>
+</html>
