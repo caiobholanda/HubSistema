@@ -3850,10 +3850,11 @@ function ContasPanel({ isMobile }) {
           const bloqueado = hubStatus === 'bloqueado';
           const aguardandoAtivacao = hubStatus === 'ativacao_pendente';
           const HUB_STATUS_BADGE = {
-            precadastro: { label: 'Pré-cadastro', color: '#C9A96E' },
-            ativacao_pendente: { label: 'Ativação pendente', color: '#FB8C00' },
-            bloqueado: { label: 'Bloqueado', color: '#4FC3F7' },
-            desligado: { label: 'Desligado', color: '#8A7B6A' },
+            precadastro:       { label: 'Pré-cadastro',      color: '#D4AC0D' },
+            ativacao_pendente: { label: 'Ativação pendente', color: '#E88B2A' },
+            ativo:             { label: 'Ativo',              color: '#62A852' },
+            bloqueado:         { label: 'Bloqueado',          color: '#5BA3CC' },
+            desligado:         { label: 'Desligado',          color: '#607D8B' },
           };
           const statusBadgeInfo = hubStatus && HUB_STATUS_BADGE[hubStatus];
           return (
@@ -3863,7 +3864,7 @@ function ContasPanel({ isMobile }) {
                   {isAdmin ? row.nome_completo : row.nome}
                   {isAdmin && row.is_master ? <span style={{ marginLeft: 10, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, padding: '3px 10px', border: `1px solid ${HUB_PALETTE.champanhe}88`, verticalAlign: 'middle' }}>Master</span> : null}
                   {!ativo ? <span style={{ marginLeft: 10, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#E07A5F', padding: '3px 10px', border: '1px solid #E07A5F66', verticalAlign: 'middle' }}>Inativo</span> : null}
-                  {statusBadgeInfo ? <span style={{ marginLeft: 10, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: statusBadgeInfo.color, padding: '3px 10px', border: `1px solid ${statusBadgeInfo.color}66`, verticalAlign: 'middle' }}>{statusBadgeInfo.label}</span> : null}
+                  {statusBadgeInfo ? <span style={{ marginLeft: 10, display: 'inline-flex', alignItems: 'center', gap: 5, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: statusBadgeInfo.color, padding: '3px 10px 3px 8px', border: `1px solid ${statusBadgeInfo.color}44`, background: `${statusBadgeInfo.color}12`, verticalAlign: 'middle' }}><span style={{ width: 5, height: 5, borderRadius: '50%', background: statusBadgeInfo.color, flexShrink: 0 }} />{statusBadgeInfo.label}</span> : null}
                 </div>
                 <div style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 14, color: HUB_PALETTE.areia, marginTop: 6, lineHeight: 1.5 }}>
                   {row.email ? <span style={{ color: HUB_PALETTE.marfim }}>{row.email}</span> : '—'}
