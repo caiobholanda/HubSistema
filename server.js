@@ -409,6 +409,8 @@ app.post('/api/auth/login', async (req, res) => {
           if (falhas >= 5) {
             hubData.users[idx].hub_status = 'bloqueado';
             console.log(`[auth] conta bloqueada após ${falhas} falhas: ${emailNorm}`);
+            writeData(hubData);
+            return res.status(403).json({ ok: false, erro: 'Conta bloqueada após múltiplas tentativas. Fale com o TI.' });
           }
           writeData(hubData);
         }

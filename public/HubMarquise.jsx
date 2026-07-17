@@ -3796,7 +3796,7 @@ function ContasPanel({ isMobile }) {
       </div>
       <h2 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 400, fontSize: 40, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: '0 0 10px' }}>Gerenciar contas.</h2>
       <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: HUB_PALETTE.areiaDim, lineHeight: 1.5, margin: 0 }}>
-        Crie, edite ou desative admins e usuários do portal de chamados. Os dados ficam no sistema-chamados; aqui é só a interface.
+        {isAdmin ? 'Admins do TI com acesso ao painel de chamados.' : 'Usuários do portal de chamados.'} Os dados ficam no sistema-chamados; aqui é só a interface.
       </p>
     </div>
 
@@ -3892,11 +3892,11 @@ function ContasPanel({ isMobile }) {
               )}
               {!aguardandoAtivacao && (
                 <button
-                  onClick={() => enviarLinkReset(isAdmin ? 'admin' : 'usuario', row.id)}
-                  disabled={resetando || !row.email}
-                  title={!row.email ? 'Sem e-mail cadastrado' : 'Enviar link de redefinição de senha por e-mail (válido 24h)'}
-                  style={{ ...cs.btnGhost, color: resetando ? HUB_PALETTE.areiaDim : HUB_PALETTE.jangada, borderColor: HUB_PALETTE.jangada + '66', cursor: resetando || !row.email ? 'not-allowed' : 'pointer' }}>
-                  {resetando ? '…' : 'Redefinir senha'}
+                  onClick={() => isAdmin ? enviarLinkReset('admin', row.id) : gerarLinkAtivacao(row.id)}
+                  disabled={isAdmin ? (resetando || !row.email) : !!gerandoLink[row.id]}
+                  title={isAdmin ? (!row.email ? 'Sem e-mail cadastrado' : 'Enviar link de redefinição de senha por e-mail (válido 24h)') : 'Gerar novo link de ativação (48h)'}
+                  style={{ ...cs.btnGhost, color: (isAdmin ? resetando : !!gerandoLink[row.id]) ? HUB_PALETTE.areiaDim : HUB_PALETTE.jangada, borderColor: HUB_PALETTE.jangada + '66', cursor: (isAdmin ? (resetando || !row.email) : !!gerandoLink[row.id]) ? 'not-allowed' : 'pointer' }}>
+                  {(isAdmin ? resetando : !!gerandoLink[row.id]) ? '…' : 'Redefinir senha'}
                 </button>
               )}
               {bloqueado ? (
@@ -4047,6 +4047,8 @@ function ContaForm({ tipo, isMobile, cs, erro, saving, initial, initialEtiquetas
   const setorAtualOriginal = (initial && initial.setor) || '';
   const setorLegado = !isAdmin && !!setorAtualOriginal && !setoresNames.includes(setorAtualOriginal);
   const semListaSetores = !isAdmin && setoresNames.length === 0;
+  const SENHA_OK = !!(d.senha && d.senha.length >= 8 && /[A-Z]/.test(d.senha) && /[a-z]/.test(d.senha) && /[0-9]/.test(d.senha) && /[^A-Za-z0-9]/.test(d.senha));
+  const senhaValida = !isAdmin || (isEdit ? (!d.senha || SENHA_OK) : SENHA_OK);
 
   // Combobox de setor: input filtravel + popup customizado (tema dark, restrito ao banco).
   const [setorOpen, setSetorOpen] = useState(false);
@@ -4368,6 +4370,7 @@ function ContaForm({ tipo, isMobile, cs, erro, saving, initial, initialEtiquetas
               {[
                 { label: '8 caracteres', ok: d.senha.length >= 8 },
                 { label: 'Maiúscula', ok: /[A-Z]/.test(d.senha) },
+                { label: 'Minúscula', ok: /[a-z]/.test(d.senha) },
                 { label: 'Número', ok: /[0-9]/.test(d.senha) },
                 { label: 'Especial', ok: /[^A-Za-z0-9]/.test(d.senha) },
               ].map(({ label, ok }) => (
@@ -4423,7 +4426,7 @@ function ContaForm({ tipo, isMobile, cs, erro, saving, initial, initialEtiquetas
 
         <div style={{ display: 'flex', gap: 10, marginTop: 24, justifyContent: 'flex-end' }}>
           <button type="button" onClick={onCancel} disabled={saving} style={cs.btnGhost}>Cancelar</button>
-          <button type="button" onClick={handleSave} disabled={saving || (semListaSetores && !setorLegado)} style={cs.btnPrim}>
+          <button type="button" onClick={handleSave} disabled={saving || (semListaSetores && !setorLegado) || !senhaValida} style={cs.btnPrim}>
             {saving ? '...' : (isEdit ? 'Salvar' : 'Criar')}
           </button>
         </div>
