@@ -5033,9 +5033,9 @@ function HubMarquise() {
             <HubHero revealed={revealed} easterActive={easter} isMobile={isMobile} userName={userName} sistemasVisiveis={sistemasVisiveis} />
             <section style={{ maxWidth: 1400, margin: '0 auto', padding: isMobile ? '16px 18px 36px' : '12px 48px 48px' }}>
               <SectionLabel kicker="No ar" title="Pronto para usar." hint={isMobile ? null : 'Clique no painel para abrir o sistema em uma aba nova.'} />
-              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(420px, 1fr))', gap: 0, borderTop: `1px solid ${HUB_PALETTE.areiaDim}2a` }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, 1fr)', gap: 0, borderTop: `1px solid ${HUB_PALETTE.areiaDim}2a` }}>
                 {sistemasVisiveis.map((sys, i, arr) => (
-                  <div key={sys.id} style={{ borderBottom: `1px solid ${HUB_PALETTE.areiaDim}2a`, borderRight: !isMobile && arr.length > 1 && i % 2 === 0 ? `1px solid ${HUB_PALETTE.areiaDim}2a` : 'none' }}>
+                  <div key={sys.id} style={{ borderBottom: `1px solid ${HUB_PALETTE.areiaDim}2a`, borderRight: !isMobile && i % 4 !== 3 && i < arr.length - 1 ? `1px solid ${HUB_PALETTE.areiaDim}2a` : 'none' }}>
                     <SystemPanel system={sys} index={i} revealed={revealed} isMobile={isMobile} userEmail={userEmail} userTipo={userTipo} />
                   </div>
                 ))}
