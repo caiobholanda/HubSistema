@@ -4,29 +4,133 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ativar conta — Gran Marquise</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-  *, *::before, *::after { box-sizing: border-box; }
-  body { margin: 0; background: #0f1117; color: #ECE4D2; font-family: Inter, sans-serif; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
-  .card { background: #181d28; border: 1px solid #8A7B6A33; max-width: 420px; width: 100%; padding: 40px 36px; }
-  .kicker { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.35em; text-transform: uppercase; color: #C9A96E; margin-bottom: 16px; }
-  h1 { font-family: Georgia, serif; font-style: italic; font-weight: 400; font-size: 28px; color: #ECE4D2; margin: 0 0 24px; line-height: 1.3; }
-  label { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.25em; text-transform: uppercase; color: #8A7B6A; margin-bottom: 6px; display: block; }
-  input { width: 100%; background: #8A7B6A0a; border: 1px solid #8A7B6A33; color: #ECE4D2; font-family: Inter, sans-serif; font-size: 15px; padding: 12px 14px; outline: none; margin-bottom: 14px; }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+
+  :root {
+    --noite: #202C28;
+    --champanhe: #9C5843;
+    --marfim: #ECE4D2;
+    --areia: #C8B89A;
+    --areiaDim: #8A7B6A;
+    --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  body {
+    background:
+      radial-gradient(ellipse 90% 55% at 12% 8%, rgba(156,88,67,0.08) 0%, transparent 65%),
+      radial-gradient(ellipse 65% 75% at 88% 92%, rgba(42,90,107,0.05) 0%, transparent 65%),
+      var(--noite);
+    color: var(--marfim);
+    font-family: Inter, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(156,88,67,0.25); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(156,88,67,0.45); }
+  ::selection { background: rgba(156,88,67,0.25); }
+
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0 1000px var(--noite) inset !important;
+    -webkit-text-fill-color: var(--marfim) !important;
+    caret-color: var(--marfim);
+    transition: background-color 5000s ease-in-out 0s;
+  }
+
+  .accent-line {
+    position: fixed; right: 0; top: 0; width: 1px; height: 60%;
+    background: linear-gradient(180deg, transparent 0%, rgba(156,88,67,0.33) 40%, transparent 100%);
+    pointer-events: none;
+  }
+
+  .wrap { width: 100%; max-width: 400px; }
+
+  .kicker {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px; letter-spacing: 0.3em; text-transform: uppercase;
+    color: var(--champanhe); margin-bottom: 28px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .kicker::before { content: ''; display: block; width: 18px; height: 1px; background: var(--champanhe); }
+
+  h1 {
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-weight: 300; font-style: italic; font-size: 40px;
+    letter-spacing: -0.02em; color: var(--marfim);
+    margin: 0 0 20px; line-height: 1.05;
+  }
+
+  label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px; letter-spacing: 0.3em; text-transform: uppercase;
+    color: var(--areiaDim); margin-bottom: 8px; display: block;
+  }
+
+  input {
+    width: 100%;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(138,123,106,0.27);
+    border-radius: 0; color: var(--marfim);
+    font-family: Inter, sans-serif; font-size: 14px;
+    padding: 14px 16px; outline: none; margin-bottom: 16px;
+    transition: border-color 300ms var(--ease);
+  }
+  input:focus { border-color: rgba(156,88,67,0.53); }
+
   .criteria { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
-  .criterion { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: #8A7B6A; transition: color 200ms; }
+  .criterion {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; letter-spacing: 0.12em; color: var(--areiaDim);
+    transition: color 200ms;
+  }
   .criterion.ok { color: #7cb342; }
-  button { width: 100%; background: #C9A96E; color: #0f1117; border: none; padding: 14px; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; cursor: pointer; }
-  button:disabled { opacity: 0.5; cursor: not-allowed; }
-  .msg { font-family: Inter, sans-serif; font-size: 14px; line-height: 1.5; margin-bottom: 20px; color: #ECE4D2; }
-  .err { color: #E07A5F; font-family: Inter, sans-serif; font-size: 13px; margin-bottom: 14px; border: 1px solid #E07A5F44; padding: 10px 12px; }
-  .success { text-align: center; }
-  .success h1 { color: #7cb342; }
-  a { color: #C9A96E; text-decoration: none; }
-  a:hover { text-decoration: underline; }
+
+  button {
+    width: 100%; background: transparent;
+    border: 1px solid rgba(156,88,67,0.67); border-radius: 0;
+    color: var(--champanhe); padding: 14px;
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    font-weight: 500; letter-spacing: 0.3em; text-transform: uppercase;
+    cursor: pointer;
+    transition: background 300ms var(--ease), border-color 250ms var(--ease);
+  }
+  button:hover:not(:disabled) { background: rgba(156,88,67,0.1); border-color: var(--champanhe); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .msg {
+    font-family: Inter, sans-serif; font-size: 14px;
+    line-height: 1.6; margin-bottom: 24px; color: var(--areia);
+  }
+
+  .err {
+    font-family: Inter, sans-serif; font-size: 13px;
+    color: #E07A5F; margin-bottom: 14px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .err::before { content: '—'; }
+
+  .success { text-align: center; padding-top: 8px; }
+  .success h1 { color: #7cb342; font-style: normal; margin-bottom: 16px; }
+
+  a { color: var(--champanhe); text-decoration: none; }
+  a:hover { text-decoration: underline; text-underline-offset: 3px; }
 </style>
 </head>
 <body>
-<div class="card">
+<div class="accent-line"></div>
+<div class="wrap">
   <div class="kicker">Gran Marquise — TI</div>
   <div id="root"></div>
 </div>
