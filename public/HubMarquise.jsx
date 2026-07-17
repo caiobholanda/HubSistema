@@ -3514,6 +3514,9 @@ function ContasPanel({ isMobile }) {
   const [resetandoSenha, setResetandoSenha] = useState({}); // { tipo-id: true } — loading por card
   const [confirmAtivo, setConfirmAtivo] = useState(null); // { tipo, row, ativar:boolean }
   const [togglingAtivo, setTogglingAtivo] = useState(false);
+  const [modalAtivacao, setModalAtivacao] = useState(null); // null | { url, nome }
+  const [gerandoLink, setGerandoLink] = useState({}); // { userId: true }
+  const [desbloqueando, setDesbloqueando] = useState({}); // { userId: true }
 
   // Email do admin logado (extraido do JWT em localStorage). Usado para impedir
   // que ele ative/desative a propria conta.
@@ -3538,6 +3541,30 @@ function ContasPanel({ isMobile }) {
       else notify(d.erro || 'Erro ao enviar link.');
     } catch { notify('Erro de conexão.'); }
     setResetandoSenha(p => ({ ...p, [key]: false }));
+  }
+
+  async function gerarLinkAtivacao(userId) {
+    setGerandoLink(p => ({ ...p, [userId]: true }));
+    try {
+      const r = await fetch(`/api/admin/chamados-usuarios/${userId}/gerar-link`, { method: 'POST', headers: { Authorization: `Bearer ${token()}` } });
+      const d = await r.json();
+      if (r.ok && d.ok) {
+        setModalAtivacao({ url: d.activation_url, nome: d.nome });
+        loadUsuarios();
+      } else notify(d.erro || 'Erro ao gerar link.');
+    } catch { notify('Erro de conexão.'); }
+    setGerandoLink(p => ({ ...p, [userId]: false }));
+  }
+
+  async function desbloquearUsuario(userId) {
+    setDesbloqueando(p => ({ ...p, [userId]: true }));
+    try {
+      const r = await fetch(`/api/admin/chamados-usuarios/${userId}/desbloquear`, { method: 'POST', headers: { Authorization: `Bearer ${token()}` } });
+      const d = await r.json();
+      if (r.ok && d.ok) { notify('Usuário desbloqueado.'); loadUsuarios(); }
+      else notify(d.erro || 'Erro ao desbloquear.');
+    } catch { notify('Erro de conexão.'); }
+    setDesbloqueando(p => ({ ...p, [userId]: false }));
   }
 
   async function loadSetoresEEtiquetas() {
@@ -3614,9 +3641,15 @@ function ContasPanel({ isMobile }) {
       const d = await r.json();
       if (!r.ok || !d.ok) { setErro(d.erro || `Erro ${r.status}`); setSaving(false); return; }
       notifyHubMutation();
-      notify(tipo === 'admin' ? 'Admin criado.' : 'Usuário criado.');
       fecharModal();
-      if (tipo === 'admin') loadAdmins(); else loadUsuarios();
+      if (tipo === 'admin') {
+        notify('Admin criado.');
+        loadAdmins();
+      } else {
+        loadUsuarios();
+        if (d.activation_url) setModalAtivacao({ url: d.activation_url, nome: d.nome || dados.nome || '' });
+        else notify('Usuário criado.');
+      }
     } catch { setErro('Erro de conexão'); }
     setSaving(false);
   }
@@ -3763,13 +3796,13 @@ function ContasPanel({ isMobile }) {
       </div>
       <h2 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 400, fontSize: 40, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: '0 0 10px' }}>Gerenciar contas.</h2>
       <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: HUB_PALETTE.areiaDim, lineHeight: 1.5, margin: 0 }}>
-        Crie, edite ou desative admins do TI e usuários do portal de chamados. Os dados ficam no sistema-chamados; aqui é só a interface.
+        Crie, edite ou desative admins e usuários do portal de chamados. Os dados ficam no sistema-chamados; aqui é só a interface.
       </p>
     </div>
 
     {/* Sub-tabs tipo */}
     <div style={{ display: 'flex', gap: 0, borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, marginBottom: 14 }}>
-      {[{ id: 'admins', label: 'Admins do TI' }, { id: 'usuarios', label: 'Usuários do portal' }].map(s => (
+      {[{ id: 'admins', label: 'Admin' }, { id: 'usuarios', label: 'Usuários' }].map(s => (
         <button key={s.id} onClick={() => { setSubAba(s.id); setBusca(''); setStatusAba('ativos'); }}
           style={{ background: 'transparent', border: 'none', borderBottom: `2px solid ${subAba === s.id ? HUB_PALETTE.champanhe : 'transparent'}`, color: subAba === s.id ? HUB_PALETTE.champanhe : HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', padding: '10px 18px 8px', cursor: 'pointer' }}>
           {s.label}
@@ -3813,6 +3846,16 @@ function ContasPanel({ isMobile }) {
           const ativo = isAdmin ? row.ativo === 1 : row.ativo !== 0;
           const key = (isAdmin ? 'a' : 'u') + row.id;
           const resetando = !!resetandoSenha[key];
+          const hubStatus = !isAdmin ? (row.hub_status || null) : null;
+          const bloqueado = hubStatus === 'bloqueado';
+          const aguardandoAtivacao = hubStatus === 'ativacao_pendente';
+          const HUB_STATUS_BADGE = {
+            precadastro: { label: 'Pré-cadastro', color: '#C9A96E' },
+            ativacao_pendente: { label: 'Ativação pendente', color: '#FB8C00' },
+            bloqueado: { label: 'Bloqueado', color: '#4FC3F7' },
+            desligado: { label: 'Desligado', color: '#8A7B6A' },
+          };
+          const statusBadgeInfo = hubStatus && HUB_STATUS_BADGE[hubStatus];
           return (
             <div key={row.id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '22px 4px', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, opacity: ativo ? 1 : 0.55, flexWrap: 'wrap' }}>
               <div style={{ flex: 1, minWidth: 260 }}>
@@ -3820,6 +3863,7 @@ function ContasPanel({ isMobile }) {
                   {isAdmin ? row.nome_completo : row.nome}
                   {isAdmin && row.is_master ? <span style={{ marginLeft: 10, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, padding: '3px 10px', border: `1px solid ${HUB_PALETTE.champanhe}88`, verticalAlign: 'middle' }}>Master</span> : null}
                   {!ativo ? <span style={{ marginLeft: 10, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#E07A5F', padding: '3px 10px', border: '1px solid #E07A5F66', verticalAlign: 'middle' }}>Inativo</span> : null}
+                  {statusBadgeInfo ? <span style={{ marginLeft: 10, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: statusBadgeInfo.color, padding: '3px 10px', border: `1px solid ${statusBadgeInfo.color}66`, verticalAlign: 'middle' }}>{statusBadgeInfo.label}</span> : null}
                 </div>
                 <div style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 14, color: HUB_PALETTE.areia, marginTop: 6, lineHeight: 1.5 }}>
                   {row.email ? <span style={{ color: HUB_PALETTE.marfim }}>{row.email}</span> : '—'}
@@ -3837,14 +3881,32 @@ function ContasPanel({ isMobile }) {
               </div>
               <button onClick={() => setHistoricoUsuario({ id: row.id, nome: isAdmin ? row.nome_completo : row.nome, tipo: isAdmin ? 'admin' : 'usuario' })} style={cs.btnGhost}>Histórico</button>
               <button onClick={() => startEdit(isAdmin ? 'admin' : 'usuario', row)} style={cs.btnGhost}>Editar</button>
-              <button
-                onClick={() => enviarLinkReset(isAdmin ? 'admin' : 'usuario', row.id)}
-                disabled={resetando || !row.email}
-                title={!row.email ? 'Sem e-mail cadastrado' : 'Enviar link de redefinição de senha por e-mail (válido 24h)'}
-                style={{ ...cs.btnGhost, color: resetando ? HUB_PALETTE.areiaDim : HUB_PALETTE.jangada, borderColor: HUB_PALETTE.jangada + '66', cursor: resetando || !row.email ? 'not-allowed' : 'pointer' }}>
-                {resetando ? '…' : 'Redefinir senha'}
-              </button>
-              {ehEuMesmo(isAdmin ? 'admin' : 'usuario', row) ? (
+              {aguardandoAtivacao && (
+                <button
+                  onClick={() => gerarLinkAtivacao(row.id)}
+                  disabled={!!gerandoLink[row.id]}
+                  title="Gerar novo link de ativação (48h)"
+                  style={{ ...cs.btnGhost, color: '#FB8C00', borderColor: '#FB8C0066', cursor: gerandoLink[row.id] ? 'not-allowed' : 'pointer' }}>
+                  {gerandoLink[row.id] ? '…' : 'Reenviar link'}
+                </button>
+              )}
+              {!aguardandoAtivacao && (
+                <button
+                  onClick={() => enviarLinkReset(isAdmin ? 'admin' : 'usuario', row.id)}
+                  disabled={resetando || !row.email}
+                  title={!row.email ? 'Sem e-mail cadastrado' : 'Enviar link de redefinição de senha por e-mail (válido 24h)'}
+                  style={{ ...cs.btnGhost, color: resetando ? HUB_PALETTE.areiaDim : HUB_PALETTE.jangada, borderColor: HUB_PALETTE.jangada + '66', cursor: resetando || !row.email ? 'not-allowed' : 'pointer' }}>
+                  {resetando ? '…' : 'Redefinir senha'}
+                </button>
+              )}
+              {bloqueado ? (
+                <button
+                  onClick={() => desbloquearUsuario(row.id)}
+                  disabled={!!desbloqueando[row.id]}
+                  style={{ ...cs.btnGhost, color: '#4FC3F7', borderColor: '#4FC3F766' }}>
+                  {desbloqueando[row.id] ? '…' : 'Desbloquear'}
+                </button>
+              ) : ehEuMesmo(isAdmin ? 'admin' : 'usuario', row) ? (
                 <span title="Você não pode ativar/desativar sua própria conta"
                   style={{ ...cs.btnGhost, background: HUB_PALETTE.marfim + '12', color: HUB_PALETTE.marfim, borderColor: HUB_PALETTE.marfim + 'BB', fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 700, fontStyle: 'normal', fontSize: 12, letterSpacing: '0.12em', textTransform: 'none', cursor: 'not-allowed' }}>
                   Você
@@ -3925,6 +3987,45 @@ function ContasPanel({ isMobile }) {
         {toast}
       </div>
     )}
+
+    {/* Modal de ativação — exibido após criar usuário ou gerar novo link */}
+    {modalAtivacao && (() => {
+      const { url, nome } = modalAtivacao;
+      const waMensagem = encodeURIComponent(`Olá, ${nome}!\n\nSeu acesso ao portal Gran Marquise foi criado. Clique no link abaixo para definir sua senha e ativar a conta (válido por 48h):\n\n${url}`);
+      return (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 190, background: 'rgba(0,0,0,0.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.champanhe}44`, maxWidth: 520, width: '100%', padding: isMobile ? '28px 22px' : '38px 42px' }}>
+            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 8 }}>
+              Usuário criado — Ativação pendente
+            </div>
+            <h3 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 300, fontStyle: 'italic', fontSize: 24, color: HUB_PALETTE.marfim, margin: '0 0 16px', lineHeight: 1.3 }}>
+              Link de ativação gerado para <span style={{ color: HUB_PALETTE.champanhe }}>{nome}</span>.
+            </h3>
+            <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13.5, color: HUB_PALETTE.areia, lineHeight: 1.6, margin: '0 0 16px' }}>
+              Compartilhe o link abaixo com o usuário. Ele terá <strong style={{ color: HUB_PALETTE.marfim }}>48 horas</strong> para clicar e definir a própria senha.
+            </p>
+            <div style={{ background: HUB_PALETTE.areiaDim + '0a', border: `1px solid ${HUB_PALETTE.areiaDim}33`, padding: '10px 14px', marginBottom: 18, fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: HUB_PALETTE.areia, wordBreak: 'break-all', lineHeight: 1.6 }}>
+              {url}
+            </div>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <button
+                onClick={() => { navigator.clipboard.writeText(url).catch(() => {}); notify('Link copiado!'); }}
+                style={{ background: HUB_PALETTE.champanhe, color: HUB_PALETTE.noite, border: 'none', padding: '11px 20px', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', cursor: 'pointer' }}>
+                Copiar link
+              </button>
+              <a href={`https://wa.me/?text=${waMensagem}`} target="_blank" rel="noopener noreferrer"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#25D366', color: '#fff', border: 'none', padding: '11px 20px', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', cursor: 'pointer', textDecoration: 'none' }}>
+                WhatsApp
+              </a>
+              <button onClick={() => setModalAtivacao(null)}
+                style={{ background: 'transparent', color: HUB_PALETTE.marfim, border: `1px solid ${HUB_PALETTE.areiaDim}66`, padding: '11px 20px', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.2em', textTransform: 'uppercase', cursor: 'pointer', marginLeft: 'auto' }}>
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    })()}
   </>);
 }
 
@@ -4050,17 +4151,24 @@ function ContaForm({ tipo, isMobile, cs, erro, saving, initial, initialEtiquetas
 
         <form autoComplete="off" onSubmit={e => e.preventDefault()}>
 
-        <label style={cs.label}>Nome</label>
+        <label style={cs.label}>Nome Completo</label>
         <input style={cs.input} value={isAdmin ? d.nome_completo : d.nome}
           autoComplete="off" name="conta-nome-randoma1b2" spellCheck={false}
           aria-label="Nome completo"
           onChange={e => set(isAdmin ? 'nome_completo' : 'nome', e.target.value)} />
 
         <label style={{ ...cs.label, marginTop: 14 }}>E-mail</label>
-        <input style={cs.input} type="text" value={d.email}
-          autoComplete="off" name="conta-email-randomc3d4" spellCheck={false} inputMode="email"
-          aria-label="E-mail"
-          onChange={e => set('email', e.target.value)} placeholder="usuario@granmarquise.com.br" />
+        <div style={{ display: 'flex', alignItems: 'stretch' }}>
+          <input style={{ ...cs.input, flex: 1, borderRight: 'none' }} type="text"
+            value={(d.email || '').replace(/@granmarquise\.com\.br$/, '')}
+            autoComplete="off" name="conta-email-randomc3d4" spellCheck={false} inputMode="email"
+            aria-label="E-mail (apenas o usuário, sem o domínio)"
+            placeholder="usuario"
+            onChange={e => set('email', e.target.value.replace(/@.*/, '').trim().toLowerCase() + '@granmarquise.com.br')} />
+          <div style={{ background: HUB_PALETTE.areiaDim + '0a', border: `1px solid ${HUB_PALETTE.areiaDim}33`, borderLeft: 'none', color: HUB_PALETTE.areiaDim, fontFamily: 'Inter, sans-serif', fontSize: 13, padding: '10px 12px', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', userSelect: 'none' }}>
+            @granmarquise.com.br
+          </div>
+        </div>
 
         {!isAdmin && (<>
           <label style={{ ...cs.label, marginTop: 14 }}>Setor</label>
@@ -4107,7 +4215,7 @@ function ContaForm({ tipo, isMobile, cs, erro, saving, initial, initialEtiquetas
         <input style={cs.input} value={d.ramal}
           autoComplete="off" name="conta-ramal-randomg7h8" inputMode="numeric"
           aria-label={isAdmin ? 'Ramal' : 'Ramal (4 dígitos)'}
-          onChange={e => set('ramal', e.target.value)} maxLength={isAdmin ? 20 : 4} />
+          onChange={e => set('ramal', e.target.value.replace(/\D/g, ''))} maxLength={isAdmin ? 20 : 4} />
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 14 }}>
           <div>
@@ -4241,24 +4349,39 @@ function ContaForm({ tipo, isMobile, cs, erro, saving, initial, initialEtiquetas
           );
         })()}
 
-        <label style={{ ...cs.label, marginTop: 14 }}>Senha {isEdit && <span style={{ textTransform: 'none', letterSpacing: 0, opacity: .6 }}>(altere para definir uma nova)</span>}</label>
-        <div style={{ position: 'relative' }}>
-          <input style={{ ...cs.input, paddingRight: 56 }} type={showSenha ? 'text' : 'password'} value={d.senha}
-            autoComplete="new-password" name="conta-senha-randomi9j0" spellCheck={false}
-            aria-label="Senha"
-            onChange={e => set('senha', e.target.value)}
-            placeholder="Mín. 8 com maiúscula, minúscula, número e especial" />
-          <button type="button" onClick={() => setShowSenha(v => !v)}
-            style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', cursor: 'pointer' }}>
-            {showSenha ? 'ocultar' : 'ver'}
-          </button>
-        </div>
-        {senhaScore != null && (
-          <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ flex: 1, height: 3, background: HUB_PALETTE.areiaDim + '33', borderRadius: 2, overflow: 'hidden' }}>
-              <div style={{ width: `${(senhaScore / 5) * 100}%`, height: '100%', background: senhaCor, transition: 'width 200ms, background 200ms' }} />
+        {/* Senha: visível apenas para admins ou ao editar usuário — criação de usuário usa link de ativação */}
+        {(isAdmin || isEdit) && (<>
+          <label style={{ ...cs.label, marginTop: 14 }}>Senha {isEdit && <span style={{ textTransform: 'none', letterSpacing: 0, opacity: .6 }}>(altere para definir uma nova)</span>}</label>
+          <div style={{ position: 'relative' }}>
+            <input style={{ ...cs.input, paddingRight: 56 }} type={showSenha ? 'text' : 'password'} value={d.senha}
+              autoComplete="new-password" name="conta-senha-randomi9j0" spellCheck={false}
+              aria-label="Senha"
+              onChange={e => set('senha', e.target.value)}
+              placeholder="Mín. 8 com maiúscula, minúscula, número e especial" />
+            <button type="button" onClick={() => setShowSenha(v => !v)}
+              style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', cursor: 'pointer' }}>
+              {showSenha ? 'ocultar' : 'ver'}
+            </button>
+          </div>
+          {d.senha && (
+            <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+              {[
+                { label: '8 caracteres', ok: d.senha.length >= 8 },
+                { label: 'Maiúscula', ok: /[A-Z]/.test(d.senha) },
+                { label: 'Número', ok: /[0-9]/.test(d.senha) },
+                { label: 'Especial', ok: /[^A-Za-z0-9]/.test(d.senha) },
+              ].map(({ label, ok }) => (
+                <span key={label} style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.12em', color: ok ? '#7cb342' : HUB_PALETTE.areiaDim }}>
+                  {ok ? '✔' : '✗'} {label}
+                </span>
+              ))}
             </div>
-            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.16em', textTransform: 'uppercase', color: senhaCor }}>{senhaLabel}</span>
+          )}
+        </>)}
+        {/* Aviso na criação de usuário: senha gerada via link de ativação */}
+        {!isAdmin && !isEdit && (
+          <div style={{ marginTop: 14, padding: '10px 14px', background: HUB_PALETTE.champanhe + '12', border: `1px solid ${HUB_PALETTE.champanhe}33`, fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areia, lineHeight: 1.5 }}>
+            Após criar, um link de ativação será gerado para o usuário definir a própria senha.
           </div>
         )}
 

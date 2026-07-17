@@ -3,12 +3,14 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const SSO_SECRET = process.env.SSO_SECRET || 'dev-sso-secret';
 const CHAMADOS_URL = process.env.CHAMADOS_URL || 'https://sistema-chamados-granmarquise.fly.dev';
 const PESQUISA_URL = process.env.PESQUISA_URL || 'https://pesquisa-satisfacao.fly.dev';
+const HUB_URL = process.env.HUB_URL || 'https://hub-granmarquise.fly.dev';
 const DATA_DIR = path.join(__dirname, 'data');
 const HUB_DATA_FILE = path.join(DATA_DIR, 'hub_data.json');
 
@@ -224,6 +226,58 @@ function trackUser(email, nome, tipo, extras = {}) {
   writeData(data);
 }
 
+// ─── Helpers de ativação de usuários ────────────────────────────────────────
+
+function _gerarSenhaForte() {
+  const b = crypto.randomBytes(16);
+  const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const lower = 'abcdefghijklmnopqrstuvwxyz';
+  const digits = '0123456789';
+  const special = '!@#$%&';
+  const all = upper + lower + digits + special;
+  let s = upper[b[0] % 26] + lower[b[1] % 26] + digits[b[2] % 10] + special[b[3] % 6];
+  for (let i = 4; i < 14; i++) s += all[b[i] % all.length];
+  const arr = s.split('');
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = b[i % 16] % (i + 1);
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr.join('');
+}
+
+function _gerarLinkAtivacao(chamadosId, email, nome) {
+  const data = readData();
+  if (!Array.isArray(data.activation_tokens)) data.activation_tokens = [];
+  data.activation_tokens.forEach(t => { if (t.email === email) t.used = true; });
+  const token = crypto.randomBytes(32).toString('hex');
+  const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+  data.activation_tokens.push({ chamadosId, email, nome, token, expiresAt, used: false, createdAt: new Date().toISOString() });
+  writeData(data);
+  return `${HUB_URL}/ativar?t=${token}`;
+}
+
+function _registrarHubUsuario(email, nome, chamadosId, status) {
+  const data = readData();
+  if (!Array.isArray(data.users)) data.users = [];
+  const idx = data.users.findIndex(u => u.email === email);
+  if (idx === -1) {
+    data.users.push({ email, nome, chamados_id: chamadosId, hub_status: status, login_failures: 0 });
+  } else {
+    data.users[idx].hub_status = status;
+    if (chamadosId) data.users[idx].chamados_id = chamadosId;
+    if (nome) data.users[idx].nome = nome;
+  }
+  writeData(data);
+}
+
+function _hubStatusDoEmail(email) {
+  try {
+    const data = readData();
+    const u = (data.users || []).find(u => u.email === email);
+    return u || null;
+  } catch { return null; }
+}
+
 // Regra unica de acesso a link (compartilhada com o front em HubMarquise.jsx):
 // - admins (tipo='admin' ou is_master) veem todos os sistemas;
 // - demais usuarios sem entrada explicita, com valor nao-array ou array vazio
@@ -323,6 +377,15 @@ app.post('/api/auth/login', async (req, res) => {
   if (!email || !senha) return res.status(400).json({ ok: false, erro: 'Email e senha obrigatórios' });
   const emailNorm = email.trim().toLowerCase();
 
+  // Verifica bloqueio por hub_status antes de consultar chamados
+  const hubReg = _hubStatusDoEmail(emailNorm);
+  if (hubReg && hubReg.hub_status === 'bloqueado') {
+    return res.status(403).json({ ok: false, erro: 'Conta bloqueada após múltiplas tentativas. Fale com o TI.' });
+  }
+  if (hubReg && hubReg.hub_status === 'ativacao_pendente') {
+    return res.status(403).json({ ok: false, erro: 'Conta aguardando ativação. Verifique o link enviado pelo TI.' });
+  }
+
   // Usa endpoint server-to-server (Bearer SSO_SECRET) que resolve admin vs
   // usuario num unico passo, SEM rate limit por IP. Antes este handler fazia
   // 2 requests (admin + usuario) — como o Hub e um unico IP, saturava o rate
@@ -335,6 +398,21 @@ app.post('/api/auth/login', async (req, res) => {
     });
     const data = await r.json().catch(() => ({}));
     if (!r.ok || !data.ok) {
+      // Rastreia falhas de login por usuário (apenas para tipo 'usuario')
+      try {
+        const hubData = readData();
+        if (!Array.isArray(hubData.users)) hubData.users = [];
+        const idx = hubData.users.findIndex(u => u.email === emailNorm);
+        if (idx !== -1 && hubData.users[idx].hub_status !== 'bloqueado') {
+          const falhas = (hubData.users[idx].login_failures || 0) + 1;
+          hubData.users[idx].login_failures = falhas;
+          if (falhas >= 5) {
+            hubData.users[idx].hub_status = 'bloqueado';
+            console.log(`[auth] conta bloqueada após ${falhas} falhas: ${emailNorm}`);
+          }
+          writeData(hubData);
+        }
+      } catch {}
       return res.status(r.status || 401).json({ ok: false, erro: data.erro || 'Credenciais inválidas' });
     }
     if (data.precisa_trocar_senha) {
@@ -360,6 +438,16 @@ app.post('/api/auth/login', async (req, res) => {
       is_master: data.is_master,
       usuario: data.usuario,
     });
+    // Reset de falhas de login em acesso bem-sucedido
+    try {
+      const hubData = readData();
+      const idx = (hubData.users || []).findIndex(u => u.email === emailNorm);
+      if (idx !== -1 && (hubData.users[idx].login_failures || 0) > 0) {
+        hubData.users[idx].login_failures = 0;
+        if (hubData.users[idx].hub_status === 'bloqueado') hubData.users[idx].hub_status = 'ativo';
+        writeData(hubData);
+      }
+    } catch {}
     if (data.tipo === 'usuario') snapshotPermissoesSeNaoTiver(emailNorm, 'usuario');
     return res.json({ ok: true, token, tipo: data.tipo, nome: data.nome, sistemas: getUserSistemas(emailNorm, data.tipo, data.is_master) });
   } catch (err) {
@@ -791,10 +879,26 @@ app.put('/api/admin/chamados-admins/:id/etiquetas', requireAdmin, async (req, re
 // Usuarios do portal (CRUD)
 app.get('/api/admin/chamados-usuarios', requireAdmin, async (_req, res) => {
   const r = await proxyChamados('/portal-usuarios');
+  if (r.status === 200 && r.data && Array.isArray(r.data.usuarios)) {
+    try {
+      const hubData = readData();
+      const hubUsers = hubData.users || [];
+      r.data.usuarios = r.data.usuarios.map(u => {
+        const hU = hubUsers.find(h => h.email === u.email);
+        if (hU) {
+          u.hub_status = hU.hub_status || 'ativo';
+          u.login_failures = hU.login_failures || 0;
+        }
+        return u;
+      });
+    } catch {}
+  }
   res.status(r.status).json(r.data);
 });
 app.post('/api/admin/chamados-usuarios', requireAdmin, async (req, res) => {
-  const r = await proxyChamados('/portal-usuarios', { method: 'POST', body: req.body });
+  const senhaTemp = _gerarSenhaForte();
+  const body = { ...req.body, senha: senhaTemp };
+  const r = await proxyChamados('/portal-usuarios', { method: 'POST', body });
   if (r.status >= 200 && r.status < 300 && r.data && r.data.ok) {
     appendAudit({
       by_email: req.hubUser.email, by_nome: req.hubUser.nome,
@@ -802,6 +906,11 @@ app.post('/api/admin/chamados-usuarios', requireAdmin, async (req, res) => {
       target_id: r.data.id, target_nome: req.body && req.body.nome,
       campos: _campos(req.body),
     });
+    const email = (req.body.email || '').trim().toLowerCase();
+    const nome = (req.body.nome || '').trim();
+    _registrarHubUsuario(email, nome, r.data.id, 'ativacao_pendente');
+    const activation_url = _gerarLinkAtivacao(r.data.id, email, nome);
+    return res.status(r.status).json({ ...r.data, activation_url, nome });
   }
   res.status(r.status).json(r.data);
 });
@@ -868,6 +977,46 @@ app.post('/api/admin/chamados-usuarios/:id/reset-link', requireAdmin, async (req
   }
   res.status(r.status).json(r.data);
 });
+// Gera (ou regenera) link de ativação Hub-nativo para um usuário
+app.post('/api/admin/chamados-usuarios/:id/gerar-link', requireAdmin, async (req, res) => {
+  const id = req.params.id;
+  const antes = await _buscarUsuarioAlvo(id);
+  if (!antes) return res.status(404).json({ ok: false, erro: 'Usuário não encontrado' });
+  const email = (antes.email || '').trim().toLowerCase();
+  const nome = antes.nome || '';
+  const activation_url = _gerarLinkAtivacao(Number(id), email, nome);
+  _registrarHubUsuario(email, nome, Number(id), 'ativacao_pendente');
+  appendAudit({
+    by_email: req.hubUser.email, by_nome: req.hubUser.nome,
+    action: 'gerar_link_ativacao', target_tipo: 'usuario',
+    target_id: Number(id), target_nome: nome,
+    campos: { link_48h_gerado: true },
+  });
+  res.json({ ok: true, activation_url, nome });
+});
+
+// Desbloqueia usuário bloqueado por falhas de login
+app.post('/api/admin/chamados-usuarios/:id/desbloquear', requireAdmin, async (req, res) => {
+  const id = req.params.id;
+  const antes = await _buscarUsuarioAlvo(id);
+  if (!antes) return res.status(404).json({ ok: false, erro: 'Usuário não encontrado' });
+  const email = (antes.email || '').trim().toLowerCase();
+  const hubData = readData();
+  if (!Array.isArray(hubData.users)) hubData.users = [];
+  const idx = hubData.users.findIndex(u => u.email === email);
+  if (idx === -1) return res.status(404).json({ ok: false, erro: 'Registro de status não encontrado' });
+  hubData.users[idx].hub_status = 'ativo';
+  hubData.users[idx].login_failures = 0;
+  writeData(hubData);
+  appendAudit({
+    by_email: req.hubUser.email, by_nome: req.hubUser.nome,
+    action: 'desbloquear', target_tipo: 'usuario',
+    target_id: Number(id), target_nome: antes.nome || null,
+    campos: { hub_status: 'ativo' },
+  });
+  res.json({ ok: true });
+});
+
 app.get('/api/admin/chamados-admins/:id/logs', requireAdmin, async (req, res) => {
   const r = await proxyChamados(`/admins/${encodeURIComponent(req.params.id)}/logs`);
   res.status(r.status).json(r.data);
@@ -1596,5 +1745,137 @@ _sanitizarAuditLog();
     console.error('[migrar] falha ao migrar vista:', e.message);
   }
 }());
+
+// ─── Ativação de conta Hub-nativo ────────────────────────────────────────────
+
+app.get('/ativar', (_req, res) => {
+  res.send(`<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ativar conta — Gran Marquise</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  body { margin: 0; background: #0f1117; color: #ECE4D2; font-family: Inter, sans-serif; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
+  .card { background: #181d28; border: 1px solid #8A7B6A33; max-width: 420px; width: 100%; padding: 40px 36px; }
+  .kicker { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.35em; text-transform: uppercase; color: #C9A96E; margin-bottom: 16px; }
+  h1 { font-family: Georgia, serif; font-style: italic; font-weight: 400; font-size: 28px; color: #ECE4D2; margin: 0 0 24px; line-height: 1.3; }
+  label { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.25em; text-transform: uppercase; color: #8A7B6A; margin-bottom: 6px; display: block; }
+  input { width: 100%; background: #8A7B6A0a; border: 1px solid #8A7B6A33; color: #ECE4D2; font-family: Inter, sans-serif; font-size: 15px; padding: 12px 14px; outline: none; margin-bottom: 14px; }
+  .criteria { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
+  .criterion { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: #8A7B6A; transition: color 200ms; }
+  .criterion.ok { color: #7cb342; }
+  button { width: 100%; background: #C9A96E; color: #0f1117; border: none; padding: 14px; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; cursor: pointer; }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .msg { font-family: Inter, sans-serif; font-size: 14px; line-height: 1.5; margin-bottom: 20px; color: #ECE4D2; }
+  .err { color: #E07A5F; font-family: Inter, sans-serif; font-size: 13px; margin-bottom: 14px; }
+  a { color: #C9A96E; text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="kicker">Gran Marquise — TI</div>
+  <div id="root"></div>
+</div>
+<script>
+const params = new URLSearchParams(location.search);
+const t = params.get('t') || '';
+const root = document.getElementById('root');
+
+function criteCheck(s) {
+  return [
+    { label: '8 caracteres', ok: s.length >= 8 },
+    { label: 'Maiúscula', ok: /[A-Z]/.test(s) },
+    { label: 'Minúscula', ok: /[a-z]/.test(s) },
+    { label: 'Número', ok: /[0-9]/.test(s) },
+    { label: 'Especial', ok: /[^A-Za-z0-9]/.test(s) },
+  ];
+}
+
+function render(state) {
+  if (state.done) {
+    root.innerHTML = '<h1>Conta ativada!</h1><p class="msg">Sua senha foi definida. <a href="/">Acessar o Hub</a></p>';
+    return;
+  }
+  if (!t) {
+    root.innerHTML = '<h1>Link inválido.</h1><p class="msg">Este link de ativação é inválido ou expirou. Solicite um novo ao TI.</p>';
+    return;
+  }
+  const crites = criteCheck(state.senha || '');
+  const ok = crites.every(c => c.ok);
+  root.innerHTML = \`
+    <h1>Criar senha.</h1>
+    <p class="msg">Bem-vindo(a)! Defina sua senha de acesso ao portal Gran Marquise.</p>
+    \${state.erro ? '<div class="err">' + state.erro + '</div>' : ''}
+    <label>Nova senha</label>
+    <input id="s1" type="password" autocomplete="new-password" placeholder="Mín. 8 chars, maiúscula, número, especial" value="\${state.senha || ''}" />
+    <div class="criteria">
+      \${crites.map(c => '<span class="criterion' + (c.ok ? ' ok' : '') + '">' + (c.ok ? '✔' : '✗') + ' ' + c.label + '</span>').join('')}
+    </div>
+    <button id="btn" \${(!ok || state.saving) ? 'disabled' : ''}>
+      \${state.saving ? 'Aguarde...' : 'Ativar conta'}
+    </button>
+  \`;
+  document.getElementById('s1').addEventListener('input', e => { state.senha = e.target.value; render(state); });
+  document.getElementById('s1').addEventListener('focus', e => { setTimeout(() => { e.target.selectionStart = e.target.selectionEnd = e.target.value.length; }, 0); });
+  if (ok && !state.saving) {
+    document.getElementById('btn').addEventListener('click', async () => {
+      state.saving = true; state.erro = ''; render(state);
+      try {
+        const r = await fetch('/api/ativar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: t, senha: state.senha }),
+        });
+        const d = await r.json();
+        if (d.ok) { state.done = true; render(state); }
+        else { state.erro = d.erro || 'Erro ao ativar. Tente novamente.'; state.saving = false; render(state); }
+      } catch { state.erro = 'Erro de conexão. Tente novamente.'; state.saving = false; render(state); }
+    });
+  }
+}
+
+render({ senha: '', saving: false, erro: '', done: false });
+</script>
+</body>
+</html>`);
+});
+
+app.post('/api/ativar', async (req, res) => {
+  const { token, senha } = req.body || {};
+  if (!token || !senha) return res.status(400).json({ ok: false, erro: 'Dados incompletos' });
+  const senhaForte = s => s && s.length >= 8 && /[A-Z]/.test(s) && /[a-z]/.test(s) && /[0-9]/.test(s) && /[^A-Za-z0-9]/.test(s);
+  if (!senhaForte(senha)) return res.status(400).json({ ok: false, erro: 'Senha fraca. Use ao menos 8 caracteres com maiúscula, minúscula, número e especial.' });
+
+  const data = readData();
+  if (!Array.isArray(data.activation_tokens)) return res.status(404).json({ ok: false, erro: 'Token inválido ou expirado.' });
+  const tIdx = data.activation_tokens.findIndex(t => t.token === token && !t.used);
+  if (tIdx === -1) return res.status(404).json({ ok: false, erro: 'Link inválido ou já utilizado.' });
+  const tRec = data.activation_tokens[tIdx];
+  if (new Date(tRec.expiresAt) < new Date()) return res.status(410).json({ ok: false, erro: 'Link expirado. Solicite um novo link ao TI.' });
+
+  try {
+    const r = await fetch(`${CHAMADOS_URL}/api/hub/portal-usuarios/${encodeURIComponent(tRec.chamadosId)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${SSO_SECRET}` },
+      body: JSON.stringify({ senha, _self_edit: true }),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok || !d.ok) return res.status(400).json({ ok: false, erro: d.erro || 'Erro ao definir senha.' });
+
+    data.activation_tokens[tIdx].used = true;
+    const uIdx = (data.users || []).findIndex(u => u.email === tRec.email);
+    if (uIdx !== -1) {
+      data.users[uIdx].hub_status = 'ativo';
+      data.users[uIdx].login_failures = 0;
+    }
+    writeData(data);
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('[ativar]', err);
+    return res.status(502).json({ ok: false, erro: 'Serviço indisponível. Tente novamente.' });
+  }
+});
 
 app.listen(PORT, () => console.log(`Hub rodando em http://localhost:${PORT}`));
