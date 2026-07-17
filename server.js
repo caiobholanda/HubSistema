@@ -1416,6 +1416,9 @@ app.delete('/api/admin/uhs/:id', requireAdmin, (req, res) => {
 });
 
 
+// Página de ativação de conta — servida antes do catch-all SPA.
+app.get('/ativar', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'ativar.html')));
+
 // ─── Static fallback ─────────────────────────────────────────────────────────
 
 app.get('*', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
@@ -1747,101 +1750,7 @@ _sanitizarAuditLog();
 }());
 
 // ─── Ativação de conta Hub-nativo ────────────────────────────────────────────
-
-app.get('/ativar', (_req, res) => {
-  res.send(`<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Ativar conta — Gran Marquise</title>
-<style>
-  *, *::before, *::after { box-sizing: border-box; }
-  body { margin: 0; background: #0f1117; color: #ECE4D2; font-family: Inter, sans-serif; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
-  .card { background: #181d28; border: 1px solid #8A7B6A33; max-width: 420px; width: 100%; padding: 40px 36px; }
-  .kicker { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.35em; text-transform: uppercase; color: #C9A96E; margin-bottom: 16px; }
-  h1 { font-family: Georgia, serif; font-style: italic; font-weight: 400; font-size: 28px; color: #ECE4D2; margin: 0 0 24px; line-height: 1.3; }
-  label { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.25em; text-transform: uppercase; color: #8A7B6A; margin-bottom: 6px; display: block; }
-  input { width: 100%; background: #8A7B6A0a; border: 1px solid #8A7B6A33; color: #ECE4D2; font-family: Inter, sans-serif; font-size: 15px; padding: 12px 14px; outline: none; margin-bottom: 14px; }
-  .criteria { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
-  .criterion { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: #8A7B6A; transition: color 200ms; }
-  .criterion.ok { color: #7cb342; }
-  button { width: 100%; background: #C9A96E; color: #0f1117; border: none; padding: 14px; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; cursor: pointer; }
-  button:disabled { opacity: 0.5; cursor: not-allowed; }
-  .msg { font-family: Inter, sans-serif; font-size: 14px; line-height: 1.5; margin-bottom: 20px; color: #ECE4D2; }
-  .err { color: #E07A5F; font-family: Inter, sans-serif; font-size: 13px; margin-bottom: 14px; }
-  a { color: #C9A96E; text-decoration: none; }
-</style>
-</head>
-<body>
-<div class="card">
-  <div class="kicker">Gran Marquise — TI</div>
-  <div id="root"></div>
-</div>
-<script>
-const params = new URLSearchParams(location.search);
-const t = params.get('t') || '';
-const root = document.getElementById('root');
-
-function criteCheck(s) {
-  return [
-    { label: '8 caracteres', ok: s.length >= 8 },
-    { label: 'Maiúscula', ok: /[A-Z]/.test(s) },
-    { label: 'Minúscula', ok: /[a-z]/.test(s) },
-    { label: 'Número', ok: /[0-9]/.test(s) },
-    { label: 'Especial', ok: /[^A-Za-z0-9]/.test(s) },
-  ];
-}
-
-function render(state) {
-  if (state.done) {
-    root.innerHTML = '<h1>Conta ativada!</h1><p class="msg">Sua senha foi definida. <a href="/">Acessar o Hub</a></p>';
-    return;
-  }
-  if (!t) {
-    root.innerHTML = '<h1>Link inválido.</h1><p class="msg">Este link de ativação é inválido ou expirou. Solicite um novo ao TI.</p>';
-    return;
-  }
-  const crites = criteCheck(state.senha || '');
-  const ok = crites.every(c => c.ok);
-  root.innerHTML = \`
-    <h1>Criar senha.</h1>
-    <p class="msg">Bem-vindo(a)! Defina sua senha de acesso ao portal Gran Marquise.</p>
-    \${state.erro ? '<div class="err">' + state.erro + '</div>' : ''}
-    <label>Nova senha</label>
-    <input id="s1" type="password" autocomplete="new-password" placeholder="Mín. 8 chars, maiúscula, número, especial" value="\${state.senha || ''}" />
-    <div class="criteria">
-      \${crites.map(c => '<span class="criterion' + (c.ok ? ' ok' : '') + '">' + (c.ok ? '✔' : '✗') + ' ' + c.label + '</span>').join('')}
-    </div>
-    <button id="btn" \${(!ok || state.saving) ? 'disabled' : ''}>
-      \${state.saving ? 'Aguarde...' : 'Ativar conta'}
-    </button>
-  \`;
-  document.getElementById('s1').addEventListener('input', e => { state.senha = e.target.value; render(state); });
-  document.getElementById('s1').addEventListener('focus', e => { setTimeout(() => { e.target.selectionStart = e.target.selectionEnd = e.target.value.length; }, 0); });
-  if (ok && !state.saving) {
-    document.getElementById('btn').addEventListener('click', async () => {
-      state.saving = true; state.erro = ''; render(state);
-      try {
-        const r = await fetch('/api/ativar', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token: t, senha: state.senha }),
-        });
-        const d = await r.json();
-        if (d.ok) { state.done = true; render(state); }
-        else { state.erro = d.erro || 'Erro ao ativar. Tente novamente.'; state.saving = false; render(state); }
-      } catch { state.erro = 'Erro de conexão. Tente novamente.'; state.saving = false; render(state); }
-    });
-  }
-}
-
-render({ senha: '', saving: false, erro: '', done: false });
-</script>
-</body>
-</html>`);
-});
-
+// GET /ativar é servido via express.static → public/ativar.html (antes do catch-all).
 app.post('/api/ativar', async (req, res) => {
   const { token, senha } = req.body || {};
   if (!token || !senha) return res.status(400).json({ ok: false, erro: 'Dados incompletos' });
