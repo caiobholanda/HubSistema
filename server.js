@@ -926,6 +926,23 @@ app.patch('/api/admin/chamados-usuarios/:id', requireAdmin, async (req, res) => 
     let action = 'editar';
     if (onlyKeys.length === 1 && 'ativo' in diff) action = diff.ativo ? 'ativar' : 'inativar';
     else if (onlyKeys.length === 1 && '_trocou_senha' in diff) action = 'trocar_senha';
+    if ('ativo' in diff) {
+      const email = ((antes && antes.email) || '').trim().toLowerCase();
+      if (email) {
+        const hd = readData();
+        if (!Array.isArray(hd.users)) hd.users = [];
+        const idx = hd.users.findIndex(u => u.email === email);
+        if (idx !== -1) {
+          if (!diff.ativo && hd.users[idx].hub_status === 'ativo') {
+            hd.users[idx].hub_status = 'desligado';
+            writeData(hd);
+          } else if (diff.ativo && hd.users[idx].hub_status === 'desligado') {
+            hd.users[idx].hub_status = 'ativo';
+            writeData(hd);
+          }
+        }
+      }
+    }
     appendAudit({
       by_email: req.hubUser.email, by_nome: req.hubUser.nome,
       action, target_tipo: 'usuario',
