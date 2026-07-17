@@ -888,7 +888,7 @@ app.get('/api/admin/chamados-usuarios', requireAdmin, async (_req, res) => {
       r.data.usuarios = r.data.usuarios.map(u => {
         const hU = hubUsers.find(h => h.email === u.email);
         if (hU) {
-          u.hub_status = hU.hub_status || 'ativo';
+          if (hU.hub_status) u.hub_status = hU.hub_status;
           u.login_failures = hU.login_failures || 0;
         }
         return u;
