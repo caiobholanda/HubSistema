@@ -2611,19 +2611,24 @@ function MapaUHsModal({ uhs, categorias, onClose, onEditUH }) {
   const [hoveredLegend, setHoveredLegend] = useState(null);
   const hoveredUH = hoveredId ? uhs.find(u => u.id === hoveredId) : null;
 
+  const CONJ_COLOR = '#C8963C';
   const FLAGS_LEG = [
-    { color: HUB_PALETTE.champanhe, label: 'GC',    nome: 'Gran Class', desc: 'Categoria premium do hotel' },
-    { color: '#3498DB',             label: 'ADAPT',  nome: 'Adaptado',   desc: 'Adaptado para necessidades especiais' },
-    { color: '#27AE60',             label: 'VAR',    nome: 'Varanda',    desc: 'Unidade com varanda' },
+    { color: HUB_PALETTE.champanhe, label: 'GC',   nome: 'Gran Class', desc: 'Categoria premium do hotel' },
+    { color: '#3498DB',             label: 'ADAPT', nome: 'Adaptado',   desc: 'Adaptado para necessidades especiais' },
+    { color: '#27AE60',             label: 'VAR',   nome: 'Varanda',    desc: 'Unidade com varanda' },
+    { color: CONJ_COLOR,            label: 'CONJ',  nome: 'Conjugado',  desc: 'Apartamentos fisicamente conectados formando uma suite única' },
   ];
 
   function renderInfoBar() {
     if (hoveredUH) {
       const cat = catMap[hoveredUH.categoria_id] || {};
       return (<>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
           <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 26, fontWeight: 700, color: cat.cor || HUB_PALETTE.champanhe, letterSpacing: '-0.02em' }}>{hoveredUH.numero}</span>
-          <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: HUB_PALETTE.areiaDim }}>{_parseAndar(hoveredUH.numero)}º andar</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: HUB_PALETTE.areiaDim }}>{_parseAndar(hoveredUH.numero)}º andar</span>
+            {hoveredUH.numero.includes('/') && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em', color: CONJ_COLOR, textTransform: 'uppercase' }}>⊞ Conjugado · {hoveredUH.numero.split('/').length} aptos</span>}
+          </div>
         </div>
         <span style={{ width: 1, height: 28, background: HUB_PALETTE.areiaDim + '30', flexShrink: 0 }} />
         <div style={{ display: 'flex', flexDirection: 'column', gap: 1, flexShrink: 0 }}>
@@ -2698,8 +2703,12 @@ function MapaUHsModal({ uhs, categorias, onClose, onEditUH }) {
                 const cat = catMap[u.categoria_id] || {};
                 const cor = cat.cor || '#555';
                 const isHov = hoveredId === u.id;
-                const spans = u.numero.split('/').length;
+                const parts = u.numero.split('/');
+                const spans = parts.length;
+                const isConj = spans > 1;
                 const cellWidth = spans * CELL_W + (spans - 1) * CELL_GAP;
+                const basePrefix = parts[0].slice(0, -2);
+                const fullParts = isConj ? parts.map((p, i) => i === 0 ? p : basePrefix + p) : null;
                 return (
                   <div key={u.id}
                     onMouseEnter={() => { setHoveredId(u.id); setHoveredLegend(null); }}
@@ -2712,16 +2721,42 @@ function MapaUHsModal({ uhs, categorias, onClose, onEditUH }) {
                         ? `linear-gradient(135deg, ${cor}ff 0%, ${cor}cc 100%)`
                         : `linear-gradient(135deg, ${cor}dd 0%, ${cor}aa 100%)`,
                       border: `1.5px solid ${isHov ? cor + 'ff' : cor + 'ee'}`,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      display: 'flex', alignItems: 'center', justifyContent: isConj ? 'flex-start' : 'center',
                       cursor: 'pointer', transition: 'all 80ms ease',
                       position: 'relative', flexShrink: 0,
+                      overflow: 'hidden',
                       boxShadow: isHov
                         ? `0 2px 14px ${cor}66, inset 0 1px 0 #ffffff22`
                         : `inset 0 1px 0 #ffffff18, 0 1px 3px #00000033`,
                     }}>
-                    <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: isHov ? '#fff' : '#ffffffcc', fontWeight: 700, lineHeight: 1, userSelect: 'none', pointerEvents: 'none', letterSpacing: '0.04em', textShadow: '0 1px 2px #00000055' }}>
-                      {u.numero.split('/')[0]}
-                    </span>
+
+                    {isConj ? (<>
+                      {/* Faixa topo dourada — marca visualmente o conjugado */}
+                      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, transparent 0%, ${CONJ_COLOR}cc 30%, ${CONJ_COLOR}ff 50%, ${CONJ_COLOR}cc 70%, transparent 100%)`, pointerEvents: 'none' }} />
+                      {/* Label "⊞ CONJ" centralizado no topo */}
+                      <span style={{ position: 'absolute', top: 3, left: '50%', transform: 'translateX(-50%)', fontFamily: 'JetBrains Mono, monospace', fontSize: 6, letterSpacing: '0.22em', color: `${CONJ_COLOR}dd`, textTransform: 'uppercase', pointerEvents: 'none', userSelect: 'none', whiteSpace: 'nowrap' }}>⊞ CONJ</span>
+                      {/* Sub-células com divisores (setas) */}
+                      {fullParts.map((num, idx) => (
+                        <React.Fragment key={idx}>
+                          {idx > 0 && (
+                            /* Divisor — seta visual de conexão */
+                            <div style={{ width: CELL_GAP, flexShrink: 0, alignSelf: 'stretch', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <div style={{ position: 'absolute', top: 10, bottom: 4, left: '50%', transform: 'translateX(-50%)', width: 1, borderLeft: `1px dashed ${CONJ_COLOR}88` }} />
+                            </div>
+                          )}
+                          <div style={{ width: CELL_W, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: isHov ? '#fff' : '#ffffffdd', fontWeight: 700, lineHeight: 1, userSelect: 'none', pointerEvents: 'none', letterSpacing: '0.04em', textShadow: '0 1px 2px #00000066' }}>
+                              {num}
+                            </span>
+                          </div>
+                        </React.Fragment>
+                      ))}
+                    </>) : (
+                      <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: isHov ? '#fff' : '#ffffffcc', fontWeight: 700, lineHeight: 1, userSelect: 'none', pointerEvents: 'none', letterSpacing: '0.04em', textShadow: '0 1px 2px #00000055' }}>
+                        {u.numero}
+                      </span>
+                    )}
+
                     {u.gran_class && <span style={{ position: 'absolute', top: 3, right: 3, width: 7, height: 7, borderRadius: '50%', background: HUB_PALETTE.champanhe, boxShadow: `0 0 6px ${HUB_PALETTE.champanhe}cc, 0 0 2px #fff8`, border: '1px solid #ffffff44', pointerEvents: 'none' }} />}
                     {u.adaptado && <span style={{ position: 'absolute', bottom: 3, left: 3, width: 7, height: 7, borderRadius: '50%', background: '#3498DB', boxShadow: '0 0 5px #3498DBaa', border: '1px solid #ffffff44', pointerEvents: 'none' }} />}
                     {u.varanda && <span style={{ position: 'absolute', bottom: 3, right: 3, width: 7, height: 7, borderRadius: '50%', background: '#27AE60', boxShadow: '0 0 5px #27AE60aa', border: '1px solid #ffffff44', pointerEvents: 'none' }} />}
