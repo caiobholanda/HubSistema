@@ -2612,11 +2612,37 @@ function MapaUHsModal({ uhs, categorias, onClose, onEditUH }) {
   const hoveredUH = hoveredId ? uhs.find(u => u.id === hoveredId) : null;
 
   const CONJ_COLOR = '#C8963C';
+
+  // Pares de conjugados reais — extraídos das linhas (shapes) da planilha Excel
+  const REAL_CONJ_PAIRS = [
+    // X16 ↔ X17 em todos os andares 5–18
+    ['516','517'],['616','617'],['716','717'],['816','817'],['916','917'],
+    ['1016','1017'],['1116','1117'],['1216','1217'],['1316','1317'],['1416','1417'],
+    ['1516','1517'],['1616','1617'],['1716','1717'],['1816','1817'],
+    // Andar 8 — pares adicionais
+    ['806','807'],['810','811'],['814','815'],
+    // Andar 10 — pares adicionais
+    ['1002','1003'],['1006','1007'],['1010','1011'],['1014','1015'],
+    // Andares 11–13
+    ['1102','1103'],['1202','1203'],['1302','1303'],
+    // Andares 14–16 (suíte ↔ apto individual)
+    ['1402/03','1404'],['1502/03','1504'],['1602/03','1604'],
+    // Andar 17
+    ['1702','1703/04/05'],
+  ];
+  const conjRightSet = useMemo(() => new Set(REAL_CONJ_PAIRS.map(([a]) => a)), []);
+  const conjLeftSet  = useMemo(() => new Set(REAL_CONJ_PAIRS.map(([,b]) => b)), []);
+  const conjPartner  = useMemo(() => {
+    const m = {};
+    REAL_CONJ_PAIRS.forEach(([a, b]) => { m[a] = b; m[b] = a; });
+    return m;
+  }, []);
+
   const FLAGS_LEG = [
     { color: HUB_PALETTE.champanhe, label: 'GC',   nome: 'Gran Class', desc: 'Categoria premium do hotel' },
     { color: '#3498DB',             label: 'ADAPT', nome: 'Adaptado',   desc: 'Adaptado para necessidades especiais' },
     { color: '#27AE60',             label: 'VAR',   nome: 'Varanda',    desc: 'Unidade com varanda' },
-    { color: CONJ_COLOR,            label: 'CONJ',  nome: 'Conjugado',  desc: 'Apartamentos fisicamente conectados formando uma suite única' },
+    { color: CONJ_COLOR,            label: 'CONJ',  nome: 'Conjugado',  desc: 'Porta de comunicação com apartamento adjacente' },
   ];
 
   function renderInfoBar() {
@@ -2627,7 +2653,8 @@ function MapaUHsModal({ uhs, categorias, onClose, onEditUH }) {
           <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 26, fontWeight: 700, color: cat.cor || HUB_PALETTE.champanhe, letterSpacing: '-0.02em' }}>{hoveredUH.numero}</span>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: HUB_PALETTE.areiaDim }}>{_parseAndar(hoveredUH.numero)}º andar</span>
-            {hoveredUH.numero.includes('/') && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em', color: CONJ_COLOR, textTransform: 'uppercase' }}>⊞ Conjugado · {hoveredUH.numero.split('/').length} aptos</span>}
+            {hoveredUH.numero.includes('/') && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.15em', color: HUB_PALETTE.areiaDim, textTransform: 'uppercase' }}>⊞ Suíte · {hoveredUH.numero.split('/').length} aptos</span>}
+            {conjPartner[hoveredUH.numero] && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em', color: CONJ_COLOR, textTransform: 'uppercase' }}>⟺ Conj. c/ {conjPartner[hoveredUH.numero]}</span>}
           </div>
         </div>
         <span style={{ width: 1, height: 28, background: HUB_PALETTE.areiaDim + '30', flexShrink: 0 }} />
@@ -2705,10 +2732,12 @@ function MapaUHsModal({ uhs, categorias, onClose, onEditUH }) {
                 const isHov = hoveredId === u.id;
                 const parts = u.numero.split('/');
                 const spans = parts.length;
-                const isConj = spans > 1;
+                const isSuite = spans > 1;
                 const cellWidth = spans * CELL_W + (spans - 1) * CELL_GAP;
                 const basePrefix = parts[0].slice(0, -2);
-                const fullParts = isConj ? parts.map((p, i) => i === 0 ? p : basePrefix + p) : null;
+                const fullParts = isSuite ? parts.map((p, i) => i === 0 ? p : basePrefix + p) : null;
+                const isConjRight = conjRightSet.has(u.numero);
+                const isConjLeft  = conjLeftSet.has(u.numero);
                 return (
                   <div key={u.id}
                     onMouseEnter={() => { setHoveredId(u.id); setHoveredLegend(null); }}
@@ -2720,37 +2749,26 @@ function MapaUHsModal({ uhs, categorias, onClose, onEditUH }) {
                       background: isHov
                         ? `linear-gradient(135deg, ${cor}ff 0%, ${cor}cc 100%)`
                         : `linear-gradient(135deg, ${cor}dd 0%, ${cor}aa 100%)`,
-                      border: isConj ? `2px solid ${CONJ_COLOR}` : `1.5px solid ${isHov ? cor + 'ff' : cor + 'ee'}`,
-                      display: isConj ? 'block' : 'flex', alignItems: 'center', justifyContent: 'center',
+                      border: `1.5px solid ${isHov ? cor + 'ff' : cor + 'ee'}`,
+                      display: isSuite ? 'block' : 'flex', alignItems: 'center', justifyContent: 'center',
                       cursor: 'pointer', transition: 'all 80ms ease',
                       position: 'relative', flexShrink: 0,
                       overflow: 'hidden',
-                      boxShadow: isConj
-                        ? `0 0 0 1px ${CONJ_COLOR}88, 0 2px 10px ${CONJ_COLOR}55, inset 0 1px 0 #ffffff22`
-                        : isHov
-                          ? `0 2px 14px ${cor}66, inset 0 1px 0 #ffffff22`
-                          : `inset 0 1px 0 #ffffff18, 0 1px 3px #00000033`,
+                      boxShadow: isHov
+                        ? `0 2px 14px ${cor}66, inset 0 1px 0 #ffffff22`
+                        : `inset 0 1px 0 #ffffff18, 0 1px 3px #00000033`,
                     }}>
 
-                    {isConj ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-                        {/* Linha de números */}
-                        <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
-                          {fullParts.map((num, idx) => (
-                            <React.Fragment key={idx}>
-                              {idx > 0 && <div style={{ width: 1, flexShrink: 0, alignSelf: 'stretch', margin: '3px 0', background: 'rgba(255,255,255,0.5)' }} />}
-                              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: isHov ? '#fff' : '#ffffffee', fontWeight: 700, letterSpacing: '0.04em', textShadow: '0 1px 3px #00000077', userSelect: 'none', pointerEvents: 'none' }}>{num}</span>
-                              </div>
-                            </React.Fragment>
-                          ))}
-                        </div>
-                        {/* Barra seta — sólida, alto contraste */}
-                        <div style={{ height: 14, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, background: CONJ_COLOR, borderTop: '2px solid rgba(0,0,0,0.35)' }}>
-                          <span style={{ fontFamily: 'monospace', fontSize: 13, color: '#1A0A00', fontWeight: 900, lineHeight: 1, userSelect: 'none', pointerEvents: 'none' }}>←</span>
-                          <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 7, letterSpacing: '0.22em', color: '#1A0A00', fontWeight: 700, textTransform: 'uppercase', lineHeight: 1, userSelect: 'none', pointerEvents: 'none' }}>CONJUGADO</span>
-                          <span style={{ fontFamily: 'monospace', fontSize: 13, color: '#1A0A00', fontWeight: 900, lineHeight: 1, userSelect: 'none', pointerEvents: 'none' }}>→</span>
-                        </div>
+                    {isSuite ? (
+                      <div style={{ display: 'flex', height: '100%', alignItems: 'center' }}>
+                        {fullParts.map((num, idx) => (
+                          <React.Fragment key={idx}>
+                            {idx > 0 && <div style={{ width: 1, flexShrink: 0, alignSelf: 'stretch', margin: '4px 0', background: 'rgba(255,255,255,0.3)' }} />}
+                            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: isHov ? '#fff' : '#ffffffee', fontWeight: 700, letterSpacing: '0.04em', textShadow: '0 1px 3px #00000077', userSelect: 'none', pointerEvents: 'none' }}>{num}</span>
+                            </div>
+                          </React.Fragment>
+                        ))}
                       </div>
                     ) : (
                       <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: isHov ? '#fff' : '#ffffffcc', fontWeight: 700, lineHeight: 1, userSelect: 'none', pointerEvents: 'none', letterSpacing: '0.04em', textShadow: '0 1px 2px #00000055' }}>
@@ -2758,9 +2776,13 @@ function MapaUHsModal({ uhs, categorias, onClose, onEditUH }) {
                       </span>
                     )}
 
-                    {u.gran_class && <span style={{ position: 'absolute', top: 3, right: 3, width: 7, height: 7, borderRadius: '50%', background: HUB_PALETTE.champanhe, boxShadow: `0 0 6px ${HUB_PALETTE.champanhe}cc, 0 0 2px #fff8`, border: '1px solid #ffffff44', pointerEvents: 'none' }} />}
-                    {u.adaptado && <span style={{ position: 'absolute', bottom: 3, left: 3, width: 7, height: 7, borderRadius: '50%', background: '#3498DB', boxShadow: '0 0 5px #3498DBaa', border: '1px solid #ffffff44', pointerEvents: 'none' }} />}
-                    {u.varanda && <span style={{ position: 'absolute', bottom: 3, right: 3, width: 7, height: 7, borderRadius: '50%', background: '#27AE60', boxShadow: '0 0 5px #27AE60aa', border: '1px solid #ffffff44', pointerEvents: 'none' }} />}
+                    {u.gran_class && <span style={{ position: 'absolute', top: 3, right: isConjRight ? 6 : 3, width: 7, height: 7, borderRadius: '50%', background: HUB_PALETTE.champanhe, boxShadow: `0 0 6px ${HUB_PALETTE.champanhe}cc, 0 0 2px #fff8`, border: '1px solid #ffffff44', pointerEvents: 'none' }} />}
+                    {u.adaptado && <span style={{ position: 'absolute', bottom: 3, left: isConjLeft ? 6 : 3, width: 7, height: 7, borderRadius: '50%', background: '#3498DB', boxShadow: '0 0 5px #3498DBaa', border: '1px solid #ffffff44', pointerEvents: 'none' }} />}
+                    {u.varanda && <span style={{ position: 'absolute', bottom: 3, right: isConjRight ? 6 : 3, width: 7, height: 7, borderRadius: '50%', background: '#27AE60', boxShadow: '0 0 5px #27AE60aa', border: '1px solid #ffffff44', pointerEvents: 'none' }} />}
+
+                    {/* Indicadores de conjugado — barra na borda compartilhada */}
+                    {isConjRight && <div style={{ position: 'absolute', right: 0, top: 5, bottom: 5, width: 3, background: CONJ_COLOR, boxShadow: `0 0 8px ${CONJ_COLOR}cc, 0 0 16px ${CONJ_COLOR}66`, borderRadius: '0 2px 2px 0', pointerEvents: 'none' }} />}
+                    {isConjLeft  && <div style={{ position: 'absolute', left: 0,  top: 5, bottom: 5, width: 3, background: CONJ_COLOR, boxShadow: `0 0 8px ${CONJ_COLOR}cc, 0 0 16px ${CONJ_COLOR}66`, borderRadius: '2px 0 0 2px', pointerEvents: 'none' }} />}
                   </div>
                 );
               })}
