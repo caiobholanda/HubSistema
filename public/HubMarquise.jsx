@@ -3869,7 +3869,7 @@ function ContasPanel({ isMobile }) {
                 <div style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 14, color: HUB_PALETTE.areia, marginTop: 6, lineHeight: 1.5 }}>
                   {row.email ? <span style={{ color: HUB_PALETTE.marfim }}>{row.email}</span> : '—'}
                   {row.setor ? <span style={{ color: HUB_PALETTE.areiaDim }}> · </span> : null}
-                  {row.setor ? <span><span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginRight: 6 }}>setor</span>{row.setor}{!isAdmin && setoresLista.length > 0 && !setoresLista.some(s => (s.nome ?? s.name) === row.setor) ? <span title="Setor não consta na lista oficial — edite o usuário para corrigir" style={{ marginLeft: 6, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#E07A5F', border: '1px solid #E07A5F66', padding: '1px 5px', verticalAlign: 'middle' }}>legado</span> : null}</span> : null}
+                  {row.setor ? <span><span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginRight: 6 }}>setor</span>{row.setor}</span> : null}
                   {row.ramal ? <span style={{ color: HUB_PALETTE.areiaDim }}> · </span> : null}
                   {row.ramal ? <span><span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginRight: 6 }}>ramal</span>{row.ramal}</span> : null}
                   {row.cargo ? <span style={{ color: HUB_PALETTE.areiaDim }}> · </span> : null}
