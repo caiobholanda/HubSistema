@@ -2737,7 +2737,7 @@ function MapaUHsModal({ uhs, categorias, onClose, onEditUH }) {
                   const cellWidth = spans * CELL_W + (spans - 1) * CELL_GAP;
                   const basePrefix = parts[0].slice(0, -2);
                   const fullParts = isSuite ? parts.map((p, i) => i === 0 ? p : basePrefix + p) : null;
-                  const dotBottom = inPair ? 16 : 3;
+                  const dotBottom = inPair ? 18 : 3;
                   return (
                     <div key={u.id}
                       onMouseEnter={() => { setHoveredId(u.id); setHoveredLegend(null); }}
@@ -2794,14 +2794,16 @@ function MapaUHsModal({ uhs, categorias, onClose, onEditUH }) {
                 }
 
                 return segs.map((seg, si) => seg.conj ? (
-                  <div key={`pair-${seg.left.id}`} style={{ position: 'relative', flexShrink: 0, display: 'flex', gap: CELL_GAP }}>
+                  <div key={`pair-${seg.left.id}`} style={{ position: 'relative', flexShrink: 0, display: 'flex', gap: CELL_GAP, boxShadow: `0 0 0 1px ${CONJ_COLOR}66, 0 0 18px ${CONJ_COLOR}28` }}>
                     {mkCell(seg.left, true)}
                     {mkCell(seg.right, true)}
-                    {/* Barra conjugado sobre os dois quadradinhos — como as setas da planilha */}
-                    <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 13, background: CONJ_COLOR, borderTop: '1.5px solid rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, zIndex: 6, pointerEvents: 'none' }}>
-                      <span style={{ fontFamily: 'monospace', fontSize: 11, color: '#1A0A00', fontWeight: 900, lineHeight: 1, userSelect: 'none' }}>←</span>
-                      <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 6, letterSpacing: '0.22em', color: '#1A0A00', fontWeight: 700, textTransform: 'uppercase', lineHeight: 1, userSelect: 'none' }}>CONJUGADO</span>
-                      <span style={{ fontFamily: 'monospace', fontSize: 11, color: '#1A0A00', fontWeight: 900, lineHeight: 1, userSelect: 'none' }}>→</span>
+                    {/* Barra conjugado metalizada sobre os dois quadradinhos */}
+                    <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 15, background: `linear-gradient(90deg, ${CONJ_COLOR}88 0%, ${CONJ_COLOR} 15%, #E2B25A 50%, ${CONJ_COLOR} 85%, ${CONJ_COLOR}88 100%)`, borderTop: '1px solid rgba(255,255,255,0.25)', boxShadow: `0 -4px 12px ${CONJ_COLOR}77, inset 0 1px 0 rgba(255,255,255,0.18)`, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, zIndex: 6, pointerEvents: 'none' }}>
+                      <span style={{ fontFamily: 'monospace', fontSize: 12, color: '#160800', fontWeight: 900, lineHeight: 1, userSelect: 'none' }}>←</span>
+                      <span style={{ width: 1, height: 7, background: 'rgba(0,0,0,0.3)', flexShrink: 0 }} />
+                      <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 6.5, letterSpacing: '0.32em', color: '#160800', fontWeight: 800, textTransform: 'uppercase', lineHeight: 1, userSelect: 'none' }}>CONJUGADO</span>
+                      <span style={{ width: 1, height: 7, background: 'rgba(0,0,0,0.3)', flexShrink: 0 }} />
+                      <span style={{ fontFamily: 'monospace', fontSize: 12, color: '#160800', fontWeight: 900, lineHeight: 1, userSelect: 'none' }}>→</span>
                     </div>
                   </div>
                 ) : mkCell(seg.uh, false));
