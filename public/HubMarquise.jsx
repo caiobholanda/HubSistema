@@ -2726,66 +2726,86 @@ function MapaUHsModal({ uhs, categorias, onClose, onEditUH }) {
           {porAndar.map(([andar, uhsAndar]) => (
             <div key={andar} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
               <div style={{ width: 36, flexShrink: 0, fontFamily: 'JetBrains Mono, monospace', fontSize: 11, fontWeight: 600, color: HUB_PALETTE.areiaDim, textAlign: 'right', paddingRight: 10 }}>{andar}º</div>
-              {uhsAndar.map(u => {
-                const cat = catMap[u.categoria_id] || {};
-                const cor = cat.cor || '#555';
-                const isHov = hoveredId === u.id;
-                const parts = u.numero.split('/');
-                const spans = parts.length;
-                const isSuite = spans > 1;
-                const cellWidth = spans * CELL_W + (spans - 1) * CELL_GAP;
-                const basePrefix = parts[0].slice(0, -2);
-                const fullParts = isSuite ? parts.map((p, i) => i === 0 ? p : basePrefix + p) : null;
-                const isConjRight = conjRightSet.has(u.numero);
-                const isConjLeft  = conjLeftSet.has(u.numero);
-                return (
-                  <div key={u.id}
-                    onMouseEnter={() => { setHoveredId(u.id); setHoveredLegend(null); }}
-                    onMouseLeave={() => setHoveredId(null)}
-                    onClick={() => onEditUH(u)}
-                    style={{
-                      width: cellWidth,
-                      height: 43,
-                      background: isHov
-                        ? `linear-gradient(135deg, ${cor}ff 0%, ${cor}cc 100%)`
-                        : `linear-gradient(135deg, ${cor}dd 0%, ${cor}aa 100%)`,
-                      border: `1.5px solid ${isHov ? cor + 'ff' : cor + 'ee'}`,
-                      display: isSuite ? 'block' : 'flex', alignItems: 'center', justifyContent: 'center',
-                      cursor: 'pointer', transition: 'all 80ms ease',
-                      position: 'relative', flexShrink: 0,
-                      overflow: 'hidden',
-                      boxShadow: isHov
-                        ? `0 2px 14px ${cor}66, inset 0 1px 0 #ffffff22`
-                        : `inset 0 1px 0 #ffffff18, 0 1px 3px #00000033`,
-                    }}>
+              {(() => {
+                const mkCell = (u, inPair) => {
+                  const cat = catMap[u.categoria_id] || {};
+                  const cor = cat.cor || '#555';
+                  const isHov = hoveredId === u.id;
+                  const parts = u.numero.split('/');
+                  const spans = parts.length;
+                  const isSuite = spans > 1;
+                  const cellWidth = spans * CELL_W + (spans - 1) * CELL_GAP;
+                  const basePrefix = parts[0].slice(0, -2);
+                  const fullParts = isSuite ? parts.map((p, i) => i === 0 ? p : basePrefix + p) : null;
+                  const dotBottom = inPair ? 16 : 3;
+                  return (
+                    <div key={u.id}
+                      onMouseEnter={() => { setHoveredId(u.id); setHoveredLegend(null); }}
+                      onMouseLeave={() => setHoveredId(null)}
+                      onClick={() => onEditUH(u)}
+                      style={{
+                        width: cellWidth, height: 43,
+                        background: isHov
+                          ? `linear-gradient(135deg, ${cor}ff 0%, ${cor}cc 100%)`
+                          : `linear-gradient(135deg, ${cor}dd 0%, ${cor}aa 100%)`,
+                        border: `1.5px solid ${isHov ? cor + 'ff' : cor + 'ee'}`,
+                        display: isSuite ? 'block' : 'flex', alignItems: 'center', justifyContent: 'center',
+                        cursor: 'pointer', transition: 'all 80ms ease',
+                        position: 'relative', flexShrink: 0, overflow: 'hidden',
+                        boxShadow: isHov
+                          ? `0 2px 14px ${cor}66, inset 0 1px 0 #ffffff22`
+                          : `inset 0 1px 0 #ffffff18, 0 1px 3px #00000033`,
+                      }}>
+                      {isSuite ? (
+                        <div style={{ display: 'flex', height: '100%', alignItems: 'center' }}>
+                          {fullParts.map((num, idx) => (
+                            <React.Fragment key={idx}>
+                              {idx > 0 && <div style={{ width: 1, flexShrink: 0, alignSelf: 'stretch', margin: '4px 0', background: 'rgba(255,255,255,0.3)' }} />}
+                              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: isHov ? '#fff' : '#ffffffee', fontWeight: 700, letterSpacing: '0.04em', textShadow: '0 1px 3px #00000077', userSelect: 'none', pointerEvents: 'none' }}>{num}</span>
+                              </div>
+                            </React.Fragment>
+                          ))}
+                        </div>
+                      ) : (
+                        <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: isHov ? '#fff' : '#ffffffcc', fontWeight: 700, lineHeight: 1, userSelect: 'none', pointerEvents: 'none', letterSpacing: '0.04em', textShadow: '0 1px 2px #00000055' }}>
+                          {u.numero}
+                        </span>
+                      )}
+                      {u.gran_class && <span style={{ position: 'absolute', top: 3, right: 3, width: 7, height: 7, borderRadius: '50%', background: HUB_PALETTE.champanhe, boxShadow: `0 0 6px ${HUB_PALETTE.champanhe}cc, 0 0 2px #fff8`, border: '1px solid #ffffff44', pointerEvents: 'none' }} />}
+                      {u.adaptado && <span style={{ position: 'absolute', bottom: dotBottom, left: 3, width: 7, height: 7, borderRadius: '50%', background: '#3498DB', boxShadow: '0 0 5px #3498DBaa', border: '1px solid #ffffff44', pointerEvents: 'none' }} />}
+                      {u.varanda && <span style={{ position: 'absolute', bottom: dotBottom, right: 3, width: 7, height: 7, borderRadius: '50%', background: '#27AE60', boxShadow: '0 0 5px #27AE60aa', border: '1px solid #ffffff44', pointerEvents: 'none' }} />}
+                    </div>
+                  );
+                };
 
-                    {isSuite ? (
-                      <div style={{ display: 'flex', height: '100%', alignItems: 'center' }}>
-                        {fullParts.map((num, idx) => (
-                          <React.Fragment key={idx}>
-                            {idx > 0 && <div style={{ width: 1, flexShrink: 0, alignSelf: 'stretch', margin: '4px 0', background: 'rgba(255,255,255,0.3)' }} />}
-                            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                              <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: isHov ? '#fff' : '#ffffffee', fontWeight: 700, letterSpacing: '0.04em', textShadow: '0 1px 3px #00000077', userSelect: 'none', pointerEvents: 'none' }}>{num}</span>
-                            </div>
-                          </React.Fragment>
-                        ))}
-                      </div>
-                    ) : (
-                      <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: isHov ? '#fff' : '#ffffffcc', fontWeight: 700, lineHeight: 1, userSelect: 'none', pointerEvents: 'none', letterSpacing: '0.04em', textShadow: '0 1px 2px #00000055' }}>
-                        {u.numero}
-                      </span>
-                    )}
+                const segs = [];
+                let si = 0;
+                while (si < uhsAndar.length) {
+                  const u = uhsAndar[si];
+                  const nxt = uhsAndar[si + 1];
+                  if (conjRightSet.has(u.numero) && nxt && conjPartner[u.numero] === nxt.numero) {
+                    segs.push({ conj: true, left: u, right: nxt });
+                    si += 2;
+                  } else {
+                    segs.push({ conj: false, uh: u });
+                    si++;
+                  }
+                }
 
-                    {u.gran_class && <span style={{ position: 'absolute', top: 3, right: isConjRight ? 6 : 3, width: 7, height: 7, borderRadius: '50%', background: HUB_PALETTE.champanhe, boxShadow: `0 0 6px ${HUB_PALETTE.champanhe}cc, 0 0 2px #fff8`, border: '1px solid #ffffff44', pointerEvents: 'none' }} />}
-                    {u.adaptado && <span style={{ position: 'absolute', bottom: 3, left: isConjLeft ? 6 : 3, width: 7, height: 7, borderRadius: '50%', background: '#3498DB', boxShadow: '0 0 5px #3498DBaa', border: '1px solid #ffffff44', pointerEvents: 'none' }} />}
-                    {u.varanda && <span style={{ position: 'absolute', bottom: 3, right: isConjRight ? 6 : 3, width: 7, height: 7, borderRadius: '50%', background: '#27AE60', boxShadow: '0 0 5px #27AE60aa', border: '1px solid #ffffff44', pointerEvents: 'none' }} />}
-
-                    {/* Indicadores de conjugado — barra na borda compartilhada */}
-                    {isConjRight && <div style={{ position: 'absolute', right: 0, top: 5, bottom: 5, width: 3, background: CONJ_COLOR, boxShadow: `0 0 8px ${CONJ_COLOR}cc, 0 0 16px ${CONJ_COLOR}66`, borderRadius: '0 2px 2px 0', pointerEvents: 'none' }} />}
-                    {isConjLeft  && <div style={{ position: 'absolute', left: 0,  top: 5, bottom: 5, width: 3, background: CONJ_COLOR, boxShadow: `0 0 8px ${CONJ_COLOR}cc, 0 0 16px ${CONJ_COLOR}66`, borderRadius: '2px 0 0 2px', pointerEvents: 'none' }} />}
+                return segs.map((seg, si) => seg.conj ? (
+                  <div key={`pair-${seg.left.id}`} style={{ position: 'relative', flexShrink: 0, display: 'flex', gap: CELL_GAP }}>
+                    {mkCell(seg.left, true)}
+                    {mkCell(seg.right, true)}
+                    {/* Barra conjugado sobre os dois quadradinhos — como as setas da planilha */}
+                    <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 13, background: CONJ_COLOR, borderTop: '1.5px solid rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, zIndex: 6, pointerEvents: 'none' }}>
+                      <span style={{ fontFamily: 'monospace', fontSize: 11, color: '#1A0A00', fontWeight: 900, lineHeight: 1, userSelect: 'none' }}>←</span>
+                      <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 6, letterSpacing: '0.22em', color: '#1A0A00', fontWeight: 700, textTransform: 'uppercase', lineHeight: 1, userSelect: 'none' }}>CONJUGADO</span>
+                      <span style={{ fontFamily: 'monospace', fontSize: 11, color: '#1A0A00', fontWeight: 900, lineHeight: 1, userSelect: 'none' }}>→</span>
+                    </div>
                   </div>
-                );
-              })}
+                ) : mkCell(seg.uh, false));
+              })()}
             </div>
           ))}
         </div>
