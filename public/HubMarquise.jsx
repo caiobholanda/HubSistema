@@ -2735,8 +2735,6 @@ function MapaUHsModal({ uhs, categorias, onClose, onEditUH }) {
                   const spans = parts.length;
                   const isSuite = spans > 1;
                   const cellWidth = spans * CELL_W + (spans - 1) * CELL_GAP;
-                  const basePrefix = parts[0].slice(0, -2);
-                  const fullParts = isSuite ? parts.map((p, i) => i === 0 ? p : basePrefix + p) : null;
                   const dotBottom = inPair ? 18 : 3;
                   return (
                     <div key={u.id}
@@ -2749,7 +2747,7 @@ function MapaUHsModal({ uhs, categorias, onClose, onEditUH }) {
                           ? `linear-gradient(135deg, ${cor}ff 0%, ${cor}cc 100%)`
                           : `linear-gradient(135deg, ${cor}dd 0%, ${cor}aa 100%)`,
                         border: `1.5px solid ${isHov ? cor + 'ff' : cor + 'ee'}`,
-                        display: isSuite ? 'block' : 'flex', alignItems: 'center', justifyContent: 'center',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
                         cursor: 'pointer', transition: 'all 80ms ease',
                         position: 'relative', flexShrink: 0, overflow: 'hidden',
                         boxShadow: isHov
@@ -2757,16 +2755,14 @@ function MapaUHsModal({ uhs, categorias, onClose, onEditUH }) {
                           : `inset 0 1px 0 #ffffff18, 0 1px 3px #00000033`,
                       }}>
                       {isSuite ? (
-                        <div style={{ display: 'flex', height: '100%', alignItems: 'center' }}>
-                          {fullParts.map((num, idx) => (
-                            <React.Fragment key={idx}>
-                              {idx > 0 && <div style={{ width: 1, flexShrink: 0, alignSelf: 'stretch', margin: '4px 0', background: 'rgba(255,255,255,0.3)' }} />}
-                              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: isHov ? '#fff' : '#ffffffee', fontWeight: 700, letterSpacing: '0.04em', textShadow: '0 1px 3px #00000077', userSelect: 'none', pointerEvents: 'none' }}>{num}</span>
-                              </div>
+                        <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, lineHeight: 1, userSelect: 'none', pointerEvents: 'none', letterSpacing: '0.03em', textShadow: '0 1px 2px #00000055' }}>
+                          {u.numero.split('/').map((part, i, arr) => (
+                            <React.Fragment key={i}>
+                              <span style={{ color: isHov ? '#fff' : '#ffffffee', fontWeight: 700 }}>{part}</span>
+                              {i < arr.length - 1 && <span style={{ color: isHov ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.32)', fontWeight: 400 }}>/</span>}
                             </React.Fragment>
                           ))}
-                        </div>
+                        </span>
                       ) : (
                         <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: isHov ? '#fff' : '#ffffffcc', fontWeight: 700, lineHeight: 1, userSelect: 'none', pointerEvents: 'none', letterSpacing: '0.04em', textShadow: '0 1px 2px #00000055' }}>
                           {u.numero}
