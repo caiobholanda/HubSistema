@@ -2721,7 +2721,7 @@ function MapaUHsModal({ uhs, categorias, onClose, onEditUH }) {
                         ? `linear-gradient(135deg, ${cor}ff 0%, ${cor}cc 100%)`
                         : `linear-gradient(135deg, ${cor}dd 0%, ${cor}aa 100%)`,
                       border: `1.5px solid ${isHov ? cor + 'ff' : cor + 'ee'}`,
-                      display: 'flex', alignItems: isConj ? 'stretch' : 'center', justifyContent: isConj ? 'flex-start' : 'center',
+                      display: isConj ? 'block' : 'flex', alignItems: 'center', justifyContent: 'center',
                       cursor: 'pointer', transition: 'all 80ms ease',
                       position: 'relative', flexShrink: 0,
                       overflow: 'hidden',
@@ -2730,28 +2730,27 @@ function MapaUHsModal({ uhs, categorias, onClose, onEditUH }) {
                         : `inset 0 1px 0 #ffffff18, 0 1px 3px #00000033`,
                     }}>
 
-                    {isConj ? (<>
-                      {/* Faixa topo dourada */}
-                      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, transparent 0%, ${CONJ_COLOR}cc 30%, ${CONJ_COLOR}ff 50%, ${CONJ_COLOR}cc 70%, transparent 100%)`, pointerEvents: 'none', zIndex: 1 }} />
-                      {/* Sub-células com setas visíveis (↔) entre elas */}
-                      {fullParts.map((num, idx) => (
-                        <React.Fragment key={idx}>
-                          {idx > 0 && (
-                            <div style={{ width: 14, flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', position: 'relative', background: `${CONJ_COLOR}18` }}>
-                              <div style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: 1, background: `${CONJ_COLOR}44` }} />
-                              <div style={{ position: 'absolute', top: 0, bottom: 0, right: 0, width: 1, background: `${CONJ_COLOR}44` }} />
-                              <span style={{ fontFamily: 'Arial, sans-serif', fontSize: 11, color: CONJ_COLOR, lineHeight: 1, fontWeight: 900, userSelect: 'none', pointerEvents: 'none', position: 'relative', zIndex: 1 }}>↔</span>
-                            </div>
-                          )}
-                          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
-                            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 6, letterSpacing: '0.18em', color: `${CONJ_COLOR}cc`, textTransform: 'uppercase', userSelect: 'none', pointerEvents: 'none', lineHeight: 1 }}>CONJ</span>
-                            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: isHov ? '#fff' : '#ffffffdd', fontWeight: 700, lineHeight: 1, userSelect: 'none', pointerEvents: 'none', letterSpacing: '0.04em', textShadow: '0 1px 2px #00000066' }}>
-                              {num}
-                            </span>
-                          </div>
-                        </React.Fragment>
-                      ))}
-                    </>) : (
+                    {isConj ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                        {/* Linha de números */}
+                        <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
+                          {fullParts.map((num, idx) => (
+                            <React.Fragment key={idx}>
+                              {idx > 0 && <div style={{ width: 1, flexShrink: 0, alignSelf: 'stretch', margin: '6px 0', background: 'rgba(255,255,255,0.25)' }} />}
+                              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: isHov ? '#fff' : '#ffffffee', fontWeight: 700, letterSpacing: '0.04em', textShadow: '0 1px 3px #00000077', userSelect: 'none', pointerEvents: 'none' }}>{num}</span>
+                              </div>
+                            </React.Fragment>
+                          ))}
+                        </div>
+                        {/* Barra de seta — indicador de conjugado */}
+                        <div style={{ height: 13, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, background: `${CONJ_COLOR}40`, borderTop: `1px solid ${CONJ_COLOR}` }}>
+                          <span style={{ fontFamily: 'monospace', fontSize: 11, color: '#fff', fontWeight: 900, lineHeight: 1, userSelect: 'none', pointerEvents: 'none', textShadow: `0 0 6px ${CONJ_COLOR}` }}>←</span>
+                          <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 7, letterSpacing: '0.2em', color: '#fff', textTransform: 'uppercase', lineHeight: 1, userSelect: 'none', pointerEvents: 'none', textShadow: `0 0 4px ${CONJ_COLOR}` }}>CONJ</span>
+                          <span style={{ fontFamily: 'monospace', fontSize: 11, color: '#fff', fontWeight: 900, lineHeight: 1, userSelect: 'none', pointerEvents: 'none', textShadow: `0 0 6px ${CONJ_COLOR}` }}>→</span>
+                        </div>
+                      </div>
+                    ) : (
                       <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: isHov ? '#fff' : '#ffffffcc', fontWeight: 700, lineHeight: 1, userSelect: 'none', pointerEvents: 'none', letterSpacing: '0.04em', textShadow: '0 1px 2px #00000055' }}>
                         {u.numero}
                       </span>
