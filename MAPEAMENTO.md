@@ -1,6 +1,6 @@
 # HubSistemas — Mapeamento Arquitetural
 
-> Gerado por 50+ agentes em 2026-07-07. Última atualização: 2026-07-14 (feature UHs).
+> Gerado por 50+ agentes em 2026-07-07. Última atualização: 2026-07-17 (10 atualizações de contas).
 
 **URL produção:** hub-granmarquise.fly.dev  
 **Stack:** Node.js + Express 4 / React 18 UMD + Babel standalone (sem build)  
@@ -53,7 +53,41 @@ HubSistemas/
 | `proxyPesquisa(req, res)` | 552-565 | Proxy → pesquisa-satisfacao.fly.dev; **502** se offline |
 | `proxyChamados(req, res)` | 581-594 | Proxy → sistema-chamados-granmarquise.fly.dev |
 
-**Startup order:** `initSistemas()` → `_sanitizarAuditLog()` → `initCategoriasUH()` → `initUHs()` → `app.listen()`
+**Startup order:** `initSistemas()` → `_sanitizarAuditLog()` → `_patchSpaDescricao()` → `initCategoriasUH()` → `initUHs()` → `app.listen()`
+
+### Novas variáveis de ambiente (2026-07-17)
+- `HUB_URL` (padrão `https://hub-granmarquise.fly.dev`) — usada para gerar URLs de ativação
+
+### hub_data.json — campos adicionados (2026-07-17)
+```json
+{
+  "activation_tokens": [
+    { "chamadosId": 42, "email": "...", "nome": "...", "token": "hex64", "expiresAt": "ISO", "used": false, "createdAt": "ISO" }
+  ],
+  "users": [
+    { "...", "chamados_id": 42, "hub_status": "ativacao_pendente|ativo|bloqueado|precadastro|desligado", "login_failures": 0 }
+  ]
+}
+```
+
+### Novos helpers (2026-07-17)
+| Função | Descrição |
+|---|---|
+| `_gerarSenhaForte()` | Gera senha aleatória forte (14 chars, maiúscula+minúscula+número+especial) |
+| `_gerarLinkAtivacao(chamadosId, email, nome)` | Invalida tokens antigos do email, gera novo token 48h, retorna URL `/ativar?t=TOKEN` |
+| `_registrarHubUsuario(email, nome, chamadosId, status)` | Cria/atualiza entrada em data.users com hub_status |
+| `_hubStatusDoEmail(email)` | Lê entry de data.users pelo email, retorna objeto ou null |
+
+### Novas rotas (2026-07-17)
+- `POST /api/admin/chamados-usuarios/:id/gerar-link` — regenera link de ativação 48h
+- `POST /api/admin/chamados-usuarios/:id/desbloquear` — zera login_failures e seta hub_status='ativo'
+- `GET /ativar` — página HTML standalone para o usuário definir senha
+- `POST /api/ativar` — valida token, chama chamados PATCH com nova senha, marca token como usado
+
+### Rotas modificadas (2026-07-17)
+- `POST /api/auth/login` — antes de chamar chamados: bloqueia hub_status='bloqueado'/'ativacao_pendente'; após 401: incrementa login_failures, bloqueia na 5ª falha; após 200: zera login_failures
+- `GET /api/admin/chamados-usuarios` — mergeia hub_status e login_failures do hub_data.json na resposta
+- `POST /api/admin/chamados-usuarios` — gera senha forte, passa para chamados, gera token de ativação, retorna `{ ...chamadosResp, activation_url, nome }`
 
 ### DEFAULT_SISTEMAS (linhas 229-233)
 1. `pesquisa-satisfacao` → pesquisa-satisfacao.fly.dev
@@ -102,6 +136,21 @@ HubSistemas/
 ---
 
 ## HubMarquise.jsx (~4224 linhas)
+
+### Mudanças 2026-07-17 — 10 atualizações de contas
+
+**ContasPanel:**
+- Tab labels: 'Admin' e 'Usuários' (era 'Admins do TI' e 'Usuários do portal')
+- Novos states: `modalAtivacao`, `gerandoLink`, `desbloqueando`
+- Funções: `gerarLinkAtivacao(userId)`, `desbloquearUsuario(userId)`
+- `salvarNovo` para 'usuario': após criação, exibe `modalAtivacao` com URL + copiar + WhatsApp
+- Lista: badge `HUB_STATUS_BADGE` p/ ativacao_pendente/bloqueado/precadastro/desligado; botão "Reenviar link" (quando ativacao_pendente), "Desbloquear" (quando bloqueado)
+
+**ContaForm:**
+- Label 'Nome' → 'Nome Completo'
+- E-mail: input só recebe usuário, '@granmarquise.com.br' fixo à direita
+- Ramal: `onChange` filtra `.replace(/\D/g, '')`
+- Senha: condicionada em `{(isAdmin || isEdit)}` — oculta na criação de usuário; checklist 4 critérios (✔/✗) em vez de barra; aviso sobre link de ativação na criação
 
 ### Novos componentes (2026-07-14 — aba UHs)
 | Componente | Descrição |
