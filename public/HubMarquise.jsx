@@ -4559,7 +4559,7 @@ function HubHero({ revealed, easterActive, isMobile, userName, sistemasVisiveis 
     <section style={{ maxWidth: 1400, margin: '0 auto', padding: isMobile ? '20px 18px 12px' : '28px 48px 12px', position: 'relative' }}>
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: isMobile ? 16 : 40, flexWrap: 'wrap', position: 'relative', zIndex: 1 }}>
         <div style={{ flex: '1 1 0', minWidth: 0 }}>
-          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.4em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, opacity: revealed ? 1 : 0, transform: revealed ? 'translateY(0)' : 'translateY(12px)', transition: `all 900ms ${HUB_EASE}`, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 300, fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, opacity: revealed ? 1 : 0, transform: revealed ? 'translateY(0)' : 'translateY(12px)', transition: `all 900ms ${HUB_EASE}`, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 14 }}>
             <span style={{ width: 20, height: 1, background: HUB_PALETTE.champanhe, display: 'inline-block' }} />
             {periodo}, {primeiroNome}
           </div>
@@ -4754,7 +4754,7 @@ function SystemPanel({ system, index, revealed, isMobile, userEmail, userTipo })
 function SectionLabel({ kicker, title, hint }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, gap: 24, flexWrap: 'wrap' }}>
-      <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.35em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 300, fontSize: 10, letterSpacing: '0.2em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, display: 'flex', alignItems: 'center', gap: 12 }}>
         <span style={{ width: 18, height: 1, background: HUB_PALETTE.champanhe }} />{kicker}
         {title && <span style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontWeight: 300, letterSpacing: '0.01em', textTransform: 'none', color: HUB_PALETTE.areia, fontSize: 13 }}>— {title}</span>}
       </div>
