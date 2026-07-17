@@ -156,7 +156,7 @@ const HUB_SYSTEMS = [
   num: '03',
   categoria: 'Spa · Atendimento ao hóspede',
   nome: 'Pesquisa de Satisfação',
-  descricao: 'Coleta de feedback dos hóspedes após os tratamentos no Spa — avaliação dos serviços, instalações, massoterapeutas e experiência geral.',
+  descricao: 'Gestão de atendimentos, escalas de profissionais, anamnese digital e auditoria de satisfação do Gran Spa.',
   detalhe: 'Acesso restrito à equipe do Spa e TI.',
   status: 'no-ar',
   statusLabel: 'Disponível',

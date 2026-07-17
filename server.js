@@ -279,7 +279,7 @@ function autoAssociarTodos(data, sistemaId) {
 const DEFAULT_SISTEMAS = [
   { id: 'chamados',  num: '01', nome: 'Chamados TI',           url: 'https://sistema-chamados-granmarquise.fly.dev', status: 'no-ar', categoria: 'Suporte · Atendimento interno', descricao: 'Para pedir ajuda da equipe de TI do hotel.' },
   { id: 'ramais',    num: '02', nome: 'Lista de Ramais',        url: 'https://diretorio-ramais-granmarquise.fly.dev', status: 'no-ar', categoria: 'Comunicação · Interno',         descricao: 'Diretório de ramais e contatos internos do hotel.' },
-  { id: 'pesquisa-satisfacao', num: '03', nome: 'Pesquisa de Satisfação', url: 'https://pesquisa-satisfacao.fly.dev', status: 'no-ar', categoria: 'Spa · Atendimento ao hóspede', descricao: 'Coleta de feedback dos hóspedes após os tratamentos no Spa.' },
+  { id: 'pesquisa-satisfacao', num: '03', nome: 'Pesquisa de Satisfação', url: 'https://pesquisa-satisfacao.fly.dev', status: 'no-ar', categoria: 'Spa · Atendimento ao hóspede', descricao: 'Gestão de atendimentos, escalas de profissionais, anamnese digital e auditoria de satisfação do Gran Spa.' },
 ];
 
 function getSistemas() {
@@ -1287,6 +1287,21 @@ app.get('*', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'index.h
 }());
 
 _sanitizarAuditLog();
+
+(function _patchSpaDescricao() {
+  try {
+    const data = readData();
+    if (!Array.isArray(data.sistemas)) return;
+    const spa = data.sistemas.find(s => s.id === 'pesquisa-satisfacao');
+    if (!spa) return;
+    if (spa.descricao === 'Gestão de atendimentos, escalas de profissionais, anamnese digital e auditoria de satisfação do Gran Spa.') return;
+    spa.descricao = 'Gestão de atendimentos, escalas de profissionais, anamnese digital e auditoria de satisfação do Gran Spa.';
+    writeData(data);
+    console.log('[init] descricao pesquisa-satisfacao atualizada');
+  } catch (e) {
+    console.error('[init] falha ao patchear descricao spa:', e.message);
+  }
+}());
 
 (function initFeriados() {
   try {
