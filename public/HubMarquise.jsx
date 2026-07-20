@@ -3547,7 +3547,13 @@ function ContasPanel({ isMobile }) {
   });
   const setSubAba = (v) => { try { sessionStorage.setItem('hub_contas_subaba', v); } catch {} _setSubAba(v); };
   const [statusAba, _setStatusAba] = useState(() => {
-    try { return sessionStorage.getItem('hub_contas_status') || 'ativos'; } catch { return 'ativos'; }
+    try {
+      const sub = sessionStorage.getItem('hub_contas_subaba') || 'usuarios';
+      const saved = sessionStorage.getItem('hub_contas_status');
+      if (sub === 'admins') return (saved === 'ativos' || saved === 'inativos') ? saved : 'ativos';
+      const validos = ['todos', 'precadastro', 'ativacao_pendente', 'ativo', 'bloqueado', 'desligado'];
+      return validos.includes(saved) ? saved : 'ativo';
+    } catch { return 'ativo'; }
   });
   const setStatusAba = (v) => { try { sessionStorage.setItem('hub_contas_status', v); } catch {} _setStatusAba(v); };
   const [admins, setAdmins] = useState(null);
@@ -3798,7 +3804,10 @@ function ContasPanel({ isMobile }) {
   // Filtro de busca: nome, email, login, ramal, setor + flags (master, inativo).
   // Multiplas palavras separadas por espaco viram AND (toda token precisa bater).
   const tokens = busca.trim().toLowerCase().split(/\s+/).filter(Boolean);
-  const wantAtivo = statusAba === 'ativos';
+  function getStatusEfetivo(r) {
+    if (isAdmin) return r.ativo === 1 ? 'ativo' : 'desligado';
+    return r.hub_status || (r.ativo !== 0 ? 'ativo' : 'desligado');
+  }
   function matchToken(r, t) {
     if (t === 'master' && isAdmin) return !!r.is_master;
     if (t === 'inativo') return !(isAdmin ? r.ativo === 1 : r.ativo !== 0);
@@ -3816,8 +3825,13 @@ function ContasPanel({ isMobile }) {
   const buscaFiltrada = tokens.length ? (lista || []).filter(r => tokens.every(t => matchToken(r, t))) : (lista || []);
   const filtrada = buscaFiltrada
     .filter(r => {
-      const ativo = isAdmin ? r.ativo === 1 : r.ativo !== 0;
-      return wantAtivo === ativo;
+      if (isAdmin) {
+        if (statusAba === 'ativos') return r.ativo === 1;
+        if (statusAba === 'inativos') return r.ativo !== 1;
+        return true;
+      }
+      if (statusAba === 'todos') return true;
+      return getStatusEfetivo(r) === statusAba;
     })
     .slice()
     .sort((a, b) => {
@@ -3827,6 +3841,13 @@ function ContasPanel({ isMobile }) {
     });
   const totalAtivos = buscaFiltrada.filter(r => isAdmin ? r.ativo === 1 : r.ativo !== 0).length;
   const totalInativos = buscaFiltrada.filter(r => isAdmin ? r.ativo !== 1 : r.ativo === 0).length;
+  const contagemStatus = {};
+  if (!isAdmin) {
+    for (const r of buscaFiltrada) {
+      const s = getStatusEfetivo(r);
+      contagemStatus[s] = (contagemStatus[s] || 0) + 1;
+    }
+  }
 
   const btnPad = isPhone ? '8px 12px' : '12px 22px';
   const btnFs = isPhone ? 10 : 12;
@@ -3853,21 +3874,44 @@ function ContasPanel({ isMobile }) {
     {/* Sub-tabs tipo */}
     <div style={{ display: 'flex', gap: 0, borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, marginBottom: 14 }}>
       {[{ id: 'admins', label: 'Admin' }, { id: 'usuarios', label: 'Usuários' }].map(s => (
-        <button key={s.id} onClick={() => { setSubAba(s.id); setBusca(''); setStatusAba('ativos'); }}
+        <button key={s.id} onClick={() => { setSubAba(s.id); setBusca(''); setStatusAba(s.id === 'admins' ? 'ativos' : 'ativo'); }}
           style={{ background: 'transparent', border: 'none', borderBottom: `2px solid ${subAba === s.id ? HUB_PALETTE.champanhe : 'transparent'}`, color: subAba === s.id ? HUB_PALETTE.champanhe : HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', padding: '10px 18px 8px', cursor: 'pointer' }}>
           {s.label}
         </button>
       ))}
     </div>
     {/* Sub-tabs status */}
-    <div style={{ display: 'flex', gap: 18, marginBottom: 18 }}>
-      {[{ id: 'ativos', label: 'Ativos', total: totalAtivos }, { id: 'inativos', label: 'Inativos', total: totalInativos }].map(s => (
-        <button key={s.id} onClick={() => setStatusAba(s.id)}
-          style={{ background: 'transparent', border: 'none', color: statusAba === s.id ? HUB_PALETTE.marfim : HUB_PALETTE.areiaDim, fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: statusAba === s.id ? 600 : 400, padding: '4px 0', cursor: 'pointer', borderBottom: `1px solid ${statusAba === s.id ? HUB_PALETTE.champanhe + '88' : 'transparent'}` }}>
-          {s.label} <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: HUB_PALETTE.areiaDim, marginLeft: 4 }}>{s.total}</span>
-        </button>
-      ))}
-    </div>
+    {isAdmin ? (
+      <div style={{ display: 'flex', gap: 18, marginBottom: 18 }}>
+        {[{ id: 'ativos', label: 'Ativos', total: totalAtivos }, { id: 'inativos', label: 'Inativos', total: totalInativos }].map(s => (
+          <button key={s.id} onClick={() => setStatusAba(s.id)}
+            style={{ background: 'transparent', border: 'none', color: statusAba === s.id ? HUB_PALETTE.marfim : HUB_PALETTE.areiaDim, fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: statusAba === s.id ? 600 : 400, padding: '4px 0', cursor: 'pointer', borderBottom: `1px solid ${statusAba === s.id ? HUB_PALETTE.champanhe + '88' : 'transparent'}` }}>
+            {s.label} <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: HUB_PALETTE.areiaDim, marginLeft: 4 }}>{s.total}</span>
+          </button>
+        ))}
+      </div>
+    ) : (
+      <div style={{ display: 'flex', gap: 6, marginBottom: 18, flexWrap: 'wrap' }}>
+        {[
+          { id: 'todos', label: 'Todos', dot: null, total: buscaFiltrada.length },
+          { id: 'precadastro', label: 'Pré-cadastro', dot: '#D4AC0D', total: contagemStatus['precadastro'] || 0 },
+          { id: 'ativacao_pendente', label: 'Ativação pendente', dot: '#E88B2A', total: contagemStatus['ativacao_pendente'] || 0 },
+          { id: 'ativo', label: 'Ativo', dot: '#62A852', total: contagemStatus['ativo'] || 0 },
+          { id: 'bloqueado', label: 'Bloqueado', dot: '#5BA3CC', total: contagemStatus['bloqueado'] || 0 },
+          { id: 'desligado', label: 'Desligado', dot: '#607D8B', total: contagemStatus['desligado'] || 0 },
+        ].map(s => {
+          const ativo = statusAba === s.id;
+          return (
+            <button key={s.id} onClick={() => setStatusAba(s.id)}
+              style={{ background: ativo ? `${s.dot || HUB_PALETTE.champanhe}15` : 'transparent', border: `1px solid ${ativo ? (s.dot || HUB_PALETTE.champanhe) + '55' : HUB_PALETTE.areiaDim + '22'}`, color: ativo ? (s.dot || HUB_PALETTE.marfim) : HUB_PALETTE.areiaDim, fontFamily: 'Inter, sans-serif', fontSize: 11, fontWeight: ativo ? 600 : 400, padding: '5px 12px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, transition: 'all 150ms' }}>
+              {s.dot ? <span style={{ width: 6, height: 6, borderRadius: '50%', background: ativo ? s.dot : HUB_PALETTE.areiaDim, flexShrink: 0 }} /> : null}
+              {s.label}
+              <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, opacity: 0.7 }}>{s.total}</span>
+            </button>
+          );
+        })}
+      </div>
+    )}
 
     {/* Toolbar */}
     <div style={{ display: 'flex', gap: 12, marginBottom: 18, flexWrap: 'wrap' }}>
@@ -3906,7 +3950,8 @@ function ContasPanel({ isMobile }) {
             bloqueado:         { label: 'Bloqueado',          color: '#5BA3CC' },
             desligado:         { label: 'Desligado',          color: '#607D8B' },
           };
-          const statusBadgeInfo = hubStatus && HUB_STATUS_BADGE[hubStatus];
+          const statusEfetivoRow = !isAdmin ? getStatusEfetivo(row) : null;
+          const statusBadgeInfo = statusEfetivoRow ? HUB_STATUS_BADGE[statusEfetivoRow] : null;
           return (
             <div key={row.id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '22px 4px', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, opacity: ativo ? 1 : 0.55, flexWrap: 'wrap' }}>
               <div style={{ flex: 1, minWidth: 260 }}>
