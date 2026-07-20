@@ -2315,13 +2315,13 @@ function FeriadosPanel({ isMobile }) {
     const id = confirmar.id;
     setConfirmar(null);
     try {
-      const r = await fetch(`/api/admin/feriados/${id}`, {
-        method: 'DELETE',
+      const r = await fetch(`/api/admin/feriados/${id}/inativar`, {
+        method: 'PATCH',
         headers: { Authorization: `Bearer ${token()}` },
       });
       const d = await r.json().catch(() => ({}));
-      if (!r.ok || !d.ok) { notify(d.erro || 'Erro ao excluir', true); return; }
-      notify('Feriado excluído');
+      if (!r.ok || !d.ok) { notify(d.erro || 'Erro ao inativar', true); return; }
+      notify('Feriado inativado');
       await carregar(ano);
     } catch { notify('Erro de conexão', true); }
   }
@@ -2388,7 +2388,7 @@ function FeriadosPanel({ isMobile }) {
               {TIPO_FERIADO_LABEL[f.tipo] || f.tipo}
             </div>
             <button onClick={() => startEdit(f)} style={{ ...cs.btnGhost, padding: '8px 16px', fontSize: 11 }}>Editar</button>
-            <button onClick={() => setConfirmar({ id: f.id, nome: f.nome })} style={{ ...cs.btnDanger, padding: '8px 16px', fontSize: 11 }}>Excluir</button>
+            <button onClick={() => setConfirmar({ id: f.id, nome: f.nome })} style={{ ...cs.btnDanger, padding: '8px 16px', fontSize: 11 }}>Inativar</button>
           </div>
         ))}
       </div>
@@ -2407,16 +2407,16 @@ function FeriadosPanel({ isMobile }) {
     {confirmar && (
       <div style={{ position: 'fixed', inset: 0, zIndex: 160, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
         <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, maxWidth: 420, width: '100%', padding: isMobile ? '24px 20px' : '32px 36px' }}>
-          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: '#9C5843', marginBottom: 6 }}>Confirmar exclusão</div>
+          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 6 }}>Confirmar inativação</div>
           <h3 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontWeight: 300, fontSize: 22, color: HUB_PALETTE.marfim, margin: '0 0 14px', lineHeight: 1.25 }}>
-            Excluir "{confirmar.nome}"?
+            Inativar "{confirmar.nome}"?
           </h3>
           <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areia, margin: '0 0 22px', lineHeight: 1.5 }}>
-            Esta ação não pode ser desfeita.
+            O feriado será removido da lista e não contará mais para a escala. O histórico permanece.
           </p>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
             <button onClick={() => setConfirmar(null)} style={cs.btnGhost}>Cancelar</button>
-            <button onClick={confirmarExclusao} style={{ ...cs.btnPrim, background: '#E07A5F', color: '#fff' }}>Excluir</button>
+            <button onClick={confirmarExclusao} style={{ ...cs.btnPrim, background: HUB_PALETTE.areiaDim, color: HUB_PALETTE.noite }}>Inativar</button>
           </div>
         </div>
       </div>
