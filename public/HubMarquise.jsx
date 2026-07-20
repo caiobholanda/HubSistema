@@ -1969,7 +1969,7 @@ function SetoresPanel({ isMobile }) {
       else { setLista([]); notify(dS.erro || 'Erro ao carregar setores', true); }
       if (dU.ok && Array.isArray(dU.usuarios)) {
         const cont = {};
-        for (const u of dU.usuarios) { if (u.setor) cont[u.setor] = (cont[u.setor] || 0) + 1; }
+        for (const u of dU.usuarios) { if (u.setor && u.ativo !== 0) cont[u.setor] = (cont[u.setor] || 0) + 1; }
         setContagemUsuarios(cont);
         setTodosUsuarios(dU.usuarios);
       }
@@ -2117,7 +2117,7 @@ function SetoresPanel({ isMobile }) {
     )}
 
     {setorModal && (
-      <SetorUsuariosModal setor={setorModal} usuarios={todosUsuarios.filter(u => u.setor === setorModal)} isMobile={isMobile} onClose={() => setSetorModal(null)} />
+      <SetorUsuariosModal setor={setorModal} usuarios={todosUsuarios.filter(u => u.setor === setorModal && u.ativo !== 0)} isMobile={isMobile} onClose={() => setSetorModal(null)} />
     )}
 
     {toast && (
@@ -2135,31 +2135,8 @@ function SetorUsuariosModal({ setor, usuarios, isMobile, onClose }) {
     return () => { document.body.style.overflow = lock; };
   }, []);
 
-  const inativos = usuarios.filter(u => u.ativo === 0);
-
-  function UserRow({ u }) {
-    const inicial = (u.nome || u.email || '?').charAt(0).toUpperCase();
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '11px 0', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}18` }}>
-        <div style={{ width: 32, height: 32, borderRadius: '50%', background: `${HUB_PALETTE.champanhe}18`, border: `1px solid ${HUB_PALETTE.champanhe}44`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: HUB_PALETTE.champanhe, fontWeight: 600 }}>{inicial}</span>
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.marfim, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{u.nome || '—'}</div>
-          <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, color: HUB_PALETTE.areiaDim, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {[u.cargo, u.ramal ? `ramal ${u.ramal}` : null, u.email].filter(Boolean).join(' · ') || '—'}
-          </div>
-        </div>
-        {u.ativo === 0 && (
-          <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 8, letterSpacing: '0.18em', textTransform: 'uppercase', color: `${HUB_PALETTE.areiaDim}66`, border: `1px solid ${HUB_PALETTE.areiaDim}22`, padding: '2px 5px', flexShrink: 0 }}>inativo</span>
-        )}
-      </div>
-    );
-  }
-
   return (
-    <div onClick={e => { if (e.target === e.currentTarget) onClose(); }}
-      style={{ position: 'fixed', inset: 0, zIndex: 210, background: 'rgba(0,0,0,0.68)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 210, background: 'rgba(0,0,0,0.68)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
       <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, width: '100%', maxWidth: 520, maxHeight: '88vh', display: 'flex', flexDirection: 'column' }}>
         <div style={{ padding: '18px 24px', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
           <div>
@@ -2170,13 +2147,28 @@ function SetorUsuariosModal({ setor, usuarios, isMobile, onClose }) {
         </div>
         <div style={{ padding: '7px 24px', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}15` }}>
           <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.18em', color: HUB_PALETTE.areiaDim }}>
-            {usuarios.length} {usuarios.length === 1 ? 'usuário' : 'usuários'}{inativos.length > 0 ? ` · ${inativos.length} inativo${inativos.length > 1 ? 's' : ''}` : ''}
+            {usuarios.length} {usuarios.length === 1 ? 'usuário' : 'usuários'}
           </span>
         </div>
         <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '4px 20px 16px' : '4px 24px 16px' }}>
           {usuarios.length === 0
-            ? <div style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontSize: 15, color: HUB_PALETTE.areiaDim, padding: '32px 0', textAlign: 'center' }}>Nenhum usuário neste setor.</div>
-            : usuarios.map(u => <UserRow key={u.id} u={u} />)
+            ? <div style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontSize: 15, color: HUB_PALETTE.areiaDim, padding: '32px 0', textAlign: 'center' }}>Nenhum usuário ativo neste setor.</div>
+            : usuarios.map(u => {
+                const inicial = (u.nome || u.email || '?').charAt(0).toUpperCase();
+                return (
+                  <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '11px 0', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}18` }}>
+                    <div style={{ width: 32, height: 32, borderRadius: '50%', background: `${HUB_PALETTE.champanhe}18`, border: `1px solid ${HUB_PALETTE.champanhe}44`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: HUB_PALETTE.champanhe, fontWeight: 600 }}>{inicial}</span>
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.marfim, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{u.nome || '—'}</div>
+                      <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, color: HUB_PALETTE.areiaDim, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {[u.cargo, u.ramal ? `ramal ${u.ramal}` : null, u.email].filter(Boolean).join(' · ') || '—'}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
           }
         </div>
       </div>
