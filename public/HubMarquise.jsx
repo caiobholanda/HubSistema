@@ -2265,6 +2265,7 @@ const TIPO_FERIADO_COR = { nacional: '#996442', estadual: '#9C5843', municipal: 
 function FeriadosPanel({ isMobile }) {
   const anoAtual = new Date().getFullYear();
   const [ano, setAno] = useState(anoAtual);
+  const [statusAba, setStatusAba] = useState('ativos');
   const [lista, setLista] = useState(null);
   const [editing, setEditing] = useState(null); // feriado object
   const [creating, setCreating] = useState(false);
@@ -2276,17 +2277,20 @@ function FeriadosPanel({ isMobile }) {
   function token() { return localStorage.getItem('hub_sso_token'); }
   function notify(msg, isErr) { setToast({ msg, err: !!isErr }); setTimeout(() => setToast(''), 2800); }
 
-  async function carregar(a) {
+  async function carregar(a, s) {
+    const anoParam = a !== undefined ? a : ano;
+    const statusParam = s !== undefined ? s : statusAba;
     try {
-      const r = await fetch(`/api/admin/feriados?ano=${a || ano}`, { headers: { Authorization: `Bearer ${token()}` } });
+      const r = await fetch(`/api/admin/feriados?ano=${anoParam}&status=${statusParam}`, { headers: { Authorization: `Bearer ${token()}` } });
       const d = await r.json();
       if (r.ok && d.ok) setLista(d.feriados || []);
       else { setLista([]); notify(d.erro || 'Erro ao carregar feriados', true); }
     } catch { setLista([]); notify('Erro de conexão', true); }
   }
-  useEffect(() => { carregar(ano); }, [ano]);
+  useEffect(() => { carregar(ano, statusAba); }, [ano, statusAba]);
 
   function mudarAno(v) { setAno(v); setEditing(null); setCreating(false); setErro(''); }
+  function mudarAba(s) { setStatusAba(s); setEditing(null); setCreating(false); setErro(''); }
   function startNovo() { setErro(''); setCreating(true); }
   function startEdit(f) { setErro(''); setEditing(f); }
   function fechar() { setEditing(null); setCreating(false); setErro(''); }
@@ -2322,7 +2326,20 @@ function FeriadosPanel({ isMobile }) {
       const d = await r.json().catch(() => ({}));
       if (!r.ok || !d.ok) { notify(d.erro || 'Erro ao inativar', true); return; }
       notify('Feriado inativado');
-      await carregar(ano);
+      await carregar(ano, statusAba);
+    } catch { notify('Erro de conexão', true); }
+  }
+
+  async function reativar(id) {
+    try {
+      const r = await fetch(`/api/admin/feriados/${id}/reativar`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token()}` },
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.ok) { notify(d.erro || 'Erro ao reativar', true); return; }
+      notify('Feriado reativado');
+      await carregar(ano, statusAba);
     } catch { notify('Erro de conexão', true); }
   }
 
@@ -2354,6 +2371,16 @@ function FeriadosPanel({ isMobile }) {
       </p>
     </div>
 
+    {/* Tabs status */}
+    <div style={{ display: 'flex', gap: 18, marginBottom: 14, borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22` }}>
+      {[{ id: 'ativos', label: 'Ativos' }, { id: 'inativos', label: 'Inativos' }].map(t => (
+        <button key={t.id} onClick={() => mudarAba(t.id)}
+          style={{ background: 'transparent', border: 'none', borderBottom: `2px solid ${statusAba === t.id ? HUB_PALETTE.champanhe : 'transparent'}`, color: statusAba === t.id ? HUB_PALETTE.marfim : HUB_PALETTE.areiaDim, fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: statusAba === t.id ? 600 : 400, padding: '8px 0 6px', cursor: 'pointer', marginBottom: -1 }}>
+          {t.label}
+        </button>
+      ))}
+    </div>
+
     {/* Toolbar */}
     <div style={{ display: 'flex', gap: 12, marginBottom: 18, flexWrap: 'wrap', alignItems: 'center' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -2364,7 +2391,7 @@ function FeriadosPanel({ isMobile }) {
         </select>
       </div>
       <div style={{ flex: 1 }} />
-      <button onClick={startNovo} style={cs.btnPrim}>+ Novo feriado</button>
+      {statusAba === 'ativos' && <button onClick={startNovo} style={cs.btnPrim}>+ Novo feriado</button>}
     </div>
 
     {/* Lista */}
@@ -2372,12 +2399,12 @@ function FeriadosPanel({ isMobile }) {
       <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.2em', color: HUB_PALETTE.areiaDim, textTransform: 'uppercase', padding: '40px 0' }}>Carregando...</div>
     ) : lista.length === 0 ? (
       <div style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontSize: 16, color: HUB_PALETTE.areiaDim, padding: '40px 0' }}>
-        Nenhum feriado cadastrado para {ano}.
+        Nenhum feriado {statusAba === 'inativos' ? 'inativo' : 'cadastrado'} para {ano}.
       </div>
     ) : (
       <div style={{ display: 'flex', flexDirection: 'column', borderTop: `1px solid ${HUB_PALETTE.areiaDim}22` }}>
         {lista.map(f => (
-          <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px 4px', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, flexWrap: 'wrap' }}>
+          <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px 4px', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, flexWrap: 'wrap', opacity: statusAba === 'inativos' ? 0.6 : 1 }}>
             <div style={{ minWidth: 96, fontFamily: 'JetBrains Mono, monospace', fontSize: 13, color: HUB_PALETTE.champanhe, letterSpacing: '0.05em' }}>
               {fmtData(f.data)}
             </div>
@@ -2387,8 +2414,12 @@ function FeriadosPanel({ isMobile }) {
             <div style={{ padding: '3px 10px', border: `1px solid ${TIPO_FERIADO_COR[f.tipo] || '#555'}66`, color: TIPO_FERIADO_COR[f.tipo] || '#aaa', fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase' }}>
               {TIPO_FERIADO_LABEL[f.tipo] || f.tipo}
             </div>
-            <button onClick={() => startEdit(f)} style={{ ...cs.btnGhost, padding: '8px 16px', fontSize: 11 }}>Editar</button>
-            <button onClick={() => setConfirmar({ id: f.id, nome: f.nome })} style={{ ...cs.btnDanger, padding: '8px 16px', fontSize: 11 }}>Inativar</button>
+            {statusAba === 'ativos' ? (<>
+              <button onClick={() => startEdit(f)} style={{ ...cs.btnGhost, padding: '8px 16px', fontSize: 11 }}>Editar</button>
+              <button onClick={() => setConfirmar({ id: f.id, nome: f.nome })} style={{ ...cs.btnDanger, padding: '8px 16px', fontSize: 11 }}>Inativar</button>
+            </>) : (
+              <button onClick={() => reativar(f.id)} style={{ ...cs.btnGhost, padding: '8px 16px', fontSize: 11, color: HUB_PALETTE.champanhe, borderColor: HUB_PALETTE.champanhe + '55' }}>Reativar</button>
+            )}
           </div>
         ))}
       </div>

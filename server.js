@@ -1224,7 +1224,9 @@ const FERIADOS_TIPOS = new Set(['nacional', 'estadual', 'municipal', 'interno'])
 app.get('/api/admin/feriados', requireAdmin, (req, res) => {
   const data = readData();
   let feriados = Array.isArray(data.feriados) ? data.feriados : [];
-  feriados = feriados.filter(f => f.ativo !== false);
+  const status = req.query.status; // 'ativos' | 'inativos' | 'todos'
+  if (status === 'inativos') feriados = feriados.filter(f => f.ativo === false);
+  else if (status !== 'todos') feriados = feriados.filter(f => f.ativo !== false);
   const ano = req.query.ano ? parseInt(req.query.ano, 10) : null;
   if (ano) feriados = feriados.filter(f => f.data && f.data.startsWith(String(ano)));
   feriados = feriados.slice().sort((a, b) => a.data.localeCompare(b.data));
@@ -1270,6 +1272,23 @@ app.put('/api/admin/feriados/:id', requireAdmin, (req, res) => {
     campos: { data: dataFeriado, tipo: tipo || 'nacional' },
   });
   res.json({ ok: true, feriado: data.feriados[idx] });
+});
+
+app.patch('/api/admin/feriados/:id/reativar', requireAdmin, (req, res) => {
+  const { id } = req.params;
+  const data = readData();
+  if (!Array.isArray(data.feriados)) return res.status(404).json({ ok: false, erro: 'Feriado não encontrado' });
+  const idx = data.feriados.findIndex(f => f.id === id);
+  if (idx === -1) return res.status(404).json({ ok: false, erro: 'Feriado não encontrado' });
+  data.feriados[idx] = { ...data.feriados[idx], ativo: true };
+  writeData(data);
+  appendAudit({
+    by_email: req.hubUser.email, by_nome: req.hubUser.nome,
+    action: 'ativar', target_tipo: 'feriado',
+    target_id: id, target_nome: data.feriados[idx].nome,
+    campos: { ativo: true },
+  });
+  res.json({ ok: true });
 });
 
 app.patch('/api/admin/feriados/:id/inativar', requireAdmin, (req, res) => {
