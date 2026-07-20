@@ -2358,7 +2358,7 @@ function FeriadosPanel({ isMobile }) {
   };
 
   const anos = [];
-  for (let y = anoAtual - 1; y <= anoAtual + 3; y++) anos.push(y);
+  for (let y = anoAtual; y <= anoAtual + 3; y++) anos.push(y);
 
   return (<>
     <div style={{ marginBottom: 28 }}>
@@ -2372,10 +2372,10 @@ function FeriadosPanel({ isMobile }) {
     </div>
 
     {/* Tabs status */}
-    <div style={{ display: 'flex', gap: 18, marginBottom: 14, borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22` }}>
+    <div style={{ display: 'flex', marginBottom: 14, borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22` }}>
       {[{ id: 'ativos', label: 'Ativos' }, { id: 'inativos', label: 'Inativos' }].map(t => (
         <button key={t.id} onClick={() => mudarAba(t.id)}
-          style={{ background: 'transparent', border: 'none', borderBottom: `2px solid ${statusAba === t.id ? HUB_PALETTE.champanhe : 'transparent'}`, color: statusAba === t.id ? HUB_PALETTE.marfim : HUB_PALETTE.areiaDim, fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: statusAba === t.id ? 600 : 400, padding: '8px 0 6px', cursor: 'pointer', marginBottom: -1 }}>
+          style={{ background: 'transparent', border: 'none', borderBottom: `2px solid ${statusAba === t.id ? HUB_PALETTE.champanhe : 'transparent'}`, color: statusAba === t.id ? HUB_PALETTE.champanhe : HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', padding: '12px 18px 10px', cursor: 'pointer', marginBottom: -1, transition: 'color 200ms, border-color 200ms' }}>
           {t.label}
         </button>
       ))}
