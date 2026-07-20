@@ -89,13 +89,48 @@
   }
   input:focus { border-color: rgba(156,88,67,0.53); }
 
-  .criteria { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
+  .strength { display: flex; align-items: center; gap: 12px; margin: 2px 0 14px; }
+  .sbars { flex: 1; display: flex; gap: 4px; }
+  .sbar { flex: 1; height: 3px; background: rgba(138,123,106,0.22); overflow: hidden; }
+  .sbar i {
+    display: block; height: 100%; background: #7cb342;
+    transform: scaleX(0); transform-origin: left;
+    transition: transform 420ms var(--ease), background 320ms;
+  }
+  .sbar:nth-child(2) i { transition-delay: 50ms, 0ms; }
+  .sbar:nth-child(3) i { transition-delay: 100ms, 0ms; }
+  .sbar:nth-child(4) i { transition-delay: 150ms, 0ms; }
+  .sbar:nth-child(5) i { transition-delay: 200ms, 0ms; }
+  .sbar.on i { transform: scaleX(1); }
+  .slabel {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px; letter-spacing: 0.25em; text-transform: uppercase;
+    color: var(--areiaDim); min-width: 48px; text-align: right;
+    transition: color 320ms;
+  }
+  .criteria { display: flex; flex-wrap: wrap; gap: 10px 16px; margin-bottom: 22px; }
   .criterion {
+    display: inline-flex; align-items: center; gap: 7px;
     font-family: 'JetBrains Mono', monospace;
     font-size: 10px; letter-spacing: 0.12em; color: var(--areiaDim);
-    transition: color 200ms;
+    transition: color 250ms;
+  }
+  .criterion .check {
+    width: 15px; height: 15px; border-radius: 50%;
+    border: 1px solid rgba(138,123,106,0.4);
+    display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+    transition: background 300ms var(--ease), border-color 300ms var(--ease);
+  }
+  .criterion .check svg { width: 9px; height: 9px; display: block; }
+  .criterion .check path {
+    stroke: var(--noite); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+    fill: none; stroke-dasharray: 14; stroke-dashoffset: 14;
   }
   .criterion.ok { color: #7cb342; }
+  .criterion.ok .check { background: #7cb342; border-color: #7cb342; animation: pop 360ms var(--ease); }
+  .criterion.ok .check path { animation: draw 320ms var(--ease) 90ms forwards; }
+  @keyframes draw { to { stroke-dashoffset: 0; } }
+  @keyframes pop { 0% { transform: scale(0.55); } 60% { transform: scale(1.18); } 100% { transform: scale(1); } }
 
   button {
     width: 100%; background: transparent;
@@ -155,73 +190,85 @@
     return;
   }
 
-  var state = { senha: '', saving: false, erro: '', done: false };
+  var state = { senha: '', saving: false };
+  var NIVEIS = { 1: ['Fraca', '#E07A5F'], 2: ['Fraca', '#E07A5F'], 3: ['Média', '#D4AC0D'], 4: ['Boa', '#AEB84B'], 5: ['Forte', '#7cb342'] };
+  var CHECK_SVG = '<svg viewBox="0 0 12 12"><path d="M2.5 6.4l2.5 2.5 4.6-5.2"/></svg>';
 
-  function render() {
-    if (state.done) {
-      root.innerHTML = '<div class="success"><h1>Conta ativada!</h1><p class="msg">Sua senha foi definida com sucesso.<br><a href="/">Acessar o Hub Gran Marquise</a></p></div>';
-      return;
-    }
+  var crites = criteCheck('');
+  root.innerHTML =
+    '<h1>Criar senha.</h1>' +
+    '<p class="msg">Bem-vindo(a)! Defina sua senha de acesso ao portal Gran Marquise.</p>' +
+    '<div class="err" id="err" style="display:none"></div>' +
+    '<label>Nova senha</label>' +
+    '<input id="s1" type="password" autocomplete="new-password" placeholder="Digite sua nova senha">' +
+    '<div class="strength">' +
+    '<div class="sbars">' + crites.map(function () { return '<span class="sbar"><i></i></span>'; }).join('') + '</div>' +
+    '<span class="slabel" id="slabel">—</span>' +
+    '</div>' +
+    '<div class="criteria">' + crites.map(function (c, i) {
+      return '<span class="criterion" id="crit' + i + '"><span class="check">' + CHECK_SVG + '</span>' + c.label + '</span>';
+    }).join('') + '</div>' +
+    '<button id="btn" disabled>Ativar conta</button>';
 
-    var crites = criteCheck(state.senha);
-    var allOk = crites.every(function (c) { return c.ok; });
+  var s1 = document.getElementById('s1');
+  var btn = document.getElementById('btn');
+  var errEl = document.getElementById('err');
+  var slabel = document.getElementById('slabel');
+  var sbars = root.querySelectorAll('.sbar');
 
-    var critesHtml = crites.map(function (c) {
-      return '<span class="criterion' + (c.ok ? ' ok' : '') + '">' + (c.ok ? '✔' : '✗') + ' ' + c.label + '</span>';
-    }).join('');
-
-    var errHtml = state.erro ? '<div class="err">' + state.erro + '</div>' : '';
-
-    root.innerHTML =
-      '<h1>Criar senha.</h1>' +
-      '<p class="msg">Bem-vindo(a)! Defina sua senha de acesso ao portal Gran Marquise.</p>' +
-      errHtml +
-      '<label>Nova senha</label>' +
-      '<input id="s1" type="password" autocomplete="new-password" placeholder="Mín. 8 chars, maiúscula, número, especial">' +
-      '<div class="criteria">' + critesHtml + '</div>' +
-      '<button id="btn"' + ((!allOk || state.saving) ? ' disabled' : '') + '>' +
-      (state.saving ? 'Aguarde...' : 'Ativar conta') +
-      '</button>';
-
-    var s1 = document.getElementById('s1');
-    s1.value = state.senha;
-    s1.addEventListener('input', function (e) {
-      state.senha = e.target.value;
-      render();
+  function update() {
+    var cs = criteCheck(state.senha);
+    var score = cs.filter(function (c) { return c.ok; }).length;
+    cs.forEach(function (c, i) {
+      document.getElementById('crit' + i).classList.toggle('ok', c.ok);
     });
-    s1.focus();
-
-    if (allOk && !state.saving) {
-      document.getElementById('btn').addEventListener('click', function () {
-        state.saving = true;
-        state.erro = '';
-        render();
-        fetch('/api/ativar', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token: t, senha: state.senha }),
-        })
-          .then(function (r) { return r.json(); })
-          .then(function (d) {
-            if (d.ok) {
-              state.done = true;
-              render();
-            } else {
-              state.erro = d.erro || 'Erro ao ativar. Tente novamente.';
-              state.saving = false;
-              render();
-            }
-          })
-          .catch(function () {
-            state.erro = 'Erro de conexão. Tente novamente.';
-            state.saving = false;
-            render();
-          });
-      });
-    }
+    var nivel = NIVEIS[score];
+    sbars.forEach(function (b, i) {
+      b.classList.toggle('on', i < score);
+      b.querySelector('i').style.background = nivel ? nivel[1] : '#7cb342';
+    });
+    slabel.textContent = nivel ? nivel[0] : '—';
+    slabel.style.color = nivel ? nivel[1] : '';
+    btn.disabled = score < cs.length || state.saving;
   }
 
-  render();
+  s1.addEventListener('input', function (e) {
+    state.senha = e.target.value;
+    update();
+  });
+  s1.focus();
+
+  btn.addEventListener('click', function () {
+    if (btn.disabled) return;
+    state.saving = true;
+    errEl.style.display = 'none';
+    btn.textContent = 'Aguarde...';
+    update();
+    fetch('/api/ativar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: t, senha: state.senha }),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d.ok) {
+          root.innerHTML = '<div class="success"><h1>Conta ativada!</h1><p class="msg">Sua senha foi definida com sucesso.<br><a href="/">Acessar o Hub Gran Marquise</a></p></div>';
+        } else {
+          state.saving = false;
+          errEl.textContent = d.erro || 'Erro ao ativar. Tente novamente.';
+          errEl.style.display = 'flex';
+          btn.textContent = 'Ativar conta';
+          update();
+        }
+      })
+      .catch(function () {
+        state.saving = false;
+        errEl.textContent = 'Erro de conexão. Tente novamente.';
+        errEl.style.display = 'flex';
+        btn.textContent = 'Ativar conta';
+        update();
+      });
+  });
 }());
 </script>
 </body>

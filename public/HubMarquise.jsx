@@ -475,19 +475,6 @@ function HubLogin({ onLogin }) {
         </div>
 
         {trocaForcada ? (() => {
-          const senhaScore = (() => {
-            const s = novaSenha || '';
-            if (!s) return null;
-            let n = 0;
-            if (s.length >= 8) n++;
-            if (/[A-Z]/.test(s)) n++;
-            if (/[a-z]/.test(s)) n++;
-            if (/[0-9]/.test(s)) n++;
-            if (/[^A-Za-z0-9]/.test(s)) n++;
-            return n;
-          })();
-          const senhaCor = senhaScore == null ? null : ['#e53935', '#e53935', '#fb8c00', '#fdd835', '#7cb342', '#43a047'][senhaScore];
-          const senhaLabel = senhaScore == null ? null : ['Muito fraca', 'Fraca', 'Média', 'Boa', 'Forte', 'Excelente'][senhaScore];
           const inputTroca = { ...inputBase, fontSize: 16, padding: '17px 18px' };
           const labelTroca = { fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 10 };
           return (
@@ -511,16 +498,8 @@ function HubLogin({ onLogin }) {
                   }
                 </button>
               </div>
-              {senhaScore != null && (
-                <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <div style={{ flex: 1, height: 5, background: HUB_PALETTE.areiaDim + '33', borderRadius: 3, overflow: 'hidden' }}>
-                    <div style={{ width: `${(senhaScore / 5) * 100}%`, height: '100%', background: senhaCor, transition: 'width 220ms, background 220ms' }} />
-                  </div>
-                  <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase', color: senhaCor, minWidth: 90, textAlign: 'right' }}>{senhaLabel}</span>
-                </div>
-              )}
+              <SenhaChecklist senha={novaSenha} />
               <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 13.5, color: HUB_PALETTE.areiaDim, marginTop: 10, lineHeight: 1.55 }}>
-                Mínimo 8 caracteres, com maiúscula, minúscula, número e caractere especial.<br />
                 <span style={{ opacity: 0.85 }}>Quer manter a senha que já usa? Basta digitá-la nos dois campos.</span>
               </div>
             </div>
@@ -4030,6 +4009,55 @@ function ContasPanel({ isMobile }) {
   </>);
 }
 
+// ─── Checklist animado de força de senha (barra segmentada + critérios) ─────
+function SenhaChecklist({ senha }) {
+  const s = senha || '';
+  const crits = [
+    { label: '8 caracteres', ok: s.length >= 8 },
+    { label: 'Maiúscula', ok: /[A-Z]/.test(s) },
+    { label: 'Minúscula', ok: /[a-z]/.test(s) },
+    { label: 'Número', ok: /[0-9]/.test(s) },
+    { label: 'Especial', ok: /[^A-Za-z0-9]/.test(s) },
+  ];
+  const score = crits.filter(c => c.ok).length;
+  const nivel = score === 0 ? null
+    : score <= 2 ? { label: 'Fraca', cor: '#E07A5F' }
+    : score === 3 ? { label: 'Média', cor: '#D4AC0D' }
+    : score === 4 ? { label: 'Boa', cor: '#AEB84B' }
+    : { label: 'Forte', cor: '#7cb342' };
+  return (
+    <div style={{ marginTop: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+        <div style={{ flex: 1, display: 'flex', gap: 4 }}>
+          {crits.map((_, i) => (
+            <div key={i} style={{ flex: 1, height: 3, background: HUB_PALETTE.areiaDim + '2e', overflow: 'hidden' }}>
+              <div style={{ height: '100%', background: nivel ? nivel.cor : 'transparent', transform: `scaleX(${i < score ? 1 : 0})`, transformOrigin: 'left', transition: `transform 420ms ${HUB_EASE} ${i * 50}ms, background 320ms` }} />
+            </div>
+          ))}
+        </div>
+        <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: nivel ? nivel.cor : HUB_PALETTE.areiaDim, minWidth: 44, textAlign: 'right', transition: 'color 320ms' }}>
+        {nivel ? nivel.label : '—'}
+        </span>
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 16px' }}>
+        {crits.map(({ label, ok }) => (
+          <span key={label} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.12em', color: ok ? '#7cb342' : HUB_PALETTE.areiaDim, transition: 'color 250ms' }}>
+            <span style={{ width: 15, height: 15, borderRadius: '50%', border: `1px solid ${ok ? '#7cb342' : HUB_PALETTE.areiaDim + '66'}`, background: ok ? '#7cb342' : 'transparent', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: `background 300ms ${HUB_EASE}, border-color 300ms ${HUB_EASE}`, animation: ok ? `hubPop 360ms ${HUB_EASE}` : 'none' }}>
+              {ok && (
+                <svg width="9" height="9" viewBox="0 0 12 12" fill="none">
+                  <path d="M2.5 6.4l2.5 2.5 4.6-5.2" stroke={HUB_PALETTE.noite} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                    style={{ strokeDasharray: 14, strokeDashoffset: 14, animation: `hubDraw 320ms ${HUB_EASE} 90ms forwards` }} />
+                </svg>
+              )}
+            </span>
+            {label}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function ContaForm({ tipo, isMobile, cs, erro, saving, initial, initialEtiquetas, isEdit, ehEuMesmo, setores, etiquetas, onCancel, onSave }) {
   const [d, setD] = useState(initial || (tipo === 'admin'
     ? { nome_completo: '', email: '', ramal: '', cargo: '', matricula: '', data_admissao: '', data_nascimento: '', vinculo: '', bilingue: false, idiomas: '', is_master: false, senha: '' }
@@ -4112,21 +4140,6 @@ function ContaForm({ tipo, isMobile, cs, erro, saving, initial, initialEtiquetas
     setErroLocal('');
     onSave(d, isAdmin ? Array.from(etSel) : null);
   }
-
-  // Forca de senha (5 criterios)
-  const senhaScore = (() => {
-    const s = d.senha || '';
-    if (!s) return null;
-    let n = 0;
-    if (s.length >= 8) n++;
-    if (/[A-Z]/.test(s)) n++;
-    if (/[a-z]/.test(s)) n++;
-    if (/[0-9]/.test(s)) n++;
-    if (/[^A-Za-z0-9]/.test(s)) n++;
-    return n;
-  })();
-  const senhaCor = senhaScore == null ? null : ['#e53935', '#e53935', '#fb8c00', '#fdd835', '#7cb342', '#43a047'][senhaScore];
-  const senhaLabel = senhaScore == null ? null : ['Muito fraca', 'Fraca', 'Média', 'Boa', 'Forte', 'Excelente'][senhaScore];
 
   function toggleEt(slug) {
     setEtSel(p => { const n = new Set(p); n.has(slug) ? n.delete(slug) : n.add(slug); return n; });
@@ -4366,21 +4379,7 @@ function ContaForm({ tipo, isMobile, cs, erro, saving, initial, initialEtiquetas
               {showSenha ? 'ocultar' : 'ver'}
             </button>
           </div>
-          {d.senha && (
-            <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-              {[
-                { label: '8 caracteres', ok: d.senha.length >= 8 },
-                { label: 'Maiúscula', ok: /[A-Z]/.test(d.senha) },
-                { label: 'Minúscula', ok: /[a-z]/.test(d.senha) },
-                { label: 'Número', ok: /[0-9]/.test(d.senha) },
-                { label: 'Especial', ok: /[^A-Za-z0-9]/.test(d.senha) },
-              ].map(({ label, ok }) => (
-                <span key={label} style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.12em', color: ok ? '#7cb342' : HUB_PALETTE.areiaDim }}>
-                  {ok ? '✔' : '✗'} {label}
-                </span>
-              ))}
-            </div>
-          )}
+          <SenhaChecklist senha={d.senha} />
         </>)}
         {/* Aviso na criação de usuário: senha gerada via link de ativação */}
         {!isAdmin && !isEdit && (
@@ -5030,6 +5029,7 @@ function HubMarquise() {
     s.textContent = [
       '@keyframes hubDraw{to{stroke-dashoffset:0}}',
       '@keyframes hubFadeIn{to{opacity:1}}',
+      '@keyframes hubPop{0%{transform:scale(.55)}60%{transform:scale(1.18)}100%{transform:scale(1)}}',
       '@keyframes hubPulse{0%{box-shadow:0 0 0 0 rgba(62,132,151,.55)}65%{box-shadow:0 0 0 10px rgba(62,132,151,0)}100%{box-shadow:0 0 0 0 rgba(62,132,151,0)}}',
     ].join('');
     document.head.appendChild(s);
