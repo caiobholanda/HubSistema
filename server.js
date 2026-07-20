@@ -248,6 +248,8 @@ function _gerarSenhaForte() {
 function _gerarLinkAtivacao(chamadosId, email, nome) {
   const data = readData();
   if (!Array.isArray(data.activation_tokens)) data.activation_tokens = [];
+  // Sanitiza entradas corrompidas (null/nao-objeto) — ja derrubou o processo em producao
+  data.activation_tokens = data.activation_tokens.filter(t => t && typeof t === 'object');
   data.activation_tokens.forEach(t => { if (t.email === email) t.used = true; });
   const token = crypto.randomBytes(32).toString('hex');
   const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
@@ -1778,7 +1780,7 @@ app.post('/api/ativar', async (req, res) => {
 
   const data = readData();
   if (!Array.isArray(data.activation_tokens)) return res.status(404).json({ ok: false, erro: 'Token inválido ou expirado.' });
-  const tIdx = data.activation_tokens.findIndex(t => t.token === token && !t.used);
+  const tIdx = data.activation_tokens.findIndex(t => t && t.token === token && !t.used);
   if (tIdx === -1) return res.status(404).json({ ok: false, erro: 'Link inválido ou já utilizado.' });
   const tRec = data.activation_tokens[tIdx];
   if (new Date(tRec.expiresAt) < new Date()) return res.status(410).json({ ok: false, erro: 'Link expirado. Solicite um novo link ao TI.' });
