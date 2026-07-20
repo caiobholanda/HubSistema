@@ -670,20 +670,6 @@ function LinkForm({ form, setForm, onSave, onCancel, linkErro, linkSaving, setor
           <div style={labelStyle}>Descrição</div>
           <textarea value={form.descricao} onChange={e => setForm(p => ({ ...p, descricao: e.target.value }))} placeholder="Breve descrição do sistema" rows={3} style={{ ...inputStyle, resize: 'vertical' }} />
         </div>
-        {/* Acesso Padrão — dentro do grid para herdar gridColumn */}
-        <div style={{ gridColumn: '1 / -1', marginBottom: 4 }}>
-          <div
-            onClick={() => setForm(p => ({ ...p, acessoPadrao: !p.acessoPadrao }))}
-            style={{ display: 'flex', alignItems: 'flex-start', gap: 14, cursor: 'pointer', padding: '12px 16px', border: `1px solid ${form.acessoPadrao ? '#996442' : HUB_PALETTE.areiaDim + '33'}`, background: form.acessoPadrao ? '#99644210' : 'transparent', userSelect: 'none' }}>
-            <span style={{ flexShrink: 0, width: 16, height: 16, marginTop: 1, border: `1.5px solid ${form.acessoPadrao ? '#996442' : HUB_PALETTE.areiaDim + '88'}`, background: form.acessoPadrao ? '#996442' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              {form.acessoPadrao && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><polyline points="1,4 3.5,6.5 9,1" stroke="#ECE4D2" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-            </span>
-            <span style={{ flex: 1 }}>
-              <span style={{ display: 'block', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', color: form.acessoPadrao ? '#996442' : HUB_PALETTE.areiaDim, marginBottom: 3 }}>Acesso Padrão</span>
-              <span style={{ display: 'block', fontFamily: 'Inter, sans-serif', fontSize: 12, color: HUB_PALETTE.areia, lineHeight: 1.45 }}>Disponibilizar este aplicativo automaticamente para todos os colaboradores. Ao ativar, todos os usuários serão associados automaticamente.</span>
-            </span>
-          </div>
-        </div>
         {/* Acesso por Setor */}
         {!form.acessoPadrao && Array.isArray(setoresLista) && setoresLista.length > 0 && (
           <div style={{ gridColumn: '1 / -1', marginBottom: 4 }}>
@@ -711,6 +697,20 @@ function LinkForm({ form, setForm, onSave, onCancel, linkErro, linkSaving, setor
             </div>
           </div>
         )}
+        {/* Acesso Padrão — dentro do grid para herdar gridColumn */}
+        <div style={{ gridColumn: '1 / -1', marginBottom: 4 }}>
+          <div
+            onClick={() => setForm(p => ({ ...p, acessoPadrao: !p.acessoPadrao }))}
+            style={{ display: 'flex', alignItems: 'flex-start', gap: 14, cursor: 'pointer', padding: '12px 16px', border: `1px solid ${form.acessoPadrao ? '#996442' : HUB_PALETTE.areiaDim + '33'}`, background: form.acessoPadrao ? '#99644210' : 'transparent', userSelect: 'none' }}>
+            <span style={{ flexShrink: 0, width: 16, height: 16, marginTop: 1, border: `1.5px solid ${form.acessoPadrao ? '#996442' : HUB_PALETTE.areiaDim + '88'}`, background: form.acessoPadrao ? '#996442' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {form.acessoPadrao && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><polyline points="1,4 3.5,6.5 9,1" stroke="#ECE4D2" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+            </span>
+            <span style={{ flex: 1 }}>
+              <span style={{ display: 'block', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', color: form.acessoPadrao ? '#996442' : HUB_PALETTE.areiaDim, marginBottom: 3 }}>Acesso Padrão</span>
+              <span style={{ display: 'block', fontFamily: 'Inter, sans-serif', fontSize: 12, color: HUB_PALETTE.areia, lineHeight: 1.45 }}>Disponibilizar este aplicativo automaticamente para todos os colaboradores. Ao ativar, todos os usuários serão associados automaticamente.</span>
+            </span>
+          </div>
+        </div>
       </div>
       {linkErro && <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: '#E07A5F', marginBottom: 12 }}>{linkErro}</div>}
       <div style={{ display: 'flex', gap: 10 }}>
