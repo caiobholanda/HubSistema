@@ -2358,7 +2358,7 @@ function FeriadosPanel({ isMobile }) {
   };
 
   const anos = [];
-  for (let y = anoAtual; y <= anoAtual + 10; y++) anos.push(y);
+  for (let y = anoAtual; y <= anoAtual + 2; y++) anos.push(y);
 
   return (<>
     <div style={{ marginBottom: 28 }}>
