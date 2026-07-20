@@ -680,7 +680,7 @@ function LinkForm({ form, setForm, onSave, onCancel, linkErro, linkSaving }) {
             </span>
             <span style={{ flex: 1 }}>
               <span style={{ display: 'block', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', color: form.acessoPadrao ? '#996442' : HUB_PALETTE.areiaDim, marginBottom: 3 }}>Acesso Padrão</span>
-              <span style={{ display: 'block', fontFamily: 'Inter, sans-serif', fontSize: 12, color: HUB_PALETTE.areia, lineHeight: 1.45 }}>Tornar este aplicativo visível para todos os colaboradores. Ao ativar, todos os usuários serão associados automaticamente.</span>
+              <span style={{ display: 'block', fontFamily: 'Inter, sans-serif', fontSize: 12, color: HUB_PALETTE.areia, lineHeight: 1.45 }}>Disponibilizar este aplicativo automaticamente para todos os colaboradores. Ao ativar, todos os usuários serão associados automaticamente.</span>
             </span>
           </div>
         </div>
