@@ -4560,18 +4560,26 @@ function HistoricoUsuarioModal({ usuarioId, nome, isMobile, cs, onClose, tipo })
           {aba === 'chamados' && (chamados === null ? <Carregando /> :
             chamados.length === 0 ? <Vazio msg="Sem chamados deste usuário." /> :
             <div style={{ display: 'flex', flexDirection: 'column' }}>
-              {chamados.map(c => (
-                <div key={c.id} style={{ display: 'flex', flexDirection: 'column', padding: '12px 0', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22` }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                    <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: HUB_PALETTE.champanhe }}>#{c.id}</span>
-                    <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.marfim, fontWeight: 500 }}>{c.descricao ? c.descricao.slice(0, 80) : 'Sem descrição'}{c.descricao && c.descricao.length > 80 ? '…' : ''}</span>
-                    <span style={{ marginLeft: 'auto', fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, border: `1px solid ${HUB_PALETTE.areiaDim}44`, padding: '2px 8px' }}>{c.status}</span>
+              {chamados.map(c => {
+                const statusAberto = !['concluido', 'encerrado'].includes(c.status);
+                const statusLabel = statusAberto ? 'Em Atendimento' : (c.status === 'concluido' ? 'Concluído' : 'Encerrado');
+                const statusCor = statusAberto ? HUB_PALETTE.champanhe : HUB_PALETTE.areiaDim;
+                return (
+                  <div key={c.id} style={{ display: 'flex', flexDirection: 'column', padding: '12px 0', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22` }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                      <a href={`https://sistema-chamados-granmarquise.fly.dev/admin-painel.html?chamado=${c.id}`} target="_blank" rel="noopener noreferrer" style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: HUB_PALETTE.champanhe, textDecoration: 'none' }}>#{c.id}</a>
+                      <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.marfim, fontWeight: 500 }}>{c.descricao ? c.descricao.slice(0, 80) : 'Sem descrição'}{c.descricao && c.descricao.length > 80 ? '…' : ''}</span>
+                      <span style={{ marginLeft: 'auto', fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: statusCor, border: `1px solid ${statusCor}44`, padding: '2px 8px' }}>{statusLabel}</span>
+                    </div>
+                    <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: HUB_PALETTE.areiaDim, marginTop: 4 }}>
+                      Criado em {fmtData(c.criado_em)}{c.categoria ? ` · ${c.categoria}` : ''}
+                    </div>
+                    <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: HUB_PALETTE.areiaDim, marginTop: 2 }}>
+                      Responsável: {c.admin_nome || '—'}{c.concluido_em ? ` · Concluído em ${fmtData(c.concluido_em)}` : ''}
+                    </div>
                   </div>
-                  <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: HUB_PALETTE.areiaDim, marginTop: 4 }}>
-                    Criado em {fmtData(c.criado_em)}{c.categoria ? ` · ${c.categoria}` : ''}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
           {aba === 'atividade' && (logs === null ? <Carregando /> :
