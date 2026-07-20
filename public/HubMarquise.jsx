@@ -1945,6 +1945,7 @@ function SetoresPanel({ isMobile }) {
   const [saving, setSaving] = useState(false);
   const [erro, setErro] = useState('');
   const [toast, setToast] = useState('');
+  const [contagemUsuarios, setContagemUsuarios] = useState({});
 
   useEffect(() => {
     const t = setTimeout(() => setBuscaDebounced(busca), 150);
@@ -1956,10 +1957,19 @@ function SetoresPanel({ isMobile }) {
 
   async function carregar() {
     try {
-      const r = await fetch('/api/admin/chamados-setores', { headers: { Authorization: `Bearer ${token()}` } });
-      const d = await r.json();
-      if (r.ok && d.ok) setLista(d.setores || []);
-      else { setLista([]); notify(d.erro || 'Erro ao carregar setores', true); }
+      const [rS, rU] = await Promise.all([
+        fetch('/api/admin/chamados-setores', { headers: { Authorization: `Bearer ${token()}` } }),
+        fetch('/api/admin/chamados-usuarios', { headers: { Authorization: `Bearer ${token()}` } }),
+      ]);
+      const dS = await rS.json();
+      const dU = await rU.json().catch(() => ({}));
+      if (rS.ok && dS.ok) setLista(dS.setores || []);
+      else { setLista([]); notify(dS.erro || 'Erro ao carregar setores', true); }
+      if (dU.ok && Array.isArray(dU.usuarios)) {
+        const cont = {};
+        for (const u of dU.usuarios) { if (u.setor) cont[u.setor] = (cont[u.setor] || 0) + 1; }
+        setContagemUsuarios(cont);
+      }
     } catch { setLista([]); notify('Erro de conexão', true); }
   }
   useEffect(() => { carregar(); }, []);
@@ -2058,11 +2068,14 @@ function SetoresPanel({ isMobile }) {
       <div style={{ display: 'flex', flexDirection: 'column', borderTop: `1px solid ${HUB_PALETTE.areiaDim}22` }}>
         {filtrada.map(s => (
           <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '20px 4px', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, flexWrap: 'wrap' }}>
-            <div style={{ flex: 1, minWidth: 220, fontFamily: 'Inter, sans-serif', fontSize: 17, color: HUB_PALETTE.marfim, fontWeight: 600 }}>
-              {s.nome}
+            <div style={{ flex: 1, minWidth: 220, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 17, color: HUB_PALETTE.marfim, fontWeight: 600 }}>{s.nome}</span>
+              <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.15em', color: HUB_PALETTE.areiaDim, border: `1px solid ${HUB_PALETTE.areiaDim}33`, padding: '2px 8px' }}>
+                {contagemUsuarios[s.nome] || 0} {(contagemUsuarios[s.nome] || 0) === 1 ? 'usuário' : 'usuários'}
+              </span>
             </div>
             <button onClick={() => startEdit(s)} style={cs.btnGhost}>Editar</button>
-            <button onClick={() => setConfirmar({ id: s.id, nome: s.nome })} style={cs.btnDanger}>Excluir</button>
+            <button onClick={() => setConfirmar({ id: s.id, nome: s.nome })} style={cs.btnDanger}>Inativar</button>
           </div>
         ))}
       </div>
@@ -2125,11 +2138,11 @@ function SetorForm({ isMobile, cs, erro, saving, initialNome, isEdit, onCancel, 
           {isEdit ? 'Editar setor' : 'Informar novo setor'}
         </h3>
         <form autoComplete="off" onSubmit={e => { e.preventDefault(); onSave(nome); }}>
-          <label style={cs.label}>Nome do setor *</label>
+          <label style={cs.label}>Nome *</label>
           <input ref={inputRef} style={cs.input} value={nome} maxLength={80}
             autoComplete="off" name="setor-nome-randomx1" spellCheck={false}
             onChange={e => setNome(e.target.value)} onKeyDown={handleKey}
-            placeholder="Ex: Recepção, Financeiro, TI…" />
+            placeholder="Ex.: Recepção, Financeiro, TI" />
           {erro && (
             <div style={{ marginTop: 14, padding: '10px 12px', border: '1px solid #E07A5F66', color: '#E07A5F', fontSize: 13, fontFamily: 'Inter, sans-serif' }}>
               {erro}
