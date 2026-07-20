@@ -3539,6 +3539,101 @@ function UHsPanel({ isMobile }) {
 }
 
 
+// ─── Filtros do painel Contas ───────────────────────────────────────────────
+// Logica pura espelhada em src/contas-filtros.js (testada via node --test) —
+// mantenha as duas copias em sincronia.
+const CONTAS_ORDEM_STATUS = ['ativo', 'precadastro', 'ativacao_pendente', 'bloqueado', 'desligado'];
+
+function filtrarOrdenarContas(lista, opts) {
+  const { isAdmin, busca, status, setor, cargo, ordem } = opts || {};
+  const tokens = (busca || '').trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const statusDe = r => isAdmin
+    ? (r.ativo === 1 ? 'ativo' : 'desligado')
+    : (r.hub_status || (r.ativo !== 0 ? 'ativo' : 'desligado'));
+  function matchToken(r, t) {
+    if (t === 'master' && isAdmin) return !!r.is_master;
+    if (t === 'inativo') return !(isAdmin ? r.ativo === 1 : r.ativo !== 0);
+    const campos = [
+      isAdmin ? r.nome_completo : r.nome,
+      r.email, r.usuario, r.ramal, r.setor, r.cargo, r.matricula,
+    ].filter(Boolean).map(s => String(s).toLowerCase());
+    return campos.some(c => c.includes(t));
+  }
+  const base = (lista || []).filter(r =>
+    (tokens.length === 0 || tokens.every(t => matchToken(r, t))) &&
+    (!setor || (r.setor || '') === setor) &&
+    (!cargo || (r.cargo || '') === cargo)
+  );
+  const contagem = {};
+  for (const r of base) {
+    const s = statusDe(r);
+    contagem[s] = (contagem[s] || 0) + 1;
+  }
+  const porStatus = base.filter(r => {
+    if (isAdmin) {
+      if (status === 'ativos') return r.ativo === 1;
+      if (status === 'inativos') return r.ativo !== 1;
+      return true;
+    }
+    if (!status || status === 'todos') return true;
+    return statusDe(r) === status;
+  });
+  const nomeDe = r => (isAdmin ? r.nome_completo : r.nome) || '';
+  const cmpNome = (a, b) => nomeDe(a).localeCompare(nomeDe(b), 'pt-BR', { sensitivity: 'base' });
+  const resultado = porStatus.slice().sort((a, b) => {
+    if (ordem === 'setor') {
+      return ((a.setor || '').localeCompare(b.setor || '', 'pt-BR', { sensitivity: 'base' })) || cmpNome(a, b);
+    }
+    if (ordem === 'status') {
+      return (CONTAS_ORDEM_STATUS.indexOf(statusDe(a)) - CONTAS_ORDEM_STATUS.indexOf(statusDe(b))) || cmpNome(a, b);
+    }
+    return cmpNome(a, b);
+  });
+  return { resultado, contagem, base };
+}
+
+// Dropdown de filtro no padrao visual do hub (label mono + popup custom).
+function FiltroSelect({ label, value, options, onChange, minWidth, emptyLabel }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    const h = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, [open]);
+  const sel = options.find(o => o.value === value);
+  const temValor = !!value;
+  return (
+    <div ref={ref} style={{ position: 'relative', minWidth: minWidth || 150, flex: '0 1 auto' }}>
+      <button type="button" onClick={() => setOpen(v => !v)}
+        aria-haspopup="listbox" aria-expanded={open}
+        style={{ width: '100%', boxSizing: 'border-box', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, background: temValor ? HUB_PALETTE.champanhe + '12' : HUB_PALETTE.areiaDim + '0a', border: `1px solid ${temValor ? HUB_PALETTE.champanhe + '66' : HUB_PALETTE.areiaDim + '33'}`, color: temValor ? HUB_PALETTE.marfim : HUB_PALETTE.areiaDim, fontFamily: 'Inter, sans-serif', fontSize: 13, padding: '9px 12px', cursor: 'pointer', textAlign: 'left', transition: 'border-color 180ms, background 180ms' }}>
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginRight: 8 }}>{label}</span>
+          {sel ? sel.label : (emptyLabel || 'Todos')}
+        </span>
+        <svg width="10" height="6" viewBox="0 0 10 6" fill="none" style={{ flexShrink: 0, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 180ms' }}>
+          <path d="M1 1l4 4 4-4" stroke={HUB_PALETTE.areiaDim} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+      {open && (
+        <div role="listbox" style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 40, background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}44`, maxHeight: 240, overflowY: 'auto', marginTop: 2, boxShadow: '0 8px 24px rgba(0,0,0,0.35)' }}>
+          {[{ value: '', label: emptyLabel || 'Todos' }, ...options].map(o => (
+            <div key={o.value || '__todos'} role="option" aria-selected={o.value === value}
+              onMouseDown={e => { e.preventDefault(); onChange(o.value); setOpen(false); }}
+              style={{ padding: '8px 12px', cursor: 'pointer', background: o.value === value ? HUB_PALETTE.champanhe + '22' : 'transparent', color: o.value === value ? HUB_PALETTE.marfim : HUB_PALETTE.areia, fontFamily: 'Inter, sans-serif', fontSize: 13 }}
+              onMouseEnter={e => { e.currentTarget.style.background = HUB_PALETTE.champanhe + '18'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = o.value === value ? HUB_PALETTE.champanhe + '22' : 'transparent'; }}>
+              {o.label}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Contas (CRUD de admins do TI e usuarios do portal) ─────────────────────
 function ContasPanel({ isMobile }) {
   const isPhone = useWindowWidth() < 480;
@@ -3546,12 +3641,23 @@ function ContasPanel({ isMobile }) {
     try { return sessionStorage.getItem('hub_contas_subaba') || 'usuarios'; } catch { return 'usuarios'; }
   });
   const setSubAba = (v) => { try { sessionStorage.setItem('hub_contas_subaba', v); } catch {} _setSubAba(v); };
+  // Filtros persistidos na URL (?ctstatus=&ctsetor=&ctcargo=&ctq=&ctord=).
+  // Precedencia na carga: URL > sessionStorage > default. Nao toca nos params
+  // do SSO (?theme, ?next, sso_token).
+  const _urlFiltros = (() => {
+    try {
+      const p = new URLSearchParams(window.location.search);
+      return { status: p.get('ctstatus'), setor: p.get('ctsetor'), cargo: p.get('ctcargo'), q: p.get('ctq'), ord: p.get('ctord') };
+    } catch { return {}; }
+  })();
   const [statusAba, _setStatusAba] = useState(() => {
     try {
       const sub = sessionStorage.getItem('hub_contas_subaba') || 'usuarios';
       const saved = sessionStorage.getItem('hub_contas_status');
       if (sub === 'admins') return (saved === 'ativos' || saved === 'inativos') ? saved : 'ativos';
-      const validos = ['todos', 'precadastro', 'ativacao_pendente', 'ativo', 'bloqueado', 'desligado'];
+      // 'todos' foi removido das pills — sessoes antigas migram para 'ativo'
+      const validos = ['precadastro', 'ativacao_pendente', 'ativo', 'bloqueado', 'desligado'];
+      if (_urlFiltros.status && validos.includes(_urlFiltros.status)) return _urlFiltros.status;
       return validos.includes(saved) ? saved : 'ativo';
     } catch { return 'ativo'; }
   });
@@ -3560,7 +3666,28 @@ function ContasPanel({ isMobile }) {
   const [usuarios, setUsuarios] = useState(null);
   const [setoresLista, setSetoresLista] = useState([]);
   const [etiquetasLista, setEtiquetasLista] = useState([]);
-  const [busca, setBusca] = useState('');
+  const [busca, setBusca] = useState(_urlFiltros.q || '');
+  const [buscaDebounced, setBuscaDebounced] = useState(_urlFiltros.q || '');
+  const [setorFiltro, setSetorFiltro] = useState(_urlFiltros.setor || '');
+  const [cargoFiltro, setCargoFiltro] = useState(_urlFiltros.cargo || '');
+  const [ordem, setOrdem] = useState(['nome', 'setor', 'status'].includes(_urlFiltros.ord) ? _urlFiltros.ord : 'nome');
+  useEffect(() => {
+    const t = setTimeout(() => setBuscaDebounced(busca), 200);
+    return () => clearTimeout(t);
+  }, [busca]);
+  useEffect(() => {
+    try {
+      const p = new URLSearchParams(window.location.search);
+      const setOrDel = (k, v, def) => { if (v && v !== def) p.set(k, v); else p.delete(k); };
+      setOrDel('ctstatus', statusAba, subAba === 'admins' ? 'ativos' : 'ativo');
+      setOrDel('ctsetor', setorFiltro, '');
+      setOrDel('ctcargo', cargoFiltro, '');
+      setOrDel('ctq', buscaDebounced, '');
+      setOrDel('ctord', ordem, 'nome');
+      const qs = p.toString();
+      window.history.replaceState(null, '', window.location.pathname + (qs ? '?' + qs : '') + window.location.hash);
+    } catch {}
+  }, [statusAba, setorFiltro, cargoFiltro, buscaDebounced, ordem, subAba]);
   const [editing, setEditing] = useState(null); // { tipo, id, dados, etiquetas? }
   const [creating, setCreating] = useState(null); // 'admin' | 'usuario'
   const [saving, setSaving] = useState(false);
@@ -3801,52 +3928,48 @@ function ContasPanel({ isMobile }) {
 
   const isAdmin = subAba === 'admins';
   const lista = isAdmin ? admins : usuarios;
-  // Filtro de busca: nome, email, login, ramal, setor + flags (master, inativo).
-  // Multiplas palavras separadas por espaco viram AND (toda token precisa bater).
-  const tokens = busca.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  // Filtragem/ordenacao extraida para filtrarOrdenarContas (espelhada e testada
+  // em src/contas-filtros.js). Busca: nome, email, login, ramal, setor, cargo,
+  // matricula + flags (master, inativo); multi-palavra = AND.
   function getStatusEfetivo(r) {
     if (isAdmin) return r.ativo === 1 ? 'ativo' : 'desligado';
     return r.hub_status || (r.ativo !== 0 ? 'ativo' : 'desligado');
   }
-  function matchToken(r, t) {
-    if (t === 'master' && isAdmin) return !!r.is_master;
-    if (t === 'inativo') return !(isAdmin ? r.ativo === 1 : r.ativo !== 0);
-    const campos = [
-      isAdmin ? r.nome_completo : r.nome,
-      r.email,
-      r.usuario,
-      r.ramal,
-      r.setor,
-      r.cargo,
-      r.matricula,
-    ].filter(Boolean).map(s => String(s).toLowerCase());
-    return campos.some(c => c.includes(t));
-  }
-  const buscaFiltrada = tokens.length ? (lista || []).filter(r => tokens.every(t => matchToken(r, t))) : (lista || []);
-  const filtrada = buscaFiltrada
-    .filter(r => {
-      if (isAdmin) {
-        if (statusAba === 'ativos') return r.ativo === 1;
-        if (statusAba === 'inativos') return r.ativo !== 1;
-        return true;
-      }
-      if (statusAba === 'todos') return true;
-      return getStatusEfetivo(r) === statusAba;
-    })
-    .slice()
-    .sort((a, b) => {
-      const nomeA = (isAdmin ? a.nome_completo : a.nome) || '';
-      const nomeB = (isAdmin ? b.nome_completo : b.nome) || '';
-      return nomeA.localeCompare(nomeB, 'pt-BR', { sensitivity: 'base' });
-    });
+  const filtroResult = filtrarOrdenarContas(lista, {
+    isAdmin,
+    busca: buscaDebounced,
+    status: statusAba,
+    setor: isAdmin ? '' : setorFiltro,
+    cargo: isAdmin ? '' : cargoFiltro,
+    ordem: isAdmin ? 'nome' : ordem,
+  });
+  const filtrada = filtroResult.resultado;
+  const contagemStatus = filtroResult.contagem;
+  const buscaFiltrada = filtroResult.base;
   const totalAtivos = buscaFiltrada.filter(r => isAdmin ? r.ativo === 1 : r.ativo !== 0).length;
   const totalInativos = buscaFiltrada.filter(r => isAdmin ? r.ativo !== 1 : r.ativo === 0).length;
-  const contagemStatus = {};
-  if (!isAdmin) {
-    for (const r of buscaFiltrada) {
-      const s = getStatusEfetivo(r);
-      contagemStatus[s] = (contagemStatus[s] || 0) + 1;
-    }
+
+  // Opcoes dos dropdowns: setores oficiais ∪ setores legados presentes; cargos derivados
+  const setorOpcoesFiltro = (() => {
+    if (isAdmin) return [];
+    const set = new Set((setoresLista || []).map(x => (x && (x.nome ?? x.name)) || '').filter(Boolean));
+    (usuarios || []).forEach(u => { if (u.setor) set.add(u.setor); });
+    return [...set].sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' })).map(v => ({ value: v, label: v }));
+  })();
+  const cargoOpcoesFiltro = (() => {
+    if (isAdmin) return [];
+    const set = new Set((usuarios || []).map(u => u.cargo).filter(Boolean));
+    return [...set].sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' })).map(v => ({ value: v, label: v }));
+  })();
+  const nFiltrosAtivos = isAdmin ? 0 :
+    (statusAba !== 'ativo' ? 1 : 0) + (setorFiltro ? 1 : 0) + (cargoFiltro ? 1 : 0) + (buscaDebounced.trim() ? 1 : 0) + (ordem !== 'nome' ? 1 : 0);
+  function limparFiltros() {
+    setStatusAba('ativo');
+    setSetorFiltro('');
+    setCargoFiltro('');
+    setBusca('');
+    setBuscaDebounced('');
+    setOrdem('nome');
   }
 
   const btnPad = isPhone ? '8px 12px' : '12px 22px';
@@ -3874,7 +3997,7 @@ function ContasPanel({ isMobile }) {
     {/* Sub-tabs tipo */}
     <div style={{ display: 'flex', gap: 0, borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, marginBottom: 14 }}>
       {[{ id: 'admins', label: 'Admin' }, { id: 'usuarios', label: 'Usuários' }].map(s => (
-        <button key={s.id} onClick={() => { setSubAba(s.id); setBusca(''); setStatusAba(s.id === 'admins' ? 'ativos' : 'ativo'); }}
+        <button key={s.id} onClick={() => { setSubAba(s.id); setBusca(''); setBuscaDebounced(''); setSetorFiltro(''); setCargoFiltro(''); setOrdem('nome'); setStatusAba(s.id === 'admins' ? 'ativos' : 'ativo'); }}
           style={{ background: 'transparent', border: 'none', borderBottom: `2px solid ${subAba === s.id ? HUB_PALETTE.champanhe : 'transparent'}`, color: subAba === s.id ? HUB_PALETTE.champanhe : HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', padding: '10px 18px 8px', cursor: 'pointer' }}>
           {s.label}
         </button>
@@ -3893,10 +4016,9 @@ function ContasPanel({ isMobile }) {
     ) : (
       <div style={{ display: 'flex', gap: 6, marginBottom: 18, flexWrap: 'wrap' }}>
         {[
-          { id: 'todos', label: 'Todos', dot: null, total: buscaFiltrada.length },
+          { id: 'ativo', label: 'Ativo', dot: '#62A852', total: contagemStatus['ativo'] || 0 },
           { id: 'precadastro', label: 'Pré-cadastro', dot: '#D4AC0D', total: contagemStatus['precadastro'] || 0 },
           { id: 'ativacao_pendente', label: 'Ativação pendente', dot: '#E88B2A', total: contagemStatus['ativacao_pendente'] || 0 },
-          { id: 'ativo', label: 'Ativo', dot: '#62A852', total: contagemStatus['ativo'] || 0 },
           { id: 'bloqueado', label: 'Bloqueado', dot: '#5BA3CC', total: contagemStatus['bloqueado'] || 0 },
           { id: 'desligado', label: 'Desligado', dot: '#607D8B', total: contagemStatus['desligado'] || 0 },
         ].map(s => {
@@ -3929,11 +4051,43 @@ function ContasPanel({ isMobile }) {
       </button>
     </div>
 
+    {/* Filtros estruturados (so usuarios do portal) */}
+    {!isAdmin && (
+      <div style={{ display: 'flex', gap: 10, marginBottom: 18, flexWrap: 'wrap', alignItems: 'center' }}>
+        <FiltroSelect label="Setor" value={setorFiltro} options={setorOpcoesFiltro} onChange={setSetorFiltro} minWidth={170} />
+        <FiltroSelect label="Cargo" value={cargoFiltro} options={cargoOpcoesFiltro} onChange={setCargoFiltro} minWidth={170} />
+        <FiltroSelect label="Ordenar" value={ordem === 'nome' ? '' : ordem} emptyLabel="Nome A-Z"
+          options={[{ value: 'setor', label: 'Setor' }, { value: 'status', label: 'Status' }]}
+          onChange={v => setOrdem(v || 'nome')} minWidth={150} />
+        {nFiltrosAtivos > 0 && (
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 12, marginLeft: 'auto' }}>
+            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim }}>
+              {nFiltrosAtivos} filtro{nFiltrosAtivos > 1 ? 's' : ''} ativo{nFiltrosAtivos > 1 ? 's' : ''}
+            </span>
+            <button onClick={limparFiltros}
+              style={{ background: 'transparent', border: 'none', color: HUB_PALETTE.champanhe, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: 3, padding: 0 }}>
+              Limpar filtros
+            </button>
+          </div>
+        )}
+      </div>
+    )}
+
     {/* Lista */}
     {lista === null ? (
       <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.2em', color: HUB_PALETTE.areiaDim, textTransform: 'uppercase', padding: '40px 0' }}>Carregando...</div>
     ) : filtrada.length === 0 ? (
-      <div style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontSize: 16, color: HUB_PALETTE.areiaDim, padding: '40px 0' }}>Nenhum registro.</div>
+      <div style={{ padding: '40px 0' }}>
+        <div style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontSize: 16, color: HUB_PALETTE.areiaDim }}>
+          {nFiltrosAtivos > 0 ? 'Nenhum usuário encontrado com os filtros atuais.' : 'Nenhum registro.'}
+        </div>
+        {nFiltrosAtivos > 0 && (
+          <button onClick={limparFiltros}
+            style={{ marginTop: 12, background: 'transparent', border: `1px solid ${HUB_PALETTE.champanhe}66`, color: HUB_PALETTE.champanhe, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.2em', textTransform: 'uppercase', padding: '8px 16px', cursor: 'pointer' }}>
+            Limpar filtros
+          </button>
+        )}
+      </div>
     ) : (
       <div style={{ display: 'flex', flexDirection: 'column', borderTop: `1px solid ${HUB_PALETTE.areiaDim}22` }}>
         {filtrada.map(row => {
