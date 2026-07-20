@@ -304,7 +304,13 @@ function getUserSistemas(email, tipo, isMaster) {
   const viaSitePerm = (data.site_permissions || [])
     .filter(r => sitePerm._norm(r.email) === e && sistemasAtuaisIds.includes(r.sistema_id))
     .map(r => r.sistema_id);
-  return [...new Set([...explicitos, ...viaSitePerm, ...padraoIds])];
+  // Fonte: acesso por setor — sistemas que listam o setor do usuário em setoresAcesso
+  const userEntry = (data.users || []).find(u => sitePerm._norm(u.email) === e);
+  const userSetor = userEntry ? userEntry.setor : null;
+  const viaSetor = userSetor
+    ? sistemas.filter(s => Array.isArray(s.setoresAcesso) && s.setoresAcesso.includes(userSetor)).map(s => s.id)
+    : [];
+  return [...new Set([...explicitos, ...viaSitePerm, ...padraoIds, ...viaSetor])];
 }
 
 // Garante que usuario nao-admin tenha entrada explicita no primeiro login.
@@ -618,7 +624,7 @@ app.get('/api/admin/all-users', requireAdmin, async (_req, res) => {
 });
 
 app.post('/api/admin/sistemas', requireAdmin, (req, res) => {
-  const { nome, url, status, categoria, descricao, acessoPadrao } = req.body || {};
+  const { nome, url, status, categoria, descricao, acessoPadrao, setoresAcesso } = req.body || {};
   if (!nome || !status) return res.status(400).json({ ok: false, erro: 'Nome e status são obrigatórios' });
   const data = readData();
   if (!Array.isArray(data.sistemas)) data.sistemas = JSON.parse(JSON.stringify(DEFAULT_SISTEMAS));
@@ -626,7 +632,7 @@ app.post('/api/admin/sistemas', requireAdmin, (req, res) => {
   const id = nome.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
   if (sistemas.find(s => s.id === id)) return res.status(409).json({ ok: false, erro: 'Já existe um sistema com esse nome' });
   const num = String(sistemas.length + 1).padStart(2, '0');
-  const novo = { id, num, nome, url: url || '#', status, categoria: categoria || '', descricao: descricao || '', acessoPadrao: !!acessoPadrao };
+  const novo = { id, num, nome, url: url || '#', status, categoria: categoria || '', descricao: descricao || '', acessoPadrao: !!acessoPadrao, setoresAcesso: Array.isArray(setoresAcesso) ? setoresAcesso : [] };
   data.sistemas = [...sistemas, novo];
   data.permissions = data.permissions || {};
   if (acessoPadrao) autoAssociarTodos(data, id);
@@ -641,14 +647,14 @@ app.post('/api/admin/sistemas', requireAdmin, (req, res) => {
 });
 
 app.put('/api/admin/sistemas/:id', requireAdmin, (req, res) => {
-  const { nome, url, status, categoria, descricao, acessoPadrao } = req.body || {};
+  const { nome, url, status, categoria, descricao, acessoPadrao, setoresAcesso } = req.body || {};
   const data = readData();
   if (!Array.isArray(data.sistemas)) data.sistemas = JSON.parse(JSON.stringify(DEFAULT_SISTEMAS));
   const sistemas = data.sistemas;
   const idx = sistemas.findIndex(s => s.id === req.params.id);
   if (idx === -1) return res.status(404).json({ ok: false, erro: 'Sistema não encontrado' });
   const antes = { ...sistemas[idx] };
-  sistemas[idx] = { ...sistemas[idx], ...(nome && { nome }), url: url !== undefined ? url : sistemas[idx].url, ...(status && { status }), categoria: categoria !== undefined ? categoria : sistemas[idx].categoria, descricao: descricao !== undefined ? descricao : sistemas[idx].descricao, acessoPadrao: acessoPadrao !== undefined ? !!acessoPadrao : !!sistemas[idx].acessoPadrao };
+  sistemas[idx] = { ...sistemas[idx], ...(nome && { nome }), url: url !== undefined ? url : sistemas[idx].url, ...(status && { status }), categoria: categoria !== undefined ? categoria : sistemas[idx].categoria, descricao: descricao !== undefined ? descricao : sistemas[idx].descricao, acessoPadrao: acessoPadrao !== undefined ? !!acessoPadrao : !!sistemas[idx].acessoPadrao, setoresAcesso: setoresAcesso !== undefined ? (Array.isArray(setoresAcesso) ? setoresAcesso : []) : (sistemas[idx].setoresAcesso || []) };
   data.sistemas = sistemas;
   if (acessoPadrao && !antes.acessoPadrao) autoAssociarTodos(data, req.params.id);
   writeData(data);
@@ -656,6 +662,9 @@ app.put('/api/admin/sistemas/:id', requireAdmin, (req, res) => {
   const diff = {};
   for (const k of ['nome', 'url', 'status', 'categoria', 'descricao', 'acessoPadrao']) {
     if (antes[k] !== sistemas[idx][k]) diff[k] = sistemas[idx][k];
+  }
+  if (JSON.stringify(antes.setoresAcesso || []) !== JSON.stringify(sistemas[idx].setoresAcesso || [])) {
+    diff.setoresAcesso = sistemas[idx].setoresAcesso;
   }
   // Quando o unico campo alterado e' o status, deriva 'ativar' ou 'inativar'
   // para alinhar com a mesma convencao usada nos endpoints de admins/usuarios.

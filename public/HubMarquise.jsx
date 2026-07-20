@@ -633,7 +633,7 @@ const STATUS_CORES = { 'no-ar': '#4CAF87', 'construcao': '#E0A85F', 'beta': '#5F
 
 // ─── Admin Panel helpers ──────────────────────────────────────────────────────
 
-function LinkForm({ form, setForm, onSave, onCancel, linkErro, linkSaving }) {
+function LinkForm({ form, setForm, onSave, onCancel, linkErro, linkSaving, setoresLista }) {
   const isMobile = useWindowWidth() < 768;
   const inputStyle = {
     width: '100%', boxSizing: 'border-box',
@@ -684,6 +684,33 @@ function LinkForm({ form, setForm, onSave, onCancel, linkErro, linkSaving }) {
             </span>
           </div>
         </div>
+        {/* Acesso por Setor */}
+        {!form.acessoPadrao && Array.isArray(setoresLista) && setoresLista.length > 0 && (
+          <div style={{ gridColumn: '1 / -1', marginBottom: 4 }}>
+            <div style={{ border: `1px solid ${HUB_PALETTE.areiaDim}33`, padding: '14px 16px' }}>
+              <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 8 }}>Acesso por Setor</div>
+              <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: HUB_PALETTE.areia, marginBottom: 12, lineHeight: 1.45 }}>Todos os colaboradores dos setores selecionados recebem acesso automaticamente.</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {setoresLista.map(s => {
+                  const sel = (form.setoresAcesso || []).includes(s.nome);
+                  return (
+                    <div key={s.id}
+                      onClick={() => setForm(p => { const cur = p.setoresAcesso || []; return { ...p, setoresAcesso: sel ? cur.filter(x => x !== s.nome) : [...cur, s.nome] }; })}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', border: `1px solid ${sel ? HUB_PALETTE.champanhe + '66' : HUB_PALETTE.areiaDim + '33'}`, background: sel ? HUB_PALETTE.champanhe + '12' : 'transparent', cursor: 'pointer', userSelect: 'none', transition: 'all 120ms' }}>
+                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: sel ? HUB_PALETTE.champanhe : HUB_PALETTE.areiaDim + '55', flexShrink: 0 }} />
+                      <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: sel ? HUB_PALETTE.marfim : HUB_PALETTE.areiaDim }}>{s.nome}</span>
+                    </div>
+                  );
+                })}
+              </div>
+              {(form.setoresAcesso || []).length > 0 && (
+                <div style={{ marginTop: 10, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: HUB_PALETTE.champanhe, letterSpacing: '0.15em' }}>
+                  {(form.setoresAcesso || []).length} setor{(form.setoresAcesso || []).length !== 1 ? 'es' : ''} selecionado{(form.setoresAcesso || []).length !== 1 ? 's' : ''}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
       {linkErro && <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: '#E07A5F', marginBottom: 12 }}>{linkErro}</div>}
       <div style={{ display: 'flex', gap: 10 }}>
@@ -702,7 +729,7 @@ function LinkForm({ form, setForm, onSave, onCancel, linkErro, linkSaving }) {
 // 2 abas: "Edicao" (campos do link) e "Liberacao" (permissoes do banco).
 // Fecha so no botao X / Cancelar / overlay overlay click — nao no Esc.
 
-function LinkEditModal({ sys, form, setForm, onSave, onCancel, linkErro, linkSaving, isMobile, users }) {
+function LinkEditModal({ sys, form, setForm, onSave, onCancel, linkErro, linkSaving, isMobile, users, setoresLista }) {
   const [aba, setAba] = useState('edicao'); // 'edicao' | 'liberacao'
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 180, background: 'rgba(0,0,0,0.62)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, overflow: 'hidden' }}>
@@ -729,11 +756,11 @@ function LinkEditModal({ sys, form, setForm, onSave, onCancel, linkErro, linkSav
         <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
           {aba === 'edicao' && (
             <div style={{ padding: isMobile ? '12px' : '4px 24px 8px' }}>
-              <LinkForm form={form} setForm={setForm} onSave={onSave} onCancel={onCancel} linkErro={linkErro} linkSaving={linkSaving} />
+              <LinkForm form={form} setForm={setForm} onSave={onSave} onCancel={onCancel} linkErro={linkErro} linkSaving={linkSaving} setoresLista={setoresLista} />
             </div>
           )}
           {aba === 'liberacao' && (
-            <LiberacaoPanel sistemaId={sys.id} sistemaNome={sys.nome} isMobile={isMobile} users={users} acessoPadrao={!!sys.acessoPadrao} />
+            <LiberacaoPanel sistemaId={sys.id} sistemaNome={sys.nome} isMobile={isMobile} users={users} acessoPadrao={!!sys.acessoPadrao} setoresAcesso={form.setoresAcesso || []} />
           )}
         </div>
       </div>
@@ -747,7 +774,7 @@ function LinkEditModal({ sys, form, setForm, onSave, onCancel, linkErro, linkSav
 // Acesso comum (usuario) e' implicito — quem ve o link no Hub recebe
 // cookie de usuario automaticamente ao fazer SSO. Por isso nao ha lista
 // de "usuarios" aqui.
-function LiberacaoPanel({ sistemaId, sistemaNome, isMobile, users, acessoPadrao }) {
+function LiberacaoPanel({ sistemaId, sistemaNome, isMobile, users, acessoPadrao, setoresAcesso }) {
   const [items, setItems] = useState(null); // null=loading, []=vazio
   const [novoEmail, setNovoEmail] = useState('');
   const [novoPapel, setNovoPapel] = useState('admin');
@@ -876,6 +903,17 @@ function LiberacaoPanel({ sistemaId, sistemaNome, isMobile, users, acessoPadrao 
 
   return (
     <div style={{ padding: isMobile ? '12px' : '18px 24px 24px' }}>
+      {Array.isArray(setoresAcesso) && setoresAcesso.length > 0 && (
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '12px 16px', border: `1px solid ${HUB_PALETTE.champanhe}33`, background: `${HUB_PALETTE.champanhe}08`, marginBottom: 18 }}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={HUB_PALETTE.champanhe} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 2 }}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <div>
+            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 5 }}>Acesso por Setor</div>
+            <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: HUB_PALETTE.areia, margin: 0, lineHeight: 1.55 }}>
+              Todos os colaboradores dos setores <strong style={{ color: HUB_PALETTE.marfim }}>{setoresAcesso.join(', ')}</strong> têm acesso automático a este app.
+            </p>
+          </div>
+        </div>
+      )}
       <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areia, lineHeight: 1.55, margin: '0 0 18px' }}>
         Quem aparece abaixo recebe <strong>cookie de admin</strong> no <em>{sistemaNome}</em> no próximo login.
         Quem tem acesso ao link no Hub mas não está aqui recebe cookie de usuário comum automaticamente.
@@ -1071,7 +1109,8 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
   // Snapshot do link no momento do startEdit; usado para detectar 'nada mudou'.
   const [editOriginal, setEditOriginal] = useState({});
   const [addingNew, setAddingNew] = useState(false);
-  const [newForm, setNewForm] = useState({ nome: '', url: '', status: 'no-ar', categoria: '', descricao: '', acessoPadrao: false });
+  const [newForm, setNewForm] = useState({ nome: '', url: '', status: 'no-ar', categoria: '', descricao: '', acessoPadrao: false, setoresAcesso: [] });
+  const [setoresLista, setSetoresLista] = useState([]);
   const [linkSaving, setLinkSaving] = useState(false);
   const [linkErro, setLinkErro] = useState('');
   const [expandedLink, setExpandedLink] = useState(null);
@@ -1087,9 +1126,11 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
     Promise.all([
       fetch('/api/admin/all-users', { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
       fetch('/api/admin/data', { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
-    ]).then(([allUsers, hubData]) => {
+      fetch('/api/admin/chamados-setores', { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()).catch(() => ({})),
+    ]).then(([allUsers, hubData, setoresData]) => {
       setUsers(allUsers.users || []);
       setPermissions(hubData.permissions || {});
+      if (setoresData && setoresData.ok) setSetoresLista(setoresData.setores || []);
       setLoading(false);
     }).catch(() => setLoading(false));
   }, []);
@@ -1154,7 +1195,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
 
   function startEdit(sys) {
     setEditingId(sys.id);
-    const initial = { nome: sys.nome, url: sys.url, status: sys.status, categoria: sys.categoria || '', descricao: sys.descricao || '', acessoPadrao: !!sys.acessoPadrao };
+    const initial = { nome: sys.nome, url: sys.url, status: sys.status, categoria: sys.categoria || '', descricao: sys.descricao || '', acessoPadrao: !!sys.acessoPadrao, setoresAcesso: sys.setoresAcesso || [] };
     setEditForm(initial);
     setEditOriginal(initial);
     setLinkErro('');
@@ -1164,7 +1205,8 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
     if (!editForm.nome || !editForm.status) { setLinkErro('Nome e status são obrigatórios'); return; }
     // Bloqueia salvar se nada mudou em relacao ao snapshot do startEdit.
     const camposLink = ['nome', 'url', 'status', 'categoria', 'descricao', 'acessoPadrao'];
-    const algumMudou = camposLink.some(k => (editOriginal[k] ?? '') !== (editForm[k] ?? ''));
+    const algumMudou = camposLink.some(k => (editOriginal[k] ?? '') !== (editForm[k] ?? ''))
+      || JSON.stringify(editOriginal.setoresAcesso || []) !== JSON.stringify(editForm.setoresAcesso || []);
     if (!algumMudou) {
       const msg = 'Faça alguma alteração antes de salvar.';
       setLinkErro(msg);
@@ -1231,7 +1273,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
       }
       setHubSystems(prev => [...prev, d.sistema]);
       setAddingNew(false);
-      setNewForm({ nome: '', url: '', status: 'no-ar', categoria: '', descricao: '', acessoPadrao: false });
+      setNewForm({ nome: '', url: '', status: 'no-ar', categoria: '', descricao: '', acessoPadrao: false, setoresAcesso: [] });
       notifyHubMutation();
       notifyLink('Link criado.');
     } catch {
@@ -1504,7 +1546,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
         return (
           <LinkEditModal sys={sys} form={editForm} setForm={setEditForm} onSave={saveEdit}
             onCancel={() => { setEditingId(null); setLinkErro(''); }}
-            linkErro={linkErro} linkSaving={linkSaving} isMobile={isMobile} users={users} />
+            linkErro={linkErro} linkSaving={linkSaving} isMobile={isMobile} users={users} setoresLista={setoresLista} />
         );
       })()}
     </div>
