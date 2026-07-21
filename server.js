@@ -1534,6 +1534,57 @@ app.delete('/api/admin/cortesias/:email', requireAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
+// ─── Tipos de Cortesia ────────────────────────────────────────────────────────
+
+app.get('/api/admin/tipos-cortesia', requireAdmin, (_req, res) => {
+  const data = readData();
+  res.json({ ok: true, tipos: Array.isArray(data.tipos_cortesia) ? data.tipos_cortesia : [] });
+});
+
+app.post('/api/admin/tipos-cortesia', requireAdmin, (req, res) => {
+  const nome = ((req.body && req.body.nome) || '').trim();
+  const descricao = ((req.body && req.body.descricao) || '').trim();
+  if (!nome) return res.status(400).json({ ok: false, erro: 'nome obrigatório' });
+  const data = readData();
+  if (!Array.isArray(data.tipos_cortesia)) data.tipos_cortesia = [];
+  const tipo = { id: crypto.randomUUID(), nome, descricao, ativo: true, criado_em: new Date().toISOString() };
+  data.tipos_cortesia.push(tipo);
+  writeData(data);
+  appendAudit({ by_email: req.hubUser.email, by_nome: req.hubUser.nome, action: 'criar_tipo_cortesia', target_tipo: 'tipo_cortesia', target_id: tipo.id, target_nome: nome, campos: { nome, descricao } });
+  res.json({ ok: true, tipo });
+});
+
+app.put('/api/admin/tipos-cortesia/:id', requireAdmin, (req, res) => {
+  const { id } = req.params;
+  const data = readData();
+  if (!Array.isArray(data.tipos_cortesia)) return res.status(404).json({ ok: false, erro: 'não encontrado' });
+  const idx = data.tipos_cortesia.findIndex(t => t.id === id);
+  if (idx === -1) return res.status(404).json({ ok: false, erro: 'não encontrado' });
+  const { nome, descricao, ativo } = req.body || {};
+  if (nome !== undefined) {
+    const n = (nome || '').trim();
+    if (!n) return res.status(400).json({ ok: false, erro: 'nome não pode ser vazio' });
+    data.tipos_cortesia[idx].nome = n;
+  }
+  if (descricao !== undefined) data.tipos_cortesia[idx].descricao = (descricao || '').trim();
+  if (ativo !== undefined) data.tipos_cortesia[idx].ativo = !!ativo;
+  writeData(data);
+  appendAudit({ by_email: req.hubUser.email, by_nome: req.hubUser.nome, action: 'editar_tipo_cortesia', target_tipo: 'tipo_cortesia', target_id: id, target_nome: data.tipos_cortesia[idx].nome, campos: { nome, descricao, ativo } });
+  res.json({ ok: true, tipo: data.tipos_cortesia[idx] });
+});
+
+app.delete('/api/admin/tipos-cortesia/:id', requireAdmin, (req, res) => {
+  const { id } = req.params;
+  const data = readData();
+  if (!Array.isArray(data.tipos_cortesia)) return res.status(404).json({ ok: false, erro: 'não encontrado' });
+  const idx = data.tipos_cortesia.findIndex(t => t.id === id);
+  if (idx === -1) return res.status(404).json({ ok: false, erro: 'não encontrado' });
+  const [removed] = data.tipos_cortesia.splice(idx, 1);
+  writeData(data);
+  appendAudit({ by_email: req.hubUser.email, by_nome: req.hubUser.nome, action: 'excluir_tipo_cortesia', target_tipo: 'tipo_cortesia', target_id: id, target_nome: removed.nome, campos: {} });
+  res.json({ ok: true });
+});
+
 // Página de ativação de conta — servida antes do catch-all SPA.
 app.get('/ativar', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'ativar.html')));
 

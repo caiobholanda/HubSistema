@@ -3715,9 +3715,236 @@ function FiltroSelect({ label, value, options, onChange, minWidth, emptyLabel })
   );
 }
 
+// ─── Tipos de Cortesia ────────────────────────────────────────────────────────
+function TiposCortesiaPanel({ isMobile, isPhone }) {
+  const [lista, setLista] = useState(null);
+  const [creating, setCreating] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [form, setForm] = useState({ nome: '', descricao: '' });
+  const [saving, setSaving] = useState(false);
+  const [savingId, setSavingId] = useState(null);
+  const [confirmar, setConfirmar] = useState(null);
+  const [erro, setErro] = useState('');
+  const [toast, setToast] = useState(null);
+
+  function token() { return localStorage.getItem('hub_sso_token'); }
+  function notify(msg, err) { setToast({ msg, err: !!err }); setTimeout(() => setToast(null), 2800); }
+
+  async function carregar() {
+    try {
+      const r = await fetch('/api/admin/tipos-cortesia', { headers: { Authorization: `Bearer ${token()}` } });
+      const d = await r.json();
+      setLista(d.tipos || []);
+    } catch { setLista([]); }
+  }
+
+  useEffect(() => { carregar(); }, []);
+
+  function abrirNovo() { setForm({ nome: '', descricao: '' }); setErro(''); setEditing(null); setCreating(true); }
+  function abrirEditar(t) { setForm({ nome: t.nome, descricao: t.descricao || '' }); setErro(''); setCreating(false); setEditing(t); }
+  function fechar() { setCreating(false); setEditing(null); setErro(''); setForm({ nome: '', descricao: '' }); }
+
+  async function salvar() {
+    const nome = form.nome.trim();
+    const descricao = form.descricao.trim();
+    if (!nome) { setErro('Nome obrigatório'); return; }
+    setSaving(true); setErro('');
+    try {
+      const url = editing ? `/api/admin/tipos-cortesia/${editing.id}` : '/api/admin/tipos-cortesia';
+      const r = await fetch(url, {
+        method: editing ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
+        body: JSON.stringify({ nome, descricao }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.ok) { setErro(d.erro || `Erro ${r.status}`); setSaving(false); return; }
+      notify(editing ? 'Tipo atualizado.' : 'Tipo criado.');
+      fechar();
+      await carregar();
+    } catch { setErro('Erro de conexão'); }
+    setSaving(false);
+  }
+
+  async function toggleAtivo(tipo) {
+    if (savingId === tipo.id) return;
+    setSavingId(tipo.id);
+    setLista(prev => prev.map(t => t.id === tipo.id ? { ...t, ativo: !t.ativo } : t));
+    try {
+      const r = await fetch(`/api/admin/tipos-cortesia/${tipo.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
+        body: JSON.stringify({ ativo: !tipo.ativo }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.ok) throw new Error(d.erro || `Erro ${r.status}`);
+      notify(tipo.ativo ? 'Tipo desativado.' : 'Tipo ativado.');
+    } catch (e) {
+      setLista(prev => prev.map(t => t.id === tipo.id ? { ...t, ativo: tipo.ativo } : t));
+      notify(e.message || 'Erro de conexão.', true);
+    }
+    setSavingId(null);
+  }
+
+  async function confirmarExclusao() {
+    if (!confirmar) return;
+    const { id, nome } = confirmar;
+    setConfirmar(null);
+    try {
+      const r = await fetch(`/api/admin/tipos-cortesia/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token()}` },
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.ok) { notify(d.erro || 'Erro ao excluir', true); return; }
+      notify(`"${nome}" excluído.`);
+      await carregar();
+    } catch { notify('Erro de conexão', true); }
+  }
+
+  const cs = {
+    input: { width: '100%', boxSizing: 'border-box', background: HUB_PALETTE.areiaDim + '0a', border: `1px solid ${HUB_PALETTE.areiaDim}33`, color: HUB_PALETTE.marfim, fontFamily: 'Inter, sans-serif', fontSize: 13, padding: '9px 12px', outline: 'none' },
+    label: { fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.28em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 5, display: 'block' },
+    btnPrim: { background: HUB_PALETTE.champanhe, color: HUB_PALETTE.noite, border: 'none', padding: '9px 18px', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', cursor: 'pointer' },
+    btnGhost: { background: 'transparent', color: HUB_PALETTE.marfim, border: `1px solid ${HUB_PALETTE.areiaDim}55`, padding: '9px 18px', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, fontWeight: 500, letterSpacing: '0.18em', textTransform: 'uppercase', cursor: 'pointer' },
+  };
+
+  return (
+    <div>
+      {/* Cabeçalho com contador e botão novo */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24, gap: 16, flexWrap: 'wrap' }}>
+        <div>
+          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim }}>
+            {lista !== null ? `${lista.length} tipo${lista.length !== 1 ? 's' : ''} cadastrado${lista.length !== 1 ? 's' : ''}` : '—'}
+          </div>
+          <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areiaDim + 'bb', marginTop: 5, lineHeight: 1.5, maxWidth: 460 }}>
+            Defina as categorias de cortesia disponíveis para concessão aos hóspedes.
+          </div>
+        </div>
+        {!creating && !editing && (
+          <button onClick={abrirNovo} style={{ ...cs.btnPrim, display: 'inline-flex', alignItems: 'center', gap: 7, flexShrink: 0 }}>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Novo Tipo
+          </button>
+        )}
+      </div>
+
+      {/* Formulário de criação */}
+      {creating && (
+        <div style={{ background: HUB_PALETTE.areiaDim + '08', border: `1px solid ${HUB_PALETTE.areiaDim}22`, padding: isMobile ? 16 : 20, marginBottom: 28 }}>
+          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 16 }}>Novo tipo</div>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1.6fr', gap: 14, marginBottom: 12 }}>
+            <div>
+              <label style={cs.label}>Nome *</label>
+              <input type="text" value={form.nome} onChange={e => setForm(p => ({ ...p, nome: e.target.value }))} onKeyDown={e => { if (e.key === 'Enter') salvar(); if (e.key === 'Escape') fechar(); }} placeholder="Ex: Upgrade de Apartamento" autoFocus style={cs.input} onFocus={e => { e.target.style.borderColor = HUB_PALETTE.areiaDim + '66'; }} onBlur={e => { e.target.style.borderColor = HUB_PALETTE.areiaDim + '33'; }} />
+            </div>
+            <div>
+              <label style={cs.label}>Descrição</label>
+              <input type="text" value={form.descricao} onChange={e => setForm(p => ({ ...p, descricao: e.target.value }))} onKeyDown={e => { if (e.key === 'Enter') salvar(); if (e.key === 'Escape') fechar(); }} placeholder="Descrição opcional" style={cs.input} onFocus={e => { e.target.style.borderColor = HUB_PALETTE.areiaDim + '66'; }} onBlur={e => { e.target.style.borderColor = HUB_PALETTE.areiaDim + '33'; }} />
+            </div>
+          </div>
+          {erro && <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: '#E07A5F', marginBottom: 10 }}>{erro}</div>}
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button onClick={salvar} disabled={saving} style={{ ...cs.btnPrim, opacity: saving ? 0.6 : 1 }}>{saving ? '…' : 'Criar'}</button>
+            <button onClick={fechar} style={cs.btnGhost}>Cancelar</button>
+          </div>
+        </div>
+      )}
+
+      {/* Lista */}
+      {lista === null ? (
+        <div style={{ padding: '40px 0', textAlign: 'center' }}>
+          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim }}>Carregando…</div>
+        </div>
+      ) : (
+        <>
+          {!creating && lista.length === 0 && (
+            <div style={{ padding: '48px 0', textAlign: 'center' }}>
+              <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areiaDim, fontStyle: 'italic' }}>Nenhum tipo cadastrado.</div>
+            </div>
+          )}
+          {lista.length > 0 && (
+            <div style={{ borderTop: `1px solid ${HUB_PALETTE.areiaDim}22` }}>
+              {lista.map(tipo => {
+                const isEditingThis = editing && editing.id === tipo.id;
+                const isToggling = savingId === tipo.id;
+                const isConfirming = confirmar && confirmar.id === tipo.id;
+                return (
+                  <div key={tipo.id} style={{ borderBottom: `1px solid ${HUB_PALETTE.areiaDim}14` }}>
+                    {isEditingThis ? (
+                      <div style={{ padding: '14px 0 14px 15px', background: HUB_PALETTE.areiaDim + '06' }}>
+                        <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.28em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 12 }}>Editando</div>
+                        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1.6fr', gap: 12, marginBottom: 10 }}>
+                          <div>
+                            <label style={cs.label}>Nome *</label>
+                            <input type="text" value={form.nome} onChange={e => setForm(p => ({ ...p, nome: e.target.value }))} onKeyDown={e => { if (e.key === 'Enter') salvar(); if (e.key === 'Escape') fechar(); }} autoFocus style={cs.input} onFocus={e => { e.target.style.borderColor = HUB_PALETTE.areiaDim + '66'; }} onBlur={e => { e.target.style.borderColor = HUB_PALETTE.areiaDim + '33'; }} />
+                          </div>
+                          <div>
+                            <label style={cs.label}>Descrição</label>
+                            <input type="text" value={form.descricao} onChange={e => setForm(p => ({ ...p, descricao: e.target.value }))} onKeyDown={e => { if (e.key === 'Enter') salvar(); if (e.key === 'Escape') fechar(); }} style={cs.input} onFocus={e => { e.target.style.borderColor = HUB_PALETTE.areiaDim + '66'; }} onBlur={e => { e.target.style.borderColor = HUB_PALETTE.areiaDim + '33'; }} />
+                          </div>
+                        </div>
+                        {erro && <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: '#E07A5F', marginBottom: 10 }}>{erro}</div>}
+                        <div style={{ display: 'flex', gap: 10 }}>
+                          <button onClick={salvar} disabled={saving} style={{ ...cs.btnPrim, opacity: saving ? 0.6 : 1 }}>{saving ? '…' : 'Salvar'}</button>
+                          <button onClick={fechar} style={cs.btnGhost}>Cancelar</button>
+                        </div>
+                      </div>
+                    ) : isConfirming ? (
+                      <div style={{ padding: '14px 0 14px 15px', background: '#E07A5F08' }}>
+                        <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.marfim, marginBottom: 12 }}>
+                          Excluir <strong>"{tipo.nome}"</strong>? Esta ação não pode ser desfeita.
+                        </div>
+                        <div style={{ display: 'flex', gap: 10 }}>
+                          <button onClick={confirmarExclusao} style={{ background: 'transparent', color: '#E07A5F', border: '1px solid #E07A5F88', padding: '7px 14px', fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', cursor: 'pointer' }}>Sim, excluir</button>
+                          <button onClick={() => setConfirmar(null)} style={cs.btnGhost}>Cancelar</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '13px 0' }}>
+                        <div style={{ width: 3, height: 36, background: tipo.ativo ? HUB_PALETTE.champanhe : 'transparent', flexShrink: 0, borderRadius: 2, transition: 'background 300ms' }} />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                            <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: HUB_PALETTE.marfim, fontWeight: 500 }}>{tipo.nome}</span>
+                            <button
+                              onClick={() => !isToggling && toggleAtivo(tipo)}
+                              disabled={isToggling}
+                              style={{ background: tipo.ativo ? `${HUB_PALETTE.champanhe}18` : `${HUB_PALETTE.areiaDim}10`, border: `1px solid ${tipo.ativo ? HUB_PALETTE.champanhe + '44' : HUB_PALETTE.areiaDim + '33'}`, color: tipo.ativo ? HUB_PALETTE.champanhe : HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 8, letterSpacing: '0.2em', textTransform: 'uppercase', padding: '2px 7px', cursor: isToggling ? 'wait' : 'pointer', transition: 'all 220ms', opacity: isToggling ? 0.5 : 1 }}
+                            >
+                              {isToggling ? '…' : (tipo.ativo ? 'Ativo' : 'Inativo')}
+                            </button>
+                          </div>
+                          {tipo.descricao && (
+                            <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: HUB_PALETTE.areiaDim, marginTop: 3 }}>{tipo.descricao}</div>
+                          )}
+                        </div>
+                        <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                          <button onClick={() => abrirEditar(tipo)} style={{ background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}33`, color: HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 8, letterSpacing: '0.18em', textTransform: 'uppercase', padding: '6px 12px', cursor: 'pointer' }}>Editar</button>
+                          <button onClick={() => setConfirmar(tipo)} style={{ background: 'transparent', border: '1px solid #E07A5F44', color: '#E07A5F', fontFamily: 'JetBrains Mono, monospace', fontSize: 8, letterSpacing: '0.18em', textTransform: 'uppercase', padding: '6px 12px', cursor: 'pointer' }}>Excluir</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </>
+      )}
+
+      {toast && ReactDOM.createPortal(
+        <div style={{ position: 'fixed', bottom: 32, left: '50%', transform: 'translateX(-50%)', zIndex: 300, background: toast.err ? '#C0392B' : HUB_PALETTE.champanhe, color: toast.err ? '#fff' : HUB_PALETTE.noite, fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase', padding: '12px 24px', pointerEvents: 'none', whiteSpace: 'nowrap' }}>
+          {toast.msg}
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+}
+
 // ─── Cortesias (autorização para concessão de cortesias) ─────────────────────
 function CortesiasPanel({ isMobile }) {
   const isPhone = useWindowWidth() < 480;
+  const [subAba, setSubAba] = useState('colaboradores');
   const [users, setUsers] = useState(null);
   const [cortesias, setCortesias] = useState(null);
   const [busca, setBusca] = useState('');
@@ -3810,7 +4037,7 @@ function CortesiasPanel({ isMobile }) {
         <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: HUB_PALETTE.areiaDim, lineHeight: 1.6, margin: '0 0 18px', maxWidth: 540 }}>
           Defina quais colaboradores têm permissão para conceder cortesias aos hóspedes.
         </p>
-        {!loading && (
+        {subAba === 'colaboradores' && !loading && (
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 0, border: `1px solid ${HUB_PALETTE.areiaDim}28`, overflow: 'hidden' }}>
             <div style={{ padding: '8px 16px', borderRight: `1px solid ${HUB_PALETTE.areiaDim}28`, background: `${HUB_PALETTE.champanhe}12` }}>
               <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 18, color: HUB_PALETTE.champanhe, display: 'block', lineHeight: 1 }}>{totalAutorizados}</span>
@@ -3823,6 +4050,18 @@ function CortesiasPanel({ isMobile }) {
           </div>
         )}
       </div>
+
+      {/* ── Sub-tabs ── */}
+      <div style={{ display: 'flex', gap: 0, borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, marginBottom: 28 }}>
+        {[{ id: 'colaboradores', label: 'Colaboradores' }, { id: 'tipos', label: 'Tipos' }].map(s => (
+          <button key={s.id} onClick={() => setSubAba(s.id)}
+            style={{ background: 'transparent', border: 'none', borderBottom: `2px solid ${subAba === s.id ? HUB_PALETTE.champanhe : 'transparent'}`, color: subAba === s.id ? HUB_PALETTE.champanhe : HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', padding: '10px 18px 8px', cursor: 'pointer', transition: 'color 180ms, border-color 180ms' }}>
+            {s.label}
+          </button>
+        ))}
+      </div>
+
+      {subAba === 'colaboradores' && <>
 
       {/* ── Busca ── */}
       <div style={{ position: 'relative', marginBottom: 28 }}>
@@ -3949,6 +4188,8 @@ function CortesiasPanel({ isMobile }) {
         </div>,
         document.body
       )}
+      </>}
+      {subAba === 'tipos' && <TiposCortesiaPanel isMobile={isMobile} isPhone={isPhone} />}
     </div>
   );
 }
