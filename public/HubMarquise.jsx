@@ -4051,6 +4051,8 @@ function CortesiasPanel({ isMobile }) {
     const nb = (b.nome || b.nome_completo || '').toLowerCase();
     return na.localeCompare(nb, 'pt');
   }) : [];
+  const autorizadosCount = !loading ? filtrados.filter(u => cortesias.has((u.email || '').toLowerCase())).length : 0;
+  const naoAutorizadosCount = !loading ? filtrados.length - autorizadosCount : 0;
 
   const corAutorizado = HUB_PALETTE.champanhe;
   const corNaoAutorizado = HUB_PALETTE.areiaDim;
@@ -4127,17 +4129,36 @@ function CortesiasPanel({ isMobile }) {
           </div>
         </div>
       ) : (
-        <div style={{ borderTop: `1px solid ${HUB_PALETTE.areiaDim}22` }}>
-          {filtrados.map(u => {
+        <div>
+          {filtrados.map((u, idx) => {
             const emailNorm = (u.email || '').toLowerCase();
             const nome = u.nome || u.nome_completo || '—';
             const temCortesia = cortesias.has(emailNorm);
             const isSaving = !!saving[emailNorm];
             const iniciais = nome.split(' ').filter(Boolean).slice(0, 2).map(n => n[0]).join('').toUpperCase();
             const isAdmin = u.tipo === 'admin' || u.is_master;
+            const prevEmail = idx > 0 ? (filtrados[idx - 1].email || '').toLowerCase() : null;
+            const prevTemCortesia = prevEmail !== null ? cortesias.has(prevEmail) : null;
+            const showAuthHeader = temCortesia && (idx === 0 || prevTemCortesia === false);
+            const showNonAuthHeader = !temCortesia && (idx === 0 || prevTemCortesia === true);
 
             return (
-              <div key={emailNorm} style={{ display: 'flex', alignItems: 'center', gap: isPhone ? 10 : 16, padding: '13px 0', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}14` }}>
+              <React.Fragment key={emailNorm}>
+                {showAuthHeader && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+                    <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.35em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, whiteSpace: 'nowrap' }}>Autorizados</span>
+                    <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: HUB_PALETTE.champanhe + '66' }}>{autorizadosCount}</span>
+                    <div style={{ flex: 1, height: 1, background: `${HUB_PALETTE.champanhe}44` }} />
+                  </div>
+                )}
+                {showNonAuthHeader && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4, paddingTop: autorizadosCount > 0 ? 32 : 0 }}>
+                    <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.35em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, whiteSpace: 'nowrap' }}>Não Autorizados</span>
+                    <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: HUB_PALETTE.areiaDim + '66' }}>{naoAutorizadosCount}</span>
+                    <div style={{ flex: 1, height: 1, background: `${HUB_PALETTE.areiaDim}33` }} />
+                  </div>
+                )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: isPhone ? 10 : 16, padding: '13px 0', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}14` }}>
 
                 {/* Indicador lateral */}
                 <div style={{ width: 3, height: 36, background: temCortesia ? corAutorizado : 'transparent', flexShrink: 0, transition: 'background 300ms', borderRadius: 2 }} />
@@ -4199,6 +4220,7 @@ function CortesiasPanel({ isMobile }) {
                   )}
                 </button>
               </div>
+              </React.Fragment>
             );
           })}
 
