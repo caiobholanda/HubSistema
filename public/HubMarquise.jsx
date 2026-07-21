@@ -1093,7 +1093,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
   const [aba, _setAba] = useState(() => {
     try {
       const v = sessionStorage.getItem('hub_admin_aba');
-      return ['contas', 'setores', 'links', 'historico', 'feriados', 'ausencias', 'aptos'].includes(v) ? v : 'contas';
+      return ['contas', 'setores', 'links', 'historico', 'feriados', 'ausencias', 'aptos', 'cortesias'].includes(v) ? v : 'contas';
     } catch { return 'contas'; }
   });
   const setAba = (v) => { try { sessionStorage.setItem('hub_admin_aba', v); } catch {} _setAba(v); };
@@ -1292,6 +1292,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
     { id: 'feriados', label: 'Feriados' },
     { id: 'ausencias', label: 'Ausências' },
     { id: 'aptos', label: 'UHs' },
+    { id: 'cortesias', label: 'Cortesias' },
     { id: 'historico', label: 'Histórico' },
   ];
 
@@ -1501,6 +1502,9 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
 
         {/* ── Aba UHs ── */}
         {aba === 'aptos' && <UHsPanel isMobile={isMobile} />}
+
+        {/* ── Aba Cortesias ── */}
+        {aba === 'cortesias' && <CortesiasPanel isMobile={isMobile} />}
 
         {/* ── Aba Historico ── */}
         {aba === 'historico' && <HistoricoPanel isMobile={isMobile} />}
@@ -3706,6 +3710,244 @@ function FiltroSelect({ label, value, options, onChange, minWidth, emptyLabel })
             </div>
           ))}
         </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Cortesias (autorização para concessão de cortesias) ─────────────────────
+function CortesiasPanel({ isMobile }) {
+  const isPhone = useWindowWidth() < 480;
+  const [users, setUsers] = useState(null);
+  const [cortesias, setCortesias] = useState(null);
+  const [busca, setBusca] = useState('');
+  const [saving, setSaving] = useState({});
+  const [toast, setToast] = useState(null);
+
+  function token() { return localStorage.getItem('hub_sso_token'); }
+  function notify(msg, err) { setToast({ msg, err: !!err }); setTimeout(() => setToast(null), 2800); }
+
+  async function carregar() {
+    try {
+      const [usersR, cortR] = await Promise.all([
+        fetch('/api/admin/all-users', { headers: { Authorization: `Bearer ${token()}` } }).then(r => r.json()),
+        fetch('/api/admin/cortesias', { headers: { Authorization: `Bearer ${token()}` } }).then(r => r.json()),
+      ]);
+      setUsers(usersR.users || []);
+      setCortesias(new Set((cortR.cortesias || []).map(e => e.toLowerCase())));
+    } catch { setUsers([]); setCortesias(new Set()); }
+  }
+
+  useEffect(() => { carregar(); }, []);
+
+  async function toggle(email, temCortesia) {
+    const emailNorm = email.toLowerCase();
+    setSaving(p => ({ ...p, [emailNorm]: true }));
+    setCortesias(prev => {
+      const next = new Set(prev);
+      if (temCortesia) next.delete(emailNorm); else next.add(emailNorm);
+      return next;
+    });
+    try {
+      const r = await fetch(
+        temCortesia
+          ? `/api/admin/cortesias/${encodeURIComponent(emailNorm)}`
+          : '/api/admin/cortesias',
+        {
+          method: temCortesia ? 'DELETE' : 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
+          body: temCortesia ? undefined : JSON.stringify({ email: emailNorm }),
+        }
+      );
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.ok) throw new Error(d.erro || `Erro ${r.status}`);
+      notify(temCortesia ? 'Permissão revogada.' : 'Permissão concedida.');
+    } catch (e) {
+      setCortesias(prev => {
+        const next = new Set(prev);
+        if (temCortesia) next.add(emailNorm); else next.delete(emailNorm);
+        return next;
+      });
+      notify(e.message || 'Erro de conexão.', true);
+    }
+    setSaving(p => ({ ...p, [emailNorm]: false }));
+  }
+
+  const loading = users === null || cortesias === null;
+  const totalAutorizados = !loading ? (users || []).filter(u => cortesias.has((u.email || '').toLowerCase())).length : 0;
+
+  const filtrados = !loading ? (users || []).filter(u => {
+    if (!busca.trim()) return true;
+    const q = busca.toLowerCase();
+    return (u.nome || '').toLowerCase().includes(q)
+      || (u.nome_completo || '').toLowerCase().includes(q)
+      || (u.email || '').toLowerCase().includes(q)
+      || (u.setor || '').toLowerCase().includes(q)
+      || (u.cargo || '').toLowerCase().includes(q);
+  }).sort((a, b) => {
+    const ea = (a.email || '').toLowerCase();
+    const eb = (b.email || '').toLowerCase();
+    const ca = cortesias.has(ea) ? 0 : 1;
+    const cb = cortesias.has(eb) ? 0 : 1;
+    if (ca !== cb) return ca - cb;
+    const na = (a.nome || a.nome_completo || '').toLowerCase();
+    const nb = (b.nome || b.nome_completo || '').toLowerCase();
+    return na.localeCompare(nb, 'pt');
+  }) : [];
+
+  const corAutorizado = HUB_PALETTE.champanhe;
+  const corNaoAutorizado = HUB_PALETTE.areiaDim;
+
+  return (
+    <div>
+      {/* ── Cabeçalho ── */}
+      <div style={{ marginBottom: 40 }}>
+        <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.35em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ width: 18, height: 1, background: HUB_PALETTE.champanhe }} />
+          Permissões
+        </div>
+        <h2 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 300, fontStyle: 'italic', fontSize: isMobile ? 32 : 40, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: '0 0 10px', lineHeight: 1.1 }}>Cortesias.</h2>
+        <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: HUB_PALETTE.areiaDim, lineHeight: 1.6, margin: '0 0 18px', maxWidth: 540 }}>
+          Defina quais colaboradores têm permissão para conceder cortesias aos hóspedes.
+        </p>
+        {!loading && (
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 0, border: `1px solid ${HUB_PALETTE.areiaDim}28`, overflow: 'hidden' }}>
+            <div style={{ padding: '8px 16px', borderRight: `1px solid ${HUB_PALETTE.areiaDim}28`, background: `${HUB_PALETTE.champanhe}12` }}>
+              <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 18, color: HUB_PALETTE.champanhe, display: 'block', lineHeight: 1 }}>{totalAutorizados}</span>
+              <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 8, letterSpacing: '0.25em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, display: 'block', marginTop: 3 }}>autorizados</span>
+            </div>
+            <div style={{ padding: '8px 16px' }}>
+              <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 18, color: HUB_PALETTE.areiaDim, display: 'block', lineHeight: 1 }}>{users.length}</span>
+              <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 8, letterSpacing: '0.25em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim + '88', display: 'block', marginTop: 3 }}>total</span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Busca ── */}
+      <div style={{ position: 'relative', marginBottom: 28 }}>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={HUB_PALETTE.areiaDim} strokeWidth="1.5" strokeLinecap="round" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input
+          type="text"
+          placeholder="Buscar por nome, e-mail ou setor…"
+          value={busca}
+          onChange={e => setBusca(e.target.value)}
+          autoComplete="off" spellCheck={false}
+          style={{ width: '100%', boxSizing: 'border-box', background: `${HUB_PALETTE.areiaDim}10`, border: `1px solid ${HUB_PALETTE.areiaDim}33`, color: HUB_PALETTE.marfim, fontFamily: 'Inter, sans-serif', fontSize: 13, padding: '10px 14px 10px 36px', outline: 'none' }}
+          onFocus={e => { e.target.style.borderColor = HUB_PALETTE.areiaDim + '66'; }}
+          onBlur={e => { e.target.style.borderColor = HUB_PALETTE.areiaDim + '33'; }}
+        />
+        {busca && (
+          <button onClick={() => setBusca('')} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: HUB_PALETTE.areiaDim, padding: 4, lineHeight: 1 }}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        )}
+      </div>
+
+      {/* ── Lista ── */}
+      {loading ? (
+        <div style={{ padding: '60px 0', textAlign: 'center' }}>
+          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim }}>Carregando…</div>
+        </div>
+      ) : filtrados.length === 0 ? (
+        <div style={{ padding: '60px 0', textAlign: 'center' }}>
+          <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: HUB_PALETTE.areiaDim, fontStyle: 'italic' }}>
+            {busca ? 'Nenhum usuário encontrado para esta busca.' : 'Nenhum usuário disponível.'}
+          </div>
+        </div>
+      ) : (
+        <div style={{ borderTop: `1px solid ${HUB_PALETTE.areiaDim}22` }}>
+          {filtrados.map(u => {
+            const emailNorm = (u.email || '').toLowerCase();
+            const nome = u.nome || u.nome_completo || '—';
+            const temCortesia = cortesias.has(emailNorm);
+            const isSaving = !!saving[emailNorm];
+            const iniciais = nome.split(' ').filter(Boolean).slice(0, 2).map(n => n[0]).join('').toUpperCase();
+            const isAdmin = u.tipo === 'admin' || u.is_master;
+
+            return (
+              <div key={emailNorm} style={{ display: 'flex', alignItems: 'center', gap: isPhone ? 10 : 16, padding: '13px 0', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}14` }}>
+
+                {/* Indicador lateral */}
+                <div style={{ width: 3, height: 36, background: temCortesia ? corAutorizado : 'transparent', flexShrink: 0, transition: 'background 300ms', borderRadius: 2 }} />
+
+                {/* Avatar */}
+                <div style={{ width: 36, height: 36, borderRadius: '50%', background: temCortesia ? `${corAutorizado}1A` : `${HUB_PALETTE.areiaDim}14`, border: `1px solid ${temCortesia ? corAutorizado + '44' : HUB_PALETTE.areiaDim + '22'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'JetBrains Mono, monospace', fontSize: 11, fontWeight: 500, color: temCortesia ? corAutorizado : HUB_PALETTE.areiaDim, flexShrink: 0, transition: 'all 300ms' }}>
+                  {iniciais}
+                </div>
+
+                {/* Info */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: HUB_PALETTE.marfim, fontWeight: 400, lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{nome}</span>
+                    {isAdmin && (
+                      <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 8, letterSpacing: '0.2em', textTransform: 'uppercase', color: HUB_PALETTE.dourado, border: `1px solid ${HUB_PALETTE.dourado}44`, padding: '1px 5px', flexShrink: 0 }}>admin</span>
+                    )}
+                    {u.is_master && (
+                      <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 8, letterSpacing: '0.2em', textTransform: 'uppercase', color: HUB_PALETTE.jangada, border: `1px solid ${HUB_PALETTE.jangada}44`, padding: '1px 5px', flexShrink: 0 }}>master</span>
+                    )}
+                  </div>
+                  {!isPhone && (
+                    <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: HUB_PALETTE.areiaDim + 'bb', marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {u.setor ? <><span>{u.setor}</span><span style={{ margin: '0 5px', opacity: 0.4 }}>·</span></> : null}
+                      <span>{u.email}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Toggle */}
+                <button
+                  onClick={() => !isSaving && toggle(emailNorm, temCortesia)}
+                  disabled={isSaving}
+                  style={{
+                    flexShrink: 0,
+                    display: 'inline-flex', alignItems: 'center', gap: 7,
+                    background: temCortesia ? `${corAutorizado}18` : 'transparent',
+                    border: `1px solid ${temCortesia ? corAutorizado + '55' : HUB_PALETTE.areiaDim + '33'}`,
+                    color: temCortesia ? corAutorizado : HUB_PALETTE.areiaDim,
+                    fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase',
+                    padding: isPhone ? '7px 10px' : '7px 16px', cursor: isSaving ? 'wait' : 'pointer',
+                    transition: 'all 220ms', opacity: isSaving ? 0.55 : 1,
+                    minWidth: isPhone ? 0 : 112,
+                  }}
+                  onMouseEnter={e => { if (!isSaving) { e.currentTarget.style.borderColor = temCortesia ? corAutorizado + '99' : HUB_PALETTE.areiaDim + '66'; } }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = temCortesia ? corAutorizado + '55' : HUB_PALETTE.areiaDim + '33'; }}
+                >
+                  {isSaving ? (
+                    <span style={{ opacity: 0.7 }}>…</span>
+                  ) : temCortesia ? (
+                    <>
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                      {!isPhone && 'Autorizado'}
+                    </>
+                  ) : (
+                    <>
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                      {!isPhone && 'Autorizar'}
+                    </>
+                  )}
+                </button>
+              </div>
+            );
+          })}
+
+          {/* Rodapé com contagem filtrada */}
+          {busca && filtrados.length > 0 && (
+            <div style={{ paddingTop: 20, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim + '88', textAlign: 'center' }}>
+              {filtrados.length} resultado{filtrados.length !== 1 ? 's' : ''}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Toast */}
+      {toast && ReactDOM.createPortal(
+        <div style={{ position: 'fixed', bottom: 32, left: '50%', transform: 'translateX(-50%)', zIndex: 300, background: toast.err ? '#C0392B' : HUB_PALETTE.champanhe, color: toast.err ? '#fff' : HUB_PALETTE.noite, fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase', padding: '12px 24px', pointerEvents: 'none', whiteSpace: 'nowrap' }}>
+          {toast.msg}
+        </div>,
+        document.body
       )}
     </div>
   );

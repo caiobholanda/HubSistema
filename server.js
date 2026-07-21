@@ -1501,6 +1501,39 @@ app.delete('/api/admin/uhs/:id', requireAdmin, (req, res) => {
 });
 
 
+// ─── Cortesias ───────────────────────────────────────────────────────────────
+
+app.get('/api/admin/cortesias', requireAdmin, (_req, res) => {
+  const data = readData();
+  res.json({ ok: true, cortesias: Array.isArray(data.cortesias) ? data.cortesias : [] });
+});
+
+app.post('/api/admin/cortesias', requireAdmin, (req, res) => {
+  const email = ((req.body && req.body.email) || '').trim().toLowerCase();
+  if (!email) return res.status(400).json({ ok: false, erro: 'email obrigatório' });
+  const data = readData();
+  if (!Array.isArray(data.cortesias)) data.cortesias = [];
+  if (!data.cortesias.includes(email)) {
+    data.cortesias.push(email);
+    writeData(data);
+    appendAudit({ by_email: req.hubUser.email, by_nome: req.hubUser.nome, action: 'liberar_cortesia', target_tipo: 'usuario', target_id: email, target_nome: email, campos: { email } });
+  }
+  res.json({ ok: true });
+});
+
+app.delete('/api/admin/cortesias/:email', requireAdmin, (req, res) => {
+  const email = decodeURIComponent(req.params.email).trim().toLowerCase();
+  const data = readData();
+  if (!Array.isArray(data.cortesias)) data.cortesias = [];
+  const tamanhoAntes = data.cortesias.length;
+  data.cortesias = data.cortesias.filter(e => e !== email);
+  if (data.cortesias.length !== tamanhoAntes) {
+    writeData(data);
+    appendAudit({ by_email: req.hubUser.email, by_nome: req.hubUser.nome, action: 'revogar_cortesia', target_tipo: 'usuario', target_id: email, target_nome: email, campos: { email } });
+  }
+  res.json({ ok: true });
+});
+
 // Página de ativação de conta — servida antes do catch-all SPA.
 app.get('/ativar', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'ativar.html')));
 
