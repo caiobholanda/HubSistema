@@ -3828,26 +3828,56 @@ function TiposCortesiaPanel({ isMobile, isPhone }) {
         )}
       </div>
 
-      {/* Formulário de criação */}
-      {creating && (
-        <div style={{ background: HUB_PALETTE.areiaDim + '08', border: `1px solid ${HUB_PALETTE.areiaDim}22`, padding: isMobile ? 16 : 20, marginBottom: 28 }}>
-          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 16 }}>Novo tipo</div>
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1.6fr', gap: 14, marginBottom: 12 }}>
-            <div>
-              <label style={cs.label}>Nome *</label>
-              <input type="text" value={form.nome} onChange={e => setForm(p => ({ ...p, nome: e.target.value }))} onKeyDown={e => { if (e.key === 'Enter') salvar(); if (e.key === 'Escape') fechar(); }} placeholder="Ex: Upgrade de Apartamento" autoFocus style={cs.input} onFocus={e => { e.target.style.borderColor = HUB_PALETTE.areiaDim + '66'; }} onBlur={e => { e.target.style.borderColor = HUB_PALETTE.areiaDim + '33'; }} />
+      {/* Modal de criação */}
+      {creating && ReactDOM.createPortal(
+        <div
+          style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(32,44,40,0.65)', zIndex: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+          onClick={e => { if (e.target === e.currentTarget) fechar(); }}
+        >
+          <div style={{ background: HUB_PALETTE.marfim, padding: isMobile ? 24 : 36, minWidth: 320, maxWidth: 520, width: '100%', boxShadow: '0 32px 80px rgba(0,0,0,0.28)' }}>
+            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.35em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 24, display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ width: 14, height: 1, background: HUB_PALETTE.champanhe, flexShrink: 0 }} />
+              Novo Tipo de Cortesia
             </div>
-            <div>
-              <label style={cs.label}>Descrição</label>
-              <input type="text" value={form.descricao} onChange={e => setForm(p => ({ ...p, descricao: e.target.value }))} onKeyDown={e => { if (e.key === 'Enter') salvar(); if (e.key === 'Escape') fechar(); }} placeholder="Descrição opcional" style={cs.input} onFocus={e => { e.target.style.borderColor = HUB_PALETTE.areiaDim + '66'; }} onBlur={e => { e.target.style.borderColor = HUB_PALETTE.areiaDim + '33'; }} />
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.28em', textTransform: 'uppercase', color: HUB_PALETTE.noite + '99', marginBottom: 6, display: 'block' }}>Nome *</label>
+              <input
+                type="text"
+                value={form.nome}
+                onChange={e => setForm(p => ({ ...p, nome: e.target.value }))}
+                onKeyDown={e => { if (e.key === 'Enter') salvar(); if (e.key === 'Escape') fechar(); }}
+                placeholder="Ex: Upgrade de Apartamento"
+                autoFocus
+                style={{ width: '100%', boxSizing: 'border-box', background: HUB_PALETTE.noite + '08', border: `1px solid ${HUB_PALETTE.noite}22`, color: HUB_PALETTE.noite, fontFamily: 'Inter, sans-serif', fontSize: 14, padding: '10px 13px', outline: 'none' }}
+                onFocus={e => { e.target.style.borderColor = HUB_PALETTE.champanhe + '99'; }}
+                onBlur={e => { e.target.style.borderColor = HUB_PALETTE.noite + '22'; }}
+              />
+            </div>
+            <div style={{ marginBottom: 24 }}>
+              <label style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.28em', textTransform: 'uppercase', color: HUB_PALETTE.noite + '99', marginBottom: 6, display: 'block' }}>Descrição</label>
+              <input
+                type="text"
+                value={form.descricao}
+                onChange={e => setForm(p => ({ ...p, descricao: e.target.value }))}
+                onKeyDown={e => { if (e.key === 'Enter') salvar(); if (e.key === 'Escape') fechar(); }}
+                placeholder="Descrição opcional"
+                style={{ width: '100%', boxSizing: 'border-box', background: HUB_PALETTE.noite + '08', border: `1px solid ${HUB_PALETTE.noite}22`, color: HUB_PALETTE.noite, fontFamily: 'Inter, sans-serif', fontSize: 14, padding: '10px 13px', outline: 'none' }}
+                onFocus={e => { e.target.style.borderColor = HUB_PALETTE.champanhe + '99'; }}
+                onBlur={e => { e.target.style.borderColor = HUB_PALETTE.noite + '22'; }}
+              />
+            </div>
+            {erro && <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: '#C0392B', marginBottom: 14 }}>{erro}</div>}
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={salvar} disabled={saving} style={{ background: HUB_PALETTE.champanhe, color: HUB_PALETTE.noite, border: 'none', padding: '10px 24px', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>
+                {saving ? '…' : 'Criar'}
+              </button>
+              <button onClick={fechar} style={{ background: 'transparent', color: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.noite}33`, padding: '10px 24px', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', cursor: 'pointer' }}>
+                Cancelar
+              </button>
             </div>
           </div>
-          {erro && <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: '#E07A5F', marginBottom: 10 }}>{erro}</div>}
-          <div style={{ display: 'flex', gap: 10 }}>
-            <button onClick={salvar} disabled={saving} style={{ ...cs.btnPrim, opacity: saving ? 0.6 : 1 }}>{saving ? '…' : 'Criar'}</button>
-            <button onClick={fechar} style={cs.btnGhost}>Cancelar</button>
-          </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Lista */}
