@@ -1224,11 +1224,15 @@ app.get('/api/hub/feriados', (req, res) => {
   const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
   if (!token || token !== SSO_SECRET) return res.status(403).json({ ok: false, erro: 'Acesso negado' });
   const data = readData();
-  let feriados = (Array.isArray(data.feriados) ? data.feriados : []).filter(f => f && f.ativo !== false);
+  const todos = (Array.isArray(data.feriados) ? data.feriados : []).filter(f => f && typeof f.data === 'string');
+  // anos: todos os anos que o Hub conhece (ativos E inativos) — permite ao SPA
+  // saber que um ano vazio significa "tudo inativado" e nao "sem cadastro"
+  const anos = [...new Set(todos.map(f => f.data.slice(0, 4)))].sort();
+  let feriados = todos.filter(f => f.ativo !== false);
   const ano = req.query.ano ? parseInt(req.query.ano, 10) : null;
-  if (ano) feriados = feriados.filter(f => f.data && f.data.startsWith(String(ano)));
-  feriados = feriados.slice().sort((a, b) => (a.data || '').localeCompare(b.data || ''));
-  res.json({ ok: true, feriados: feriados.map(f => ({ id: f.id, data: f.data, nome: f.nome, tipo: f.tipo || 'nacional' })) });
+  if (ano) feriados = feriados.filter(f => f.data.startsWith(String(ano)));
+  feriados = feriados.slice().sort((a, b) => a.data.localeCompare(b.data));
+  res.json({ ok: true, anos, feriados: feriados.map(f => ({ id: f.id, data: f.data, nome: f.nome, tipo: f.tipo || 'nacional' })) });
 });
 
 // ─── Feriados (CRUD) ─────────────────────────────────────────────────────────
