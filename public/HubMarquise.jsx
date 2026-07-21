@@ -2369,6 +2369,10 @@ function FeriadosPanel({ isMobile }) {
       <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: HUB_PALETTE.areiaDim, lineHeight: 1.5, margin: 0 }}>
         Feriados usados na construção da escala do SPA. Colaboradores que trabalham em feriados têm direito a <strong style={{ color: HUB_PALETTE.areia }}>CF — Compensação de Feriado</strong>.
       </p>
+      <div style={{ marginTop: 10, display: 'inline-flex', alignItems: 'center', gap: 8, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: HUB_PALETTE.jangada, border: `1px solid ${HUB_PALETTE.jangada}44`, background: HUB_PALETTE.jangada + '10', padding: '5px 12px' }}>
+        <span style={{ width: 5, height: 5, borderRadius: '50%', background: HUB_PALETTE.jangada, animation: 'hubPulse 2.4s infinite' }} />
+        Sincronizado com a escala do Gran Spa
+      </div>
     </div>
 
     {/* Tabs status */}
