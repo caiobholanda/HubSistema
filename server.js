@@ -1541,6 +1541,26 @@ app.get('/api/admin/tipos-cortesia', requireAdmin, (_req, res) => {
   res.json({ ok: true, tipos: Array.isArray(data.tipos_cortesia) ? data.tipos_cortesia : [] });
 });
 
+// ─── Public endpoints (lidos pelo SPA, sem auth) ─────────────────────────────
+const _SPA_ORIGIN = 'https://pesquisa-satisfacao.fly.dev';
+
+app.get('/api/pub/tipos-cortesia', (_req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', _SPA_ORIGIN);
+  const data = readData();
+  const tipos = (Array.isArray(data.tipos_cortesia) ? data.tipos_cortesia : []).filter(t => t.ativo !== false);
+  res.json({ ok: true, tipos });
+});
+
+app.get('/api/pub/cortesia-autorizados', (_req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', _SPA_ORIGIN);
+  const data = readData();
+  const emails = new Set((Array.isArray(data.cortesias) ? data.cortesias : []).map(e => e.toLowerCase()));
+  const autorizados = (Array.isArray(data.users) ? data.users : [])
+    .filter(u => emails.has((u.email || '').toLowerCase()))
+    .map(u => ({ email: u.email, nome: u.nome || u.email }));
+  res.json({ ok: true, autorizados });
+});
+
 app.post('/api/admin/tipos-cortesia', requireAdmin, (req, res) => {
   const nome = ((req.body && req.body.nome) || '').trim();
   const descricao = ((req.body && req.body.descricao) || '').trim();
