@@ -3744,6 +3744,13 @@ function TiposCortesiaPanel({ isMobile, isPhone }) {
   function abrirEditar(t) { setForm({ nome: t.nome, descricao: t.descricao || '' }); setErro(''); setCreating(false); setEditing(t); }
   function fechar() { setCreating(false); setEditing(null); setErro(''); setForm({ nome: '', descricao: '' }); }
 
+  useEffect(() => {
+    if (!creating) return;
+    const fn = e => { if (e.key === 'Escape') fechar(); };
+    document.addEventListener('keydown', fn);
+    return () => document.removeEventListener('keydown', fn);
+  }, [creating]);
+
   async function salvar() {
     const nome = form.nome.trim();
     const descricao = form.descricao.trim();
@@ -3831,16 +3838,15 @@ function TiposCortesiaPanel({ isMobile, isPhone }) {
       {/* Modal de criação */}
       {creating && ReactDOM.createPortal(
         <div
-          style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(32,44,40,0.65)', zIndex: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
-          onClick={e => { if (e.target === e.currentTarget) fechar(); }}
+          style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.55)', zIndex: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
         >
-          <div style={{ background: HUB_PALETTE.marfim, padding: isMobile ? 24 : 36, minWidth: 320, maxWidth: 520, width: '100%', boxShadow: '0 32px 80px rgba(0,0,0,0.28)' }}>
+          <div style={{ background: HUB_PALETTE.noiteAlt, padding: isMobile ? 24 : 36, minWidth: 320, maxWidth: 520, width: '100%', boxShadow: '0 32px 80px rgba(0,0,0,0.28)' }}>
             <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.35em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 24, display: 'flex', alignItems: 'center', gap: 10 }}>
               <span style={{ width: 14, height: 1, background: HUB_PALETTE.champanhe, flexShrink: 0 }} />
               Novo Tipo de Cortesia
             </div>
             <div style={{ marginBottom: 16 }}>
-              <label style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.28em', textTransform: 'uppercase', color: HUB_PALETTE.noite + '99', marginBottom: 6, display: 'block' }}>Nome *</label>
+              <label style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.28em', textTransform: 'uppercase', color: HUB_PALETTE.marfim + '99', marginBottom: 6, display: 'block' }}>Nome *</label>
               <input
                 type="text"
                 value={form.nome}
@@ -3848,22 +3854,22 @@ function TiposCortesiaPanel({ isMobile, isPhone }) {
                 onKeyDown={e => { if (e.key === 'Enter') salvar(); if (e.key === 'Escape') fechar(); }}
                 placeholder="Ex: Upgrade de Apartamento"
                 autoFocus
-                style={{ width: '100%', boxSizing: 'border-box', background: HUB_PALETTE.noite + '08', border: `1px solid ${HUB_PALETTE.noite}22`, color: HUB_PALETTE.noite, fontFamily: 'Inter, sans-serif', fontSize: 14, padding: '10px 13px', outline: 'none' }}
+                style={{ width: '100%', boxSizing: 'border-box', background: HUB_PALETTE.marfim + '08', border: `1px solid ${HUB_PALETTE.marfim}22`, color: HUB_PALETTE.marfim, fontFamily: 'Inter, sans-serif', fontSize: 14, padding: '10px 13px', outline: 'none' }}
                 onFocus={e => { e.target.style.borderColor = HUB_PALETTE.champanhe + '99'; }}
-                onBlur={e => { e.target.style.borderColor = HUB_PALETTE.noite + '22'; }}
+                onBlur={e => { e.target.style.borderColor = HUB_PALETTE.marfim + '22'; }}
               />
             </div>
             <div style={{ marginBottom: 24 }}>
-              <label style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.28em', textTransform: 'uppercase', color: HUB_PALETTE.noite + '99', marginBottom: 6, display: 'block' }}>Descrição</label>
+              <label style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.28em', textTransform: 'uppercase', color: HUB_PALETTE.marfim + '99', marginBottom: 6, display: 'block' }}>Descrição</label>
               <input
                 type="text"
                 value={form.descricao}
                 onChange={e => setForm(p => ({ ...p, descricao: e.target.value }))}
                 onKeyDown={e => { if (e.key === 'Enter') salvar(); if (e.key === 'Escape') fechar(); }}
                 placeholder="Descrição opcional"
-                style={{ width: '100%', boxSizing: 'border-box', background: HUB_PALETTE.noite + '08', border: `1px solid ${HUB_PALETTE.noite}22`, color: HUB_PALETTE.noite, fontFamily: 'Inter, sans-serif', fontSize: 14, padding: '10px 13px', outline: 'none' }}
+                style={{ width: '100%', boxSizing: 'border-box', background: HUB_PALETTE.marfim + '08', border: `1px solid ${HUB_PALETTE.marfim}22`, color: HUB_PALETTE.marfim, fontFamily: 'Inter, sans-serif', fontSize: 14, padding: '10px 13px', outline: 'none' }}
                 onFocus={e => { e.target.style.borderColor = HUB_PALETTE.champanhe + '99'; }}
-                onBlur={e => { e.target.style.borderColor = HUB_PALETTE.noite + '22'; }}
+                onBlur={e => { e.target.style.borderColor = HUB_PALETTE.marfim + '22'; }}
               />
             </div>
             {erro && <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: '#C0392B', marginBottom: 14 }}>{erro}</div>}
@@ -3871,7 +3877,7 @@ function TiposCortesiaPanel({ isMobile, isPhone }) {
               <button onClick={salvar} disabled={saving} style={{ background: HUB_PALETTE.champanhe, color: HUB_PALETTE.noite, border: 'none', padding: '10px 24px', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>
                 {saving ? '…' : 'Criar'}
               </button>
-              <button onClick={fechar} style={{ background: 'transparent', color: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.noite}33`, padding: '10px 24px', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', cursor: 'pointer' }}>
+              <button onClick={fechar} style={{ background: 'transparent', color: HUB_PALETTE.marfim, border: `1px solid ${HUB_PALETTE.marfim}33`, padding: '10px 24px', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', cursor: 'pointer' }}>
                 Cancelar
               </button>
             </div>
