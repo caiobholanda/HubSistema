@@ -4286,9 +4286,6 @@ function ContasPanel({ isMobile }) {
   const [etiquetasLista, setEtiquetasLista] = useState([]);
   const [busca, setBusca] = useState(_urlFiltros.q || '');
   const [buscaDebounced, setBuscaDebounced] = useState(_urlFiltros.q || '');
-  const [setorFiltro, setSetorFiltro] = useState(_urlFiltros.setor || '');
-  const [cargoFiltro, setCargoFiltro] = useState(_urlFiltros.cargo || '');
-  const [ordem, setOrdem] = useState(['nome', 'setor', 'status'].includes(_urlFiltros.ord) ? _urlFiltros.ord : 'nome');
   useEffect(() => {
     const t = setTimeout(() => setBuscaDebounced(busca), 200);
     return () => clearTimeout(t);
@@ -4298,14 +4295,11 @@ function ContasPanel({ isMobile }) {
       const p = new URLSearchParams(window.location.search);
       const setOrDel = (k, v, def) => { if (v && v !== def) p.set(k, v); else p.delete(k); };
       setOrDel('ctstatus', statusAba, subAba === 'admins' ? 'ativos' : 'ativo');
-      setOrDel('ctsetor', setorFiltro, '');
-      setOrDel('ctcargo', cargoFiltro, '');
       setOrDel('ctq', buscaDebounced, '');
-      setOrDel('ctord', ordem, 'nome');
       const qs = p.toString();
       window.history.replaceState(null, '', window.location.pathname + (qs ? '?' + qs : '') + window.location.hash);
     } catch {}
-  }, [statusAba, setorFiltro, cargoFiltro, buscaDebounced, ordem, subAba]);
+  }, [statusAba, buscaDebounced, subAba]);
   const [editing, setEditing] = useState(null); // { tipo, id, dados, etiquetas? }
   const [creating, setCreating] = useState(null); // 'admin' | 'usuario'
   const [saving, setSaving] = useState(false);
@@ -4557,9 +4551,9 @@ function ContasPanel({ isMobile }) {
     isAdmin,
     busca: buscaDebounced,
     status: statusAba,
-    setor: isAdmin ? '' : setorFiltro,
-    cargo: isAdmin ? '' : cargoFiltro,
-    ordem: isAdmin ? 'nome' : ordem,
+    setor: '',
+    cargo: '',
+    ordem: 'nome',
   });
   const filtrada = filtroResult.resultado;
   const contagemStatus = filtroResult.contagem;
@@ -4567,27 +4561,12 @@ function ContasPanel({ isMobile }) {
   const totalAtivos = buscaFiltrada.filter(r => isAdmin ? r.ativo === 1 : r.ativo !== 0).length;
   const totalInativos = buscaFiltrada.filter(r => isAdmin ? r.ativo !== 1 : r.ativo === 0).length;
 
-  // Opcoes dos dropdowns: setores oficiais ∪ setores legados presentes; cargos derivados
-  const setorOpcoesFiltro = (() => {
-    if (isAdmin) return [];
-    const set = new Set((setoresLista || []).map(x => (x && (x.nome ?? x.name)) || '').filter(Boolean));
-    (usuarios || []).forEach(u => { if (u.setor) set.add(u.setor); });
-    return [...set].sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' })).map(v => ({ value: v, label: v }));
-  })();
-  const cargoOpcoesFiltro = (() => {
-    if (isAdmin) return [];
-    const set = new Set((usuarios || []).map(u => u.cargo).filter(Boolean));
-    return [...set].sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' })).map(v => ({ value: v, label: v }));
-  })();
   const nFiltrosAtivos = isAdmin ? 0 :
-    (statusAba !== 'ativo' ? 1 : 0) + (setorFiltro ? 1 : 0) + (cargoFiltro ? 1 : 0) + (buscaDebounced.trim() ? 1 : 0) + (ordem !== 'nome' ? 1 : 0);
+    (statusAba !== 'ativo' ? 1 : 0) + (buscaDebounced.trim() ? 1 : 0);
   function limparFiltros() {
     setStatusAba('ativo');
-    setSetorFiltro('');
-    setCargoFiltro('');
     setBusca('');
     setBuscaDebounced('');
-    setOrdem('nome');
   }
 
   const btnPad = isPhone ? '8px 12px' : '9px 14px';
@@ -4615,7 +4594,7 @@ function ContasPanel({ isMobile }) {
     {/* Sub-tabs tipo */}
     <div style={{ display: 'flex', gap: 0, borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, marginBottom: 14 }}>
       {[{ id: 'admins', label: 'Admin' }, { id: 'usuarios', label: 'Usuários' }].map(s => (
-        <button key={s.id} onClick={() => { setSubAba(s.id); setBusca(''); setBuscaDebounced(''); setSetorFiltro(''); setCargoFiltro(''); setOrdem('nome'); setStatusAba(s.id === 'admins' ? 'ativos' : 'ativo'); }}
+        <button key={s.id} onClick={() => { setSubAba(s.id); setBusca(''); setBuscaDebounced(''); setStatusAba(s.id === 'admins' ? 'ativos' : 'ativo'); }}
           style={{ background: 'transparent', border: 'none', borderBottom: `2px solid ${subAba === s.id ? HUB_PALETTE.champanhe : 'transparent'}`, color: subAba === s.id ? HUB_PALETTE.champanhe : HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', padding: '10px 18px 8px', cursor: 'pointer' }}>
           {s.label}
         </button>
@@ -4659,9 +4638,9 @@ function ContasPanel({ isMobile }) {
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={HUB_PALETTE.areiaDim} strokeWidth="1.5" strokeLinecap="round" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
           <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
         </svg>
-        <input type="text" placeholder="Filtrar por nome, email, login, ramal, setor, cargo, matrícula..." value={busca} onChange={e => setBusca(e.target.value)}
+        <input type="text" placeholder="Filtrar por nome, email, ramal e setor..." value={busca} onChange={e => setBusca(e.target.value)}
           autoComplete="off" name="contas-busca-livre"
-          aria-label="Filtrar contas por nome, e-mail, ramal, setor, cargo ou matrícula"
+          aria-label="Filtrar contas por nome, e-mail, ramal ou setor"
           style={{ ...cs.input, paddingLeft: 34 }} title="Aceita múltiplas palavras (AND) e flags 'master' / 'inativo'" />
       </div>
       <button onClick={() => startNew(isAdmin ? 'admin' : 'usuario')} style={{ ...cs.btnPrim, background: HUB_PALETTE.dourado }}>
@@ -4669,27 +4648,6 @@ function ContasPanel({ isMobile }) {
       </button>
     </div>
 
-    {/* Filtros estruturados (so usuarios do portal) */}
-    {!isAdmin && (
-      <div style={{ display: 'flex', gap: 10, marginBottom: 18, flexWrap: 'wrap', alignItems: 'center' }}>
-        <FiltroSelect label="Setor" value={setorFiltro} options={setorOpcoesFiltro} onChange={setSetorFiltro} minWidth={170} />
-        <FiltroSelect label="Cargo" value={cargoFiltro} options={cargoOpcoesFiltro} onChange={setCargoFiltro} minWidth={170} />
-        <FiltroSelect label="Ordenar" value={ordem === 'nome' ? '' : ordem} emptyLabel="Nome A-Z"
-          options={[{ value: 'setor', label: 'Setor' }, { value: 'status', label: 'Status' }]}
-          onChange={v => setOrdem(v || 'nome')} minWidth={150} />
-        {nFiltrosAtivos > 0 && (
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 12, marginLeft: 'auto' }}>
-            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim }}>
-              {nFiltrosAtivos} filtro{nFiltrosAtivos > 1 ? 's' : ''} ativo{nFiltrosAtivos > 1 ? 's' : ''}
-            </span>
-            <button onClick={limparFiltros}
-              style={{ background: 'transparent', border: 'none', color: HUB_PALETTE.champanhe, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: 3, padding: 0 }}>
-              Limpar filtros
-            </button>
-          </div>
-        )}
-      </div>
-    )}
 
     {/* Lista */}
     {lista === null ? (
