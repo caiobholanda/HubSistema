@@ -4734,17 +4734,26 @@ function ContasPanel({ isMobile }) {
                   {statusBadgeInfo ? <span style={{ marginLeft: 10, display: 'inline-flex', alignItems: 'center', gap: 5, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: statusBadgeInfo.color, padding: '3px 10px 3px 8px', borderRadius: 3, border: `1px solid ${statusBadgeInfo.color}44`, background: `${statusBadgeInfo.color}12`, verticalAlign: 'middle' }}><span style={{ width: 5, height: 5, borderRadius: '50%', background: statusBadgeInfo.color, flexShrink: 0 }} />{statusBadgeInfo.label}</span> : null}
                 </div>
                 <div style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 14, color: HUB_PALETTE.areia, marginTop: 6, lineHeight: 1.5 }}>
-                  {row.email ? <span style={{ color: HUB_PALETTE.marfim }}>{row.email}</span> : '—'}
-                  {row.setor ? <span style={{ color: HUB_PALETTE.areiaDim }}> · </span> : null}
-                  {row.setor ? <span><span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginRight: 6 }}>setor</span>{row.setor}</span> : null}
-                  {row.ramal ? <span style={{ color: HUB_PALETTE.areiaDim }}> · </span> : null}
-                  {row.ramal ? <span><span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginRight: 6 }}>ramal</span>{row.ramal}</span> : null}
-                  {row.cargo ? <span style={{ color: HUB_PALETTE.areiaDim }}> · </span> : null}
-                  {row.cargo ? <span><span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginRight: 6 }}>cargo</span>{row.cargo}</span> : null}
-                  {row.matricula ? <span style={{ color: HUB_PALETTE.areiaDim }}> · </span> : null}
-                  {row.matricula ? <span><span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginRight: 6 }}>mat.</span>{row.matricula}</span> : null}
-                  {isAdmin && row.usuario ? <span style={{ color: HUB_PALETTE.areiaDim }}> · </span> : null}
-                  {isAdmin && row.usuario ? <span><span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginRight: 6 }}>login</span>{row.usuario}</span> : null}
+                  <div>
+                    {row.email ? <span style={{ color: HUB_PALETTE.marfim }}>{row.email}</span> : '—'}
+                    {row.cargo ? <span style={{ color: HUB_PALETTE.areiaDim }}> · </span> : null}
+                    {row.cargo ? <span><span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginRight: 6 }}>cargo</span>{row.cargo}</span> : null}
+                    {row.matricula ? <span style={{ color: HUB_PALETTE.areiaDim }}> · </span> : null}
+                    {row.matricula ? <span><span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginRight: 6 }}>mat.</span>{row.matricula}</span> : null}
+                    {isAdmin && row.usuario ? <span style={{ color: HUB_PALETTE.areiaDim }}> · </span> : null}
+                    {isAdmin && row.usuario ? <span><span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginRight: 6 }}>login</span>{row.usuario}</span> : null}
+                  </div>
+                  {row.setor ? (
+                    <div style={{ marginTop: 3 }}>
+                      <span><span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginRight: 6 }}>setor</span>{row.setor}</span>
+                      {row.ramal ? <span style={{ color: HUB_PALETTE.areiaDim }}> · </span> : null}
+                      {row.ramal ? <span><span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginRight: 6 }}>ramal</span>{row.ramal}</span> : null}
+                    </div>
+                  ) : row.ramal ? (
+                    <div style={{ marginTop: 3 }}>
+                      <span><span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginRight: 6 }}>ramal</span>{row.ramal}</span>
+                    </div>
+                  ) : null}
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
