@@ -4590,15 +4590,15 @@ function ContasPanel({ isMobile }) {
     setOrdem('nome');
   }
 
-  const btnPad = isPhone ? '8px 12px' : '12px 22px';
-  const btnFs = isPhone ? 10 : 12;
+  const btnPad = isPhone ? '8px 12px' : '9px 14px';
+  const btnFs = isPhone ? 10 : 11;
   const cs = {
     bg: HUB_PALETTE.areiaDim + '0a',
     border: HUB_PALETTE.areiaDim + '33',
     input: { width: '100%', boxSizing: 'border-box', background: HUB_PALETTE.areiaDim + '0a', border: `1px solid ${HUB_PALETTE.areiaDim}33`, color: HUB_PALETTE.marfim, fontFamily: 'Inter, sans-serif', fontSize: 14, padding: '10px 14px', outline: 'none' },
     label: { fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 6, display: 'block' },
-    btnPrim: { background: HUB_PALETTE.champanhe, color: HUB_PALETTE.noite, border: 'none', padding: btnPad, fontFamily: 'JetBrains Mono, monospace', fontSize: btnFs, fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase', cursor: 'pointer' },
-    btnGhost: { background: 'transparent', color: HUB_PALETTE.marfim, border: `1px solid ${HUB_PALETTE.areiaDim}77`, padding: btnPad, fontFamily: 'JetBrains Mono, monospace', fontSize: btnFs, fontWeight: 500, letterSpacing: '0.2em', textTransform: 'uppercase', cursor: 'pointer' },
+    btnPrim: { background: HUB_PALETTE.champanhe, color: HUB_PALETTE.noite, border: 'none', padding: btnPad, fontFamily: 'JetBrains Mono, monospace', fontSize: btnFs, fontWeight: 600, letterSpacing: '0.15em', textTransform: 'uppercase', cursor: 'pointer' },
+    btnGhost: { background: 'transparent', color: HUB_PALETTE.marfim, border: `1px solid ${HUB_PALETTE.areiaDim}77`, padding: btnPad, fontFamily: 'JetBrains Mono, monospace', fontSize: btnFs, fontWeight: 500, letterSpacing: '0.15em', textTransform: 'uppercase', cursor: 'pointer' },
   };
 
   return (<>
@@ -4747,44 +4747,46 @@ function ContasPanel({ isMobile }) {
                   {isAdmin && row.usuario ? <span><span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginRight: 6 }}>login</span>{row.usuario}</span> : null}
                 </div>
               </div>
-              <button onClick={() => setHistoricoUsuario({ id: row.id, nome: isAdmin ? row.nome_completo : row.nome, tipo: isAdmin ? 'admin' : 'usuario' })} style={cs.btnGhost}>Histórico</button>
-              <button onClick={() => startEdit(isAdmin ? 'admin' : 'usuario', row)} style={cs.btnGhost}>Editar</button>
-              {aguardandoAtivacao && (
-                <button
-                  onClick={() => gerarLinkAtivacao(row.id)}
-                  disabled={!!gerandoLink[row.id]}
-                  title="Gerar novo link de ativação (48h)"
-                  style={{ ...cs.btnGhost, color: '#FB8C00', borderColor: '#FB8C0066', cursor: gerandoLink[row.id] ? 'not-allowed' : 'pointer' }}>
-                  {gerandoLink[row.id] ? '…' : 'Reenviar link'}
-                </button>
-              )}
-              {!aguardandoAtivacao && (
-                <button
-                  onClick={() => isAdmin ? enviarLinkReset('admin', row.id) : gerarLinkAtivacao(row.id)}
-                  disabled={isAdmin ? (resetando || !row.email) : !!gerandoLink[row.id]}
-                  title={isAdmin ? (!row.email ? 'Sem e-mail cadastrado' : 'Enviar link de redefinição de senha por e-mail (válido 24h)') : 'Gerar novo link de ativação (48h)'}
-                  style={{ ...cs.btnGhost, color: (isAdmin ? resetando : !!gerandoLink[row.id]) ? HUB_PALETTE.areiaDim : HUB_PALETTE.jangada, borderColor: HUB_PALETTE.jangada + '66', cursor: (isAdmin ? (resetando || !row.email) : !!gerandoLink[row.id]) ? 'not-allowed' : 'pointer' }}>
-                  {(isAdmin ? resetando : !!gerandoLink[row.id]) ? '…' : 'Redefinir senha'}
-                </button>
-              )}
-              {bloqueado ? (
-                <button
-                  onClick={() => desbloquearUsuario(row.id)}
-                  disabled={!!desbloqueando[row.id]}
-                  style={{ ...cs.btnGhost, color: '#4FC3F7', borderColor: '#4FC3F766' }}>
-                  {desbloqueando[row.id] ? '…' : 'Desbloquear'}
-                </button>
-              ) : ehEuMesmo(isAdmin ? 'admin' : 'usuario', row) ? (
-                <span title="Você não pode ativar/desativar sua própria conta"
-                  style={{ ...cs.btnGhost, background: HUB_PALETTE.marfim + '12', color: HUB_PALETTE.marfim, borderColor: HUB_PALETTE.marfim + 'BB', fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 700, fontStyle: 'normal', fontSize: 12, letterSpacing: '0.12em', textTransform: 'none', cursor: 'not-allowed' }}>
-                  Você
-                </span>
-              ) : (
-                <button onClick={() => pedirConfirmacaoToggle(isAdmin ? 'admin' : 'usuario', row)}
-                  style={{ ...cs.btnGhost, color: HUB_PALETTE.champanhe, borderColor: HUB_PALETTE.champanhe + '66' }}>
-                  {ativo ? 'Inativar' : 'Ativar'}
-                </button>
-              )}
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
+                <button onClick={() => setHistoricoUsuario({ id: row.id, nome: isAdmin ? row.nome_completo : row.nome, tipo: isAdmin ? 'admin' : 'usuario' })} style={cs.btnGhost}>Histórico</button>
+                <button onClick={() => startEdit(isAdmin ? 'admin' : 'usuario', row)} style={cs.btnGhost}>Editar</button>
+                {aguardandoAtivacao && (
+                  <button
+                    onClick={() => gerarLinkAtivacao(row.id)}
+                    disabled={!!gerandoLink[row.id]}
+                    title="Gerar novo link de ativação (48h)"
+                    style={{ ...cs.btnGhost, color: '#FB8C00', borderColor: '#FB8C0066', cursor: gerandoLink[row.id] ? 'not-allowed' : 'pointer' }}>
+                    {gerandoLink[row.id] ? '…' : 'Reenviar link'}
+                  </button>
+                )}
+                {!aguardandoAtivacao && (
+                  <button
+                    onClick={() => isAdmin ? enviarLinkReset('admin', row.id) : gerarLinkAtivacao(row.id)}
+                    disabled={isAdmin ? (resetando || !row.email) : !!gerandoLink[row.id]}
+                    title={isAdmin ? (!row.email ? 'Sem e-mail cadastrado' : 'Enviar link de redefinição de senha por e-mail (válido 24h)') : 'Gerar novo link de ativação (48h)'}
+                    style={{ ...cs.btnGhost, color: (isAdmin ? resetando : !!gerandoLink[row.id]) ? HUB_PALETTE.areiaDim : HUB_PALETTE.jangada, borderColor: HUB_PALETTE.jangada + '66', cursor: (isAdmin ? (resetando || !row.email) : !!gerandoLink[row.id]) ? 'not-allowed' : 'pointer' }}>
+                    {(isAdmin ? resetando : !!gerandoLink[row.id]) ? '…' : 'Redefinir senha'}
+                  </button>
+                )}
+                {bloqueado ? (
+                  <button
+                    onClick={() => desbloquearUsuario(row.id)}
+                    disabled={!!desbloqueando[row.id]}
+                    style={{ ...cs.btnGhost, color: '#4FC3F7', borderColor: '#4FC3F766' }}>
+                    {desbloqueando[row.id] ? '…' : 'Desbloquear'}
+                  </button>
+                ) : ehEuMesmo(isAdmin ? 'admin' : 'usuario', row) ? (
+                  <span title="Você não pode ativar/desativar sua própria conta"
+                    style={{ ...cs.btnGhost, background: HUB_PALETTE.marfim + '12', color: HUB_PALETTE.marfim, borderColor: HUB_PALETTE.marfim + 'BB', fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 700, fontStyle: 'normal', fontSize: 12, letterSpacing: '0.12em', textTransform: 'none', cursor: 'not-allowed' }}>
+                    Você
+                  </span>
+                ) : (
+                  <button onClick={() => pedirConfirmacaoToggle(isAdmin ? 'admin' : 'usuario', row)}
+                    style={{ ...cs.btnGhost, color: HUB_PALETTE.champanhe, borderColor: HUB_PALETTE.champanhe + '66' }}>
+                    {ativo ? 'Inativar' : 'Ativar'}
+                  </button>
+                )}
+              </div>
             </div>
           );
         })}
