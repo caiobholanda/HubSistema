@@ -350,7 +350,7 @@ const URL_OVERRIDES = {
   'chamados': process.env.CHAMADOS_URL,
   'ramais': process.env.DIRETORIO_URL,
   'pesquisa-satisfacao': process.env.PESQUISA_URL,
-  'gestao-qualidade': process.env.GESTAO_URL,
+  'gestao-de-qualidade': process.env.GESTAO_URL,
 };
 
 function getSistemas() {
