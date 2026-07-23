@@ -10,6 +10,8 @@ const PORT = process.env.PORT || 3000;
 const SSO_SECRET = process.env.SSO_SECRET || 'dev-sso-secret';
 const CHAMADOS_URL = process.env.CHAMADOS_URL || 'https://sistema-chamados-granmarquise.fly.dev';
 const PESQUISA_URL = process.env.PESQUISA_URL || 'https://pesquisa-satisfacao.fly.dev';
+const DIRETORIO_URL = process.env.DIRETORIO_URL || 'https://diretorio-ramais-granmarquise.fly.dev';
+const GESTAO_URL = process.env.GESTAO_URL || 'https://gestao-qualidade-granmarquise.fly.dev';
 const HUB_URL = process.env.HUB_URL || 'https://hub-granmarquise.fly.dev';
 const DATA_DIR = path.join(__dirname, 'data');
 const HUB_DATA_FILE = path.join(DATA_DIR, 'hub_data.json');
@@ -339,14 +341,25 @@ function autoAssociarTodos(data, sistemaId) {
 // ─── Sistemas (links do Hub) ─────────────────────────────────────────────────
 
 const DEFAULT_SISTEMAS = [
-  { id: 'chamados',  num: '01', nome: 'Chamados TI',           url: 'https://sistema-chamados-granmarquise.fly.dev', status: 'no-ar', categoria: 'Suporte · Atendimento interno', descricao: 'Para pedir ajuda da equipe de TI do hotel.' },
-  { id: 'ramais',    num: '02', nome: 'Lista de Ramais',        url: 'https://diretorio-ramais-granmarquise.fly.dev', status: 'no-ar', categoria: 'Comunicação · Interno',         descricao: 'Diretório de ramais e contatos internos do hotel.' },
-  { id: 'pesquisa-satisfacao', num: '03', nome: 'Pesquisa de Satisfação', url: 'https://pesquisa-satisfacao.fly.dev', status: 'no-ar', categoria: 'Spa · Atendimento ao hóspede', descricao: 'Gestão de atendimentos, escalas de profissionais, anamnese digital e auditoria de satisfação do Gran Spa.' },
+  { id: 'chamados',  num: '01', nome: 'Chamados TI',           url: CHAMADOS_URL, status: 'no-ar', categoria: 'Suporte · Atendimento interno', descricao: 'Para pedir ajuda da equipe de TI do hotel.' },
+  { id: 'ramais',    num: '02', nome: 'Lista de Ramais',        url: DIRETORIO_URL, status: 'no-ar', categoria: 'Comunicação · Interno',         descricao: 'Diretório de ramais e contatos internos do hotel.' },
+  { id: 'pesquisa-satisfacao', num: '03', nome: 'Pesquisa de Satisfação', url: PESQUISA_URL, status: 'no-ar', categoria: 'Spa · Atendimento ao hóspede', descricao: 'Gestão de atendimentos, escalas de profissionais, anamnese digital e auditoria de satisfação do Gran Spa.' },
 ];
+
+const URL_OVERRIDES = {
+  'chamados': process.env.CHAMADOS_URL,
+  'ramais': process.env.DIRETORIO_URL,
+  'pesquisa-satisfacao': process.env.PESQUISA_URL,
+  'gestao-qualidade': process.env.GESTAO_URL,
+};
 
 function getSistemas() {
   const data = readData();
-  return data.sistemas || DEFAULT_SISTEMAS;
+  const sistemas = data.sistemas || DEFAULT_SISTEMAS;
+  return sistemas.map(s => {
+    const override = URL_OVERRIDES[s.id];
+    return override ? { ...s, url: override } : s;
+  });
 }
 
 // ─── SSE (notificações em tempo real) ───────────────────────────────────────
