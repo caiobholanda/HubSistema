@@ -1598,11 +1598,14 @@ function UrnasPanel({ isMobile }) {
   function notify(msg, err) { setToast({ msg, err: !!err }); setTimeout(() => setToast(null), 2800); }
 
   async function carregar() {
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), 8000);
     try {
-      const r = await fetch('/api/admin/urnas', { headers: { Authorization: `Bearer ${tok()}` } });
+      const r = await fetch('/api/admin/urnas', { headers: { Authorization: `Bearer ${tok()}` }, signal: ctrl.signal });
+      clearTimeout(tid);
       const d = await r.json();
       setUrnas(d.urnas || []);
-    } catch { setUrnas([]); }
+    } catch { clearTimeout(tid); setUrnas([]); }
   }
 
   useEffect(() => { carregar(); }, []);
