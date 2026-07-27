@@ -1107,7 +1107,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
   const [aba, _setAba] = useState(() => {
     try {
       const v = sessionStorage.getItem('hub_admin_aba');
-      return ['contas', 'setores', 'links', 'historico', 'feriados', 'ausencias', 'aptos', 'cortesias'].includes(v) ? v : 'contas';
+      return ['contas', 'setores', 'links', 'historico', 'feriados', 'ausencias', 'aptos', 'cortesias', 'urnas'].includes(v) ? v : 'contas';
     } catch { return 'contas'; }
   });
   const setAba = (v) => { try { sessionStorage.setItem('hub_admin_aba', v); } catch {} _setAba(v); };
@@ -1307,6 +1307,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
     { id: 'ausencias', label: 'Ausências' },
     { id: 'aptos', label: 'UHs' },
     { id: 'cortesias', label: 'Cortesias' },
+    { id: 'urnas', label: 'Urnas' },
     { id: 'historico', label: 'Histórico' },
   ];
 
@@ -1520,6 +1521,9 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
         {/* ── Aba Cortesias ── */}
         {aba === 'cortesias' && <CortesiasPanel isMobile={isMobile} />}
 
+        {/* ── Aba Urnas ── */}
+        {aba === 'urnas' && <UrnasPanel isMobile={isMobile} />}
+
         {/* ── Aba Historico ── */}
         {aba === 'historico' && <HistoricoPanel isMobile={isMobile} />}
 
@@ -1567,6 +1571,229 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
             linkErro={linkErro} linkSaving={linkSaving} isMobile={isMobile} users={users} setoresLista={setoresLista} />
         );
       })()}
+    </div>
+  );
+}
+
+// ─── Urnas ───────────────────────────────────────────────────────────────────
+const PESQUISAS_URNAS = [
+  { id: 'geral',           label: 'Geral da Qualidade',   cor: '#6366F1' },
+  { id: 'geral-granclass', label: 'Geral Gran Class',     cor: '#8B5CF6' },
+  { id: 'pdvs',            label: 'PDVs',                 cor: '#F59E0B' },
+  { id: 'pdvs-granclass',  label: 'PDVs Gran Class',      cor: '#D97706' },
+  { id: 'spa',             label: 'Gran SPA',             cor: '#10B981' },
+  { id: 'eventos-sociais', label: 'Eventos Sociais',      cor: '#3B82F6' },
+  { id: 'eventos-corp',    label: 'Eventos Corporativos', cor: '#0EA5E9' },
+];
+
+function UrnasPanel({ isMobile }) {
+  const [urnas, setUrnas] = useState(null);
+  const [modal, setModal] = useState(null); // null | { modo: 'novo'|'editar', urna? }
+  const [form, setForm] = useState({ nome: '', pesquisas: [] });
+  const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState(null);
+  const [confirmDel, setConfirmDel] = useState(null);
+
+  function tok() { return localStorage.getItem('hub_sso_token'); }
+  function notify(msg, err) { setToast({ msg, err: !!err }); setTimeout(() => setToast(null), 2800); }
+
+  async function carregar() {
+    try {
+      const r = await fetch('/api/admin/urnas', { headers: { Authorization: `Bearer ${tok()}` } });
+      const d = await r.json();
+      setUrnas(d.urnas || []);
+    } catch { setUrnas([]); }
+  }
+
+  useEffect(() => { carregar(); }, []);
+
+  function abrirNovo() {
+    setForm({ nome: '', pesquisas: [] });
+    setModal({ modo: 'novo' });
+  }
+
+  function abrirEditar(urna) {
+    setForm({ nome: urna.nome, pesquisas: [...(urna.pesquisas || [])] });
+    setModal({ modo: 'editar', urna });
+  }
+
+  function togglePesquisa(id) {
+    setForm(f => ({
+      ...f,
+      pesquisas: f.pesquisas.includes(id) ? f.pesquisas.filter(p => p !== id) : [...f.pesquisas, id],
+    }));
+  }
+
+  async function salvar() {
+    if (!form.nome.trim()) { notify('Nome obrigatório.', true); return; }
+    setSaving(true);
+    try {
+      const isEdit = modal.modo === 'editar';
+      const url = isEdit ? `/api/admin/urnas/${modal.urna.id}` : '/api/admin/urnas';
+      const r = await fetch(url, {
+        method: isEdit ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tok()}` },
+        body: JSON.stringify({ nome: form.nome.trim(), pesquisas: form.pesquisas }),
+      });
+      const d = await r.json();
+      if (!r.ok || !d.ok) throw new Error(d.erro || `Erro ${r.status}`);
+      notify(isEdit ? 'Urna atualizada.' : 'Urna criada.');
+      setModal(null);
+      carregar();
+    } catch (e) { notify(e.message || 'Erro de conexão.', true); }
+    setSaving(false);
+  }
+
+  async function excluir(urna) {
+    setSaving(true);
+    try {
+      const r = await fetch(`/api/admin/urnas/${urna.id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${tok()}` } });
+      const d = await r.json();
+      if (!r.ok || !d.ok) throw new Error(d.erro || `Erro ${r.status}`);
+      notify('Urna removida.');
+      setConfirmDel(null);
+      carregar();
+    } catch (e) { notify(e.message || 'Erro de conexão.', true); }
+    setSaving(false);
+  }
+
+  const pesquisaMap = Object.fromEntries(PESQUISAS_URNAS.map(p => [p.id, p]));
+
+  const cs = {
+    label: { fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.35em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe },
+    titulo: { fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 300, fontStyle: 'italic', fontSize: isMobile ? 32 : 40, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: '0 0 10px', lineHeight: 1.1 },
+    desc: { fontFamily: 'Inter, sans-serif', fontSize: 14, color: HUB_PALETTE.areiaDim, lineHeight: 1.6, margin: '0 0 24px', maxWidth: 540 },
+    btn: { background: HUB_PALETTE.champanhe, color: '#0f1923', border: 'none', borderRadius: 4, padding: '9px 20px', fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase', cursor: 'pointer', fontWeight: 700 },
+    btnSec: { background: 'transparent', color: HUB_PALETTE.areiaDim, border: `1px solid ${HUB_PALETTE.areiaDim}44`, borderRadius: 4, padding: '7px 16px', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', cursor: 'pointer' },
+    input: { width: '100%', background: '#0f1923', border: `1px solid ${HUB_PALETTE.areiaDim}44`, borderRadius: 4, padding: '10px 12px', color: HUB_PALETTE.marfim, fontFamily: 'Inter, sans-serif', fontSize: 14, boxSizing: 'border-box', outline: 'none' },
+    fieldLabel: { display: 'block', fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 8 },
+  };
+
+  if (urnas === null) return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 200, color: HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.2em' }}>
+      CARREGANDO…
+    </div>
+  );
+
+  return (
+    <div>
+      {/* Toast */}
+      {toast && (
+        <div style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 9999, background: toast.err ? '#c0392b' : '#1a6b45', color: '#fff', padding: '12px 20px', borderRadius: 6, fontFamily: 'Inter, sans-serif', fontSize: 13, boxShadow: '0 4px 20px rgba(0,0,0,.4)' }}>
+          {toast.msg}
+        </div>
+      )}
+
+      {/* Cabeçalho */}
+      <div style={{ marginBottom: 36 }}>
+        <div style={{ ...cs.label, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ width: 18, height: 1, background: HUB_PALETTE.champanhe }} />
+          Coleta de pesquisas
+        </div>
+        <h2 style={cs.titulo}>Urnas.</h2>
+        <p style={cs.desc}>Pontos de coleta vinculados a tipos de pesquisa. Cada urna representa um local físico onde os hóspedes respondem a pesquisa de satisfação.</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+          <button style={cs.btn} onClick={abrirNovo}>+ Nova urna</button>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 0, border: `1px solid ${HUB_PALETTE.areiaDim}28`, overflow: 'hidden' }}>
+            <div style={{ padding: '8px 16px', borderRight: `1px solid ${HUB_PALETTE.areiaDim}28`, background: `${HUB_PALETTE.champanhe}12` }}>
+              <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 18, color: HUB_PALETTE.champanhe, display: 'block', lineHeight: 1 }}>{urnas.length}</span>
+              <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 8, letterSpacing: '0.25em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, display: 'block', marginTop: 3 }}>urnas</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Grid de cards */}
+      {urnas.length === 0 ? (
+        <div style={{ padding: '48px 0', textAlign: 'center', color: HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.2em' }}>
+          NENHUMA URNA CADASTRADA
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>
+          {urnas.map(u => (
+            <div key={u.id} style={{ background: `${HUB_PALETTE.champanhe}08`, border: `1px solid ${HUB_PALETTE.areiaDim}22`, borderRadius: 10, padding: '18px 18px 14px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+                <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: 15, color: HUB_PALETTE.marfim, lineHeight: 1.3 }}>{u.nome}</span>
+                <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                  <button onClick={() => abrirEditar(u)} title="Editar" style={{ background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}44`, borderRadius: 4, color: HUB_PALETTE.areiaDim, cursor: 'pointer', padding: '3px 8px', fontSize: 11 }}>✎</button>
+                  <button onClick={() => setConfirmDel(u)} title="Excluir" style={{ background: 'transparent', border: `1px solid #c0392b66`, borderRadius: 4, color: '#e74c3c', cursor: 'pointer', padding: '3px 8px', fontSize: 11 }}>✕</button>
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                {(u.pesquisas || []).length === 0 ? (
+                  <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em', color: `${HUB_PALETTE.areiaDim}66`, textTransform: 'uppercase' }}>sem pesquisa vinculada</span>
+                ) : (u.pesquisas || []).map(pid => {
+                  const p = pesquisaMap[pid];
+                  if (!p) return null;
+                  return (
+                    <span key={pid} style={{ background: `${p.cor}22`, color: p.cor, border: `1px solid ${p.cor}55`, borderRadius: 12, padding: '2px 9px', fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
+                      {p.label}
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Modal criar/editar */}
+      {modal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', zIndex: 8000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={e => { if (e.target === e.currentTarget) setModal(null); }}>
+          <div style={{ background: '#161d27', border: `1px solid ${HUB_PALETTE.areiaDim}33`, borderRadius: 12, padding: 28, width: '100%', maxWidth: 480, maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+              <span style={{ ...cs.label }}>{modal.modo === 'novo' ? 'Nova urna' : 'Editar urna'}</span>
+              <button onClick={() => setModal(null)} style={{ background: 'transparent', border: 'none', color: HUB_PALETTE.areiaDim, cursor: 'pointer', fontSize: 18, lineHeight: 1 }}>✕</button>
+            </div>
+
+            <div style={{ marginBottom: 20 }}>
+              <label style={cs.fieldLabel}>Nome da urna</label>
+              <input style={cs.input} value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))} placeholder="Ex: Recepção, Lobby Bar…" onKeyDown={e => e.key === 'Enter' && salvar()} autoFocus />
+            </div>
+
+            <div style={{ marginBottom: 28 }}>
+              <label style={{ ...cs.fieldLabel, marginBottom: 12 }}>Pesquisas vinculadas</label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {PESQUISAS_URNAS.map(p => {
+                  const checked = form.pesquisas.includes(p.id);
+                  return (
+                    <label key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '8px 10px', borderRadius: 6, border: `1px solid ${checked ? p.cor + '66' : HUB_PALETTE.areiaDim + '22'}`, background: checked ? `${p.cor}10` : 'transparent', transition: 'all 150ms' }}>
+                      <input type="checkbox" checked={checked} onChange={() => togglePesquisa(p.id)} style={{ accentColor: p.cor, width: 15, height: 15, cursor: 'pointer' }} />
+                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: p.cor, flexShrink: 0 }} />
+                      <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: checked ? HUB_PALETTE.marfim : HUB_PALETTE.areiaDim }}>{p.label}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button style={cs.btnSec} onClick={() => setModal(null)}>Cancelar</button>
+              <button style={{ ...cs.btn, opacity: saving ? 0.6 : 1 }} onClick={salvar} disabled={saving}>
+                {saving ? 'Salvando…' : modal.modo === 'novo' ? 'Criar urna' : 'Salvar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal confirmação exclusão */}
+      {confirmDel && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', zIndex: 8000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={e => { if (e.target === e.currentTarget) setConfirmDel(null); }}>
+          <div style={{ background: '#161d27', border: `1px solid #c0392b66`, borderRadius: 12, padding: 28, width: '100%', maxWidth: 380 }}>
+            <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 15, color: HUB_PALETTE.marfim, marginBottom: 8 }}>Excluir urna?</div>
+            <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areiaDim, marginBottom: 24 }}>
+              "<strong style={{ color: HUB_PALETTE.marfim }}>{confirmDel.nome}</strong>" será removida permanentemente.
+            </div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button style={cs.btnSec} onClick={() => setConfirmDel(null)}>Cancelar</button>
+              <button style={{ ...cs.btn, background: '#c0392b', opacity: saving ? 0.6 : 1 }} onClick={() => excluir(confirmDel)} disabled={saving}>
+                {saving ? 'Excluindo…' : 'Excluir'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

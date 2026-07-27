@@ -1569,6 +1569,51 @@ app.get('/api/admin/tipos-cortesia', requireAdmin, (_req, res) => {
   res.json({ ok: true, tipos: Array.isArray(data.tipos_cortesia) ? data.tipos_cortesia : [] });
 });
 
+// ─── Urnas (pontos de coleta de pesquisas) ───────────────────────────────────
+
+app.get('/api/admin/urnas', requireAdmin, (_req, res) => {
+  const data = readData();
+  res.json({ ok: true, urnas: Array.isArray(data.urnas) ? data.urnas : [] });
+});
+
+app.post('/api/admin/urnas', requireAdmin, (req, res) => {
+  const nome = ((req.body && req.body.nome) || '').trim();
+  if (!nome) return res.status(400).json({ ok: false, erro: 'Nome obrigatório' });
+  const pesquisas = Array.isArray(req.body && req.body.pesquisas) ? req.body.pesquisas : [];
+  const data = readData();
+  if (!Array.isArray(data.urnas)) data.urnas = [];
+  const id = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const urna = { id, nome, pesquisas, criada_em: new Date().toISOString() };
+  data.urnas.push(urna);
+  writeData(data);
+  appendAudit({ by_email: req.hubUser.email, by_nome: req.hubUser.nome, action: 'criar', target_tipo: 'urna', target_id: id, target_nome: nome, campos: { nome, pesquisas } });
+  res.json({ ok: true, urna });
+});
+
+app.put('/api/admin/urnas/:id', requireAdmin, (req, res) => {
+  const nome = ((req.body && req.body.nome) || '').trim();
+  if (!nome) return res.status(400).json({ ok: false, erro: 'Nome obrigatório' });
+  const pesquisas = Array.isArray(req.body && req.body.pesquisas) ? req.body.pesquisas : [];
+  const data = readData();
+  const idx = (data.urnas || []).findIndex(u => u.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ ok: false, erro: 'Urna não encontrada' });
+  data.urnas[idx] = { ...data.urnas[idx], nome, pesquisas };
+  writeData(data);
+  appendAudit({ by_email: req.hubUser.email, by_nome: req.hubUser.nome, action: 'editar', target_tipo: 'urna', target_id: req.params.id, target_nome: nome, campos: { nome, pesquisas } });
+  res.json({ ok: true, urna: data.urnas[idx] });
+});
+
+app.delete('/api/admin/urnas/:id', requireAdmin, (req, res) => {
+  const data = readData();
+  if (!Array.isArray(data.urnas)) return res.status(404).json({ ok: false, erro: 'Urna não encontrada' });
+  const urna = data.urnas.find(u => u.id === req.params.id);
+  if (!urna) return res.status(404).json({ ok: false, erro: 'Urna não encontrada' });
+  data.urnas = data.urnas.filter(u => u.id !== req.params.id);
+  writeData(data);
+  appendAudit({ by_email: req.hubUser.email, by_nome: req.hubUser.nome, action: 'excluir', target_tipo: 'urna', target_id: req.params.id, target_nome: urna.nome, campos: {} });
+  res.json({ ok: true });
+});
+
 // ─── Public endpoints (lidos pelo SPA, sem auth) ─────────────────────────────
 const _SPA_ORIGIN = 'https://pesquisa-satisfacao.fly.dev';
 
