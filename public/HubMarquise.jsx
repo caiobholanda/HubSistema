@@ -442,7 +442,7 @@ function HubLogin({ onLogin }) {
     color: HUB_PALETTE.marfim,
     fontFamily: 'Inter, sans-serif',
     fontSize: 14,
-    padding: '14px 16px',
+    padding: '15px 16px',
     outline: 'none',
     transition: `border-color 300ms ${HUB_EASE}`,
     boxSizing: 'border-box',
@@ -460,13 +460,16 @@ function HubLogin({ onLogin }) {
       <div style={{ position: 'absolute', right: 0, top: 0, width: 1, height: '60%', background: `linear-gradient(180deg, transparent 0%, ${HUB_PALETTE.champanhe}55 40%, transparent 100%)`, pointerEvents: 'none' }} />
 
       <div style={{ width: '100%', maxWidth: trocaForcada ? 520 : 400, padding: '0 24px' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: trocaForcada ? 36 : 48 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: trocaForcada ? 36 : 16 }}>
           <img
             src="https://letsimage.s3.amazonaws.com/editor/granmarquise/imgs/1760033174793-hotelgranmarquise_pos_footer.png"
             alt="Gran Marquise"
             style={{ height: trocaForcada ? 56 : 46, width: 'auto', filter: HUB_PALETTE.noite === HUB_THEMES.dark.noite ? 'brightness(0) invert(1)' : 'none', opacity: 0.9, marginBottom: trocaForcada ? 24 : 20 }}
           />
-          <h1 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 300, fontStyle: 'italic', fontSize: trocaForcada ? 44 : 36, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: 0, lineHeight: 1 }}>{trocaForcada ? 'Defina sua nova senha.' : 'Entrar.'}</h1>
+          <h1 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: trocaForcada ? 300 : 600, fontStyle: trocaForcada ? 'italic' : 'normal', fontSize: trocaForcada ? 44 : 36, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: 0, lineHeight: 1 }}>{trocaForcada ? 'Defina sua nova senha.' : 'Entrar'}</h1>
+          {!trocaForcada && (
+            <div style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 400, fontSize: 13, letterSpacing: '0.18em', color: HUB_PALETTE.areia, marginTop: 24 }}>Plataforma Corporativa</div>
+          )}
           {trocaForcada && (
             <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 15, color: HUB_PALETTE.areia, marginTop: 18, textAlign: 'center', lineHeight: 1.6 }}>
               É o seu primeiro acesso. Por segurança, troque a senha temporária<br />que você recebeu antes de continuar.
@@ -528,32 +531,34 @@ function HubLogin({ onLogin }) {
         })() : (
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div>
-            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 8 }}>E-mail</div>
+            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, fontWeight: 500, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 8 }}>E-mail</div>
             <input ref={emailRef} type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="seu@granmarquise.com.br" required disabled={loading}
               style={inputBase}
               onFocus={e => e.target.style.borderColor = HUB_PALETTE.champanhe + '88'}
               onBlur={e => e.target.style.borderColor = HUB_PALETTE.areiaDim + '44'} />
           </div>
           <div>
-            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 8 }}>Senha</div>
+            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, fontWeight: 500, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 8 }}>Senha</div>
             <div style={{ position: 'relative' }}>
               <input type={mostrarSenha ? 'text' : 'password'} value={senha} onChange={e => setSenha(e.target.value)} placeholder="••••••••" required disabled={loading}
-                style={{ ...inputBase, paddingRight: 48 }}
+                style={{ ...inputBase, paddingRight: 52 }}
                 onFocus={e => e.target.style.borderColor = HUB_PALETTE.champanhe + '88'}
                 onBlur={e => e.target.style.borderColor = HUB_PALETTE.areiaDim + '44'} />
-              <button type="button" onClick={() => setMostrarSenha(v => !v)} style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: HUB_PALETTE.areiaDim, cursor: 'pointer', padding: 0, display: 'flex' }}>
+              <button type="button" onClick={() => setMostrarSenha(v => !v)} style={{ position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: HUB_PALETTE.areiaDim, cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {mostrarSenha
-                  ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-                  : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                  : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                 }
               </button>
             </div>
           </div>
           {erro && <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#E07A5F', paddingTop: 4, display: 'flex', alignItems: 'center', gap: 8 }}><span>—</span> {erro}</div>}
           <button type="submit" disabled={loading}
-            style={{ marginTop: 10, width: '100%', padding: '14px', background: 'transparent', border: `1px solid ${loading ? HUB_PALETTE.champanhe + '44' : HUB_PALETTE.champanhe + 'aa'}`, borderRadius: 0, color: loading ? HUB_PALETTE.areiaDim : HUB_PALETTE.champanhe, fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.3em', textTransform: 'uppercase', cursor: loading ? 'not-allowed' : 'pointer', transition: `background 300ms ${HUB_EASE}, border-color 250ms ${HUB_EASE}, color 250ms ${HUB_EASE}`, opacity: loading ? 0.55 : 1 }}
-            onMouseEnter={e => { if (!loading) { e.target.style.background = 'rgba(156,88,67,0.1)'; e.target.style.borderColor = HUB_PALETTE.champanhe; } }}
-            onMouseLeave={e => { if (!loading) { e.target.style.background = 'transparent'; e.target.style.borderColor = HUB_PALETTE.champanhe + 'aa'; } }}>
+            style={{ marginTop: 10, width: '100%', padding: '15px', background: '#202C28', border: 'none', borderRadius: 0, color: '#ECE4D2', fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.3em', textTransform: 'uppercase', cursor: loading ? 'wait' : 'pointer', transition: `background 200ms ${HUB_EASE}`, opacity: loading ? 0.7 : 1 }}
+            onMouseEnter={e => { if (!loading) e.currentTarget.style.background = '#283631'; }}
+            onMouseLeave={e => { if (!loading) e.currentTarget.style.background = '#202C28'; }}
+            onMouseDown={e => { if (!loading) e.currentTarget.style.background = '#1B2522'; }}
+            onMouseUp={e => { if (!loading) e.currentTarget.style.background = '#283631'; }}>
             {loading ? 'Verificando...' : 'Entrar'}
           </button>
 
