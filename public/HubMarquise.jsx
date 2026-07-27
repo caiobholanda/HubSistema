@@ -1637,9 +1637,9 @@ function UrnasPanel({ isMobile }) {
       });
       const d = await r.json();
       if (!r.ok || !d.ok) throw new Error(d.erro || `Erro ${r.status}`);
-      notify(isEdit ? 'Urna atualizada.' : 'Urna criada.');
       setModal(null);
-      carregar();
+      await carregar();
+      notify(isEdit ? 'Urna atualizada.' : 'Urna criada.');
     } catch (e) { notify(e.message || 'Erro de conexão.', true); }
     setSaving(false);
   }
@@ -1650,9 +1650,9 @@ function UrnasPanel({ isMobile }) {
       const r = await fetch(`/api/admin/urnas/${urna.id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${tok()}` } });
       const d = await r.json();
       if (!r.ok || !d.ok) throw new Error(d.erro || `Erro ${r.status}`);
-      notify('Urna removida.');
       setConfirmDel(null);
-      carregar();
+      await carregar();
+      notify('Urna removida.');
     } catch (e) { notify(e.message || 'Erro de conexão.', true); }
     setSaving(false);
   }
