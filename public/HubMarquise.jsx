@@ -271,7 +271,8 @@ function HubLogin({ onLogin }) {
   const [trocaLoading, setTrocaLoading] = useState(false);
   const [trocaErro, setTrocaErro] = useState('');
   // Esqueci senha (painel inline) — replica o comportamento da tela antiga do sistema-chamados
-  const [esqOpen, setEsqOpen] = useState(false);
+  const [view, setView] = useState('login');
+  const [viewVisible, setViewVisible] = useState(true);
   const [esqEmail, setEsqEmail] = useState('');
   const [esqLoading, setEsqLoading] = useState(false);
   // { tipo: 'ok'|'erro', titulo, texto }
@@ -287,7 +288,7 @@ function HubLogin({ onLogin }) {
   }
 
   async function handleEsqueci(e) {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
     const e_ = (esqEmail || '').trim().toLowerCase();
     if (!e_) { _esqErro('Campo obrigatório', 'Informe o e-mail cadastrado.'); return; }
     setEsqLoading(true); setEsqMsg(null);
@@ -311,17 +312,26 @@ function HubLogin({ onLogin }) {
   }
 
   function resetEsqueci() {
-    setEsqEnviado(false); setEsqMsg(null); setEsqEmail('');
-    setTimeout(() => { if (esqEmailRef.current) esqEmailRef.current.focus(); }, 60);
+    setEsqEnviado(false);
+    setEsqMsg(null);
   }
 
-  // Foco automatico ao abrir o painel
-  useEffect(() => {
-    if (esqOpen && !esqEnviado) {
-      const t = setTimeout(() => { if (esqEmailRef.current) esqEmailRef.current.focus(); }, 180);
-      return () => clearTimeout(t);
-    }
-  }, [esqOpen, esqEnviado]);
+  function switchView(targetView) {
+    setViewVisible(false);
+    setTimeout(() => {
+      if (targetView === 'recovery') {
+        setEsqEmail(email || '');
+        setEsqMsg(null);
+        setEsqEnviado(false);
+      }
+      setView(targetView);
+      setViewVisible(true);
+      setTimeout(() => {
+        if (targetView === 'recovery') { if (esqEmailRef.current) esqEmailRef.current.focus(); }
+        else { if (emailRef.current) emailRef.current.focus(); }
+      }, 50);
+    }, 150);
+  }
 
   // Injeta keyframes do shake uma unica vez (evita duplicar StyleSheet)
   useEffect(() => {
@@ -460,15 +470,21 @@ function HubLogin({ onLogin }) {
       <div style={{ position: 'absolute', right: 0, top: 0, width: 1, height: '60%', background: `linear-gradient(180deg, transparent 0%, ${HUB_PALETTE.champanhe}55 40%, transparent 100%)`, pointerEvents: 'none' }} />
 
       <div style={{ width: '100%', maxWidth: trocaForcada ? 520 : 400, padding: '0 24px' }}>
+        <div style={{ opacity: trocaForcada ? 1 : (viewVisible ? 1 : 0), transition: 'opacity 150ms ease-in-out' }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: trocaForcada ? 36 : 16 }}>
           <img
             src="https://letsimage.s3.amazonaws.com/editor/granmarquise/imgs/1760033174793-hotelgranmarquise_pos_footer.png"
             alt="Gran Marquise"
             style={{ height: trocaForcada ? 56 : 46, width: 'auto', filter: HUB_PALETTE.noite === HUB_THEMES.dark.noite ? 'brightness(0) invert(1)' : 'none', opacity: 0.9, marginBottom: trocaForcada ? 24 : 20 }}
           />
-          <h1 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: trocaForcada ? 300 : 600, fontStyle: trocaForcada ? 'italic' : 'normal', fontSize: trocaForcada ? 44 : 36, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: 0, lineHeight: 1 }}>{trocaForcada ? 'Defina sua nova senha.' : 'Entrar'}</h1>
-          {!trocaForcada && (
+          <h1 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: trocaForcada ? 300 : 600, fontStyle: trocaForcada ? 'italic' : 'normal', fontSize: trocaForcada ? 44 : 36, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: 0, lineHeight: 1 }}>{trocaForcada ? 'Defina sua nova senha.' : view === 'recovery' ? 'Redefinir senha' : 'Entrar'}</h1>
+          {!trocaForcada && view === 'login' && (
             <div style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 400, fontSize: 13, letterSpacing: '0.18em', color: HUB_PALETTE.areia, marginTop: 24 }}>Plataforma Corporativa</div>
+          )}
+          {!trocaForcada && view === 'recovery' && (
+            <div style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, fontSize: 13, color: HUB_PALETTE.areia, marginTop: 20, textAlign: 'center', lineHeight: 1.7 }}>
+              Digite seu e-mail corporativo.<br /><br />Enviaremos um link para redefinir sua senha.
+            </div>
           )}
           {trocaForcada && (
             <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 15, color: HUB_PALETTE.areia, marginTop: 18, textAlign: 'center', lineHeight: 1.6 }}>
@@ -528,7 +544,7 @@ function HubLogin({ onLogin }) {
             </div>
           </form>
           );
-        })() : (
+        })() : view === 'login' ? (
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div>
             <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, fontWeight: 500, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 8 }}>E-mail</div>
@@ -562,66 +578,61 @@ function HubLogin({ onLogin }) {
             {loading ? 'Verificando...' : 'Entrar'}
           </button>
 
-          {/* Esqueci a senha */}
           <div style={{ textAlign: 'center', marginTop: 4 }}>
-            <button type="button"
-              onClick={() => { setEsqOpen(v => !v); setEsqMsg(null); setEsqEnviado(false); if (!esqOpen && email) setEsqEmail(email); }}
+            <button type="button" onClick={() => switchView('recovery')}
               style={{ background: 'transparent', border: 'none', color: HUB_PALETTE.areiaDim, fontFamily: 'Inter, sans-serif', fontSize: 12.5, textDecoration: 'underline', textUnderlineOffset: 3, cursor: 'pointer', padding: '6px 4px' }}>
-              {esqOpen ? 'Cancelar' : 'Esqueci minha senha'}
+              Esqueci minha senha
             </button>
           </div>
-
-          {esqOpen && (
-            <div style={{ marginTop: 4, paddingTop: 16, borderTop: `1px solid ${HUB_PALETTE.areiaDim}22`, display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 12.5, color: HUB_PALETTE.areia, margin: 0, lineHeight: 1.55 }}>
-                Digite seu e-mail e enviaremos um link para redefinir sua senha.
-              </p>
-              {!esqEnviado && (
-                <div>
-                  <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 8 }}>E-mail cadastrado</div>
-                  <input key={esqShakeKey} ref={esqEmailRef} type="email" value={esqEmail} onChange={e => setEsqEmail(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter') handleEsqueci(e); }}
-                    placeholder="seu@granmarquise.com.br" required disabled={esqLoading}
-                    style={{ ...inputBase, ...(esqMsg && esqMsg.tipo === 'erro' ? { borderColor: '#E07A5F', boxShadow: '0 0 0 3px rgba(224,122,95,0.13)', animation: 'hubShake .42s ease' } : null) }}
-                    onFocus={e => { if (!(esqMsg && esqMsg.tipo === 'erro')) e.target.style.borderColor = HUB_PALETTE.champanhe + '88'; }}
-                    onBlur={e => { if (!(esqMsg && esqMsg.tipo === 'erro')) e.target.style.borderColor = HUB_PALETTE.areiaDim + '44'; }} />
-                </div>
-              )}
-              {esqMsg && (
-                <div style={{
-                  display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px',
-                  borderLeft: `3px solid ${esqMsg.tipo === 'ok' ? '#7cb342' : '#E07A5F'}`,
-                  background: esqMsg.tipo === 'ok' ? 'rgba(124,179,66,0.08)' : 'rgba(224,122,95,0.08)',
-                  fontFamily: 'Inter, sans-serif',
-                  animation: 'hubSlideIn .22s ease',
-                }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={esqMsg.tipo === 'ok' ? '#7cb342' : '#E07A5F'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 1 }}>
-                    {esqMsg.tipo === 'ok'
-                      ? <><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></>
-                      : <><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></>}
-                  </svg>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: esqMsg.tipo === 'ok' ? '#7cb342' : '#E07A5F', marginBottom: 2 }}>{esqMsg.titulo}</div>
-                    <div style={{ fontSize: 12.5, color: HUB_PALETTE.areia, lineHeight: 1.5 }}>{esqMsg.texto}</div>
-                  </div>
-                </div>
-              )}
-              {!esqEnviado && (
-                <button type="button" onClick={handleEsqueci} disabled={esqLoading}
-                  style={{ width: '100%', padding: '13px', background: 'transparent', border: `1px solid ${HUB_PALETTE.champanhe}88`, color: esqLoading ? HUB_PALETTE.areiaDim : HUB_PALETTE.champanhe, fontFamily: 'JetBrains Mono, monospace', fontSize: 10.5, letterSpacing: '0.28em', textTransform: 'uppercase', cursor: esqLoading ? 'not-allowed' : 'pointer' }}>
-                  {esqLoading ? 'Enviando…' : (esqMsg && esqMsg.tipo === 'erro' ? 'Solicitar redefinição' : 'Enviar link de redefinição')}
-                </button>
-              )}
-              {esqEnviado && (
-                <button type="button" onClick={resetEsqueci}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'Inter, sans-serif', fontSize: 12.5, color: HUB_PALETTE.areiaDim, textDecoration: 'underline', padding: 0, alignSelf: 'flex-start' }}>
-                  Não recebeu? Reenviar
-                </button>
-              )}
+        </form>
+        ) : (
+        <form onSubmit={handleEsqueci} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {!esqEnviado ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div>
+                <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 8 }}>E-MAIL</div>
+                <input ref={esqEmailRef} type="email" value={esqEmail} onChange={e => setEsqEmail(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') handleEsqueci(e); }}
+                  placeholder="seu@granmarquise.com.br" required disabled={esqLoading}
+                  style={{ ...inputBase, ...(esqMsg && esqMsg.tipo === 'erro' ? { borderColor: '#E07A5F', boxShadow: '0 0 0 3px rgba(224,122,95,0.13)' } : null) }}
+                  onFocus={e => { e.target.style.borderColor = HUB_PALETTE.champanhe + '88'; }}
+                  onBlur={e => { if (!(esqMsg && esqMsg.tipo === 'erro')) e.target.style.borderColor = HUB_PALETTE.areiaDim + '44'; }} />
+                {esqMsg && esqMsg.tipo === 'erro' && (
+                  <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#E07A5F', paddingTop: 4, display: 'flex', alignItems: 'center', gap: 8 }}><span>—</span> {esqMsg.texto}</div>
+                )}
+              </div>
+              <button type="submit" disabled={esqLoading}
+                style={{ width: '100%', padding: '15px', background: HUB_PALETTE.marfim, border: 'none', borderRadius: 0, color: HUB_PALETTE.noite, fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.3em', textTransform: 'uppercase', cursor: esqLoading ? 'wait' : 'pointer', transition: `background 200ms ${HUB_EASE}`, opacity: esqLoading ? 0.7 : 1 }}
+                onMouseEnter={e => { if (!esqLoading) e.currentTarget.style.background = HUB_PALETTE.marfim === '#ECE4D2' ? '#DDD5C2' : '#283631'; }}
+                onMouseLeave={e => { if (!esqLoading) e.currentTarget.style.background = HUB_PALETTE.marfim; }}
+                onMouseDown={e => { if (!esqLoading) e.currentTarget.style.background = HUB_PALETTE.marfim === '#ECE4D2' ? '#CFC7B5' : '#1B2522'; }}
+                onMouseUp={e => { if (!esqLoading) e.currentTarget.style.background = HUB_PALETTE.marfim === '#ECE4D2' ? '#DDD5C2' : '#283631'; }}>
+                {esqLoading ? 'Enviando…' : 'Enviar link de redefinição'}
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, padding: '8px 0' }}>
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#7cb342" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+              </svg>
+              <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areia, textAlign: 'center', lineHeight: 1.7 }}>
+                {esqMsg ? esqMsg.texto : 'Link enviado. Verifique sua caixa de entrada.'}
+              </div>
+              <button type="button" onClick={() => handleEsqueci(null)} disabled={esqLoading}
+                style={{ background: 'none', border: 'none', cursor: esqLoading ? 'wait' : 'pointer', fontFamily: 'Inter, sans-serif', fontSize: 12.5, color: HUB_PALETTE.areiaDim, textDecoration: 'underline', textUnderlineOffset: 3, padding: 0, opacity: esqLoading ? 0.7 : 1 }}>
+                {esqLoading ? 'Enviando…' : 'Não recebeu o e-mail? Reenviar'}
+              </button>
             </div>
           )}
+          <div style={{ textAlign: 'center', marginTop: esqEnviado ? 8 : 4 }}>
+            <button type="button" onClick={() => switchView('login')}
+              style={{ background: 'transparent', border: 'none', color: HUB_PALETTE.areiaDim, fontFamily: 'Inter, sans-serif', fontSize: 12.5, textDecoration: 'underline', textUnderlineOffset: 3, cursor: 'pointer', padding: '6px 4px' }}>
+              ← Voltar ao login
+            </button>
+          </div>
         </form>
         )}
+        </div>
 
         <div style={{ marginTop: 40, display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{ flex: 1, height: 1, background: `${HUB_PALETTE.areiaDim}22` }} />
