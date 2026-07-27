@@ -554,11 +554,11 @@ function HubLogin({ onLogin }) {
           </div>
           {erro && <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#E07A5F', paddingTop: 4, display: 'flex', alignItems: 'center', gap: 8 }}><span>—</span> {erro}</div>}
           <button type="submit" disabled={loading}
-            style={{ marginTop: 10, width: '100%', padding: '15px', background: '#202C28', border: 'none', borderRadius: 0, color: '#ECE4D2', fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.3em', textTransform: 'uppercase', cursor: loading ? 'wait' : 'pointer', transition: `background 200ms ${HUB_EASE}`, opacity: loading ? 0.7 : 1 }}
-            onMouseEnter={e => { if (!loading) e.currentTarget.style.background = '#283631'; }}
-            onMouseLeave={e => { if (!loading) e.currentTarget.style.background = '#202C28'; }}
-            onMouseDown={e => { if (!loading) e.currentTarget.style.background = '#1B2522'; }}
-            onMouseUp={e => { if (!loading) e.currentTarget.style.background = '#283631'; }}>
+            style={{ marginTop: 10, width: '100%', padding: '15px', background: HUB_PALETTE.marfim, border: 'none', borderRadius: 0, color: HUB_PALETTE.noite, fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.3em', textTransform: 'uppercase', cursor: loading ? 'wait' : 'pointer', transition: `background 200ms ${HUB_EASE}`, opacity: loading ? 0.7 : 1 }}
+            onMouseEnter={e => { if (!loading) e.currentTarget.style.background = HUB_PALETTE.marfim === '#ECE4D2' ? '#DDD5C2' : '#283631'; }}
+            onMouseLeave={e => { if (!loading) e.currentTarget.style.background = HUB_PALETTE.marfim; }}
+            onMouseDown={e => { if (!loading) e.currentTarget.style.background = HUB_PALETTE.marfim === '#ECE4D2' ? '#CFC7B5' : '#1B2522'; }}
+            onMouseUp={e => { if (!loading) e.currentTarget.style.background = HUB_PALETTE.marfim === '#ECE4D2' ? '#DDD5C2' : '#283631'; }}>
             {loading ? 'Verificando...' : 'Entrar'}
           </button>
 
