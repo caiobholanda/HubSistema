@@ -1673,6 +1673,9 @@ function UrnasPanel({ isMobile }) {
     borderStrong: 'rgba(138,123,106,0.35)',
     modalBg: '#18211e',
     inputBg: '#111a17',
+    // cores fixas para interior do modal (fundo sempre escuro)
+    mText: '#ECE4D2',
+    mMuted: '#8A7B6A',
   };
 
   const btnPrimary = {
@@ -1812,34 +1815,34 @@ function UrnasPanel({ isMobile }) {
                 <div style={{ fontFamily: U.mono, fontSize: 9, letterSpacing: '0.38em', textTransform: 'uppercase', color: U.accent, marginBottom: 4 }}>
                   {modal.modo === 'novo' ? 'Nova urna' : 'Editar urna'}
                 </div>
-                <div style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 300, fontStyle: 'italic', fontSize: 22, color: U.text, lineHeight: 1 }}>
+                <div style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 300, fontStyle: 'italic', fontSize: 22, color: U.mText, lineHeight: 1 }}>
                   {modal.modo === 'novo' ? 'Criar ponto de coleta' : form.nome || 'Editar'}
                 </div>
               </div>
-              <button onClick={() => setModal(null)} style={{ background: 'transparent', border: 'none', color: U.muted, cursor: 'pointer', padding: 4, lineHeight: 0 }}>
+              <button onClick={() => setModal(null)} style={{ background: 'transparent', border: 'none', color: U.mMuted, cursor: 'pointer', padding: 4, lineHeight: 0 }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
             </div>
 
             {/* Campo nome */}
             <div style={{ marginBottom: 24 }}>
-              <label style={fieldLabel}>Nome da urna</label>
-              <input style={inputStyle} value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))} placeholder="Ex: Recepção, Lobby Bar, Piscina…" onKeyDown={e => e.key === 'Enter' && salvar()} autoFocus />
+              <label style={{ ...fieldLabel, color: U.mMuted }}>Nome da urna</label>
+              <input style={{ ...inputStyle, color: U.mText }} value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))} placeholder="Ex: Recepção, Lobby Bar, Piscina…" onKeyDown={e => e.key === 'Enter' && salvar()} autoFocus />
             </div>
 
             {/* Pesquisas */}
             <div style={{ marginBottom: 28 }}>
-              <label style={{ ...fieldLabel, marginBottom: 14 }}>Pesquisas vinculadas</label>
+              <label style={{ ...fieldLabel, color: U.mMuted, marginBottom: 14 }}>Pesquisas vinculadas</label>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {PESQUISAS_URNAS.map(p => {
                   const checked = form.pesquisas.includes(p.id);
                   return (
-                    <label key={p.id} onClick={() => togglePesquisa(p.id)} style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', padding: '9px 12px', borderRadius: 4, border: `1px solid ${checked ? p.cor + 'aa' : U.border}`, background: checked ? p.cor + '1a' : 'transparent', transition: 'all 130ms' }}>
-                      <span style={{ width: 16, height: 16, borderRadius: 3, border: `2px solid ${checked ? p.cor : U.muted}`, background: checked ? p.cor : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 130ms' }}>
+                    <label key={p.id} onClick={() => togglePesquisa(p.id)} style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', padding: '9px 12px', borderRadius: 4, border: `1px solid ${checked ? p.cor + 'aa' : 'rgba(138,123,106,0.22)'}`, background: checked ? p.cor + '22' : 'transparent', transition: 'all 130ms' }}>
+                      <span style={{ width: 16, height: 16, borderRadius: 3, border: `2px solid ${checked ? p.cor : U.mMuted}`, background: checked ? p.cor : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 130ms' }}>
                         {checked && <svg width="9" height="9" viewBox="0 0 12 12" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"><polyline points="1.5 6 4.5 9 10.5 3"/></svg>}
                       </span>
                       <span style={{ width: 8, height: 8, borderRadius: '50%', background: p.cor, flexShrink: 0 }} />
-                      <span style={{ fontFamily: U.sans, fontSize: 13, color: checked ? U.text : U.muted, flex: 1 }}>{p.label}</span>
+                      <span style={{ fontFamily: U.sans, fontSize: 13, color: U.mText, flex: 1 }}>{p.label}</span>
                       {checked && <span style={{ background: p.cor, color: '#fff', fontFamily: U.mono, fontSize: 7, letterSpacing: '0.14em', textTransform: 'uppercase', padding: '2px 6px', borderRadius: 2 }}>selecionada</span>}
                     </label>
                   );
@@ -1847,11 +1850,11 @@ function UrnasPanel({ isMobile }) {
               </div>
             </div>
 
-            <div style={{ height: 1, background: U.border, marginBottom: 20 }} />
+            <div style={{ height: 1, background: 'rgba(138,123,106,0.22)', marginBottom: 20 }} />
 
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-              <button style={btnSecondary} onClick={() => setModal(null)}>Cancelar</button>
-              <button style={{ ...btnPrimary, opacity: saving ? 0.55 : 1 }} onClick={salvar} disabled={saving}>
+              <button style={{ ...btnSecondary, color: U.mMuted, borderColor: 'rgba(138,123,106,0.4)' }} onClick={() => setModal(null)}>Cancelar</button>
+              <button style={{ ...btnPrimary, color: U.mText, opacity: saving ? 0.55 : 1 }} onClick={salvar} disabled={saving}>
                 {saving ? 'Salvando…' : modal.modo === 'novo' ? 'Criar urna' : 'Salvar alterações'}
               </button>
             </div>
@@ -1864,13 +1867,13 @@ function UrnasPanel({ isMobile }) {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.72)', zIndex: 8000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={e => { if (e.target === e.currentTarget) setConfirmDel(null); }}>
           <div style={{ background: U.modalBg, border: '1px solid rgba(180,60,60,0.35)', borderRadius: 8, padding: 28, width: '100%', maxWidth: 360 }}>
             <div style={{ fontFamily: U.mono, fontSize: 9, letterSpacing: '0.38em', textTransform: 'uppercase', color: '#e05555', marginBottom: 12 }}>Confirmação</div>
-            <div style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 300, fontStyle: 'italic', fontSize: 20, color: U.text, marginBottom: 10, lineHeight: 1.2 }}>Excluir urna?</div>
-            <div style={{ fontFamily: U.sans, fontSize: 13, color: U.muted, marginBottom: 26, lineHeight: 1.6 }}>
-              <strong style={{ color: U.text }}>{confirmDel.nome}</strong> será removida permanentemente. Esta ação não pode ser desfeita.
+            <div style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 300, fontStyle: 'italic', fontSize: 20, color: U.mText, marginBottom: 10, lineHeight: 1.2 }}>Excluir urna?</div>
+            <div style={{ fontFamily: U.sans, fontSize: 13, color: U.mMuted, marginBottom: 26, lineHeight: 1.6 }}>
+              <strong style={{ color: U.mText }}>{confirmDel.nome}</strong> será removida permanentemente. Esta ação não pode ser desfeita.
             </div>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-              <button style={btnSecondary} onClick={() => setConfirmDel(null)}>Cancelar</button>
-              <button style={{ ...btnPrimary, background: '#8b2020', opacity: saving ? 0.55 : 1 }} onClick={() => excluir(confirmDel)} disabled={saving}>
+              <button style={{ ...btnSecondary, color: U.mMuted, borderColor: 'rgba(138,123,106,0.4)' }} onClick={() => setConfirmDel(null)}>Cancelar</button>
+              <button style={{ ...btnPrimary, color: U.mText, background: '#8b2020', opacity: saving ? 0.55 : 1 }} onClick={() => excluir(confirmDel)} disabled={saving}>
                 {saving ? 'Excluindo…' : 'Excluir'}
               </button>
             </div>
