@@ -20,6 +20,21 @@ if (!process.env.SSO_SECRET) {
   console.warn('[WARN] SSO_SECRET não configurado — usando secret inseguro');
 }
 
+app.disable('x-powered-by');
+
+// Cabecalhos de seguranca. SEM CSP restritiva de proposito: o front carrega
+// React/Babel via CDN (unpkg) e compila JSX inline, entao uma CSP rigida
+// quebraria o Hub inteiro. Referrer-Policy no-referrer tambem mitiga o
+// vazamento do JWT que trafega na URL do SSE (/api/events?token=...),
+// impedindo que ele escape pelo cabecalho Referer para terceiros.
+app.use((_req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  res.setHeader('Strict-Transport-Security', 'max-age=15552000');
+  next();
+});
+
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -1987,6 +2002,19 @@ app.post('/api/ativar', async (req, res) => {
     console.error('[ativar]', err);
     return res.status(502).json({ ok: false, erro: 'Serviço indisponível. Tente novamente.' });
   }
+});
+
+// Error handler terminal: o Express fora de modo producao despeja o stack trace
+// na resposta (vazando caminhos/versoes). Aqui, body JSON malformado
+// (express.json -> entity.parse.failed) e qualquer erro nao tratado retornam
+// JSON generico; o detalhe fica so no log do servidor.
+app.use((err, req, res, next) => {
+  if (res.headersSent) return next(err);
+  if (err && err.type === 'entity.parse.failed') {
+    return res.status(400).json({ ok: false, erro: 'JSON inválido' });
+  }
+  console.error('[erro]', req.method, req.path, '-', err && err.message);
+  res.status(500).json({ ok: false, erro: 'Erro interno' });
 });
 
 app.listen(PORT, () => console.log(`Hub rodando em http://localhost:${PORT}`));
