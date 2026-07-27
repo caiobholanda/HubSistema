@@ -1571,6 +1571,15 @@ app.get('/api/admin/tipos-cortesia', requireAdmin, (_req, res) => {
 
 // ─── Urnas (pontos de coleta de pesquisas) ───────────────────────────────────
 
+app.get('/api/urnas', (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  const data = readData();
+  const all = Array.isArray(data.urnas) ? data.urnas : [];
+  const pesquisa = req.query.pesquisa;
+  const urnas = pesquisa ? all.filter(u => Array.isArray(u.pesquisas) && u.pesquisas.includes(pesquisa)) : all;
+  res.json({ urnas: urnas.map(u => ({ id: u.id, nome: u.nome, pesquisas: u.pesquisas || [] })) });
+});
+
 app.get('/api/admin/urnas', requireAdmin, (_req, res) => {
   const data = readData();
   res.json({ ok: true, urnas: Array.isArray(data.urnas) ? data.urnas : [] });
