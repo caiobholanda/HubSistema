@@ -1662,135 +1662,215 @@ function UrnasPanel({ isMobile }) {
 
   const pesquisaMap = Object.fromEntries(PESQUISAS_URNAS.map(p => [p.id, p]));
 
-  const cs = {
-    label: { fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.35em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe },
-    titulo: { fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 300, fontStyle: 'italic', fontSize: isMobile ? 32 : 40, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: '0 0 10px', lineHeight: 1.1 },
-    desc: { fontFamily: 'Inter, sans-serif', fontSize: 14, color: HUB_PALETTE.areiaDim, lineHeight: 1.6, margin: '0 0 24px', maxWidth: 540 },
-    btn: { background: HUB_PALETTE.champanhe, color: '#0f1923', border: 'none', borderRadius: 4, padding: '9px 20px', fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase', cursor: 'pointer', fontWeight: 700 },
-    btnSec: { background: 'transparent', color: HUB_PALETTE.areiaDim, border: `1px solid ${HUB_PALETTE.areiaDim}44`, borderRadius: 4, padding: '7px 16px', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', cursor: 'pointer' },
-    input: { width: '100%', background: '#0f1923', border: `1px solid ${HUB_PALETTE.areiaDim}44`, borderRadius: 4, padding: '10px 12px', color: HUB_PALETTE.marfim, fontFamily: 'Inter, sans-serif', fontSize: 14, boxSizing: 'border-box', outline: 'none' },
-    fieldLabel: { display: 'block', fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 8 },
+  const U = {
+    mono: 'JetBrains Mono, monospace',
+    sans: 'Inter, sans-serif',
+    text: HUB_PALETTE.marfim,
+    muted: HUB_PALETTE.areiaDim,
+    accent: HUB_PALETTE.champanhe,
+    surface: HUB_PALETTE.noiteAlt,
+    border: 'rgba(138,123,106,0.18)',
+    borderStrong: 'rgba(138,123,106,0.35)',
+    modalBg: '#18211e',
+    inputBg: '#111a17',
+  };
+
+  const btnPrimary = {
+    background: U.accent, color: U.text, border: 'none', borderRadius: 3,
+    padding: '8px 18px', fontFamily: U.mono, fontSize: 10, letterSpacing: '0.22em',
+    textTransform: 'uppercase', cursor: 'pointer', fontWeight: 700,
+  };
+  const btnSecondary = {
+    background: 'transparent', color: U.muted, border: `1px solid ${U.borderStrong}`,
+    borderRadius: 3, padding: '7px 16px', fontFamily: U.mono, fontSize: 10,
+    letterSpacing: '0.18em', textTransform: 'uppercase', cursor: 'pointer',
+  };
+  const inputStyle = {
+    width: '100%', background: U.inputBg, border: `1px solid ${U.border}`,
+    borderRadius: 3, padding: '10px 12px', color: U.text, fontFamily: U.sans,
+    fontSize: 14, boxSizing: 'border-box', outline: 'none',
+  };
+  const fieldLabel = {
+    display: 'block', fontFamily: U.mono, fontSize: 9, letterSpacing: '0.3em',
+    textTransform: 'uppercase', color: U.muted, marginBottom: 8,
   };
 
   if (urnas === null) return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 200, color: HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.2em' }}>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 200, color: U.muted, fontFamily: U.mono, fontSize: 11, letterSpacing: '0.2em' }}>
       CARREGANDO…
     </div>
+  );
+
+  const IcoPencil = () => (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+    </svg>
+  );
+  const IcoTrash = () => (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="3 6 5 6 21 6"/>
+      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+      <path d="M10 11v6M14 11v6"/>
+      <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+    </svg>
   );
 
   return (
     <div>
       {/* Toast */}
       {toast && (
-        <div style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 9999, background: toast.err ? '#c0392b' : '#1a6b45', color: '#fff', padding: '12px 20px', borderRadius: 6, fontFamily: 'Inter, sans-serif', fontSize: 13, boxShadow: '0 4px 20px rgba(0,0,0,.4)' }}>
+        <div style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 9999, background: toast.err ? '#7a2020' : '#1a4a35', color: U.text, padding: '11px 18px', borderRadius: 4, fontFamily: U.mono, fontSize: 11, letterSpacing: '0.12em', boxShadow: '0 4px 24px rgba(0,0,0,.5)', border: `1px solid ${toast.err ? '#b04040' : '#2e7a55'}` }}>
           {toast.msg}
         </div>
       )}
 
       {/* Cabeçalho */}
-      <div style={{ marginBottom: 36 }}>
-        <div style={{ ...cs.label, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ width: 18, height: 1, background: HUB_PALETTE.champanhe }} />
-          Coleta de pesquisas
+      <div style={{ marginBottom: 40 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+          <span style={{ width: 16, height: 1, background: U.accent, display: 'block' }} />
+          <span style={{ fontFamily: U.mono, fontSize: 9, letterSpacing: '0.4em', textTransform: 'uppercase', color: U.accent }}>Coleta de pesquisas</span>
         </div>
-        <h2 style={cs.titulo}>Urnas.</h2>
-        <p style={cs.desc}>Pontos de coleta vinculados a tipos de pesquisa. Cada urna representa um local físico onde os hóspedes respondem a pesquisa de satisfação.</p>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-          <button style={cs.btn} onClick={abrirNovo}>+ Nova urna</button>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 0, border: `1px solid ${HUB_PALETTE.areiaDim}28`, overflow: 'hidden' }}>
-            <div style={{ padding: '8px 16px', borderRight: `1px solid ${HUB_PALETTE.areiaDim}28`, background: `${HUB_PALETTE.champanhe}12` }}>
-              <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 18, color: HUB_PALETTE.champanhe, display: 'block', lineHeight: 1 }}>{urnas.length}</span>
-              <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 8, letterSpacing: '0.25em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, display: 'block', marginTop: 3 }}>urnas</span>
-            </div>
+        <h2 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 300, fontStyle: 'italic', fontSize: isMobile ? 30 : 38, letterSpacing: '-0.02em', color: U.text, margin: '0 0 20px', lineHeight: 1.05 }}>
+          Urnas.
+        </h2>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+          <button style={btnPrimary} onClick={abrirNovo}>+ Nova urna</button>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 5 }}>
+            <span style={{ fontFamily: U.mono, fontSize: 22, color: U.text, lineHeight: 1 }}>{urnas.length}</span>
+            <span style={{ fontFamily: U.mono, fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: U.muted }}>{urnas.length === 1 ? 'urna' : 'urnas'}</span>
           </div>
         </div>
       </div>
 
-      {/* Grid de cards */}
+      {/* Separador */}
+      <div style={{ height: 1, background: U.border, marginBottom: 4 }} />
+
+      {/* Lista */}
       {urnas.length === 0 ? (
-        <div style={{ padding: '48px 0', textAlign: 'center', color: HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.2em' }}>
-          NENHUMA URNA CADASTRADA
+        <div style={{ padding: '56px 0', textAlign: 'center', color: U.muted, fontFamily: U.mono, fontSize: 10, letterSpacing: '0.28em', textTransform: 'uppercase', opacity: 0.6 }}>
+          Nenhuma urna cadastrada
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>
-          {urnas.map(u => (
-            <div key={u.id} style={{ background: `${HUB_PALETTE.champanhe}08`, border: `1px solid ${HUB_PALETTE.areiaDim}22`, borderRadius: 10, padding: '18px 18px 14px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
-                <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: 15, color: HUB_PALETTE.marfim, lineHeight: 1.3 }}>{u.nome}</span>
+        <div>
+          {urnas.map((u, i) => {
+            const primeiraPesquisa = pesquisaMap[u.pesquisas?.[0]];
+            const cor = primeiraPesquisa?.cor || U.accent;
+            return (
+              <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 10 : 20, padding: '15px 0 15px 16px', borderBottom: `1px solid ${U.border}`, position: 'relative', transition: 'background 120ms' }}>
+                {/* Acento lateral colorido */}
+                <span style={{ position: 'absolute', left: 0, top: '18%', bottom: '18%', width: 2, borderRadius: 2, background: cor }} />
+
+                {/* Conteúdo */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontFamily: U.sans, fontWeight: 600, fontSize: 14, color: U.text, marginBottom: 8, lineHeight: 1.2 }}>
+                    {u.nome}
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                    {(u.pesquisas || []).length === 0 ? (
+                      <span style={{ fontFamily: U.mono, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: U.muted, opacity: 0.5 }}>sem pesquisa</span>
+                    ) : (u.pesquisas || []).map(pid => {
+                      const p = pesquisaMap[pid];
+                      if (!p) return null;
+                      return (
+                        <span key={pid} style={{ background: p.cor, color: '#fff', fontFamily: U.mono, fontSize: 8, letterSpacing: '0.14em', textTransform: 'uppercase', padding: '3px 8px', borderRadius: 2, whiteSpace: 'nowrap', fontWeight: 600 }}>
+                          {p.label}
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Ações */}
                 <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                  <button onClick={() => abrirEditar(u)} title="Editar" style={{ background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}44`, borderRadius: 4, color: HUB_PALETTE.areiaDim, cursor: 'pointer', padding: '3px 8px', fontSize: 11 }}>✎</button>
-                  <button onClick={() => setConfirmDel(u)} title="Excluir" style={{ background: 'transparent', border: `1px solid #c0392b66`, borderRadius: 4, color: '#e74c3c', cursor: 'pointer', padding: '3px 8px', fontSize: 11 }}>✕</button>
+                  <button onClick={() => abrirEditar(u)} title="Editar" style={{ background: 'transparent', border: `1px solid ${U.border}`, borderRadius: 3, color: U.muted, cursor: 'pointer', padding: '6px 9px', lineHeight: 0, transition: 'border-color 120ms, color 120ms' }}
+                    onMouseEnter={e => { e.currentTarget.style.color = U.text; e.currentTarget.style.borderColor = U.borderStrong; }}
+                    onMouseLeave={e => { e.currentTarget.style.color = U.muted; e.currentTarget.style.borderColor = U.border; }}>
+                    <IcoPencil />
+                  </button>
+                  <button onClick={() => setConfirmDel(u)} title="Excluir" style={{ background: 'transparent', border: '1px solid rgba(180,60,60,0.25)', borderRadius: 3, color: 'rgba(220,80,80,0.65)', cursor: 'pointer', padding: '6px 9px', lineHeight: 0, transition: 'border-color 120ms, color 120ms' }}
+                    onMouseEnter={e => { e.currentTarget.style.color = '#e05555'; e.currentTarget.style.borderColor = 'rgba(220,80,80,0.55)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.color = 'rgba(220,80,80,0.65)'; e.currentTarget.style.borderColor = 'rgba(180,60,60,0.25)'; }}>
+                    <IcoTrash />
+                  </button>
                 </div>
               </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                {(u.pesquisas || []).length === 0 ? (
-                  <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em', color: `${HUB_PALETTE.areiaDim}66`, textTransform: 'uppercase' }}>sem pesquisa vinculada</span>
-                ) : (u.pesquisas || []).map(pid => {
-                  const p = pesquisaMap[pid];
-                  if (!p) return null;
-                  return (
-                    <span key={pid} style={{ background: `${p.cor}22`, color: p.cor, border: `1px solid ${p.cor}55`, borderRadius: 12, padding: '2px 9px', fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
-                      {p.label}
-                    </span>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
       {/* Modal criar/editar */}
       {modal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', zIndex: 8000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={e => { if (e.target === e.currentTarget) setModal(null); }}>
-          <div style={{ background: '#161d27', border: `1px solid ${HUB_PALETTE.areiaDim}33`, borderRadius: 12, padding: 28, width: '100%', maxWidth: 480, maxHeight: '90vh', overflowY: 'auto' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-              <span style={{ ...cs.label }}>{modal.modo === 'novo' ? 'Nova urna' : 'Editar urna'}</span>
-              <button onClick={() => setModal(null)} style={{ background: 'transparent', border: 'none', color: HUB_PALETTE.areiaDim, cursor: 'pointer', fontSize: 18, lineHeight: 1 }}>✕</button>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.72)', zIndex: 8000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={e => { if (e.target === e.currentTarget) setModal(null); }}>
+          <div style={{ background: U.modalBg, border: `1px solid ${U.borderStrong}`, borderRadius: 8, padding: 28, width: '100%', maxWidth: 460, maxHeight: '90vh', overflowY: 'auto' }}>
+
+            {/* Header modal */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28 }}>
+              <div>
+                <div style={{ fontFamily: U.mono, fontSize: 9, letterSpacing: '0.38em', textTransform: 'uppercase', color: U.accent, marginBottom: 4 }}>
+                  {modal.modo === 'novo' ? 'Nova urna' : 'Editar urna'}
+                </div>
+                <div style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 300, fontStyle: 'italic', fontSize: 22, color: U.text, lineHeight: 1 }}>
+                  {modal.modo === 'novo' ? 'Criar ponto de coleta' : form.nome || 'Editar'}
+                </div>
+              </div>
+              <button onClick={() => setModal(null)} style={{ background: 'transparent', border: 'none', color: U.muted, cursor: 'pointer', padding: 4, lineHeight: 0 }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
             </div>
 
-            <div style={{ marginBottom: 20 }}>
-              <label style={cs.fieldLabel}>Nome da urna</label>
-              <input style={cs.input} value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))} placeholder="Ex: Recepção, Lobby Bar…" onKeyDown={e => e.key === 'Enter' && salvar()} autoFocus />
+            {/* Campo nome */}
+            <div style={{ marginBottom: 24 }}>
+              <label style={fieldLabel}>Nome da urna</label>
+              <input style={inputStyle} value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))} placeholder="Ex: Recepção, Lobby Bar, Piscina…" onKeyDown={e => e.key === 'Enter' && salvar()} autoFocus />
             </div>
 
+            {/* Pesquisas */}
             <div style={{ marginBottom: 28 }}>
-              <label style={{ ...cs.fieldLabel, marginBottom: 12 }}>Pesquisas vinculadas</label>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <label style={{ ...fieldLabel, marginBottom: 14 }}>Pesquisas vinculadas</label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {PESQUISAS_URNAS.map(p => {
                   const checked = form.pesquisas.includes(p.id);
                   return (
-                    <label key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '8px 10px', borderRadius: 6, border: `1px solid ${checked ? p.cor + '66' : HUB_PALETTE.areiaDim + '22'}`, background: checked ? `${p.cor}10` : 'transparent', transition: 'all 150ms' }}>
-                      <input type="checkbox" checked={checked} onChange={() => togglePesquisa(p.id)} style={{ accentColor: p.cor, width: 15, height: 15, cursor: 'pointer' }} />
+                    <label key={p.id} onClick={() => togglePesquisa(p.id)} style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', padding: '9px 12px', borderRadius: 4, border: `1px solid ${checked ? p.cor + 'aa' : U.border}`, background: checked ? p.cor + '1a' : 'transparent', transition: 'all 130ms' }}>
+                      <span style={{ width: 16, height: 16, borderRadius: 3, border: `2px solid ${checked ? p.cor : U.muted}`, background: checked ? p.cor : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 130ms' }}>
+                        {checked && <svg width="9" height="9" viewBox="0 0 12 12" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"><polyline points="1.5 6 4.5 9 10.5 3"/></svg>}
+                      </span>
                       <span style={{ width: 8, height: 8, borderRadius: '50%', background: p.cor, flexShrink: 0 }} />
-                      <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: checked ? HUB_PALETTE.marfim : HUB_PALETTE.areiaDim }}>{p.label}</span>
+                      <span style={{ fontFamily: U.sans, fontSize: 13, color: checked ? U.text : U.muted, flex: 1 }}>{p.label}</span>
+                      {checked && <span style={{ background: p.cor, color: '#fff', fontFamily: U.mono, fontSize: 7, letterSpacing: '0.14em', textTransform: 'uppercase', padding: '2px 6px', borderRadius: 2 }}>selecionada</span>}
                     </label>
                   );
                 })}
               </div>
             </div>
 
+            <div style={{ height: 1, background: U.border, marginBottom: 20 }} />
+
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-              <button style={cs.btnSec} onClick={() => setModal(null)}>Cancelar</button>
-              <button style={{ ...cs.btn, opacity: saving ? 0.6 : 1 }} onClick={salvar} disabled={saving}>
-                {saving ? 'Salvando…' : modal.modo === 'novo' ? 'Criar urna' : 'Salvar'}
+              <button style={btnSecondary} onClick={() => setModal(null)}>Cancelar</button>
+              <button style={{ ...btnPrimary, opacity: saving ? 0.55 : 1 }} onClick={salvar} disabled={saving}>
+                {saving ? 'Salvando…' : modal.modo === 'novo' ? 'Criar urna' : 'Salvar alterações'}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Modal confirmação exclusão */}
+      {/* Modal confirmar exclusão */}
       {confirmDel && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', zIndex: 8000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={e => { if (e.target === e.currentTarget) setConfirmDel(null); }}>
-          <div style={{ background: '#161d27', border: `1px solid #c0392b66`, borderRadius: 12, padding: 28, width: '100%', maxWidth: 380 }}>
-            <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 15, color: HUB_PALETTE.marfim, marginBottom: 8 }}>Excluir urna?</div>
-            <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areiaDim, marginBottom: 24 }}>
-              "<strong style={{ color: HUB_PALETTE.marfim }}>{confirmDel.nome}</strong>" será removida permanentemente.
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.72)', zIndex: 8000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={e => { if (e.target === e.currentTarget) setConfirmDel(null); }}>
+          <div style={{ background: U.modalBg, border: '1px solid rgba(180,60,60,0.35)', borderRadius: 8, padding: 28, width: '100%', maxWidth: 360 }}>
+            <div style={{ fontFamily: U.mono, fontSize: 9, letterSpacing: '0.38em', textTransform: 'uppercase', color: '#e05555', marginBottom: 12 }}>Confirmação</div>
+            <div style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 300, fontStyle: 'italic', fontSize: 20, color: U.text, marginBottom: 10, lineHeight: 1.2 }}>Excluir urna?</div>
+            <div style={{ fontFamily: U.sans, fontSize: 13, color: U.muted, marginBottom: 26, lineHeight: 1.6 }}>
+              <strong style={{ color: U.text }}>{confirmDel.nome}</strong> será removida permanentemente. Esta ação não pode ser desfeita.
             </div>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-              <button style={cs.btnSec} onClick={() => setConfirmDel(null)}>Cancelar</button>
-              <button style={{ ...cs.btn, background: '#c0392b', opacity: saving ? 0.6 : 1 }} onClick={() => excluir(confirmDel)} disabled={saving}>
+              <button style={btnSecondary} onClick={() => setConfirmDel(null)}>Cancelar</button>
+              <button style={{ ...btnPrimary, background: '#8b2020', opacity: saving ? 0.55 : 1 }} onClick={() => excluir(confirmDel)} disabled={saving}>
                 {saving ? 'Excluindo…' : 'Excluir'}
               </button>
             </div>
