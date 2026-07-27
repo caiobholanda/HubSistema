@@ -299,11 +299,9 @@ function HubLogin({ onLogin }) {
         body: JSON.stringify({ email: e_ }),
       });
       const d = await r.json().catch(() => ({}));
-      if (r.ok && d.ok) {
-        setEsqMsg({ tipo: 'ok', titulo: 'E-mail enviado!', texto: 'Verifique sua caixa de entrada (e o spam) e clique no link para redefinir sua senha.' });
+      if (r.ok || r.status === 404) {
+        setEsqMsg({ tipo: 'ok', texto: 'Se existir uma conta vinculada ao e-mail informado, enviaremos um link para redefinição de senha.' });
         setEsqEnviado(true);
-      } else if (r.status === 404) {
-        _esqErro('E-mail não encontrado', 'Este endereço não está cadastrado no sistema. Verifique e tente novamente.');
       } else {
         _esqErro('Algo deu errado', d.erro || 'Tente novamente em instantes.');
       }
