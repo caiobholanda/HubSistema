@@ -6497,7 +6497,17 @@ function HubMarquise() {
     if (!authed) return;
     const token = localStorage.getItem('hub_sso_token');
     const es = new EventSource(`/api/events?token=${encodeURIComponent(token)}`);
-    es.addEventListener('permissions', e => {
+    es.addEventListener('permissions', async e => {
+      try {
+        const r = await hubFetch('/api/auth/refresh', { method: 'POST' });
+        const d = await r.json();
+        if (d.ok && d.token) {
+          localStorage.setItem('hub_sso_token', d.token);
+          setSistemas(d.sistemas);
+          return;
+        }
+      } catch {}
+      // fallback: usa o payload do evento SSE (sem renovar o JWT)
       const { sistemas: s } = JSON.parse(e.data);
       setSistemas(s);
     });

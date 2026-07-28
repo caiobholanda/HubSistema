@@ -814,6 +814,28 @@ app.get('/api/me/sistemas', (req, res) => {
   }
 });
 
+// Renova o JWT com dados frescos do banco (sistemas, site_roles, sites_admin).
+// Chamado silenciosamente pelo front quando o SSE notifica mudança de permissão,
+// garantindo que handleOpen passe um token atualizado ao satelite.
+app.post('/api/auth/refresh', (req, res) => {
+  const auth = req.headers.authorization || '';
+  const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
+  if (!token) return res.status(401).json({ ok: false });
+  try {
+    const old = jwt.verify(token, SSO_SECRET);
+    const dados = readData();
+    const payload = { nome: old.nome, email: old.email, tipo: old.tipo };
+    if (old.tipo === 'admin') payload.is_master = !!old.is_master;
+    payload.sites_admin = sitePerm.sitesOndeEhAdmin(dados, old.email);
+    payload.site_roles = sitePerm.rolesDoEmail(dados, old.email);
+    payload.sistemas = getUserSistemas(old.email, old.tipo, old.is_master);
+    const newToken = jwt.sign(payload, SSO_SECRET, { expiresIn: '8h' });
+    return res.json({ ok: true, token: newToken, sistemas: payload.sistemas, site_roles: payload.site_roles, sites_admin: payload.sites_admin });
+  } catch {
+    return res.status(401).json({ ok: false });
+  }
+});
+
 app.get('/api/admin/data', requireAdmin, (_req, res) => {
   const data = readData();
   res.json({ ok: true, users: data.users, permissions: data.permissions });
