@@ -1172,7 +1172,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
       setUsers(allUsers.users || []);
       setPermissions(hubData.permissions || {});
       if (setoresData && setoresData.ok) setSetoresLista(setoresData.setores || []);
-      setSitePermissions(Array.isArray(spData) ? spData : []);
+      setSitePermissions(Array.isArray(spData) ? spData : (spData && Array.isArray(spData.items)) ? spData.items : []);
       setLoading(false);
     }).catch(() => setLoading(false));
   }, []);
