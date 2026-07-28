@@ -1328,7 +1328,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={HUB_PALETTE.champanhe} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
             </svg>
-            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areia }}>Administração · Hub</span>
+            <span style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 500, fontSize: 12, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areia }}>Administração · Hub</span>
           </div>
           <button onClick={onClose} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}44`, color: HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', padding: '8px 16px', cursor: 'pointer' }}
             onMouseEnter={e => { e.currentTarget.style.color = HUB_PALETTE.marfim; e.currentTarget.style.borderColor = HUB_PALETTE.areiaDim + '88'; }}
@@ -3986,12 +3986,12 @@ function filtrarOrdenarContas(lista, opts) {
     contagem[s] = (contagem[s] || 0) + 1;
   }
   const porStatus = base.filter(r => {
+    if (!status || status === 'todos') return true;
     if (isAdmin) {
-      if (status === 'ativos') return r.ativo === 1;
-      if (status === 'inativos') return r.ativo !== 1;
+      if (status === 'ativo') return r.ativo === 1;
+      if (status === 'desligado') return r.ativo !== 1;
       return true;
     }
-    if (!status || status === 'todos') return true;
     return statusDe(r) === status;
   });
   const nomeDe = r => (isAdmin ? r.nome_completo : r.nome) || '';
@@ -4619,29 +4619,50 @@ function _avatarEscurece(hex, f) {
 // Disponibilidade da foto (Microsoft Graph) — checada UMA vez e memoizada. Sem
 // Graph configurado no backend (/api/foto/disponivel => {disponivel:false}), o
 // front NEM tenta buscar foto: zero requisicao perdida, so as iniciais.
-let _fotosGraphDisp = null; let _fotosGraphProm = null;
+let _fotosGraphDisp = null; let _avataresSet = new Set(); let _fotosGraphProm = null;
 function _fotosDisponiveis() {
-  if (_fotosGraphDisp !== null) return Promise.resolve(_fotosGraphDisp);
+  if (_fotosGraphDisp !== null) return Promise.resolve();
   if (_fotosGraphProm) return _fotosGraphProm;
   const tk = (typeof localStorage !== 'undefined' && localStorage.getItem('hub_sso_token')) || '';
   _fotosGraphProm = fetch('/api/foto/disponivel', { headers: tk ? { Authorization: 'Bearer ' + tk } : {} })
     .then(r => (r.ok ? r.json() : null))
-    .then(d => { _fotosGraphDisp = !!(d && d.disponivel); return _fotosGraphDisp; })
-    .catch(() => { _fotosGraphDisp = false; return false; });
+    .then(d => { _fotosGraphDisp = !!(d && d.graph); _avataresSet = new Set(((d && d.avatares) || []).map(e => String(e).toLowerCase())); })
+    .catch(() => { _fotosGraphDisp = false; _avataresSet = new Set(); });
   return _fotosGraphProm;
 }
-function AvatarUsuario({ nome, email, size = 42 }) {
+function _temFoto(email) { return !!(_fotosGraphDisp || (email && _avataresSet.has(String(email).toLowerCase()))); }
+// Versao por email para bustar o cache do avatar apos upload/remocao.
+const _avatarVer = new Map();
+function _bumpAvatarVer(email) { const e = String(email || '').toLowerCase(); _avatarVer.set(e, (_avatarVer.get(e) || 0) + 1); }
+// Redimensiona/recorta (quadrado, cover) e devolve dataURL JPEG pequeno.
+function _resizeImagem(file, max, quality) {
+  return new Promise((resolve, reject) => {
+    const img = new Image(); const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const s = Math.min(img.width, img.height);
+      const sx = (img.width - s) / 2, sy = (img.height - s) / 2;
+      const cv = document.createElement('canvas'); cv.width = max; cv.height = max;
+      cv.getContext('2d').drawImage(img, sx, sy, s, s, 0, 0, max, max);
+      resolve(cv.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('imagem inválida')); };
+    img.src = url;
+  });
+}
+function AvatarUsuario({ nome, email, size = 40 }) {
   const [fotoSrc, setFotoSrc] = useState(null);
+  const ver = email ? (_avatarVer.get(String(email).toLowerCase()) || 0) : 0;
   useEffect(() => {
     let vivo = true, urlObj = null;
-    setFotoSrc(null); // troca de email: volta pras iniciais ate a nova foto carregar
+    setFotoSrc(null);
     if (!email) return undefined;
     (async () => {
-      const disp = await _fotosDisponiveis();
-      if (!disp || !vivo) return;
+      await _fotosDisponiveis();
+      if (!_temFoto(email) || !vivo) return;
       try {
         const tk = localStorage.getItem('hub_sso_token') || '';
-        const r = await fetch('/api/foto?email=' + encodeURIComponent(email), { headers: { Authorization: 'Bearer ' + tk } });
+        const r = await fetch('/api/foto?email=' + encodeURIComponent(email) + '&v=' + ver, { headers: { Authorization: 'Bearer ' + tk } });
         if (!r.ok || !vivo) return;
         const blob = await r.blob();
         if (!vivo) return;
@@ -4650,8 +4671,8 @@ function AvatarUsuario({ nome, email, size = 42 }) {
       } catch {}
     })();
     return () => { vivo = false; if (urlObj) URL.revokeObjectURL(urlObj); };
-  }, [email]);
-  const base = { width: size, height: size, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', border: `1px solid ${HUB_PALETTE.areiaDim}33` };
+  }, [email, ver]);
+  const base = { width: size, height: size, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', border: '1px solid #D8C7AF', background: '#ECE4D2' };
   if (fotoSrc) {
     return (
       <div style={base}>
@@ -4659,10 +4680,19 @@ function AvatarUsuario({ nome, email, size = 42 }) {
       </div>
     );
   }
-  const cor = _avatarCor(email || nome);
+  const iniciais = _avatarIniciais(nome);
+  if (iniciais) {
+    return (
+      <div style={{ ...base, color: '#202C28', fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: Math.round(size * 0.34), fontWeight: 500, letterSpacing: '0.03em' }} title={nome || ''} aria-label={nome || ''}>
+        {iniciais}
+      </div>
+    );
+  }
   return (
-    <div style={{ ...base, background: `linear-gradient(150deg, ${cor} 0%, ${_avatarEscurece(cor, 0.24)} 100%)`, boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.10)', color: HUB_PALETTE.marfim, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: Math.round(size * 0.34), fontWeight: 600, letterSpacing: '0.03em' }} title={nome || ''} aria-label={nome || ''}>
-      {_avatarIniciais(nome)}
+    <div style={base} title={nome || ''} aria-label={nome || ''}>
+      <svg width={Math.round(size * 0.48)} height={Math.round(size * 0.48)} viewBox="0 0 24 24" fill="none" stroke="#202C28" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+      </svg>
     </div>
   );
 }
@@ -4684,11 +4714,8 @@ function ContasPanel({ isMobile }) {
   })();
   const [statusAba, _setStatusAba] = useState(() => {
     try {
-      const sub = sessionStorage.getItem('hub_contas_subaba') || 'usuarios';
       const saved = sessionStorage.getItem('hub_contas_status');
-      if (sub === 'admins') return (saved === 'ativos' || saved === 'inativos') ? saved : 'ativos';
-      // 'todos' foi removido das pills — sessoes antigas migram para 'ativo'
-      const validos = ['precadastro', 'ativacao_pendente', 'ativo', 'bloqueado', 'desligado'];
+      const validos = ['todos', 'ativo', 'desligado', 'precadastro', 'ativacao_pendente', 'bloqueado'];
       if (_urlFiltros.status && validos.includes(_urlFiltros.status)) return _urlFiltros.status;
       return validos.includes(saved) ? saved : 'ativo';
     } catch { return 'ativo'; }
@@ -4972,11 +4999,7 @@ function ContasPanel({ isMobile }) {
   const filtrada = filtroResult.resultado;
   const contagemStatus = filtroResult.contagem;
   const buscaFiltrada = filtroResult.base;
-  const totalAtivos = buscaFiltrada.filter(r => isAdmin ? r.ativo === 1 : r.ativo !== 0).length;
-  const totalInativos = buscaFiltrada.filter(r => isAdmin ? r.ativo !== 1 : r.ativo === 0).length;
-
-  const nFiltrosAtivos = isAdmin ? 0 :
-    (statusAba !== 'ativo' ? 1 : 0) + (buscaDebounced.trim() ? 1 : 0);
+  const nFiltrosAtivos = (statusAba !== 'ativo' && statusAba !== 'todos' ? 1 : 0) + (buscaDebounced.trim() ? 1 : 0);
   function limparFiltros() {
     setStatusAba('ativo');
     setBusca('');
@@ -5001,50 +5024,49 @@ function ContasPanel({ isMobile }) {
       </div>
       <h2 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 400, fontSize: 40, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: '0 0 10px' }}>Gerenciar contas.</h2>
       <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: HUB_PALETTE.areiaDim, lineHeight: 1.5, margin: 0 }}>
-        {isAdmin ? 'Admins do TI com acesso ao painel de chamados.' : 'Usuários do portal de chamados.'} Os dados ficam no sistema-chamados; aqui é só a interface.
+        Administração das contas de acesso da plataforma.
       </p>
     </div>
 
     {/* Sub-tabs tipo */}
     <div style={{ display: 'flex', gap: 0, borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, marginBottom: 14 }}>
-      {[{ id: 'admins', label: 'Admin' }, { id: 'usuarios', label: 'Usuários' }].map(s => (
-        <button key={s.id} onClick={() => { setSubAba(s.id); setBusca(''); setBuscaDebounced(''); setStatusAba(s.id === 'admins' ? 'ativos' : 'ativo'); }}
+      {[{ id: 'admins', label: 'Administradores' }, { id: 'usuarios', label: 'Usuários' }].map(s => (
+        <button key={s.id} onClick={() => { setSubAba(s.id); setBusca(''); setBuscaDebounced(''); setStatusAba('ativo'); }}
           style={{ background: 'transparent', border: 'none', borderBottom: `2px solid ${subAba === s.id ? HUB_PALETTE.champanhe : 'transparent'}`, color: subAba === s.id ? HUB_PALETTE.champanhe : HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', padding: '10px 18px 8px', cursor: 'pointer' }}>
           {s.label}
         </button>
       ))}
     </div>
     {/* Sub-tabs status */}
-    {isAdmin ? (
-      <div style={{ display: 'flex', gap: 18, marginBottom: 18 }}>
-        {[{ id: 'ativos', label: 'Ativos', total: totalAtivos }, { id: 'inativos', label: 'Inativos', total: totalInativos }].map(s => (
-          <button key={s.id} onClick={() => setStatusAba(s.id)}
-            style={{ background: 'transparent', border: 'none', color: statusAba === s.id ? HUB_PALETTE.marfim : HUB_PALETTE.areiaDim, fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: statusAba === s.id ? 600 : 400, padding: '4px 0', cursor: 'pointer', borderBottom: `1px solid ${statusAba === s.id ? HUB_PALETTE.champanhe + '88' : 'transparent'}` }}>
-            {s.label} <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: HUB_PALETTE.areiaDim, marginLeft: 4 }}>{s.total}</span>
-          </button>
-        ))}
-      </div>
-    ) : (
-      <div style={{ display: 'flex', gap: 6, marginBottom: 18, flexWrap: 'wrap' }}>
-        {[
-          { id: 'ativo', label: 'Ativo', dot: '#62A852', total: contagemStatus['ativo'] || 0 },
-          { id: 'precadastro', label: 'Pré-cadastro', dot: '#D4AC0D', total: contagemStatus['precadastro'] || 0 },
-          { id: 'ativacao_pendente', label: 'Ativação pendente', dot: '#E88B2A', total: contagemStatus['ativacao_pendente'] || 0 },
-          { id: 'bloqueado', label: 'Bloqueado', dot: '#5BA3CC', total: contagemStatus['bloqueado'] || 0 },
-          { id: 'desligado', label: 'Desligado', dot: '#607D8B', total: contagemStatus['desligado'] || 0 },
-        ].map(s => {
-          const ativo = statusAba === s.id;
-          return (
-            <button key={s.id} onClick={() => setStatusAba(s.id)}
-              style={{ background: ativo ? `${s.dot || HUB_PALETTE.champanhe}15` : 'transparent', border: `1px solid ${ativo ? (s.dot || HUB_PALETTE.champanhe) + '55' : HUB_PALETTE.areiaDim + '22'}`, color: ativo ? (s.dot || HUB_PALETTE.marfim) : HUB_PALETTE.areiaDim, fontFamily: 'Inter, sans-serif', fontSize: 11, fontWeight: ativo ? 600 : 400, padding: '5px 12px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, transition: 'all 150ms' }}>
-              {s.dot ? <span style={{ width: 6, height: 6, borderRadius: '50%', background: ativo ? s.dot : HUB_PALETTE.areiaDim, flexShrink: 0 }} /> : null}
-              {s.label}
-              <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, opacity: 0.7 }}>{s.total}</span>
-            </button>
-          );
-        })}
-      </div>
-    )}
+    {(() => {
+      const statusOptions = isAdmin ? [
+        { id: 'todos',    label: 'Todos',    dot: null,      total: buscaFiltrada.length },
+        { id: 'ativo',    label: 'Ativo',    dot: '#62A852', total: contagemStatus['ativo'] || 0 },
+        { id: 'desligado',label: 'Inativo',  dot: '#607D8B', total: contagemStatus['desligado'] || 0 },
+      ] : [
+        { id: 'todos',           label: 'Todos',             dot: null,      total: buscaFiltrada.length },
+        { id: 'ativo',           label: 'Ativo',             dot: '#62A852', total: contagemStatus['ativo'] || 0 },
+        { id: 'precadastro',     label: 'Pré-cadastro',      dot: '#D4AC0D', total: contagemStatus['precadastro'] || 0 },
+        { id: 'ativacao_pendente', label: 'Ativação pendente', dot: '#E88B2A', total: contagemStatus['ativacao_pendente'] || 0 },
+        { id: 'bloqueado',       label: 'Bloqueado',         dot: '#5BA3CC', total: contagemStatus['bloqueado'] || 0 },
+        { id: 'desligado',       label: 'Desligado',         dot: '#607D8B', total: contagemStatus['desligado'] || 0 },
+      ];
+      return (
+        <div style={{ display: 'flex', gap: 6, marginBottom: 18, flexWrap: 'wrap' }}>
+          {statusOptions.map(s => {
+            const sel = statusAba === s.id;
+            return (
+              <button key={s.id} onClick={() => setStatusAba(s.id)}
+                style={{ background: sel ? `${s.dot || HUB_PALETTE.champanhe}15` : 'transparent', border: `1px solid ${sel ? (s.dot || HUB_PALETTE.champanhe) + '55' : HUB_PALETTE.areiaDim + '22'}`, color: sel ? (s.dot || HUB_PALETTE.marfim) : HUB_PALETTE.areiaDim, fontFamily: 'Inter, sans-serif', fontSize: 11, fontWeight: sel ? 600 : 400, padding: '5px 12px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, transition: 'all 150ms' }}>
+                {s.dot ? <span style={{ width: 6, height: 6, borderRadius: '50%', background: sel ? s.dot : HUB_PALETTE.areiaDim, flexShrink: 0 }} /> : null}
+                {s.label}
+                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, opacity: 0.7 }}>{s.total}</span>
+              </button>
+            );
+          })}
+        </div>
+      );
+    })()}
 
     {/* Toolbar */}
     <div style={{ display: 'flex', gap: 12, marginBottom: 18, flexWrap: 'wrap' }}>
@@ -5052,8 +5074,8 @@ function ContasPanel({ isMobile }) {
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={HUB_PALETTE.areiaDim} strokeWidth="1.5" strokeLinecap="round" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
           <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
         </svg>
-        <input type="text" placeholder="Filtrar por nome, email, ramal e setor..." value={busca} onChange={e => setBusca(e.target.value)}
-          autoComplete="off" name="contas-busca-livre"
+        <input type="search" placeholder="Filtrar por nome, email, ramal e setor..." value={busca} onChange={e => setBusca(e.target.value)}
+          autoComplete="off" name="contas-busca-livre" data-lpignore="true" data-form-type="other"
           aria-label="Filtrar contas por nome, e-mail, ramal ou setor"
           style={{ ...cs.input, paddingLeft: 34 }} title="Aceita múltiplas palavras (AND) e flags 'master' / 'inativo'" />
       </div>
@@ -5073,7 +5095,7 @@ function ContasPanel({ isMobile }) {
         </div>
         {nFiltrosAtivos > 0 && (
           <button onClick={limparFiltros}
-            style={{ marginTop: 12, background: 'transparent', border: `1px solid ${HUB_PALETTE.champanhe}66`, color: HUB_PALETTE.champanhe, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.2em', textTransform: 'uppercase', padding: '8px 16px', cursor: 'pointer' }}>
+            style={{ marginTop: 12, background: 'transparent', border: `1.5px solid ${HUB_PALETTE.champanhe}88`, color: HUB_PALETTE.champanhe, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.2em', textTransform: 'uppercase', padding: '8px 16px', cursor: 'pointer' }}>
             Limpar filtros
           </button>
         )}
@@ -5100,34 +5122,31 @@ function ContasPanel({ isMobile }) {
             <div key={row.id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '22px 4px', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, opacity: ativo ? 1 : 0.55, flexWrap: 'wrap' }}>
               <AvatarUsuario nome={isAdmin ? row.nome_completo : row.nome} email={row.email} />
               <div style={{ flex: 1, minWidth: 260 }}>
+                {/* Linha 1: Nome + badges de status */}
                 <div style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 17, color: HUB_PALETTE.marfim, fontWeight: 600, lineHeight: 1.3 }}>
                   {isAdmin ? row.nome_completo : row.nome}
                   {isAdmin && row.is_master ? <span style={{ marginLeft: 10, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, padding: '3px 10px', border: `1px solid ${HUB_PALETTE.champanhe}88`, verticalAlign: 'middle' }}>Master</span> : null}
-                  {!ativo && !hubStatus ? <span style={{ marginLeft: 10, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#E07A5F', padding: '3px 10px', border: '1px solid #E07A5F66', verticalAlign: 'middle' }}>Inativo</span> : null}
-                  {statusBadgeInfo ? <span style={{ marginLeft: 10, display: 'inline-flex', alignItems: 'center', gap: 5, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: statusBadgeInfo.color, padding: '3px 10px 3px 8px', borderRadius: 3, border: `1px solid ${statusBadgeInfo.color}44`, background: `${statusBadgeInfo.color}12`, verticalAlign: 'middle' }}><span style={{ width: 5, height: 5, borderRadius: '50%', background: statusBadgeInfo.color, flexShrink: 0 }} />{statusBadgeInfo.label}</span> : null}
-                </div>
-                <div style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 14, color: HUB_PALETTE.areia, marginTop: 6, lineHeight: 1.5 }}>
-                  <div>
-                    {row.email ? <span style={{ color: HUB_PALETTE.marfim }}>{row.email}</span> : '—'}
-                    {row.cargo ? <span style={{ color: HUB_PALETTE.areiaDim }}> · </span> : null}
-                    {row.cargo ? <span><span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginRight: 6 }}>cargo</span>{row.cargo}</span> : null}
-                    {row.matricula ? <span style={{ color: HUB_PALETTE.areiaDim }}> · </span> : null}
-                    {row.matricula ? <span><span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginRight: 6 }}>mat.</span>{row.matricula}</span> : null}
-                    {isAdmin && row.usuario ? <span style={{ color: HUB_PALETTE.areiaDim }}> · </span> : null}
-                    {isAdmin && row.usuario ? <span><span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginRight: 6 }}>login</span>{row.usuario}</span> : null}
-                  </div>
-                  {row.setor ? (
-                    <div style={{ marginTop: 3 }}>
-                      <span><span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginRight: 6 }}>setor</span>{row.setor}</span>
-                      {row.ramal ? <span style={{ color: HUB_PALETTE.areiaDim }}> · </span> : null}
-                      {row.ramal ? <span><span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginRight: 6 }}>ramal</span>{row.ramal}</span> : null}
-                    </div>
-                  ) : row.ramal ? (
-                    <div style={{ marginTop: 3 }}>
-                      <span><span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginRight: 6 }}>ramal</span>{row.ramal}</span>
-                    </div>
+                  {isAdmin ? (
+                    ativo
+                      ? <span style={{ marginLeft: 10, display: 'inline-flex', alignItems: 'center', gap: 5, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: '#62A852', padding: '3px 10px 3px 8px', border: '1px solid #62A85244', background: '#62A85212', verticalAlign: 'middle' }}><span style={{ width: 5, height: 5, borderRadius: '50%', background: '#62A852', flexShrink: 0 }} />Ativo</span>
+                      : <span style={{ marginLeft: 10, display: 'inline-flex', alignItems: 'center', gap: 5, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: '#607D8B', padding: '3px 10px 3px 8px', border: '1px solid #607D8B44', background: '#607D8B12', verticalAlign: 'middle' }}><span style={{ width: 5, height: 5, borderRadius: '50%', background: '#607D8B', flexShrink: 0 }} />Inativo</span>
                   ) : null}
+                  {!isAdmin && statusBadgeInfo ? <span style={{ marginLeft: 10, display: 'inline-flex', alignItems: 'center', gap: 5, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: statusBadgeInfo.color, padding: '3px 10px 3px 8px', border: `1px solid ${statusBadgeInfo.color}44`, background: `${statusBadgeInfo.color}12`, verticalAlign: 'middle' }}><span style={{ width: 5, height: 5, borderRadius: '50%', background: statusBadgeInfo.color, flexShrink: 0 }} />{statusBadgeInfo.label}</span> : null}
                 </div>
+                {/* Linha 2: Email */}
+                <div style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 14, color: HUB_PALETTE.areia, marginTop: 5, lineHeight: 1.4 }}>
+                  {row.email ? <span style={{ color: HUB_PALETTE.marfim }}>{row.email}</span> : <span style={{ color: HUB_PALETTE.areiaDim }}>—</span>}
+                </div>
+                {/* Linha 3: Setor · Ramal (+ Login para admins) */}
+                {(row.setor || row.ramal || (isAdmin && row.usuario)) ? (
+                  <div style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 13, color: HUB_PALETTE.areia, marginTop: 3, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 0 }}>
+                    {row.setor ? <span><span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9.5, letterSpacing: '0.18em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginRight: 5 }}>setor</span>{row.setor}</span> : null}
+                    {row.setor && row.ramal ? <span style={{ color: HUB_PALETTE.areia, margin: '0 10px', fontSize: 13, opacity: 0.45 }}>|</span> : null}
+                    {row.ramal ? <span><span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9.5, letterSpacing: '0.18em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginRight: 5 }}>ramal</span>{row.ramal}</span> : null}
+                    {isAdmin && row.usuario && (row.setor || row.ramal) ? <span style={{ color: HUB_PALETTE.areia, margin: '0 10px', fontSize: 13, opacity: 0.45 }}>|</span> : null}
+                    {isAdmin && row.usuario ? <span><span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9.5, letterSpacing: '0.18em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginRight: 5 }}>login</span>{row.usuario}</span> : null}
+                  </div>
+                ) : null}
               </div>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
                 <button onClick={() => setHistoricoUsuario({ id: row.id, nome: isAdmin ? row.nome_completo : row.nome, tipo: isAdmin ? 'admin' : 'usuario' })} style={cs.btnGhost}>Histórico</button>
@@ -5330,7 +5349,7 @@ function SenhaChecklist({ senha }) {
   );
 }
 
-function ContaForm({ tipo, isMobile, cs, erro, saving, initial, initialEtiquetas, isEdit, ehEuMesmo, setores, etiquetas, onCancel, onSave }) {
+function ContaForm({ tipo, isMobile, cs, erro, saving, initial, initialEtiquetas, isEdit, ehEuMesmo, setores, etiquetas, onCancel, onSave, onFotoChange }) {
   const [d, setD] = useState(initial || (tipo === 'admin'
     ? { nome_completo: '', email: '', ramal: '', cargo: '', matricula: '', data_admissao: '', data_nascimento: '', vinculo: '', bilingue: false, idiomas: '', is_master: false, senha: '' }
     : { nome: '', email: '', setor: '', ramal: '', cargo: '', matricula: '', data_admissao: '', data_nascimento: '', vinculo: '', bilingue: false, idiomas: '', senha: '' }));
@@ -5340,6 +5359,41 @@ function ContaForm({ tipo, isMobile, cs, erro, saving, initial, initialEtiquetas
   const [erroLocal, setErroLocal] = useState('');
   const set = (k, v) => setD(p => ({ ...p, [k]: v }));
   const isAdmin = tipo === 'admin';
+
+  // ── Avatar (foto) ── upload imediato, keyed pelo e-mail (independe do salvar).
+  const fotoRef = useRef(null);
+  const [fotoBusy, setFotoBusy] = useState(false);
+  const [fotoVer, setFotoVer] = useState(0);
+  const emailFoto = (d.email || '').trim().toLowerCase();
+  const emailFotoOk = /^[^@\s]+@granmarquise\.com\.br$/.test(emailFoto);
+  const temAvatar = emailFotoOk && _avataresSet.has(emailFoto);
+  async function onPickFoto(e) {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!emailFotoOk) { setErroLocal('Preencha o e-mail antes de enviar a foto.'); return; }
+    if (!/^image\//.test(file.type)) { setErroLocal('Selecione uma imagem.'); return; }
+    setFotoBusy(true); setErroLocal('');
+    try {
+      const dataUrl = await _resizeImagem(file, 256, 0.85);
+      const tk = localStorage.getItem('hub_sso_token') || '';
+      const r = await fetch('/api/avatar', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tk }, body: JSON.stringify({ email: emailFoto, imagem: dataUrl }) });
+      const j = await r.json().catch(() => ({}));
+      if (r.ok && j.ok) { _avataresSet.add(emailFoto); _bumpAvatarVer(emailFoto); setFotoVer(v => v + 1); if (onFotoChange) onFotoChange(); }
+      else setErroLocal(j.erro || 'Falha ao enviar a foto.');
+    } catch { setErroLocal('Falha ao processar a imagem.'); }
+    setFotoBusy(false);
+  }
+  async function removerFoto() {
+    if (!emailFotoOk) return;
+    setFotoBusy(true); setErroLocal('');
+    try {
+      const tk = localStorage.getItem('hub_sso_token') || '';
+      const r = await fetch('/api/avatar?email=' + encodeURIComponent(emailFoto), { method: 'DELETE', headers: { Authorization: 'Bearer ' + tk } });
+      if (r.ok) { _avataresSet.delete(emailFoto); _bumpAvatarVer(emailFoto); setFotoVer(v => v + 1); if (onFotoChange) onFotoChange(); }
+    } catch {}
+    setFotoBusy(false);
+  }
 
   // Validacao de setor: precisa bater com a lista oficial. Permite preservar valor legado na edicao.
   // API retorna {id, nome}; mantemos fallback p/ s.name caso o contrato mude.
@@ -5438,6 +5492,25 @@ function ContaForm({ tipo, isMobile, cs, erro, saving, initial, initialEtiquetas
         </div>
 
         <form autoComplete="off" onSubmit={e => e.preventDefault()}>
+
+        {/* Foto (avatar) */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20 }}>
+          <AvatarUsuario key={fotoVer} nome={isAdmin ? d.nome_completo : d.nome} email={emailFotoOk ? emailFoto : ''} size={58} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <input ref={fotoRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={onPickFoto} />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button type="button" disabled={fotoBusy}
+                onClick={() => { if (!emailFotoOk) { setErroLocal('Preencha o e-mail antes de enviar a foto.'); return; } fotoRef.current && fotoRef.current.click(); }}
+                style={cs.btnGhost}>
+                {fotoBusy ? '...' : (temAvatar ? 'Trocar foto' : 'Enviar foto')}
+              </button>
+              {temAvatar && (
+                <button type="button" onClick={removerFoto} disabled={fotoBusy} style={{ ...cs.btnGhost, color: '#E07A5F', borderColor: '#E07A5F55' }}>Remover</button>
+              )}
+            </div>
+            <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, color: HUB_PALETTE.areiaDim }}>Sem foto, mostra as iniciais. A imagem é recortada em quadrado.</span>
+          </div>
+        </div>
 
         <label style={cs.label}>Nome Completo</label>
         <input style={cs.input} value={isAdmin ? d.nome_completo : d.nome}
