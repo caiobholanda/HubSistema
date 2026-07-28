@@ -1385,15 +1385,28 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
               const isLinkOpen = expandedLink === sys.id;
               // Mesma regra do back-end: admin/master sempre tem acesso; demais
               // precisam do id no array (undefined/null/vazio = sem acesso).
-              const comAcesso = users.filter(u => {
+              const _ns = s => (s || '').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ');
+              const setoresNorm = new Set((sys.setoresAcesso || []).map(_ns).filter(Boolean));
+              const comAcessoExplicito = users.filter(u => {
                 if (u.tipo === 'admin' || u.is_master) return true;
                 const p = permissions[u.email];
                 return Array.isArray(p) && p.includes(sys.id);
               });
+              const comAcessoViaSetor = !sys.acessoPadrao && setoresNorm.size > 0
+                ? users.filter(u => {
+                    if (u.tipo === 'admin' || u.is_master) return false;
+                    const p = permissions[u.email];
+                    if (Array.isArray(p) && p.includes(sys.id)) return false;
+                    return !!_ns(u.setor) && setoresNorm.has(_ns(u.setor));
+                  })
+                : [];
+              const comAcesso = [...comAcessoExplicito, ...comAcessoViaSetor];
               const semAcesso = users.filter(u => {
                 if (u.tipo === 'admin' || u.is_master) return false;
                 const p = permissions[u.email];
-                return !Array.isArray(p) || !p.includes(sys.id);
+                const temExplicito = Array.isArray(p) && p.includes(sys.id);
+                const temSetor = setoresNorm.size > 0 && !!_ns(u.setor) && setoresNorm.has(_ns(u.setor));
+                return !temExplicito && !temSetor;
               });
               return (
                 <div key={sys.id} style={{ borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22` }}>
@@ -1444,7 +1457,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
                           <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areiaDim, fontStyle: 'italic' }}>Nenhum usuário com acesso.</span>
                         ) : (
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                            {comAcesso.map(u => (
+                            {comAcessoExplicito.map(u => (
                               <span key={u.email}
                                 onClick={() => setConfirmToggle({ email: u.email, systemId: sys.id, nome: u.nome, sistemaNome: sys.nome })}
                                 title="Clique para remover acesso"
@@ -1452,6 +1465,13 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
                                 onMouseEnter={e => { e.currentTarget.style.background = '#9C5843'; e.currentTarget.style.borderColor = '#9C5843'; e.currentTarget.style.color = '#ECE4D2'; }}
                                 onMouseLeave={e => { e.currentTarget.style.background = `${HUB_PALETTE.areiaDim}10`; e.currentTarget.style.borderColor = `${HUB_PALETTE.areiaDim}22`; e.currentTarget.style.color = HUB_PALETTE.areia; }}>
                                 {u.nome.split(' ')[0]}{u.setor ? <span style={{ fontSize: 11, marginLeft: 6, opacity: 0.7 }}>{u.setor}</span> : null}
+                              </span>
+                            ))}
+                            {comAcessoViaSetor.map(u => (
+                              <span key={u.email}
+                                title={`Acesso automático via setor ${u.setor} — configure em Acesso por Setor`}
+                                style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areiaDim, background: `${HUB_PALETTE.champanhe}08`, border: `1px solid ${HUB_PALETTE.champanhe}22`, padding: '4px 12px', cursor: 'default', userSelect: 'none', opacity: 0.75 }}>
+                                {u.nome.split(' ')[0]}{u.setor ? <span style={{ fontSize: 10, marginLeft: 6, opacity: 0.7, fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.1em' }}>{u.setor}</span> : null}
                               </span>
                             ))}
                           </div>
