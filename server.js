@@ -91,6 +91,7 @@ function _aws() {
   return _awsClient;
 }
 const _s3url = key => `${S3_ENDPOINT}/${S3_BUCKET}/${key}`;
+const _s3signal = ms => { try { return AbortSignal.timeout(ms); } catch { return undefined; } };
 async function _uploadBackupS3() {
   if (!backupConfigurado) return;
   const aws = _aws(); if (!aws) return;
@@ -100,7 +101,7 @@ async function _uploadBackupS3() {
   const hourKey = `hub_data/history/${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}-${pad(d.getUTCHours())}.json`;
   for (const key of [S3_KEY_LATEST, hourKey]) {
     try {
-      const r = await aws.fetch(_s3url(key), { method: 'PUT', body, headers: { 'Content-Type': 'application/json' } });
+      const r = await aws.fetch(_s3url(key), { method: 'PUT', body, headers: { 'Content-Type': 'application/json' }, signal: _s3signal(10000) });
       if (!r.ok) console.error('[BACKUP] PUT', key, 'status', r.status);
     } catch (e) { console.error('[BACKUP] falha no upload', key, e && e.message); }
   }
@@ -108,7 +109,7 @@ async function _uploadBackupS3() {
 async function _restaurarBackupS3() {
   if (!backupConfigurado) return false;
   const aws = _aws(); if (!aws) return false;
-  const r = await aws.fetch(_s3url(S3_KEY_LATEST));
+  const r = await aws.fetch(_s3url(S3_KEY_LATEST), { signal: _s3signal(5000) });
   if (r.status === 404) { console.log('[BACKUP] sem backup no S3 ainda (404)'); return false; }
   if (!r.ok) throw new Error('GET latest status ' + r.status);
   const buf = Buffer.from(await r.arrayBuffer());
@@ -2312,17 +2313,28 @@ app.use((err, req, res, next) => {
 // backups continuos e sobe o servidor. Em boot normal (com dados) nada disso roda
 // e o listen e' imediato — comportamento identico ao atual.
 (async () => {
+  let restoreThrew = false;
   if (volumeEstavaVazio && backupConfigurado) {
     try {
       if (await _restaurarBackupS3()) {
         console.log('[BACKUP] volume vazio: dados restaurados do S3 (mais recente que o seed)');
       }
     } catch (e) {
+      restoreThrew = true; // restore ERROU (5xx/rede) — pode existir backup bom escondido
       console.error('[BACKUP] restore do S3 falhou, mantendo seed da imagem:', e && e.message);
     }
   }
-  backupsHabilitados = true;
-  if (backupConfigurado) _uploadBackupS3().catch(() => {}); // snapshot inicial no S3
+  // Se o volume veio vazio E o restore ERROU (5xx/rede/timeout), pode existir um backup
+  // bom no S3 que nao conseguimos ler. Servimos o seed, mas DESLIGAMOS os backups desta
+  // sessao — senao a proxima escrita (seed + edicao) sobrescreveria o backup bom. Aviso
+  // alto para o operador reiniciar quando o S3 voltar e restaurar os dados reais.
+  const backupInseguro = volumeEstavaVazio && restoreThrew;
+  backupsHabilitados = !backupInseguro;
+  if (backupInseguro) {
+    console.error('[BACKUP] ATENCAO: volume vazio e S3 inacessivel no boot — servindo SEED e backups DESLIGADOS nesta sessao para NAO sobrescrever o backup bom. Reinicie a maquina quando o S3 voltar para restaurar os dados reais.');
+  } else if (backupConfigurado) {
+    _uploadBackupS3().catch(() => {}); // snapshot inicial (idempotente / bootstrap)
+  }
   app.listen(PORT, () => console.log(`Hub rodando em http://localhost:${PORT}`));
 })();
 
