@@ -15,6 +15,8 @@ const GESTAO_URL = process.env.GESTAO_URL || 'https://gestao-qualidade-granmarqu
 const HUB_URL = process.env.HUB_URL || 'https://hub-granmarquise.fly.dev';
 const DATA_DIR = path.join(__dirname, 'data');
 const HUB_DATA_FILE = path.join(DATA_DIR, 'hub_data.json');
+const AVATARES_DIR = path.join(DATA_DIR, 'avatares');
+try { fs.mkdirSync(AVATARES_DIR, { recursive: true }); } catch {}
 
 if (!process.env.SSO_SECRET) {
   console.warn('[WARN] SSO_SECRET não configurado — usando secret inseguro');
@@ -35,7 +37,7 @@ app.use((_req, res, next) => {
   next();
 });
 
-app.use(express.json());
+app.use(express.json({ limit: '1mb' })); // 1mb: cabe o base64 do avatar (imagem redimensionada)
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ─── Helpers de persistência ────────────────────────────────────────────────
@@ -633,15 +635,32 @@ function _sessaoHubValida(req) {
   if (!t) return false;
   try { jwt.verify(t, SSO_SECRET); return true; } catch { return false; }
 }
+const EMAIL_GM = /^[^@\s]+@granmarquise\.com\.br$/;
+function _avatarFilename(email) { return crypto.createHash('sha1').update(email).digest('hex') + '.jpg'; }
 app.get('/api/foto/disponivel', (req, res) => {
   if (!_sessaoHubValida(req)) return res.status(401).json({ ok: false });
-  res.json({ ok: true, disponivel: graphConfigurado });
+  let avatares = [];
+  try { avatares = Object.keys(readData().avatares || {}); } catch {}
+  // disponivel = deve tentar buscar foto (Graph ligado OU ha avatares manuais).
+  res.json({ ok: true, disponivel: graphConfigurado, graph: graphConfigurado, avatares });
 });
 app.get('/api/foto', async (req, res) => {
   if (!_sessaoHubValida(req)) return res.status(401).end();
-  if (!graphConfigurado) return res.status(404).end();
   const email = String(req.query.email || '').trim().toLowerCase();
-  if (!/^[^@\s]+@granmarquise\.com\.br$/.test(email)) return res.status(400).end();
+  if (!EMAIL_GM.test(email)) return res.status(400).end();
+  // 1) Avatar enviado manualmente — prioridade e funciona SEM Graph.
+  try {
+    const fn = (readData().avatares || {})[email];
+    if (fn) {
+      const fp = path.join(AVATARES_DIR, fn);
+      if (fs.existsSync(fp)) {
+        res.setHeader('Content-Type', 'image/jpeg'); res.setHeader('Cache-Control', 'private, max-age=60');
+        return res.end(fs.readFileSync(fp));
+      }
+    }
+  } catch {}
+  // 2) Foto do Outlook via Microsoft Graph (se configurado).
+  if (!graphConfigurado) return res.status(404).end();
   const c = _fotoCache.get(email);
   if (c && Date.now() - c.at < _FOTO_TTL) {
     if (!c.buf) return res.status(404).end();
@@ -659,6 +678,37 @@ app.get('/api/foto', async (req, res) => {
     res.setHeader('Content-Type', type); res.setHeader('Cache-Control', 'private, max-age=43200');
     return res.end(buf);
   } catch { return res.status(502).end(); }
+});
+// Upload de avatar manual (admin). Recebe imagem ja redimensionada (dataURL base64).
+app.post('/api/avatar', requireAdmin, (req, res) => {
+  const email = String((req.body && req.body.email) || '').trim().toLowerCase();
+  const imagem = (req.body && req.body.imagem) || '';
+  if (!EMAIL_GM.test(email)) return res.status(400).json({ ok: false, erro: 'e-mail inválido' });
+  const m = /^data:image\/(png|jpe?g|webp);base64,(.+)$/i.exec(imagem);
+  if (!m) return res.status(400).json({ ok: false, erro: 'imagem inválida' });
+  const buf = Buffer.from(m[2], 'base64');
+  if (!buf.length || buf.length > 800 * 1024) return res.status(400).json({ ok: false, erro: 'imagem muito grande (máx. 800KB)' });
+  try {
+    const fn = _avatarFilename(email);
+    fs.writeFileSync(path.join(AVATARES_DIR, fn), buf);
+    const data = readData();
+    if (!data.avatares || typeof data.avatares !== 'object') data.avatares = {};
+    data.avatares[email] = fn;
+    writeData(data);
+    appendAudit({ by_email: req.hubUser.email, by_nome: req.hubUser.nome, action: 'avatar_definir', target_tipo: 'avatar', target_id: null, target_nome: email, campos: {} });
+    res.json({ ok: true });
+  } catch { res.status(500).json({ ok: false, erro: 'erro ao salvar' }); }
+});
+app.delete('/api/avatar', requireAdmin, (req, res) => {
+  const email = String(req.query.email || (req.body && req.body.email) || '').trim().toLowerCase();
+  if (!email) return res.status(400).json({ ok: false, erro: 'e-mail obrigatório' });
+  try {
+    const data = readData();
+    const fn = data.avatares && data.avatares[email];
+    if (fn) { try { fs.unlinkSync(path.join(AVATARES_DIR, fn)); } catch {} delete data.avatares[email]; writeData(data); }
+    appendAudit({ by_email: req.hubUser.email, by_nome: req.hubUser.nome, action: 'avatar_remover', target_tipo: 'avatar', target_id: null, target_nome: email, campos: {} });
+    res.json({ ok: true });
+  } catch { res.status(500).json({ ok: false, erro: 'erro' }); }
 });
 
 app.get('/api/me/sistemas', (req, res) => {

@@ -4746,6 +4746,7 @@ function ContasPanel({ isMobile }) {
   const [saving, setSaving] = useState(false);
   const [erro, setErro] = useState('');
   const [toast, setToast] = useState('');
+  const [avatarTick, setAvatarTick] = useState(0); void avatarTick; // re-render da lista quando um avatar muda
   const [historicoUsuario, setHistoricoUsuario] = useState(null); // { id, nome }
   const [resetandoSenha, setResetandoSenha] = useState({}); // { tipo-id: true } — loading por card
   const [confirmAtivo, setConfirmAtivo] = useState(null); // { tipo, row, ativar:boolean }
@@ -5199,6 +5200,7 @@ function ContasPanel({ isMobile }) {
       <ContaForm tipo={creating} isMobile={isMobile} cs={cs} erro={erro} saving={saving}
         setores={setoresLista} etiquetas={etiquetasLista}
         onCancel={fecharModal}
+        onFotoChange={() => setAvatarTick(t => t + 1)}
         onSave={(dados) => salvarNovo(creating, dados)} />
     )}
 
