@@ -47,6 +47,25 @@ const sitePerm = require('./src/site-permissions');
 
 const HUB_DATA_TMP = HUB_DATA_FILE + '.tmp';
 
+// Rede de seguranca contra perda de dados quando o volume do Fly e' reprovisionado
+// vazio (deploy churn / troca de maquina). Sem isto, um volume novo faz o app cair
+// no DEFAULT_SISTEMAS + zero usuarios ("cards voltam ao nome padrao, inativos somem").
+// O seed e' uma copia de data/hub_data.json embutida na imagem em /app/seed (fora do
+// mount /app/data), gerada no build. So restaura quando o arquivo do volume nao existe
+// — nunca sobrescreve dados vivos, entao nao ha regressao em deploy normal.
+const SEED_FILE = path.join(__dirname, 'seed', 'hub_data.seed.json');
+(function seedSeVolumeVazio() {
+  try {
+    if (fs.existsSync(HUB_DATA_FILE) || fs.existsSync(HUB_DATA_TMP)) return; // volume ja tem dados
+    if (!fs.existsSync(SEED_FILE)) return;
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.copyFileSync(SEED_FILE, HUB_DATA_FILE);
+    console.log('[SEED] volume vazio detectado: hub_data.json restaurado a partir do seed da imagem');
+  } catch (e) {
+    console.error('[SEED] falha ao semear volume vazio:', e && e.message);
+  }
+})();
+
 function _parseDataFile(filePath) {
   const raw = fs.readFileSync(filePath, 'utf8');
   const data = JSON.parse(raw);

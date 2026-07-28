@@ -3,6 +3,12 @@ name: Deploy to Fly.io
 on:
   push:
     branches: [main]
+    # Nao redeploya por commits que so mudam dados (auto-commit do hub_data.json,
+    # que e' dockerignored) ou documentacao — corta o churn de deploy que causava
+    # reprovisionamento de volume e perda de dados.
+    paths-ignore:
+      - 'data/**'
+      - '**/*.md'
 
 jobs:
   deploy:

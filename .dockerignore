@@ -1,6 +1,7 @@
 .env
 .env.*
 data/
+!data/hub_data.json
 .git
 .gitignore
 *.md

@@ -6,7 +6,9 @@ primary_region = 'gru'
 [http_service]
   internal_port = 3000
   force_https = true
-  auto_stop_machines = 'stop'
+  # auto_stop=false + 1 maquina fixa: evita o churn de parar/subir maquina que, sob
+  # deploys frequentes, provisionava volume novo (vazio) e zerava os dados do Hub.
+  auto_stop_machines = false
   auto_start_machines = true
   min_machines_running = 1
   processes = ['app']
