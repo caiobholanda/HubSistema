@@ -307,6 +307,15 @@ function temAcessoAoSistema(permissions, email, systemId, ehAdmin) {
   return Array.isArray(p) && p.includes(systemId);
 }
 
+// Normaliza nome de setor para comparacao tolerante: trim + lowercase + remove
+// acentos. O catalogo de setores (fonte do seletor de Liberacao) e o campo
+// users[].setor (texto livre) divergem em acento/caixa/espaco (ex.: catalogo
+// "Governança" x usuario "Governanca"); sem isso o match exato falha e o link
+// liberado por setor nunca aparece.
+function _normSetor(x) {
+  return String(x || '').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
+
 function getUserSistemas(email, tipo, isMaster) {
   const data = readData();
   const sistemas = data.sistemas || DEFAULT_SISTEMAS;
@@ -324,8 +333,9 @@ function getUserSistemas(email, tipo, isMaster) {
   // Fonte: acesso por setor — sistemas que listam o setor do usuário em setoresAcesso
   const userEntry = (data.users || []).find(u => sitePerm._norm(u.email) === e);
   const userSetor = userEntry ? userEntry.setor : null;
-  const viaSetor = userSetor
-    ? sistemas.filter(s => Array.isArray(s.setoresAcesso) && s.setoresAcesso.includes(userSetor)).map(s => s.id)
+  const userSetorN = _normSetor(userSetor);
+  const viaSetor = userSetorN
+    ? sistemas.filter(s => Array.isArray(s.setoresAcesso) && s.setoresAcesso.some(x => _normSetor(x) === userSetorN)).map(s => s.id)
     : [];
   return [...new Set([...explicitos, ...viaSitePerm, ...padraoIds, ...viaSetor])];
 }
@@ -691,6 +701,21 @@ app.put('/api/admin/sistemas/:id', requireAdmin, (req, res) => {
   data.sistemas = sistemas;
   if (acessoPadrao && !antes.acessoPadrao) autoAssociarTodos(data, req.params.id);
   writeData(data);
+  // SSE: se o acesso por setor (ou acessoPadrao) mudou, notifica em tempo real
+  // quem foi afetado, para o card aparecer/sumir sem reload — mesmo padrao dos
+  // endpoints de site-permissions. So calcula para quem esta conectado via SSE.
+  const setoresMudaram = JSON.stringify(antes.setoresAcesso || []) !== JSON.stringify(sistemas[idx].setoresAcesso || []);
+  const padraoMudou = !!antes.acessoPadrao !== !!sistemas[idx].acessoPadrao;
+  if (setoresMudaram || padraoMudou) {
+    const afetados = new Set([...(antes.setoresAcesso || []), ...(sistemas[idx].setoresAcesso || [])].map(_normSetor));
+    for (const emailConn of sseClients.keys()) {
+      const u = (data.users || []).find(x => sitePerm._norm(x.email) === sitePerm._norm(emailConn));
+      if (!u) continue;
+      if (padraoMudou || afetados.has(_normSetor(u.setor))) {
+        notifyUser(emailConn, getUserSistemas(emailConn, u.tipo || 'usuario', !!u.is_master));
+      }
+    }
+  }
   // So loga campos efetivamente alterados
   const diff = {};
   for (const k of ['nome', 'url', 'status', 'categoria', 'descricao', 'acessoPadrao']) {
