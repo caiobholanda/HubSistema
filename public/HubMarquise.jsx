@@ -5211,6 +5211,7 @@ function ContasPanel({ isMobile }) {
         initial={editing.dados} initialEtiquetas={editing.etiquetas} isEdit
         ehEuMesmo={editing.tipo === 'admin' && !!editing.dados && (editing.dados.email || '').toLowerCase() === meuEmail}
         onCancel={fecharModal}
+        onFotoChange={() => setAvatarTick(t => t + 1)}
         onSave={(dados, et) => salvarEdit(editing.tipo, editing.id, dados, et)} />
     )}
 

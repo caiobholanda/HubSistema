@@ -684,9 +684,11 @@ app.post('/api/avatar', requireAdmin, (req, res) => {
   const email = String((req.body && req.body.email) || '').trim().toLowerCase();
   const imagem = (req.body && req.body.imagem) || '';
   if (!EMAIL_GM.test(email)) return res.status(400).json({ ok: false, erro: 'e-mail inválido' });
-  const m = /^data:image\/(png|jpe?g|webp);base64,(.+)$/i.exec(imagem);
+  // So JPEG: o front sempre envia JPEG (canvas.toDataURL), e servimos como
+  // image/jpeg — evita descasar o Content-Type sob X-Content-Type-Options nosniff.
+  const m = /^data:image\/jpe?g;base64,(.+)$/i.exec(imagem);
   if (!m) return res.status(400).json({ ok: false, erro: 'imagem inválida' });
-  const buf = Buffer.from(m[2], 'base64');
+  const buf = Buffer.from(m[1], 'base64');
   if (!buf.length || buf.length > 800 * 1024) return res.status(400).json({ ok: false, erro: 'imagem muito grande (máx. 800KB)' });
   try {
     const fn = _avatarFilename(email);
