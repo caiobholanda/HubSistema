@@ -4616,19 +4616,46 @@ function _avatarEscurece(hex, f) {
   const b = Math.max(0, Math.round((n & 255) * (1 - f)));
   return '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
 }
-// Foto do Outlook/M365 exige Microsoft Graph (proxy backend + token com
-// User.Read.All + consentimento do admin). Enquanto nao configurado, retorna
-// null e o avatar cai nas iniciais. Quando o proxy estiver ativo, trocar por:
-//   return email ? `/api/foto?email=${encodeURIComponent(email)}` : null;
-function _avatarFotoUrl(email) { return null; }
+// Disponibilidade da foto (Microsoft Graph) — checada UMA vez e memoizada. Sem
+// Graph configurado no backend (/api/foto/disponivel => {disponivel:false}), o
+// front NEM tenta buscar foto: zero requisicao perdida, so as iniciais.
+let _fotosGraphDisp = null; let _fotosGraphProm = null;
+function _fotosDisponiveis() {
+  if (_fotosGraphDisp !== null) return Promise.resolve(_fotosGraphDisp);
+  if (_fotosGraphProm) return _fotosGraphProm;
+  const tk = (typeof localStorage !== 'undefined' && localStorage.getItem('hub_sso_token')) || '';
+  _fotosGraphProm = fetch('/api/foto/disponivel', { headers: tk ? { Authorization: 'Bearer ' + tk } : {} })
+    .then(r => (r.ok ? r.json() : null))
+    .then(d => { _fotosGraphDisp = !!(d && d.disponivel); return _fotosGraphDisp; })
+    .catch(() => { _fotosGraphDisp = false; return false; });
+  return _fotosGraphProm;
+}
 function AvatarUsuario({ nome, email, size = 42 }) {
-  const [erro, setErro] = useState(false);
-  const foto = _avatarFotoUrl(email);
+  const [fotoSrc, setFotoSrc] = useState(null);
+  useEffect(() => {
+    let vivo = true, urlObj = null;
+    setFotoSrc(null); // troca de email: volta pras iniciais ate a nova foto carregar
+    if (!email) return undefined;
+    (async () => {
+      const disp = await _fotosDisponiveis();
+      if (!disp || !vivo) return;
+      try {
+        const tk = localStorage.getItem('hub_sso_token') || '';
+        const r = await fetch('/api/foto?email=' + encodeURIComponent(email), { headers: { Authorization: 'Bearer ' + tk } });
+        if (!r.ok || !vivo) return;
+        const blob = await r.blob();
+        if (!vivo) return;
+        urlObj = URL.createObjectURL(blob);
+        setFotoSrc(urlObj);
+      } catch {}
+    })();
+    return () => { vivo = false; if (urlObj) URL.revokeObjectURL(urlObj); };
+  }, [email]);
   const base = { width: size, height: size, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', border: `1px solid ${HUB_PALETTE.areiaDim}33` };
-  if (foto && !erro) {
+  if (fotoSrc) {
     return (
       <div style={base}>
-        <img src={foto} alt={nome || ''} onError={() => setErro(true)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        <img src={fotoSrc} alt={nome || ''} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
       </div>
     );
   }

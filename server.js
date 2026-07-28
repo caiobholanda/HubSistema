@@ -595,6 +595,72 @@ app.get('/api/events', (req, res) => {
   }
 });
 
+// ─── Foto de perfil via Microsoft Graph (opcional; ativa com env vars) ───────
+// Proxy AUTENTICADO para a foto do Outlook/M365. DORMENTE por padrao: sem as 3
+// env (GRAPH_TENANT_ID / GRAPH_CLIENT_ID / GRAPH_CLIENT_SECRET) responde 404 e
+// o front cai nas iniciais — zero efeito colateral. Exige sessao valida do Hub
+// (nao expoe foto de funcionario publicamente). Cache em memoria por 12h.
+const GRAPH_TENANT = process.env.GRAPH_TENANT_ID || '';
+const GRAPH_CLIENT = process.env.GRAPH_CLIENT_ID || '';
+const GRAPH_SECRET = process.env.GRAPH_CLIENT_SECRET || '';
+const graphConfigurado = !!(GRAPH_TENANT && GRAPH_CLIENT && GRAPH_SECRET);
+let _graphTok = { v: null, exp: 0 }; let _graphTokProm = null;
+async function _graphToken() {
+  if (_graphTok.v && Date.now() < _graphTok.exp - 60000) return _graphTok.v;
+  if (_graphTokProm) return _graphTokProm; // memoiza a requisicao em voo (evita N POSTs concorrentes)
+  _graphTokProm = (async () => {
+    const body = new URLSearchParams({ client_id: GRAPH_CLIENT, client_secret: GRAPH_SECRET, scope: 'https://graph.microsoft.com/.default', grant_type: 'client_credentials' });
+    const r = await fetch(`https://login.microsoftonline.com/${GRAPH_TENANT}/oauth2/v2.0/token`, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body });
+    if (!r.ok) throw new Error('graph token ' + r.status);
+    const d = await r.json();
+    _graphTok = { v: d.access_token, exp: Date.now() + (d.expires_in || 3600) * 1000 };
+    return _graphTok.v;
+  })();
+  try { return await _graphTokProm; } finally { _graphTokProm = null; }
+}
+const _fotoCache = new Map(); // email -> { buf|null, type, at }
+const _FOTO_TTL = 12 * 3600 * 1000;
+const _FOTO_MAX = 3000;
+function _fotoCacheSet(email, val) {
+  // Evita crescimento ilimitado (um usuario autenticado poderia sondar muitos
+  // local-parts que cacheariam null). Remove a entrada mais antiga ao estourar.
+  if (_fotoCache.size >= _FOTO_MAX) { const k = _fotoCache.keys().next().value; if (k !== undefined) _fotoCache.delete(k); }
+  _fotoCache.set(email, val);
+}
+function _sessaoHubValida(req) {
+  const a = req.headers.authorization || '';
+  const t = a.startsWith('Bearer ') ? a.slice(7) : null;
+  if (!t) return false;
+  try { jwt.verify(t, SSO_SECRET); return true; } catch { return false; }
+}
+app.get('/api/foto/disponivel', (req, res) => {
+  if (!_sessaoHubValida(req)) return res.status(401).json({ ok: false });
+  res.json({ ok: true, disponivel: graphConfigurado });
+});
+app.get('/api/foto', async (req, res) => {
+  if (!_sessaoHubValida(req)) return res.status(401).end();
+  if (!graphConfigurado) return res.status(404).end();
+  const email = String(req.query.email || '').trim().toLowerCase();
+  if (!/^[^@\s]+@granmarquise\.com\.br$/.test(email)) return res.status(400).end();
+  const c = _fotoCache.get(email);
+  if (c && Date.now() - c.at < _FOTO_TTL) {
+    if (!c.buf) return res.status(404).end();
+    res.setHeader('Content-Type', c.type); res.setHeader('Cache-Control', 'private, max-age=43200');
+    return res.end(c.buf);
+  }
+  try {
+    const tok = await _graphToken();
+    const r = await fetch(`https://graph.microsoft.com/v1.0/users/${encodeURIComponent(email)}/photo/$value`, { headers: { Authorization: 'Bearer ' + tok } });
+    if (r.status === 404) { _fotoCacheSet(email, { buf: null, at: Date.now() }); return res.status(404).end(); }
+    if (!r.ok) return res.status(502).end();
+    const type = r.headers.get('content-type') || 'image/jpeg';
+    const buf = Buffer.from(await r.arrayBuffer());
+    _fotoCacheSet(email, { buf, type, at: Date.now() });
+    res.setHeader('Content-Type', type); res.setHeader('Cache-Control', 'private, max-age=43200');
+    return res.end(buf);
+  } catch { return res.status(502).end(); }
+});
+
 app.get('/api/me/sistemas', (req, res) => {
   const auth = req.headers.authorization || '';
   const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
