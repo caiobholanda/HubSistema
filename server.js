@@ -368,9 +368,10 @@ function autoAssociarTodos(data, sistemaId) {
 // ─── Sistemas (links do Hub) ─────────────────────────────────────────────────
 
 const DEFAULT_SISTEMAS = [
-  { id: 'chamados',  num: '01', nome: 'Chamados TI',           url: CHAMADOS_URL, status: 'no-ar', categoria: 'Suporte · Atendimento interno', descricao: 'Para pedir ajuda da equipe de TI do hotel.' },
-  { id: 'ramais',    num: '02', nome: 'Lista de Ramais',        url: DIRETORIO_URL, status: 'no-ar', categoria: 'Comunicação · Interno',         descricao: 'Diretório de ramais e contatos internos do hotel.' },
-  { id: 'pesquisa-satisfacao', num: '03', nome: 'Pesquisa de Satisfação', url: PESQUISA_URL, status: 'no-ar', categoria: 'Spa · Atendimento ao hóspede', descricao: 'Gestão de atendimentos, escalas de profissionais, anamnese digital e auditoria de satisfação do Gran Spa.' },
+  { id: 'chamados',  num: '01', nome: 'Chamados TI',           url: CHAMADOS_URL,  status: 'no-ar', categoria: 'Suporte · Atendimento interno',   descricao: 'Para pedir ajuda da equipe de TI do hotel.' },
+  { id: 'ramais',    num: '02', nome: 'Lista de Ramais',        url: DIRETORIO_URL, status: 'no-ar', categoria: 'Comunicação · Interno',            descricao: 'Diretório de ramais e contatos internos do hotel.' },
+  { id: 'pesquisa-satisfacao',  num: '03', nome: 'Pesquisa de Satisfação', url: PESQUISA_URL,  status: 'no-ar', categoria: 'Spa · Atendimento ao hóspede',  descricao: 'Gestão de atendimentos, escalas de profissionais, anamnese digital e auditoria de satisfação do Gran Spa.' },
+  { id: 'gestao-de-qualidade',  num: '04', nome: 'Gestão de Qualidade',    url: GESTAO_URL,    status: 'no-ar', categoria: 'Qualidade · Operações',           descricao: 'Painel de controle e auditoria de qualidade dos serviços do hotel.' },
 ];
 
 const URL_OVERRIDES = {
