@@ -4588,6 +4588,43 @@ function CortesiasPanel({ isMobile }) {
 }
 
 // ─── Contas (CRUD de admins do TI e usuarios do portal) ─────────────────────
+// ── Avatar do usuario: foto do Outlook (quando o Graph estiver configurado) com
+// fallback para as iniciais (nome + sobrenome) num circulo colorido. Ajuda na
+// identificacao visual na lista de Contas. ──
+function _avatarIniciais(nome) {
+  const parts = String(nome || '').trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return '?';
+  const ini = (parts[0][0] || '') + (parts.length > 1 ? (parts[parts.length - 1][0] || '') : '');
+  return ini.toUpperCase();
+}
+function _avatarCor(chave) {
+  let h = 0; const s = String(chave || '');
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 360;
+  return `hsl(${h}, 40%, 40%)`;
+}
+// Foto do Outlook/M365 exige Microsoft Graph (proxy backend + token com
+// User.Read.All + consentimento do admin). Enquanto nao configurado, retorna
+// null e o avatar cai nas iniciais. Quando o proxy estiver ativo, trocar por:
+//   return email ? `/api/foto?email=${encodeURIComponent(email)}` : null;
+function _avatarFotoUrl(email) { return null; }
+function AvatarUsuario({ nome, email, size = 42 }) {
+  const [erro, setErro] = useState(false);
+  const foto = _avatarFotoUrl(email);
+  const base = { width: size, height: size, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', border: `1px solid ${HUB_PALETTE.areiaDim}33` };
+  if (foto && !erro) {
+    return (
+      <div style={base}>
+        <img src={foto} alt={nome || ''} onError={() => setErro(true)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+      </div>
+    );
+  }
+  return (
+    <div style={{ ...base, background: _avatarCor(email || nome), color: '#fff', fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: Math.round(size * 0.36), fontWeight: 600 }} title={nome || ''} aria-label={nome || ''}>
+      {_avatarIniciais(nome)}
+    </div>
+  );
+}
+
 function ContasPanel({ isMobile }) {
   const isPhone = useWindowWidth() < 480;
   const [subAba, _setSubAba] = useState(() => {
@@ -5019,6 +5056,7 @@ function ContasPanel({ isMobile }) {
           const statusBadgeInfo = statusEfetivoRow ? HUB_STATUS_BADGE[statusEfetivoRow] : null;
           return (
             <div key={row.id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '22px 4px', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, opacity: ativo ? 1 : 0.55, flexWrap: 'wrap' }}>
+              <AvatarUsuario nome={isAdmin ? row.nome_completo : row.nome} email={row.email} />
               <div style={{ flex: 1, minWidth: 260 }}>
                 <div style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 17, color: HUB_PALETTE.marfim, fontWeight: 600, lineHeight: 1.3 }}>
                   {isAdmin ? row.nome_completo : row.nome}
