@@ -1154,6 +1154,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
   const [linkErro, setLinkErro] = useState('');
   const [expandedLink, setExpandedLink] = useState(null);
   const [filtroSemAcesso, setFiltroSemAcesso] = useState('');
+  const [sitePermissions, setSitePermissions] = useState([]);
   // Toast simples para feedback de Links (sucesso/erro). Auto-some em 2.6s.
   const [linkToast, setLinkToast] = useState(null); // { msg, err: boolean }
   function notifyLink(msg, err) { setLinkToast({ msg, err: !!err }); setTimeout(() => setLinkToast(null), 2600); }
@@ -1166,10 +1167,12 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
       fetch('/api/admin/all-users', { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
       fetch('/api/admin/data', { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
       fetch('/api/admin/chamados-setores', { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()).catch(() => ({})),
-    ]).then(([allUsers, hubData, setoresData]) => {
+      fetch('/api/admin/site-permissions', { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()).catch(() => []),
+    ]).then(([allUsers, hubData, setoresData, spData]) => {
       setUsers(allUsers.users || []);
       setPermissions(hubData.permissions || {});
       if (setoresData && setoresData.ok) setSetoresLista(setoresData.setores || []);
+      setSitePermissions(Array.isArray(spData) ? spData : []);
       setLoading(false);
     }).catch(() => setLoading(false));
   }, []);
@@ -1400,13 +1403,26 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
                     return !!_ns(u.setor) && setoresNorm.has(_ns(u.setor));
                   })
                 : [];
-              const comAcesso = [...comAcessoExplicito, ...comAcessoViaSetor];
+              const emailsExplicito = new Set(comAcessoExplicito.map(u => String(u.email).toLowerCase()));
+              const emailsViaSetor = new Set(comAcessoViaSetor.map(u => String(u.email).toLowerCase()));
+              const sitePermEmailsParaSys = new Set(
+                sitePermissions.filter(r => r.sistema_id === sys.id).map(r => String(r.email).toLowerCase())
+              );
+              const comAcessoViaSitePerm = users.filter(u => {
+                if (u.tipo === 'admin' || u.is_master) return false;
+                const email = String(u.email).toLowerCase();
+                if (emailsExplicito.has(email) || emailsViaSetor.has(email)) return false;
+                return sitePermEmailsParaSys.has(email);
+              });
+              const comAcesso = [...comAcessoExplicito, ...comAcessoViaSetor, ...comAcessoViaSitePerm];
               const semAcesso = users.filter(u => {
                 if (u.tipo === 'admin' || u.is_master) return false;
+                const email = String(u.email).toLowerCase();
                 const p = permissions[u.email];
                 const temExplicito = Array.isArray(p) && p.includes(sys.id);
                 const temSetor = setoresNorm.size > 0 && !!_ns(u.setor) && setoresNorm.has(_ns(u.setor));
-                return !temExplicito && !temSetor;
+                const temSitePerm = sitePermEmailsParaSys.has(email);
+                return !temExplicito && !temSetor && !temSitePerm;
               });
               return (
                 <div key={sys.id} style={{ borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22` }}>
@@ -1471,6 +1487,13 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
                               <span key={u.email}
                                 title={`Acesso automático via setor ${u.setor} — configure em Acesso por Setor`}
                                 style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areiaDim, background: `${HUB_PALETTE.champanhe}08`, border: `1px solid ${HUB_PALETTE.champanhe}22`, padding: '4px 12px', cursor: 'default', userSelect: 'none', opacity: 0.75 }}>
+                                {u.nome.split(' ')[0]}{u.setor ? <span style={{ fontSize: 10, marginLeft: 6, opacity: 0.7, fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.1em' }}>{u.setor}</span> : null}
+                              </span>
+                            ))}
+                            {comAcessoViaSitePerm.map(u => (
+                              <span key={u.email}
+                                title="Acesso via papel no sistema — gerencie em Liberações"
+                                style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#8FA88A', background: '#8FA88A0D', border: '1px solid #8FA88A33', padding: '4px 12px', cursor: 'default', userSelect: 'none', opacity: 0.8 }}>
                                 {u.nome.split(' ')[0]}{u.setor ? <span style={{ fontSize: 10, marginLeft: 6, opacity: 0.7, fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.1em' }}>{u.setor}</span> : null}
                               </span>
                             ))}
