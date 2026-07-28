@@ -42,11 +42,6 @@ function filtrarOrdenarContas(lista, opts) {
 
   const porStatus = base.filter(r => {
     if (!status || status === 'todos') return true;
-    if (isAdmin) {
-      if (status === 'ativo') return r.ativo === 1;
-      if (status === 'desligado') return r.ativo !== 1;
-      return true;
-    }
     return statusEfetivo(r, isAdmin) === status;
   });
 

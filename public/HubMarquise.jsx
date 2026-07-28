@@ -1348,7 +1348,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={HUB_PALETTE.champanhe} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
             </svg>
-            <span style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 500, fontSize: 12, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areia }}>Administração · Hub</span>
+            <span style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 500, fontSize: 12, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areia }}>Administração • Hub</span>
           </div>
           <button onClick={onClose} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}44`, color: HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', padding: '8px 16px', cursor: 'pointer' }}
             onMouseEnter={e => { e.currentTarget.style.color = HUB_PALETTE.marfim; e.currentTarget.style.borderColor = HUB_PALETTE.areiaDim + '88'; }}
@@ -4795,7 +4795,7 @@ function ContasPanel({ isMobile }) {
     try {
       const p = new URLSearchParams(window.location.search);
       const setOrDel = (k, v, def) => { if (v && v !== def) p.set(k, v); else p.delete(k); };
-      setOrDel('ctstatus', statusAba, subAba === 'admins' ? 'ativos' : 'ativo');
+      setOrDel('ctstatus', statusAba, 'ativo');
       setOrDel('ctq', buscaDebounced, '');
       const qs = p.toString();
       window.history.replaceState(null, '', window.location.pathname + (qs ? '?' + qs : '') + window.location.hash);
@@ -5108,18 +5108,17 @@ function ContasPanel({ isMobile }) {
     </div>
     {/* Sub-tabs status */}
     {(() => {
-      const statusOptions = isAdmin ? [
-        { id: 'todos',    label: 'Todos',    dot: null,      total: buscaFiltrada.length },
-        { id: 'ativo',    label: 'Ativo',    dot: '#62A852', total: contagemStatus['ativo'] || 0 },
-        { id: 'desligado',label: 'Inativo',  dot: '#607D8B', total: contagemStatus['desligado'] || 0 },
-      ] : [
-        { id: 'todos',           label: 'Todos',             dot: null,      total: buscaFiltrada.length },
-        { id: 'ativo',           label: 'Ativo',             dot: '#62A852', total: contagemStatus['ativo'] || 0 },
-        { id: 'precadastro',     label: 'Pré-cadastro',      dot: '#D4AC0D', total: contagemStatus['precadastro'] || 0 },
+      const todasOpcoes = [
+        { id: 'todos',             label: 'Todos',             dot: null,      total: buscaFiltrada.length },
+        { id: 'ativo',             label: 'Ativo',             dot: '#62A852', total: contagemStatus['ativo'] || 0 },
+        { id: 'precadastro',       label: 'Pré-cadastro',      dot: '#D4AC0D', total: contagemStatus['precadastro'] || 0 },
         { id: 'ativacao_pendente', label: 'Ativação pendente', dot: '#E88B2A', total: contagemStatus['ativacao_pendente'] || 0 },
-        { id: 'bloqueado',       label: 'Bloqueado',         dot: '#5BA3CC', total: contagemStatus['bloqueado'] || 0 },
-        { id: 'desligado',       label: 'Desligado',         dot: '#607D8B', total: contagemStatus['desligado'] || 0 },
+        { id: 'bloqueado',         label: 'Bloqueado',         dot: '#5BA3CC', total: contagemStatus['bloqueado'] || 0 },
+        { id: 'desligado',         label: 'Desligado',         dot: '#607D8B', total: contagemStatus['desligado'] || 0 },
       ];
+      // Oculta pills com contagem 0 que nunca terão dados (ex: pré-cadastro para admins),
+      // mas mantém a pill selecionada sempre visível.
+      const statusOptions = todasOpcoes.filter(s => s.id === 'todos' || s.id === statusAba || s.total > 0);
       return (
         <div style={{ display: 'flex', gap: 6, marginBottom: 18, flexWrap: 'wrap' }}>
           {statusOptions.map(s => {
@@ -5210,7 +5209,7 @@ function ContasPanel({ isMobile }) {
                 {(row.setor || row.ramal || (isAdmin && row.usuario)) ? (
                   <div style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 13, color: HUB_PALETTE.areia, marginTop: 3, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 0 }}>
                     {row.setor ? <span><span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9.5, letterSpacing: '0.18em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginRight: 5 }}>setor</span>{row.setor}</span> : null}
-                    {row.setor && row.ramal ? <span style={{ color: HUB_PALETTE.areia, margin: '0 10px', fontSize: 13, opacity: 0.45 }}>|</span> : null}
+                    {row.setor && row.ramal ? <span style={{ color: HUB_PALETTE.areia, margin: '0 16px', fontSize: 15, opacity: 0.6 }}>|</span> : null}
                     {row.ramal ? <span><span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9.5, letterSpacing: '0.18em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginRight: 5 }}>ramal</span>{row.ramal}</span> : null}
                     {isAdmin && row.usuario && (row.setor || row.ramal) ? <span style={{ color: HUB_PALETTE.areia, margin: '0 10px', fontSize: 13, opacity: 0.45 }}>|</span> : null}
                     {isAdmin && row.usuario ? <span><span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9.5, letterSpacing: '0.18em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginRight: 5 }}>login</span>{row.usuario}</span> : null}

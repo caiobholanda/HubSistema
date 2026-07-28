@@ -35,7 +35,7 @@ test('busca por ramal e matricula', () => {
 });
 
 test('flag master (admins) e flag inativo preservadas', () => {
-  const adm = filtrarOrdenarContas(ADMINS, { isAdmin: true, busca: 'master', status: 'ativos' });
+  const adm = filtrarOrdenarContas(ADMINS, { isAdmin: true, busca: 'master', status: 'ativo' });
   assert.deepEqual(adm.resultado.map(r => r.id), [1]);
   const ina = filtrarOrdenarContas(USUARIOS, { isAdmin: false, busca: 'inativo', status: 'todos' });
   assert.deepEqual(ina.resultado.map(r => r.id), [4]);
@@ -73,10 +73,10 @@ test('ordenacao: nome (default), setor e status com desempate por nome', () => {
   assert.deepEqual(porStatus.resultado.map(r => r.id), [1, 5, 3, 2, 4]); // ativo(Ana,Zeca), pendente(Carla), bloqueado(Bruno), desligado(Diego)
 });
 
-test('admins: abas ativos/inativos preservadas', () => {
-  const a = filtrarOrdenarContas(ADMINS, { isAdmin: true, status: 'ativos' });
+test('admins: abas ativo/desligado', () => {
+  const a = filtrarOrdenarContas(ADMINS, { isAdmin: true, status: 'ativo' });
   assert.deepEqual(a.resultado.map(r => r.id), [1]);
-  const i = filtrarOrdenarContas(ADMINS, { isAdmin: true, status: 'inativos' });
+  const i = filtrarOrdenarContas(ADMINS, { isAdmin: true, status: 'desligado' });
   assert.deepEqual(i.resultado.map(r => r.id), [2]);
 });
 
