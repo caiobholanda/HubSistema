@@ -4592,15 +4592,29 @@ function CortesiasPanel({ isMobile }) {
 // fallback para as iniciais (nome + sobrenome) num circulo colorido. Ajuda na
 // identificacao visual na lista de Contas. ──
 function _avatarIniciais(nome) {
-  const parts = String(nome || '').trim().split(/\s+/).filter(Boolean);
+  let parts = String(nome || '').trim().split(/\s+/).filter(Boolean);
+  // Ignora prefixo generico tipo "Usuário" em nomes-rotulo (ex.: "Usuário Caio ...").
+  if (parts.length > 1 && /^usu[aá]rios?$/i.test(parts[0])) parts = parts.slice(1);
   if (!parts.length) return '?';
   const ini = (parts[0][0] || '') + (parts.length > 1 ? (parts[parts.length - 1][0] || '') : '');
   return ini.toUpperCase();
 }
+// Paleta curada (tons terrosos/sobrios, coerentes com o Hub) em vez de HSL
+// aleatorio — os avatares ficam "desenhados", nao um arco-iris.
+const _AVATAR_PALETTE = ['#8C6A56', '#6E7F6A', '#7A6A86', '#5F7A88', '#9C7A4A', '#8A5D5D', '#5B7A6E', '#7E7458', '#69708A', '#8A6E7E'];
 function _avatarCor(chave) {
   let h = 0; const s = String(chave || '');
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 360;
-  return `hsl(${h}, 40%, 40%)`;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return _AVATAR_PALETTE[h % _AVATAR_PALETTE.length];
+}
+function _avatarEscurece(hex, f) {
+  const m = /^#?([0-9a-fA-F]{6})$/.exec(hex);
+  if (!m) return hex;
+  const n = parseInt(m[1], 16);
+  const r = Math.max(0, Math.round(((n >> 16) & 255) * (1 - f)));
+  const g = Math.max(0, Math.round(((n >> 8) & 255) * (1 - f)));
+  const b = Math.max(0, Math.round((n & 255) * (1 - f)));
+  return '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
 }
 // Foto do Outlook/M365 exige Microsoft Graph (proxy backend + token com
 // User.Read.All + consentimento do admin). Enquanto nao configurado, retorna
@@ -4618,8 +4632,9 @@ function AvatarUsuario({ nome, email, size = 42 }) {
       </div>
     );
   }
+  const cor = _avatarCor(email || nome);
   return (
-    <div style={{ ...base, background: _avatarCor(email || nome), color: '#fff', fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: Math.round(size * 0.36), fontWeight: 600 }} title={nome || ''} aria-label={nome || ''}>
+    <div style={{ ...base, background: `linear-gradient(150deg, ${cor} 0%, ${_avatarEscurece(cor, 0.24)} 100%)`, boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.10)', color: HUB_PALETTE.marfim, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: Math.round(size * 0.34), fontWeight: 600, letterSpacing: '0.03em' }} title={nome || ''} aria-label={nome || ''}>
       {_avatarIniciais(nome)}
     </div>
   );
