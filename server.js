@@ -468,7 +468,12 @@ app.post('/api/auth/login', async (req, res) => {
       // Usado pela pesquisa-satisfacao para aplicar visibilidade fina alem do
       // simples admin/usuario do sites_admin.
       payload.site_roles = sitePerm.rolesDoEmail(dados, emailNorm);
-    } catch { payload.sites_admin = []; payload.site_roles = {}; }
+      // sistemas: ids dos sistemas que este usuario pode abrir (MESMA fonte que
+      // decide os cards do portal). Satelites (ex.: Gestao da Qualidade) usam
+      // isso para autorizar o acesso alinhado ao Hub — evita que alguem veja o
+      // card mas seja negado no satelite (loop de acesso).
+      payload.sistemas = getUserSistemas(emailNorm, data.tipo, data.is_master);
+    } catch { payload.sites_admin = []; payload.site_roles = {}; payload.sistemas = []; }
     const token = jwt.sign(payload, SSO_SECRET, { expiresIn: '8h' });
     trackUser(emailNorm, data.nome, data.tipo, {
       setor: data.setor,
