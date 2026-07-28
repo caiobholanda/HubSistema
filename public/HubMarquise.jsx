@@ -476,15 +476,16 @@ function HubLogin({ onLogin }) {
           <img
             src="https://letsimage.s3.amazonaws.com/editor/granmarquise/imgs/1760033174793-hotelgranmarquise_pos_footer.png"
             alt="Gran Marquise"
-            style={{ height: trocaForcada ? 56 : 46, width: 'auto', filter: HUB_PALETTE.noite === HUB_THEMES.dark.noite ? 'brightness(0) invert(1)' : 'none', opacity: 0.9, marginBottom: trocaForcada ? 24 : 20 }}
+            style={{ height: trocaForcada ? 56 : 54, width: 'auto', filter: HUB_PALETTE.noite === HUB_THEMES.dark.noite ? 'brightness(0) invert(1)' : 'none', opacity: 0.9, marginBottom: trocaForcada ? 24 : 10 }}
           />
           <h1 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: trocaForcada ? 300 : 600, fontStyle: trocaForcada ? 'italic' : 'normal', fontSize: trocaForcada ? 44 : 36, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: 0, lineHeight: 1 }}>{trocaForcada ? 'Defina sua nova senha.' : view === 'recovery' ? 'Redefinir senha' : 'Entrar'}</h1>
           {!trocaForcada && view === 'login' && (
             <div style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 400, fontSize: 13, letterSpacing: '0.18em', color: HUB_PALETTE.areia, marginTop: 24 }}>Plataforma Corporativa</div>
           )}
           {!trocaForcada && view === 'recovery' && (
-            <div style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, fontSize: 13, color: HUB_PALETTE.areia, marginTop: 20, textAlign: 'center', lineHeight: 1.7 }}>
-              Digite seu e-mail corporativo.<br /><br />Enviaremos um link para redefinir sua senha.
+            <div style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, fontSize: 13, color: HUB_PALETTE.areia, marginTop: 32, textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <span>Digite seu e-mail corporativo.</span>
+              <span>Enviaremos um link para redefinir sua senha.</span>
             </div>
           )}
           {trocaForcada && (
@@ -548,14 +549,14 @@ function HubLogin({ onLogin }) {
         })() : view === 'login' ? (
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div>
-            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, fontWeight: 500, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 8 }}>E-mail</div>
+            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, fontWeight: 500, letterSpacing: '0.3em', textTransform: 'uppercase', color: '#A09080', marginBottom: 8 }}>E-mail</div>
             <input ref={emailRef} type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="seu@granmarquise.com.br" required disabled={loading}
               style={inputBase}
               onFocus={e => e.target.style.borderColor = HUB_PALETTE.champanhe + '88'}
               onBlur={e => e.target.style.borderColor = HUB_PALETTE.areiaDim + '44'} />
           </div>
           <div>
-            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, fontWeight: 500, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 8 }}>Senha</div>
+            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, fontWeight: 500, letterSpacing: '0.3em', textTransform: 'uppercase', color: '#A09080', marginBottom: 8 }}>Senha</div>
             <div style={{ position: 'relative' }}>
               <input type={mostrarSenha ? 'text' : 'password'} value={senha} onChange={e => setSenha(e.target.value)} placeholder="••••••••" required disabled={loading}
                 style={{ ...inputBase, paddingRight: 52 }}
@@ -591,7 +592,7 @@ function HubLogin({ onLogin }) {
           {!esqEnviado ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div>
-                <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 8 }}>E-MAIL</div>
+                <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: '#A09080', marginBottom: 8 }}>E-MAIL</div>
                 <input ref={esqEmailRef} type="email" value={esqEmail} onChange={e => setEsqEmail(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') handleEsqueci(e); }}
                   placeholder="seu@granmarquise.com.br" required disabled={esqLoading}
@@ -610,6 +611,12 @@ function HubLogin({ onLogin }) {
                 onMouseUp={e => { if (!esqLoading) e.currentTarget.style.background = HUB_PALETTE.marfim === '#ECE4D2' ? '#DDD5C2' : '#283631'; }}>
                 {esqLoading ? 'Enviando…' : 'Enviar link de redefinição'}
               </button>
+              <div style={{ textAlign: 'center', marginTop: 4 }}>
+                <button type="button" onClick={() => switchView('login')}
+                  style={{ background: 'transparent', border: 'none', color: HUB_PALETTE.areiaDim, fontFamily: 'Inter, sans-serif', fontSize: 12.5, textDecoration: 'underline', textUnderlineOffset: 3, cursor: 'pointer', padding: '6px 4px' }}>
+                  ← Voltar ao login
+                </button>
+              </div>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, padding: '8px 0' }}>
@@ -619,18 +626,16 @@ function HubLogin({ onLogin }) {
               <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areia, textAlign: 'center', lineHeight: 1.7 }}>
                 {esqMsg ? esqMsg.texto : 'Link enviado. Verifique sua caixa de entrada.'}
               </div>
+              <button type="button" onClick={() => switchView('login')}
+                style={{ background: 'transparent', border: 'none', color: HUB_PALETTE.areiaDim, fontFamily: 'Inter, sans-serif', fontSize: 12.5, textDecoration: 'underline', textUnderlineOffset: 3, cursor: 'pointer', padding: '6px 4px' }}>
+                ← Voltar ao login
+              </button>
               <button type="button" onClick={() => handleEsqueci(null)} disabled={esqLoading}
                 style={{ background: 'none', border: 'none', cursor: esqLoading ? 'wait' : 'pointer', fontFamily: 'Inter, sans-serif', fontSize: 12.5, color: HUB_PALETTE.areiaDim, textDecoration: 'underline', textUnderlineOffset: 3, padding: 0, opacity: esqLoading ? 0.7 : 1 }}>
                 {esqLoading ? 'Enviando…' : 'Não recebeu o e-mail? Reenviar'}
               </button>
             </div>
           )}
-          <div style={{ textAlign: 'center', marginTop: esqEnviado ? 8 : 4 }}>
-            <button type="button" onClick={() => switchView('login')}
-              style={{ background: 'transparent', border: 'none', color: HUB_PALETTE.areiaDim, fontFamily: 'Inter, sans-serif', fontSize: 12.5, textDecoration: 'underline', textUnderlineOffset: 3, cursor: 'pointer', padding: '6px 4px' }}>
-              ← Voltar ao login
-            </button>
-          </div>
         </form>
         )}
         </div>
