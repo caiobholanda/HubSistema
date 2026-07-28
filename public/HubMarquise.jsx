@@ -4442,11 +4442,11 @@ function CortesiasPanel({ isMobile }) {
           <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
         </svg>
         <input
-          type="text"
-          placeholder="Buscar por nome, e-mail ou setor…"
+          type="search"
+          placeholder="Buscar por nome, ramal ou setor…"
           value={busca}
           onChange={e => setBusca(e.target.value)}
-          autoComplete="off" spellCheck={false}
+          autoComplete="new-password" name="cortesias-busca-x4m2" data-lpignore="true" spellCheck={false}
           style={{ width: '100%', boxSizing: 'border-box', background: `${HUB_PALETTE.areiaDim}10`, border: `1px solid ${HUB_PALETTE.areiaDim}33`, color: HUB_PALETTE.marfim, fontFamily: 'Inter, sans-serif', fontSize: 13, padding: '10px 14px 10px 36px', outline: 'none' }}
           onFocus={e => { e.target.style.borderColor = HUB_PALETTE.areiaDim + '66'; }}
           onBlur={e => { e.target.style.borderColor = HUB_PALETTE.areiaDim + '33'; }}
@@ -5083,9 +5083,9 @@ function ContasPanel({ isMobile }) {
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={HUB_PALETTE.areiaDim} strokeWidth="1.5" strokeLinecap="round" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
           <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
         </svg>
-        <input type="search" placeholder="Filtrar por nome, email, ramal e setor..." value={busca} onChange={e => setBusca(e.target.value)}
-          autoComplete="off" name="contas-busca-livre" data-lpignore="true" data-form-type="other"
-          aria-label="Filtrar contas por nome, e-mail, ramal ou setor"
+        <input type="search" placeholder="Filtrar por nome, ramal, setor..." value={busca} onChange={e => setBusca(e.target.value)}
+          autoComplete="new-password" name="contas-busca-livre-x7k9" data-lpignore="true" data-form-type="other"
+          aria-label="Filtrar contas"
           style={{ ...cs.input, paddingLeft: 34 }} title="Aceita múltiplas palavras (AND) e flags 'master' / 'inativo'" />
       </div>
       <button onClick={() => startNew(isAdmin ? 'admin' : 'usuario')} style={{ ...cs.btnPrim, background: HUB_PALETTE.dourado }}>
