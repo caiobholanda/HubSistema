@@ -54,9 +54,11 @@ const HUB_DATA_TMP = HUB_DATA_FILE + '.tmp';
 // mount /app/data), gerada no build. So restaura quando o arquivo do volume nao existe
 // — nunca sobrescreve dados vivos, entao nao ha regressao em deploy normal.
 const SEED_FILE = path.join(__dirname, 'seed', 'hub_data.seed.json');
+let volumeEstavaVazio = false;
 (function seedSeVolumeVazio() {
   try {
     if (fs.existsSync(HUB_DATA_FILE) || fs.existsSync(HUB_DATA_TMP)) return; // volume ja tem dados
+    volumeEstavaVazio = true; // sinaliza p/ tentar restaurar do backup S3 (mais fresco) no boot
     if (!fs.existsSync(SEED_FILE)) return;
     fs.mkdirSync(DATA_DIR, { recursive: true });
     fs.copyFileSync(SEED_FILE, HUB_DATA_FILE);
@@ -65,6 +67,71 @@ const SEED_FILE = path.join(__dirname, 'seed', 'hub_data.seed.json');
     console.error('[SEED] falha ao semear volume vazio:', e && e.message);
   }
 })();
+
+// ─── Backup off-machine (Tigris/S3) ──────────────────────────────────────────
+// Rede de seguranca DEFINITIVA contra perda de dados: cada escrita e' replicada
+// para um bucket S3 (Tigris) FORA da maquina; num volume vazio, o boot restaura a
+// copia MAIS RECENTE do S3 (mais fresca que o seed embutido). Totalmente DORMANTE:
+// sem as env de bucket, nada roda e o comportamento e' o atual (seed da imagem).
+// Ative com:  fly storage create -a hub-granmarquise   (injeta as AWS_*/BUCKET_NAME)
+const S3_BUCKET = process.env.BUCKET_NAME || '';
+const S3_ENDPOINT = (process.env.AWS_ENDPOINT_URL_S3 || 'https://fly.storage.tigris.dev').replace(/\/+$/, '');
+const S3_KEY_ID = process.env.AWS_ACCESS_KEY_ID || '';
+const S3_SECRET = process.env.AWS_SECRET_ACCESS_KEY || '';
+const S3_REGION = process.env.AWS_REGION || 'auto';
+const backupConfigurado = !!(S3_BUCKET && S3_KEY_ID && S3_SECRET);
+const S3_KEY_LATEST = 'hub_data/latest.json';
+let _awsClient = null;
+function _aws() {
+  if (_awsClient) return _awsClient;
+  try {
+    const { AwsClient } = require('aws4fetch');
+    _awsClient = new AwsClient({ accessKeyId: S3_KEY_ID, secretAccessKey: S3_SECRET, region: S3_REGION, service: 's3' });
+  } catch (e) { console.error('[BACKUP] aws4fetch indisponivel:', e && e.message); _awsClient = null; }
+  return _awsClient;
+}
+const _s3url = key => `${S3_ENDPOINT}/${S3_BUCKET}/${key}`;
+async function _uploadBackupS3() {
+  if (!backupConfigurado) return;
+  const aws = _aws(); if (!aws) return;
+  let body; try { body = fs.readFileSync(HUB_DATA_FILE); } catch { return; }
+  const d = new Date(); const pad = n => String(n).padStart(2, '0');
+  // "latest" (restauracao no boot) + copia horaria (recuperacao pontual, ~24/dia)
+  const hourKey = `hub_data/history/${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}-${pad(d.getUTCHours())}.json`;
+  for (const key of [S3_KEY_LATEST, hourKey]) {
+    try {
+      const r = await aws.fetch(_s3url(key), { method: 'PUT', body, headers: { 'Content-Type': 'application/json' } });
+      if (!r.ok) console.error('[BACKUP] PUT', key, 'status', r.status);
+    } catch (e) { console.error('[BACKUP] falha no upload', key, e && e.message); }
+  }
+}
+async function _restaurarBackupS3() {
+  if (!backupConfigurado) return false;
+  const aws = _aws(); if (!aws) return false;
+  const r = await aws.fetch(_s3url(S3_KEY_LATEST));
+  if (r.status === 404) { console.log('[BACKUP] sem backup no S3 ainda (404)'); return false; }
+  if (!r.ok) throw new Error('GET latest status ' + r.status);
+  const buf = Buffer.from(await r.arrayBuffer());
+  JSON.parse(buf.toString('utf8')); // valida antes de gravar (nao grava lixo)
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  fs.writeFileSync(HUB_DATA_TMP, buf);
+  try { fs.renameSync(HUB_DATA_TMP, HUB_DATA_FILE); }
+  catch { fs.copyFileSync(HUB_DATA_TMP, HUB_DATA_FILE); try { fs.unlinkSync(HUB_DATA_TMP); } catch {} }
+  return true;
+}
+// Debounce: coalesce rajadas de escrita num unico upload. So sobe DEPOIS que o boot
+// terminou (backupsHabilitados), para nunca sobrescrever o backup bom com dados
+// transitorios do seed/init durante a inicializacao.
+let backupsHabilitados = false;
+let _backupTimer = null;
+function agendarBackup() {
+  if (!backupConfigurado || !backupsHabilitados || _backupTimer) return;
+  _backupTimer = setTimeout(() => {
+    _backupTimer = null;
+    _uploadBackupS3().catch(e => console.error('[BACKUP] upload agendado falhou:', e && e.message));
+  }, 5000);
+  if (_backupTimer.unref) _backupTimer.unref();
+}
 
 function _parseDataFile(filePath) {
   const raw = fs.readFileSync(filePath, 'utf8');
@@ -106,6 +173,7 @@ function writeData(data) {
     fs.copyFileSync(HUB_DATA_TMP, HUB_DATA_FILE);
     try { fs.unlinkSync(HUB_DATA_TMP); } catch {}
   }
+  agendarBackup(); // replica a escrita para o S3 (best-effort, nao bloqueia)
 }
 
 function _sanitizarStr(s) {
@@ -2239,4 +2307,30 @@ app.use((err, req, res, next) => {
   res.status(500).json({ ok: false, erro: 'Erro interno' });
 });
 
-app.listen(PORT, () => console.log(`Hub rodando em http://localhost:${PORT}`));
+// Boot: se o volume veio vazio, tenta restaurar a copia MAIS RECENTE do S3 (mais
+// fresca que o seed da imagem) ANTES de aceitar requests. So entao habilita os
+// backups continuos e sobe o servidor. Em boot normal (com dados) nada disso roda
+// e o listen e' imediato — comportamento identico ao atual.
+(async () => {
+  if (volumeEstavaVazio && backupConfigurado) {
+    try {
+      if (await _restaurarBackupS3()) {
+        console.log('[BACKUP] volume vazio: dados restaurados do S3 (mais recente que o seed)');
+      }
+    } catch (e) {
+      console.error('[BACKUP] restore do S3 falhou, mantendo seed da imagem:', e && e.message);
+    }
+  }
+  backupsHabilitados = true;
+  if (backupConfigurado) _uploadBackupS3().catch(() => {}); // snapshot inicial no S3
+  app.listen(PORT, () => console.log(`Hub rodando em http://localhost:${PORT}`));
+})();
+
+// Flush final: numa parada/deploy (SIGTERM), tenta subir a ultima versao antes de sair.
+for (const sig of ['SIGTERM', 'SIGINT']) {
+  process.on(sig, () => {
+    const fim = () => process.exit(0);
+    if (!backupConfigurado) return fim();
+    Promise.race([_uploadBackupS3().catch(() => {}), new Promise(r => setTimeout(r, 4000))]).then(fim);
+  });
+}
