@@ -4725,8 +4725,8 @@ function ContasPanel({ isMobile }) {
   const [usuarios, setUsuarios] = useState(null);
   const [setoresLista, setSetoresLista] = useState([]);
   const [etiquetasLista, setEtiquetasLista] = useState([]);
-  const [busca, setBusca] = useState(_urlFiltros.q || '');
-  const [buscaDebounced, setBuscaDebounced] = useState(_urlFiltros.q || '');
+  const [busca, setBusca] = useState('');
+  const [buscaDebounced, setBuscaDebounced] = useState('');
   useEffect(() => {
     const t = setTimeout(() => setBuscaDebounced(busca), 200);
     return () => clearTimeout(t);
@@ -4741,6 +4741,14 @@ function ContasPanel({ isMobile }) {
       window.history.replaceState(null, '', window.location.pathname + (qs ? '?' + qs : '') + window.location.hash);
     } catch {}
   }, [statusAba, buscaDebounced, subAba]);
+  useEffect(() => () => {
+    try {
+      const p = new URLSearchParams(window.location.search);
+      ['ctstatus','ctq','ctsetor','ctcargo','ctord'].forEach(k => p.delete(k));
+      const qs = p.toString();
+      window.history.replaceState(null, '', window.location.pathname + (qs ? '?' + qs : '') + window.location.hash);
+    } catch {}
+  }, []);
   const [editing, setEditing] = useState(null); // { tipo, id, dados, etiquetas? }
   const [creating, setCreating] = useState(null); // 'admin' | 'usuario'
   const [saving, setSaving] = useState(false);
