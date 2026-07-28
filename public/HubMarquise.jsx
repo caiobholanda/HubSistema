@@ -176,6 +176,8 @@ const HUB_SYSTEMS = [
 function HubBoot({ onDone }) {
   const [phase, setPhase] = useState('show');
   const [anim, setAnim] = useState(0);
+  const winW = useWindowWidth();
+  const isMobile = winW < 520;
 
   useEffect(() => {
     const start = performance.now();
@@ -193,7 +195,7 @@ function HubBoot({ onDone }) {
   }, [onDone]);
 
   const t = anim;
-  const N = 40, R = 130, RI = 48, K = 2.3;
+  const N = 40, R = isMobile ? 72 : 130, RI = isMobile ? 27 : 48, K = 2.3;
   const stepA = (Math.PI * 2) / N;
   const eco = (x) => 1 - Math.pow(1 - Math.max(0, Math.min(1, x)), 3);
   const fp = (start, dur) => eco((t - start) / (dur || 0.7));
@@ -226,6 +228,7 @@ function HubBoot({ onDone }) {
   const lsP    = eco((t - 1.25) / 0.9);
   const ink    = HUB_PALETTE.marfim;
   const dim    = (p) => ({ opacity: p, transform: `translateY(${(1 - p) * 14}px)` });
+  const fSz    = isMobile ? 24 : 40;
 
   return (
     <div style={{
@@ -237,16 +240,16 @@ function HubBoot({ onDone }) {
       pointerEvents: phase === 'fade' ? 'none' : 'auto',
       overflow: 'hidden'
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 32 }}>
+      <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: 'center', gap: isMobile ? 16 : 32 }}>
         <svg width={R * 2 + 10} height={R * 2 + 10}
           viewBox={`${-R - 5} ${-R - 5} ${R * 2 + 10} ${R * 2 + 10}`}
           style={{ display: 'block', transform: `rotate(${rot}deg) scale(${sc})`, flexShrink: 0 }}>
           {lines}
         </svg>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-          <div style={{ fontFamily: "'Helvetica Neue',Arial,sans-serif", fontSize: 12, fontWeight: 400, letterSpacing: (0.58 - 0.16 * lsP) + 'em', color: ink, lineHeight: 1, marginBottom: 4, ...dim(pHotel) }}>HOTEL</div>
-          <div style={{ fontFamily: "'Helvetica Neue',Arial,sans-serif", fontSize: 40, fontWeight: 300, letterSpacing: '0.055em', color: ink, lineHeight: 1.1, ...dim(pGran) }}>GRAN</div>
-          <div style={{ fontFamily: "'Helvetica Neue',Arial,sans-serif", fontSize: 40, fontWeight: 300, letterSpacing: '0.055em', color: ink, lineHeight: 1.1, ...dim(pMar) }}>MARQUISE</div>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: isMobile ? 'center' : 'flex-start' }}>
+          <div style={{ fontFamily: "'Helvetica Neue',Arial,sans-serif", fontSize: isMobile ? 10 : 12, fontWeight: 400, letterSpacing: (0.58 - 0.16 * lsP) + 'em', color: ink, lineHeight: 1, marginBottom: 4, ...dim(pHotel) }}>HOTEL</div>
+          <div style={{ fontFamily: "'Helvetica Neue',Arial,sans-serif", fontSize: fSz, fontWeight: 300, letterSpacing: '0.055em', color: ink, lineHeight: 1.1, ...dim(pGran) }}>GRAN</div>
+          <div style={{ fontFamily: "'Helvetica Neue',Arial,sans-serif", fontSize: fSz, fontWeight: 300, letterSpacing: '0.055em', color: ink, lineHeight: 1.1, ...dim(pMar) }}>MARQUISE</div>
         </div>
       </div>
     </div>
