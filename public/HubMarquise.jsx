@@ -657,6 +657,7 @@ const STATUS_CORES = { 'no-ar': '#4CAF87', 'construcao': '#E0A85F', 'beta': '#5F
 
 function LinkForm({ form, setForm, onSave, onCancel, linkErro, linkSaving, setoresLista }) {
   const isMobile = useWindowWidth() < 768;
+  const [setorFiltro, setSetorFiltro] = useState('');
   const inputStyle = {
     width: '100%', boxSizing: 'border-box',
     background: HUB_PALETTE.noiteAlt,
@@ -698,8 +699,24 @@ function LinkForm({ form, setForm, onSave, onCancel, linkErro, linkSaving, setor
             <div style={{ border: `1px solid ${HUB_PALETTE.areiaDim}33`, padding: '14px 16px' }}>
               <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 8 }}>Acesso por Setor</div>
               <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: HUB_PALETTE.areia, marginBottom: 12, lineHeight: 1.45 }}>Todos os colaboradores dos setores selecionados recebem acesso automaticamente.</div>
+              <div style={{ position: 'relative', marginBottom: 10 }}>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={HUB_PALETTE.areiaDim} strokeWidth="2" strokeLinecap="round" style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', opacity: 0.6 }}>
+                  <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+                <input
+                  type="search"
+                  placeholder="Filtrar setores..."
+                  value={setorFiltro}
+                  onChange={e => setSetorFiltro(e.target.value)}
+                  autoComplete="new-password"
+                  style={{ width: '100%', boxSizing: 'border-box', background: HUB_PALETTE.noiteAlt, border: `1px solid ${HUB_PALETTE.areiaDim}33`, color: HUB_PALETTE.marfim, fontFamily: 'Inter, sans-serif', fontSize: 12, padding: '7px 10px 7px 28px', outline: 'none' }}
+                />
+                {setorFiltro && (
+                  <button onClick={() => setSetorFiltro('')} style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: HUB_PALETTE.areiaDim, padding: 2, lineHeight: 1, fontSize: 14 }}>×</button>
+                )}
+              </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {setoresLista.map(s => {
+                {setoresLista.filter(s => !setorFiltro.trim() || s.nome.toLowerCase().includes(setorFiltro.trim().toLowerCase())).map(s => {
                   const sel = (form.setoresAcesso || []).includes(s.nome);
                   return (
                     <div key={s.id}
