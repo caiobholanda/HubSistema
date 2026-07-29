@@ -1416,7 +1416,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
                 return sitePermEmailsParaSys.has(email);
               });
               const comAcesso = [...comAcessoExplicito, ...comAcessoViaSetor, ...comAcessoViaSitePerm];
-              const semAcesso = users.filter(u => {
+              const semAcesso = sys.acessoPadrao ? [] : users.filter(u => {
                 if (u.tipo === 'admin' || u.is_master) return false;
                 const email = String(u.email).toLowerCase();
                 const p = permissions[u.email];
