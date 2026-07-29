@@ -1149,7 +1149,21 @@ app.delete('/api/admin/chamados-setores/:id', requireAdmin, async (req, res) => 
   if (r.status >= 200 && r.status < 300 && r.data && r.data.ok) {
     appendAudit({
       by_email: req.hubUser.email, by_nome: req.hubUser.nome,
-      action: 'excluir', target_tipo: 'setor',
+      action: 'inativar', target_tipo: 'setor',
+      target_id: Number(id), target_nome: nome,
+      campos: {},
+    });
+  }
+  res.status(r.status).json(r.data);
+});
+app.patch('/api/admin/chamados-setores/:id/reativar', requireAdmin, async (req, res) => {
+  const id = req.params.id;
+  const nome = await _resolverNomeAlvo('setor', id);
+  const r = await proxyChamados(`/setores/${encodeURIComponent(id)}/reativar`, { method: 'PATCH' });
+  if (r.status >= 200 && r.status < 300 && r.data && r.data.ok) {
+    appendAudit({
+      by_email: req.hubUser.email, by_nome: req.hubUser.nome,
+      action: 'reativar', target_tipo: 'setor',
       target_id: Number(id), target_nome: nome,
       campos: {},
     });

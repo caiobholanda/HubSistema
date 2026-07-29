@@ -2450,7 +2450,7 @@ function SetoresPanel({ isMobile }) {
     setSaving(false);
   }
 
-  async function confirmarExclusao() {
+  async function confirmarInativacao() {
     if (!confirmar) return;
     const id = confirmar.id;
     setConfirmar(null);
@@ -2460,15 +2460,31 @@ function SetoresPanel({ isMobile }) {
         headers: { Authorization: `Bearer ${token()}` },
       });
       const d = await r.json().catch(() => ({}));
-      if (!r.ok || !d.ok) { notify(d.erro || 'Erro ao excluir', true); return; }
+      if (!r.ok || !d.ok) { notify(d.erro || 'Erro ao inativar', true); return; }
       notifyHubMutation();
-      notify('Setor excluído');
+      notify('Setor inativado');
+      await carregar();
+    } catch { notify('Erro de conexão', true); }
+  }
+
+  async function reativar(id) {
+    try {
+      const r = await fetch(`/api/admin/chamados-setores/${id}/reativar`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token()}` },
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.ok) { notify(d.erro || 'Erro ao reativar', true); return; }
+      notifyHubMutation();
+      notify('Setor reativado');
       await carregar();
     } catch { notify('Erro de conexão', true); }
   }
 
   const q = buscaDebounced.trim().toLowerCase();
   const filtrada = (lista || []).filter(s => !q || (s.nome || '').toLowerCase().includes(q));
+  const filtradaAtiva = filtrada.filter(s => s.ativo !== 0);
+  const filtradaInativa = filtrada.filter(s => s.ativo === 0);
 
   const cs = {
     input: { width: '100%', boxSizing: 'border-box', background: HUB_PALETTE.areiaDim + '0a', border: `1px solid ${HUB_PALETTE.areiaDim}33`, color: HUB_PALETTE.marfim, fontFamily: 'Inter, sans-serif', fontSize: 14, padding: '10px 14px', outline: 'none' },
@@ -2511,7 +2527,7 @@ function SetoresPanel({ isMobile }) {
       </div>
     ) : (
       <div style={{ display: 'flex', flexDirection: 'column', borderTop: `1px solid ${HUB_PALETTE.areiaDim}22` }}>
-        {filtrada.map(s => (
+        {filtradaAtiva.map(s => (
           <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '20px 4px', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, flexWrap: 'wrap' }}>
             <div style={{ flex: 1, minWidth: 220, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
               <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 17, color: HUB_PALETTE.marfim, fontWeight: 600 }}>{s.nome}</span>
@@ -2526,6 +2542,19 @@ function SetoresPanel({ isMobile }) {
             <button onClick={() => setConfirmar({ id: s.id, nome: s.nome })} style={cs.btnDanger}>Inativar</button>
           </div>
         ))}
+        {filtradaInativa.length > 0 && (
+          <>
+            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, padding: '18px 4px 8px' }}>Inativos</div>
+            {filtradaInativa.map(s => (
+              <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '14px 4px', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}11`, flexWrap: 'wrap', opacity: 0.55 }}>
+                <div style={{ flex: 1, minWidth: 220, display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 16, color: HUB_PALETTE.areiaDim, fontWeight: 400, textDecoration: 'line-through' }}>{s.nome}</span>
+                </div>
+                <button onClick={() => reativar(s.id)} style={{ ...cs.btnGhost, opacity: 1 }}>Reativar</button>
+              </div>
+            ))}
+          </>
+        )}
       </div>
     )}
 
@@ -2539,24 +2568,36 @@ function SetoresPanel({ isMobile }) {
     )}
 
     {/* Modal Confirmar inativação de setor */}
-    {confirmar && (
-      <div
-        style={{ position: 'fixed', inset: 0, zIndex: 160, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-        <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, maxWidth: 420, width: '100%', maxHeight: '90vh', overflowY: 'auto', padding: isMobile ? '24px 20px' : '32px 36px' }}>
-          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: '#9C5843', marginBottom: 6 }}>Confirmar inativação</div>
-          <h3 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontWeight: 300, fontSize: 22, color: HUB_PALETTE.marfim, margin: '0 0 14px', lineHeight: 1.25 }}>
-            Inativar o setor "{confirmar.nome}"?
-          </h3>
-          <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areia, margin: '0 0 22px', lineHeight: 1.5 }}>
-            O setor será removido da lista. Chamados existentes não são afetados.
-          </p>
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-            <button onClick={() => setConfirmar(null)} style={cs.btnGhost}>Cancelar</button>
-            <button onClick={confirmarExclusao} style={{ ...cs.btnPrim, color: '#ECE4D2', fontFamily: 'Inter, sans-serif', letterSpacing: 'normal', textTransform: 'none' }}>Inativar</button>
+    {confirmar && (() => {
+      const cntUsuarios = contagemUsuarios[confirmar.nome] || 0;
+      const temUsuarios = cntUsuarios > 0;
+      return (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 160, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, maxWidth: 420, width: '100%', maxHeight: '90vh', overflowY: 'auto', padding: isMobile ? '24px 20px' : '32px 36px' }}>
+            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: '#9C5843', marginBottom: 6 }}>Confirmar inativação</div>
+            <h3 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontWeight: 300, fontSize: 22, color: HUB_PALETTE.marfim, margin: '0 0 14px', lineHeight: 1.25 }}>
+              Inativar o setor "{confirmar.nome}"?
+            </h3>
+            {temUsuarios ? (
+              <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#E07A5F', margin: '0 0 22px', lineHeight: 1.6 }}>
+                Este setor possui {cntUsuarios} usuário{cntUsuarios !== 1 ? 's' : ''} ativo{cntUsuarios !== 1 ? 's' : ''}.<br />
+                Transfira os usuários para outro setor antes de realizar a inativação.
+              </p>
+            ) : (
+              <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areia, margin: '0 0 22px', lineHeight: 1.5 }}>
+                O setor ficará inativo e não aparecerá para seleção. É possível reativá-lo posteriormente.
+              </p>
+            )}
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button onClick={() => setConfirmar(null)} style={cs.btnGhost}>Cancelar</button>
+              {!temUsuarios && (
+                <button onClick={confirmarInativacao} style={{ ...cs.btnPrim, color: '#ECE4D2', fontFamily: 'Inter, sans-serif', letterSpacing: 'normal', textTransform: 'none' }}>Inativar</button>
+              )}
+            </div>
           </div>
         </div>
-      </div>
-    )}
+      );
+    })()}
 
     {setorModal && (
       <SetorUsuariosModal setor={setorModal} usuarios={todosUsuarios.filter(u => u.setor === setorModal && u.ativo !== 0)} isMobile={isMobile} onClose={() => setSetorModal(null)} />
