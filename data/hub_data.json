@@ -17945,5 +17945,130 @@
       "ativo": true,
       "criado_em": "2026-07-21T18:25:46.474Z"
     }
+  ],
+  "urnas": [
+    {
+      "id": "1785344429719_gov_alt",
+      "nome": "Governança Andares Altos",
+      "pesquisas": [
+        "geral",
+        "geral-granclass"
+      ],
+      "criada_em": "2026-07-29T17:00:29.720Z"
+    },
+    {
+      "id": "1785344429719_gov_bai",
+      "nome": "Governança Andares Baixos",
+      "pesquisas": [
+        "geral",
+        "geral-granclass"
+      ],
+      "criada_em": "2026-07-29T17:00:29.726Z"
+    },
+    {
+      "id": "1785344429719_gov_gc",
+      "nome": "Governança Gran Class",
+      "pesquisas": [
+        "geral",
+        "geral-granclass"
+      ],
+      "criada_em": "2026-07-29T17:00:29.726Z"
+    },
+    {
+      "id": "1785344429719_muc_cafe",
+      "nome": "Mucuripe café da manhã",
+      "pesquisas": [
+        "geral",
+        "geral-granclass"
+      ],
+      "criada_em": "2026-07-29T17:00:29.726Z"
+    },
+    {
+      "id": "1785344429719_rec",
+      "nome": "Recepção",
+      "pesquisas": [
+        "geral",
+        "geral-granclass"
+      ],
+      "criada_em": "2026-07-29T17:00:29.726Z"
+    },
+    {
+      "id": "1785344429719_cha",
+      "nome": "Chá da tarde",
+      "pesquisas": [
+        "pdvs",
+        "pdvs-granclass"
+      ],
+      "criada_em": "2026-07-29T17:00:29.726Z"
+    },
+    {
+      "id": "1785344429719_lobby",
+      "nome": "Lobby Bar",
+      "pesquisas": [
+        "pdvs",
+        "pdvs-granclass"
+      ],
+      "criada_em": "2026-07-29T17:00:29.726Z"
+    },
+    {
+      "id": "1785344429719_mango",
+      "nome": "Restaurante Mangostin",
+      "pesquisas": [
+        "pdvs",
+        "pdvs-granclass"
+      ],
+      "criada_em": "2026-07-29T17:00:29.726Z"
+    },
+    {
+      "id": "1785344429719_muc",
+      "nome": "Restaurante Mucuripe",
+      "pesquisas": [
+        "pdvs",
+        "pdvs-granclass"
+      ],
+      "criada_em": "2026-07-29T17:00:29.726Z"
+    },
+    {
+      "id": "1785344429719_muc_jan",
+      "nome": "Restaurante Mucuripe Jantar",
+      "pesquisas": [
+        "pdvs",
+        "pdvs-granclass"
+      ],
+      "criada_em": "2026-07-29T17:00:29.726Z"
+    },
+    {
+      "id": "1785344429719_roof",
+      "nome": "Rooftop",
+      "pesquisas": [
+        "pdvs",
+        "pdvs-granclass"
+      ],
+      "criada_em": "2026-07-29T17:00:29.726Z"
+    },
+    {
+      "id": "1785344429719_spa",
+      "nome": "Gran SPA",
+      "pesquisas": [
+        "spa"
+      ],
+      "criada_em": "2026-07-29T17:00:29.726Z"
+    },
+    {
+      "id": "1785344429719_ev_soc",
+      "nome": "Eventos Sociais",
+      "pesquisas": [
+        "eventos-sociais"
+      ],
+      "criada_em": "2026-07-29T17:00:29.726Z"
+    },
+    {
+      "id": "1785344429719_ev_corp",
+      "nome": "Eventos Corporativos",
+      "pesquisas": [
+        "eventos-corp"
+      ],
+      "criada_em": "2026-07-29T17:00:29.726Z"
+    }
   ]
 }
