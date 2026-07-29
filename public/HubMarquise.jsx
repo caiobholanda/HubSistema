@@ -132,6 +132,7 @@ const HUB_SYSTEMS = [
   statusLabel: 'Disponível',
   statusHint: 'Pode usar agora',
   url: 'https://sistema-chamados-granmarquise.fly.dev',
+  mobileAdminUrl: 'https://sistema-chamados-granmarquise.fly.dev/mobile',
   repo: 'caiobholanda/sistema-chamados',
   stack: ['Anexar fotos e prints', 'Acompanhar atendimento', 'Histórico de chamados', 'Acesso pelo navegador'],
   preview: 'tickets'
@@ -452,7 +453,7 @@ function HubLogin({ onLogin }) {
     borderRadius: 0,
     color: HUB_PALETTE.marfim,
     fontFamily: 'Inter, sans-serif',
-    fontSize: 14,
+    fontSize: 16,
     padding: '15px 16px',
     outline: 'none',
     transition: `border-color 300ms ${HUB_EASE}`,
@@ -1358,7 +1359,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
           </button>
         </div>
         {/* Tabs */}
-        <div style={{ display: 'flex', paddingLeft: isMobile ? 18 : 48, gap: 0, overflowX: 'auto' }}>
+        <div style={{ display: 'flex', padding: isMobile ? '0 18px' : '0 48px', gap: 0, overflowX: 'auto' }}>
           {ABAS.map(a => (
             <button key={a.id} onClick={() => { setAba(a.id); setEditingId(null); setAddingNew(false); setLinkErro(''); }}
               style={{ background: 'transparent', border: 'none', borderBottom: `2px solid ${aba === a.id ? HUB_PALETTE.champanhe : 'transparent'}`, color: aba === a.id ? HUB_PALETTE.champanhe : HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', padding: '12px 20px 10px', cursor: 'pointer', transition: `color 200ms, border-color 200ms` }}>
@@ -2541,7 +2542,7 @@ function SetoresPanel({ isMobile }) {
     {confirmar && (
       <div
         style={{ position: 'fixed', inset: 0, zIndex: 160, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-        <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, maxWidth: 420, width: '100%', padding: isMobile ? '24px 20px' : '32px 36px' }}>
+        <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, maxWidth: 420, width: '100%', maxHeight: '90vh', overflowY: 'auto', padding: isMobile ? '24px 20px' : '32px 36px' }}>
           <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: '#9C5843', marginBottom: 6 }}>Confirmar inativação</div>
           <h3 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontWeight: 300, fontSize: 22, color: HUB_PALETTE.marfim, margin: '0 0 14px', lineHeight: 1.25 }}>
             Inativar o setor "{confirmar.nome}"?
@@ -2631,7 +2632,7 @@ function SetorForm({ isMobile, cs, erro, saving, initialNome, isEdit, onCancel, 
   return (
     <div
       style={{ position: 'fixed', inset: 0, zIndex: 150, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-      <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, maxWidth: 460, width: '100%', padding: isMobile ? '24px 20px' : '32px 36px' }}>
+      <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, maxWidth: 460, width: '100%', maxHeight: '90vh', overflowY: 'auto', padding: isMobile ? '24px 20px' : '32px 36px' }}>
         <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 6 }}>Setor</div>
         <h3 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontWeight: 300, fontSize: 26, color: HUB_PALETTE.marfim, margin: '0 0 22px' }}>
           {isEdit ? 'Editar setor' : 'Informar novo setor'}
@@ -2840,7 +2841,7 @@ function FeriadosPanel({ isMobile }) {
     {/* Modal Confirmar exclusão */}
     {confirmar && (
       <div style={{ position: 'fixed', inset: 0, zIndex: 160, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-        <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, maxWidth: 420, width: '100%', padding: isMobile ? '24px 20px' : '32px 36px' }}>
+        <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, maxWidth: 420, width: '100%', maxHeight: '90vh', overflowY: 'auto', padding: isMobile ? '24px 20px' : '32px 36px' }}>
           <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 6 }}>Confirmar inativação</div>
           <h3 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontWeight: 300, fontSize: 22, color: HUB_PALETTE.marfim, margin: '0 0 14px', lineHeight: 1.25 }}>
             Inativar "{confirmar.nome}"?
@@ -2878,7 +2879,7 @@ function FeriadoForm({ isMobile, cs, erro, saving, initial, isEdit, onCancel, on
   }
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 150, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-      <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, maxWidth: 480, width: '100%', padding: isMobile ? '24px 20px' : '32px 36px' }}>
+      <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, maxWidth: 480, width: '100%', maxHeight: '90vh', overflowY: 'auto', padding: isMobile ? '24px 20px' : '32px 36px' }}>
         <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 6 }}>Feriado</div>
         <h3 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontWeight: 300, fontSize: 26, color: HUB_PALETTE.marfim, margin: '0 0 22px' }}>
           {isEdit ? 'Editar feriado' : 'Novo feriado'}
@@ -3029,7 +3030,7 @@ function AusenciasPanel({ isMobile }) {
 
     {confirmar && (
       <div style={{ position: 'fixed', inset: 0, zIndex: 160, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-        <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, maxWidth: 420, width: '100%', padding: isMobile ? '24px 20px' : '32px 36px' }}>
+        <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, maxWidth: 420, width: '100%', maxHeight: '90vh', overflowY: 'auto', padding: isMobile ? '24px 20px' : '32px 36px' }}>
           <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: '#9C5843', marginBottom: 6 }}>Confirmar exclusão</div>
           <h3 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontWeight: 300, fontSize: 22, color: HUB_PALETTE.marfim, margin: '0 0 14px' }}>
             Excluir "{confirmar.nome}"?
@@ -3061,7 +3062,7 @@ function AusenciaForm({ isMobile, cs, erro, saving, initial, isEdit, onCancel, o
   }, []);
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 150, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-      <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, maxWidth: 460, width: '100%', padding: isMobile ? '24px 20px' : '32px 36px' }}>
+      <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, maxWidth: 460, width: '100%', maxHeight: '90vh', overflowY: 'auto', padding: isMobile ? '24px 20px' : '32px 36px' }}>
         <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 6 }}>Tipo de ausência</div>
         <h3 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontWeight: 300, fontSize: 26, color: HUB_PALETTE.marfim, margin: '0 0 22px' }}>
           {isEdit ? 'Editar tipo' : 'Novo tipo'}
@@ -3523,7 +3524,7 @@ function CategoriaUHForm({ cat, isMobile, onSave, onCancel, saving, erro }) {
 
   return ReactDOM.createPortal(
     <div style={{ position: 'fixed', inset: 0, zIndex: 400, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-      <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, maxWidth: 500, width: '100%', padding: isMobile ? '28px 22px' : '40px 44px' }}>
+      <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, maxWidth: 500, width: '100%', maxHeight: '90vh', overflowY: 'auto', padding: isMobile ? '28px 22px' : '40px 44px' }}>
         <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.28em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 8 }}>Categoria de UH</div>
         <h3 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontWeight: 300, fontSize: 32, color: HUB_PALETTE.marfim, margin: '0 0 28px' }}>
           {isEdit ? 'Editar categoria' : 'Nova categoria'}
@@ -3876,7 +3877,7 @@ function UHsPanel({ isMobile }) {
             const cat = catMap[u.categoria_id] || {};
             const cor = cat.cor || HUB_PALETTE.areiaDim;
             return (
-              <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '14px 16px 14px 16px', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}15`, flexWrap: isPhone ? 'wrap' : 'nowrap', minWidth: 0, borderLeft: `4px solid ${cor}`, background: cor + '06' }}>
+              <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '14px 16px 14px 16px', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}15`, flexWrap: 'wrap', minWidth: 0, borderLeft: `4px solid ${cor}`, background: cor + '06' }}>
                 {/* Número */}
                 <div style={{ flexShrink: 0, minWidth: 100 }}>
                   <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 22, fontWeight: 700, color: HUB_PALETTE.marfim, letterSpacing: '-0.02em', lineHeight: 1 }}>{u.numero}</div>
@@ -3979,7 +3980,7 @@ function UHsPanel({ isMobile }) {
     {/* Confirmar exclusão */}
     {confirmar && ReactDOM.createPortal(
       <div style={{ position: 'fixed', inset: 0, zIndex: 210, background: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-        <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, maxWidth: 400, width: '100%', padding: isMobile ? '24px 20px' : '32px 36px' }}>
+        <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, maxWidth: 400, width: '100%', maxHeight: '90vh', overflowY: 'auto', padding: isMobile ? '24px 20px' : '32px 36px' }}>
           <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: '#9C5843', marginBottom: 6 }}>Confirmar exclusão</div>
           <h3 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontWeight: 300, fontSize: 22, color: HUB_PALETTE.marfim, margin: '0 0 10px' }}>
             {confirmar.tipo === 'uh' ? `Excluir UH ${confirmar.item.numero}?` : `Excluir categoria ${confirmar.item.sigla}?`}
@@ -4004,7 +4005,7 @@ function UHsPanel({ isMobile }) {
 
     {/* Toast */}
     {toast && (
-      <div style={{ position: 'fixed', bottom: 32, left: '50%', transform: 'translateX(-50%)', zIndex: 220, background: toast.err ? '#E07A5F' : HUB_PALETTE.champanhe, color: toast.err ? '#fff' : HUB_PALETTE.noite, fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase', padding: '12px 22px', whiteSpace: 'nowrap' }}>
+      <div style={{ position: 'fixed', bottom: 32, left: '50%', transform: 'translateX(-50%)', zIndex: 220, background: toast.err ? '#E07A5F' : HUB_PALETTE.champanhe, color: toast.err ? '#fff' : HUB_PALETTE.noite, fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase', padding: '12px 22px', maxWidth: 'calc(100vw - 32px)', textAlign: 'center' }}>
         {toast.msg}
       </div>
     )}
@@ -4235,7 +4236,7 @@ function TiposCortesiaPanel({ isMobile, isPhone }) {
         <div
           style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.55)', zIndex: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
         >
-          <div style={{ background: HUB_PALETTE.noiteAlt, padding: isMobile ? 24 : 36, minWidth: 320, maxWidth: 520, width: '100%', boxShadow: '0 32px 80px rgba(0,0,0,0.28)' }}>
+          <div style={{ background: HUB_PALETTE.noiteAlt, padding: isMobile ? 24 : 36, maxWidth: 520, width: '100%', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 32px 80px rgba(0,0,0,0.28)' }}>
             <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.35em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 24, display: 'flex', alignItems: 'center', gap: 10 }}>
               <span style={{ width: 14, height: 1, background: HUB_PALETTE.champanhe, flexShrink: 0 }} />
               Novo Tipo de Cortesia
@@ -4363,7 +4364,7 @@ function TiposCortesiaPanel({ isMobile, isPhone }) {
       )}
 
       {toast && ReactDOM.createPortal(
-        <div style={{ position: 'fixed', bottom: 32, left: '50%', transform: 'translateX(-50%)', zIndex: 300, background: toast.err ? '#C0392B' : HUB_PALETTE.champanhe, color: toast.err ? '#fff' : HUB_PALETTE.noite, fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase', padding: '12px 24px', pointerEvents: 'none', whiteSpace: 'nowrap' }}>
+        <div style={{ position: 'fixed', bottom: 32, left: '50%', transform: 'translateX(-50%)', zIndex: 300, background: toast.err ? '#C0392B' : HUB_PALETTE.champanhe, color: toast.err ? '#fff' : HUB_PALETTE.noite, fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase', padding: '12px 24px', pointerEvents: 'none', maxWidth: 'calc(100vw - 32px)', textAlign: 'center' }}>
           {toast.msg}
         </div>,
         document.body
@@ -4636,7 +4637,7 @@ function CortesiasPanel({ isMobile }) {
 
       {/* Toast */}
       {toast && ReactDOM.createPortal(
-        <div style={{ position: 'fixed', bottom: 32, left: '50%', transform: 'translateX(-50%)', zIndex: 300, background: toast.err ? '#C0392B' : HUB_PALETTE.champanhe, color: toast.err ? '#fff' : HUB_PALETTE.noite, fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase', padding: '12px 24px', pointerEvents: 'none', whiteSpace: 'nowrap' }}>
+        <div style={{ position: 'fixed', bottom: 32, left: '50%', transform: 'translateX(-50%)', zIndex: 300, background: toast.err ? '#C0392B' : HUB_PALETTE.champanhe, color: toast.err ? '#fff' : HUB_PALETTE.noite, fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase', padding: '12px 24px', pointerEvents: 'none', maxWidth: 'calc(100vw - 32px)', textAlign: 'center' }}>
           {toast.msg}
         </div>,
         document.body
@@ -5216,7 +5217,7 @@ function ContasPanel({ isMobile }) {
                   </div>
                 ) : null}
               </div>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0, flexWrap: 'wrap' }}>
                 <button onClick={() => setHistoricoUsuario({ id: row.id, nome: isAdmin ? row.nome_completo : row.nome, tipo: isAdmin ? 'admin' : 'usuario' })} style={cs.btnGhost}>Histórico</button>
                 <button onClick={() => startEdit(isAdmin ? 'admin' : 'usuario', row)} style={cs.btnGhost}>Editar</button>
                 {aguardandoAtivacao && (
@@ -5297,7 +5298,7 @@ function ContasPanel({ isMobile }) {
       return (
         <div
           style={{ position: 'fixed', inset: 0, zIndex: 170, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-          <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, maxWidth: 460, width: '100%', padding: isMobile ? '24px 20px' : '32px 36px' }}>
+          <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, maxWidth: 460, width: '100%', maxHeight: '90vh', overflowY: 'auto', padding: isMobile ? '24px 20px' : '32px 36px' }}>
             <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: cor, marginBottom: 6 }}>
               Confirmar {acaoLabel}
             </div>
@@ -5648,7 +5649,7 @@ function ContaForm({ tipo, isMobile, cs, erro, saving, initial, initialEtiquetas
           aria-label={isAdmin ? 'Ramal' : 'Ramal (4 dígitos)'}
           onChange={e => set('ramal', e.target.value.replace(/\D/g, ''))} maxLength={isAdmin ? 20 : 4} />
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginTop: 14 }}>
           <div>
             <label style={cs.label}>Cargo <span style={{ textTransform: 'none', letterSpacing: 0, opacity: .6 }}>(opcional)</span></label>
             <input style={{ ...cs.input, marginTop: 6 }} value={d.cargo || ''}
@@ -5667,7 +5668,7 @@ function ContaForm({ tipo, isMobile, cs, erro, saving, initial, initialEtiquetas
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginTop: 14 }}>
           <div>
             <label style={cs.label}>Admissão <span style={{ textTransform: 'none', letterSpacing: 0, opacity: .6 }}>(opcional)</span></label>
             <input type="date" style={{ ...cs.input, marginTop: 6 }} value={d.data_admissao || ''}
@@ -5682,7 +5683,7 @@ function ContaForm({ tipo, isMobile, cs, erro, saving, initial, initialEtiquetas
           </div>
         </div>
 
-        {d.setor && d.setor.toLowerCase().includes('spa') && <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 14 }}>
+        {d.setor && d.setor.toLowerCase().includes('spa') && <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginTop: 14 }}>
           <div>
             <label style={cs.label}>Vínculo <span style={{ textTransform: 'none', letterSpacing: 0, opacity: .6 }}>(opcional)</span></label>
             <select
@@ -6133,7 +6134,7 @@ function HubHero({ revealed, easterActive, isMobile, userName, sistemasVisiveis 
           </div>
         )}
       </div>
-      <div style={{ position: 'absolute', right: 48, top: 88, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontSize: 12, color: HUB_PALETTE.champanhe, letterSpacing: '0.04em', opacity: easterActive ? 0.6 : 0, transform: easterActive ? 'translateY(0)' : 'translateY(-6px)', transition: `all 800ms ${HUB_EASE}`, pointerEvents: 'none', display: typeof window !== 'undefined' && window.innerWidth < 768 ? 'none' : 'block' }}>
+      <div style={{ position: 'absolute', right: 48, top: 88, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontSize: 12, color: HUB_PALETTE.champanhe, letterSpacing: '0.04em', opacity: easterActive ? 0.6 : 0, transform: easterActive ? 'translateY(0)' : 'translateY(-6px)', transition: `all 800ms ${HUB_EASE}`, pointerEvents: 'none', display: isMobile ? 'none' : 'block' }}>
         em homenagem ao painel de 1992
       </div>
     </section>
@@ -6247,6 +6248,10 @@ function SystemPanel({ system, index, revealed, isMobile, userEmail, userTipo })
     const siteRole = parsedToken?.site_roles?.[system.id];
     if (system.terapeutaUrl && siteRole === 'massoterapeuta') {
       destUrl = system.terapeutaUrl;
+    } else if (isMobile && system.mobileAdminUrl) {
+      const isAdminRole = userTipo === 'admin' || siteRole === 'master' || siteRole === 'admin' || siteRole === 'satisfacao' || siteRole === 'spa';
+      const isAdminEmail = (system.adminEmails || []).includes(userEmail);
+      if (isAdminRole || isAdminEmail) destUrl = system.mobileAdminUrl;
     } else if (system.adminUrl) {
       const isAdminRole = siteRole === 'master' || siteRole === 'admin' || siteRole === 'satisfacao' || siteRole === 'spa';
       const isAdminEmail = (system.adminEmails || []).includes(userEmail);
@@ -6390,7 +6395,11 @@ function HubMarquise() {
   const [hubSystems, setHubSystems] = useState(HUB_SYSTEMS);
   const [userEmail, setUserEmail] = useState('');
   const seqRef = useRef('');
-  const isMobile = useWindowWidth() < 768;
+  const winW = useWindowWidth();
+  const isMobile = winW < 768;
+  // Etapa intermediaria: em tablets (768-1100px) o grid de 4 colunas ficava
+  // ilegivel (~100px uteis por painel). 2 colunas nessa faixa.
+  const gridCols = isMobile ? 1 : winW < 1100 ? 2 : 4;
 
   applyHubTheme(theme);
 
@@ -6593,9 +6602,9 @@ function HubMarquise() {
             <HubHero revealed={revealed} easterActive={easter} isMobile={isMobile} userName={userName} sistemasVisiveis={sistemasVisiveis} />
             <section style={{ maxWidth: 1400, margin: '0 auto', padding: isMobile ? '16px 18px 36px' : '12px 48px 48px' }}>
               <SectionLabel kicker="No ar" title="Pronto para usar." hint={isMobile ? null : 'Clique no painel para abrir o sistema em uma aba nova.'} />
-              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, 1fr)', gap: 0, borderTop: `1px solid ${HUB_PALETTE.areiaDim}2a` }}>
+              <div style={{ display: 'grid', gridTemplateColumns: `repeat(${gridCols}, 1fr)`, gap: 0, borderTop: `1px solid ${HUB_PALETTE.areiaDim}2a` }}>
                 {sistemasVisiveis.map((sys, i, arr) => (
-                  <div key={sys.id} style={{ borderBottom: `1px solid ${HUB_PALETTE.areiaDim}2a`, borderRight: !isMobile && i % 4 !== 3 && i < arr.length - 1 ? `1px solid ${HUB_PALETTE.areiaDim}2a` : 'none' }}>
+                  <div key={sys.id} style={{ borderBottom: `1px solid ${HUB_PALETTE.areiaDim}2a`, borderRight: gridCols > 1 && i % gridCols !== gridCols - 1 && i < arr.length - 1 ? `1px solid ${HUB_PALETTE.areiaDim}2a` : 'none' }}>
                     <SystemPanel system={sys} index={i} revealed={revealed} isMobile={isMobile} userEmail={userEmail} userTipo={userTipo} />
                   </div>
                 ))}
