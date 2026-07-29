@@ -2570,7 +2570,6 @@ function SetoresPanel({ isMobile }) {
     {/* Modal Confirmar inativação de setor */}
     {confirmar && (() => {
       const cntUsuarios = contagemUsuarios[confirmar.nome] || 0;
-      const temUsuarios = cntUsuarios > 0;
       return (
         <div style={{ position: 'fixed', inset: 0, zIndex: 160, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
           <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, maxWidth: 420, width: '100%', maxHeight: '90vh', overflowY: 'auto', padding: isMobile ? '24px 20px' : '32px 36px' }}>
@@ -2578,10 +2577,11 @@ function SetoresPanel({ isMobile }) {
             <h3 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontWeight: 300, fontSize: 22, color: HUB_PALETTE.marfim, margin: '0 0 14px', lineHeight: 1.25 }}>
               Inativar o setor "{confirmar.nome}"?
             </h3>
-            {temUsuarios ? (
-              <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#E07A5F', margin: '0 0 22px', lineHeight: 1.6 }}>
+            {cntUsuarios > 0 ? (
+              <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areia, margin: '0 0 22px', lineHeight: 1.6 }}>
                 Este setor possui {cntUsuarios} usuário{cntUsuarios !== 1 ? 's' : ''} ativo{cntUsuarios !== 1 ? 's' : ''}.<br />
-                Transfira os usuários para outro setor antes de realizar a inativação.
+                {cntUsuarios === 1 ? 'Esse usuário ficará' : 'Esses usuários ficarão'} sem setor após a inativação.<br />
+                Ao reativar, quem ainda estiver sem setor será restaurado automaticamente.
               </p>
             ) : (
               <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areia, margin: '0 0 22px', lineHeight: 1.5 }}>
@@ -2590,9 +2590,7 @@ function SetoresPanel({ isMobile }) {
             )}
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
               <button onClick={() => setConfirmar(null)} style={cs.btnGhost}>Cancelar</button>
-              {!temUsuarios && (
-                <button onClick={confirmarInativacao} style={{ ...cs.btnPrim, color: '#ECE4D2', fontFamily: 'Inter, sans-serif', letterSpacing: 'normal', textTransform: 'none' }}>Inativar</button>
-              )}
+              <button onClick={confirmarInativacao} style={{ ...cs.btnPrim, color: '#ECE4D2', fontFamily: 'Inter, sans-serif', letterSpacing: 'normal', textTransform: 'none' }}>Inativar</button>
             </div>
           </div>
         </div>
