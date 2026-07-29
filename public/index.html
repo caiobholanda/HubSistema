@@ -11,10 +11,12 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html { scroll-behavior: smooth; }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
     :root { --gm-bg: #202C28; }
     html[data-theme="light"] { --gm-bg: #ECE4D2; }
     body { background: var(--gm-bg); transition: background 600ms cubic-bezier(0.16,1,0.3,1); }
-    #root { min-height: 100vh; }
+    #root { min-height: 100vh; min-height: 100dvh; }
+    img { max-width: 100%; }
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: rgba(156,88,67,0.25); border-radius: 3px; }
@@ -60,7 +62,7 @@
   <script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone@7.29.7/babel.min.js"></script>
-  <script type="text/babel" data-presets="react" src="./HubMarquise.jsx?v=20260720m"></script>
+  <script type="text/babel" data-presets="react" src="./HubMarquise.jsx?v=20260729a"></script>
   <script>
     // Monta o React quando HubMarquise está disponível como global.
     // Timeout 8s de segurança: se não montar, mostra erro visível.

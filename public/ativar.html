@@ -28,6 +28,7 @@
     color: var(--marfim);
     font-family: Inter, sans-serif;
     min-height: 100vh;
+    min-height: 100dvh;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -67,7 +68,7 @@
 
   h1 {
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-    font-weight: 300; font-style: italic; font-size: 40px;
+    font-weight: 300; font-style: italic; font-size: clamp(30px, 9vw, 40px);
     letter-spacing: -0.02em; color: var(--marfim);
     margin: 0 0 20px; line-height: 1.05;
   }
@@ -83,7 +84,7 @@
     background: rgba(255,255,255,0.04);
     border: 1px solid rgba(138,123,106,0.27);
     border-radius: 0; color: var(--marfim);
-    font-family: Inter, sans-serif; font-size: 14px;
+    font-family: Inter, sans-serif; font-size: 16px;
     padding: 14px 16px; outline: none; margin-bottom: 16px;
     transition: border-color 300ms var(--ease);
   }
