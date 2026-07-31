@@ -53,6 +53,26 @@ function applyHubTheme(name) {
   Object.assign(HUB_PALETTE, HUB_THEMES[name] || HUB_THEMES.dark);
 }
 
+// Ciclo de vida do usuario no Hub — cores fixas (nao mudam com o tema).
+const HUB_STATUS_BADGE = {
+  precadastro:       { label: 'Pré-cadastro',      color: '#D4AC0D' },
+  ativacao_pendente: { label: 'Ativação pendente', color: '#E88B2A' },
+  ativo:             { label: 'Ativo',              color: '#62A852' },
+  bloqueado:         { label: 'Bloqueado',          color: '#5BA3CC' },
+  desligado:         { label: 'Desligado',          color: '#607D8B' },
+};
+// Nao confundir com o StatusBadge dos sistemas (no-ar/beta/etc) mais abaixo.
+function HubStatusBadge({ status, style }) {
+  const info = HUB_STATUS_BADGE[status];
+  if (!info) return null;
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: info.color, padding: '3px 10px 3px 8px', border: `1px solid ${info.color}44`, background: `${info.color}12`, ...style }}>
+      <span style={{ width: 5, height: 5, borderRadius: '50%', background: info.color, flexShrink: 0 }} />
+      {info.label}
+    </span>
+  );
+}
+
 // ─── Auth utils ──────────────────────────────────────────────────────────────
 // Decodifica JWT (parte central, base64url) com defesas para token malformado.
 // Retorna {} em qualquer falha — nunca lanca.
@@ -2635,12 +2655,9 @@ function SetorUsuariosModal({ setor, usuarios, isMobile, onClose }) {
           {usuarios.length === 0
             ? <div style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontSize: 15, color: HUB_PALETTE.areiaDim, padding: '32px 0', textAlign: 'center' }}>Nenhum usuário ativo neste setor.</div>
             : usuarios.map(u => {
-                const inicial = (u.nome || u.email || '?').charAt(0).toUpperCase();
                 return (
                   <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '11px 0', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}18` }}>
-                    <div style={{ width: 32, height: 32, borderRadius: '50%', background: `${HUB_PALETTE.champanhe}18`, border: `1px solid ${HUB_PALETTE.champanhe}44`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: HUB_PALETTE.champanhe, fontWeight: 600 }}>{inicial}</span>
-                    </div>
+                    <AvatarUsuario size={32} email={u.email} nome={u.nome} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.marfim, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{u.nome || '—'}</div>
                       <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, color: HUB_PALETTE.areiaDim, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -4576,7 +4593,6 @@ function CortesiasPanel({ isMobile }) {
             const nome = u.nome || u.nome_completo || '—';
             const temCortesia = cortesias.has(emailNorm);
             const isSaving = !!saving[emailNorm];
-            const iniciais = nome.split(' ').filter(Boolean).slice(0, 2).map(n => n[0]).join('').toUpperCase();
             const isAdmin = u.tipo === 'admin' || u.is_master;
             const prevEmail = idx > 0 ? (filtrados[idx - 1].email || '').toLowerCase() : null;
             const prevTemCortesia = prevEmail !== null ? cortesias.has(prevEmail) : null;
@@ -4605,9 +4621,7 @@ function CortesiasPanel({ isMobile }) {
                 <div style={{ width: 3, height: 36, background: temCortesia ? corAutorizado : 'transparent', flexShrink: 0, transition: 'background 300ms', borderRadius: 2 }} />
 
                 {/* Avatar */}
-                <div style={{ width: 36, height: 36, borderRadius: '50%', background: temCortesia ? `${corAutorizado}1A` : `${HUB_PALETTE.areiaDim}14`, border: `1px solid ${temCortesia ? corAutorizado + '44' : HUB_PALETTE.areiaDim + '22'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'JetBrains Mono, monospace', fontSize: 11, fontWeight: 500, color: temCortesia ? corAutorizado : HUB_PALETTE.areiaDim, flexShrink: 0, transition: 'all 300ms' }}>
-                  {iniciais}
-                </div>
+                <AvatarUsuario size={36} email={u.email} nome={nome} />
 
                 {/* Info */}
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -4772,7 +4786,7 @@ function AvatarUsuario({ nome, email, size = 40 }) {
     })();
     return () => { vivo = false; if (urlObj) URL.revokeObjectURL(urlObj); };
   }, [email, ver]);
-  const base = { width: size, height: size, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', border: '1px solid #D8C7AF', background: '#ECE4D2' };
+  const base = { width: size, height: size, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', border: `1px solid ${HUB_PALETTE.areiaDim}55`, background: HUB_PALETTE.noiteAlt };
   if (fotoSrc) {
     return (
       <div style={base}>
@@ -4783,14 +4797,14 @@ function AvatarUsuario({ nome, email, size = 40 }) {
   const iniciais = _avatarIniciais(nome);
   if (iniciais) {
     return (
-      <div style={{ ...base, color: '#202C28', fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: Math.round(size * 0.34), fontWeight: 500, letterSpacing: '0.03em' }} title={nome || ''} aria-label={nome || ''}>
+      <div style={{ ...base, color: HUB_PALETTE.marfim, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: Math.round(size * 0.34), fontWeight: 500, letterSpacing: '0.03em' }} title={nome || ''} aria-label={nome || ''}>
         {iniciais}
       </div>
     );
   }
   return (
     <div style={base} title={nome || ''} aria-label={nome || ''}>
-      <svg width={Math.round(size * 0.48)} height={Math.round(size * 0.48)} viewBox="0 0 24 24" fill="none" stroke="#202C28" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <svg width={Math.round(size * 0.48)} height={Math.round(size * 0.48)} viewBox="0 0 24 24" fill="none" stroke={HUB_PALETTE.marfim} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
       </svg>
     </div>
@@ -5217,15 +5231,7 @@ function ContasPanel({ isMobile }) {
           const hubStatus = !isAdmin ? (row.hub_status || null) : null;
           const bloqueado = hubStatus === 'bloqueado';
           const aguardandoAtivacao = hubStatus === 'ativacao_pendente';
-          const HUB_STATUS_BADGE = {
-            precadastro:       { label: 'Pré-cadastro',      color: '#D4AC0D' },
-            ativacao_pendente: { label: 'Ativação pendente', color: '#E88B2A' },
-            ativo:             { label: 'Ativo',              color: '#62A852' },
-            bloqueado:         { label: 'Bloqueado',          color: '#5BA3CC' },
-            desligado:         { label: 'Desligado',          color: '#607D8B' },
-          };
           const statusEfetivoRow = !isAdmin ? getStatusEfetivo(row) : null;
-          const statusBadgeInfo = statusEfetivoRow ? HUB_STATUS_BADGE[statusEfetivoRow] : null;
           return (
             <div key={row.id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '22px 4px', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, opacity: ativo ? 1 : 0.55, flexWrap: 'wrap' }}>
               <AvatarUsuario nome={isAdmin ? row.nome_completo : row.nome} email={row.email} />
@@ -5239,7 +5245,7 @@ function ContasPanel({ isMobile }) {
                       ? <span style={{ marginLeft: 10, display: 'inline-flex', alignItems: 'center', gap: 5, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: '#62A852', padding: '3px 10px 3px 8px', border: '1px solid #62A85244', background: '#62A85212', verticalAlign: 'middle' }}><span style={{ width: 5, height: 5, borderRadius: '50%', background: '#62A852', flexShrink: 0 }} />Ativo</span>
                       : <span style={{ marginLeft: 10, display: 'inline-flex', alignItems: 'center', gap: 5, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: '#607D8B', padding: '3px 10px 3px 8px', border: '1px solid #607D8B44', background: '#607D8B12', verticalAlign: 'middle' }}><span style={{ width: 5, height: 5, borderRadius: '50%', background: '#607D8B', flexShrink: 0 }} />Inativo</span>
                   ) : null}
-                  {!isAdmin && statusBadgeInfo ? <span style={{ marginLeft: 10, display: 'inline-flex', alignItems: 'center', gap: 5, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: statusBadgeInfo.color, padding: '3px 10px 3px 8px', border: `1px solid ${statusBadgeInfo.color}44`, background: `${statusBadgeInfo.color}12`, verticalAlign: 'middle' }}><span style={{ width: 5, height: 5, borderRadius: '50%', background: statusBadgeInfo.color, flexShrink: 0 }} />{statusBadgeInfo.label}</span> : null}
+                  {!isAdmin && statusEfetivoRow ? <HubStatusBadge status={statusEfetivoRow} style={{ marginLeft: 10, verticalAlign: 'middle' }} /> : null}
                 </div>
                 {/* Linha 2: Email */}
                 <div style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 14, color: HUB_PALETTE.areia, marginTop: 5, lineHeight: 1.4 }}>
@@ -5996,9 +6002,13 @@ function HistoricoUsuarioModal({ usuarioId, nome, isMobile, cs, onClose, tipo })
     <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.68)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
       <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, width: '100%', maxWidth: 820, maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
         <div style={{ padding: '18px 24px', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
-          <div>
-            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe }}>Histórico</div>
-            <div style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontSize: 22, color: HUB_PALETTE.marfim, marginTop: 4 }}>{nome}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 0 }}>
+            {/* Modal so recebe id/nome — sem email, avatar cai nas iniciais. */}
+            <AvatarUsuario size={40} nome={nome} />
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe }}>Histórico</div>
+              <div style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontSize: 22, color: HUB_PALETTE.marfim, marginTop: 4 }}>{nome}</div>
+            </div>
           </div>
           <button onClick={onClose} style={{ ...cs.btnGhost, fontFamily: 'Inter, sans-serif', letterSpacing: 'normal', textTransform: 'none' }}>Fechar</button>
         </div>
@@ -6077,7 +6087,101 @@ function Vazio({ msg }) { return <div style={{ padding: '40px 0', textAlign: 'ce
 
 // ─── Header ───────────────────────────────────────────────────────────────────
 
-function HubHeader({ theme, onToggleTheme, isMobile, userName, userTipo, onLogout, onOpenAdmin }) {
+// ─── Meu perfil ──────────────────────────────────────────────────────────────
+// Modal do proprio usuario logado: foto (upload/remocao via /api/me/avatar,
+// e-mail vem do token no backend) + status do ciclo de vida (/api/me).
+function MeuPerfilModal({ userName, userEmail, userTipo, onClose }) {
+  const email = String(userEmail || '').toLowerCase();
+  const [me, setMe] = useState(null);
+  const [fotoVer, setFotoVer] = useState(0);
+  const [enviou, setEnviou] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [erro, setErro] = useState('');
+  const fileRef = useRef(null);
+
+  useEffect(() => {
+    const lock = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = lock; };
+  }, []);
+  useEffect(() => {
+    const onKey = e => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+  useEffect(() => {
+    let vivo = true;
+    hubFetch('/api/me')
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (vivo && d && d.ok) setMe(d); })
+      .catch(() => {});
+    return () => { vivo = false; };
+  }, []);
+
+  async function onPickFoto(e) {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!/^image\//.test(file.type)) { setErro('Selecione uma imagem.'); return; }
+    setBusy(true); setErro('');
+    try {
+      const dataUrl = await _resizeImagem(file, 256, 0.85);
+      const r = await hubFetch('/api/me/avatar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ imagem: dataUrl }) });
+      const j = await r.json().catch(() => ({}));
+      if (r.ok && j.ok) { if (_avataresSet) _avataresSet.add(email); _bumpAvatarVer(email); setFotoVer(v => v + 1); setEnviou(true); }
+      else setErro(j.erro || 'Falha ao enviar a foto.');
+    } catch { setErro('Falha ao processar a imagem.'); }
+    setBusy(false);
+  }
+  async function removerFoto() {
+    setBusy(true); setErro('');
+    try {
+      const r = await hubFetch('/api/me/avatar', { method: 'DELETE' });
+      if (r.ok) { if (_avataresSet) _avataresSet.delete(email); _bumpAvatarVer(email); setFotoVer(v => v + 1); setEnviou(false); }
+      else setErro('Falha ao remover a foto.');
+    } catch { setErro('Falha ao remover a foto.'); }
+    setBusy(false);
+  }
+
+  const temAvatar = _temFoto(email) || enviou;
+  const nomeExib = (me && me.nome) || userName || '';
+  const emailExib = (me && me.email) || userEmail || '';
+  const btnGhost = { background: 'transparent', color: HUB_PALETTE.marfim, border: `1px solid ${HUB_PALETTE.areiaDim}77`, padding: '10px 18px', fontFamily: 'JetBrains Mono, monospace', fontSize: 11, fontWeight: 500, letterSpacing: '0.2em', textTransform: 'uppercase', cursor: 'pointer' };
+
+  return ReactDOM.createPortal(
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 210, background: 'rgba(0,0,0,0.68)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, width: '100%', maxWidth: 400, maxHeight: '90vh', overflowY: 'auto', padding: '32px 28px 24px', textAlign: 'center' }}>
+        <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.35em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 22 }}>Perfil — Hub Gran Marquise</div>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+          <AvatarUsuario key={fotoVer} nome={nomeExib} email={email} size={96} />
+        </div>
+        <div style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontWeight: 300, fontSize: 26, color: HUB_PALETTE.marfim, lineHeight: 1.2 }}>{nomeExib || '—'}</div>
+        <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: HUB_PALETTE.areiaDim, marginTop: 6 }}>{emailExib || '—'}</div>
+        {me && me.hub_status ? (
+          <div style={{ marginTop: 12 }}><HubStatusBadge status={me.hub_status} /></div>
+        ) : null}
+        <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={onPickFoto} />
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 22, flexWrap: 'wrap' }}>
+          <button type="button" disabled={busy} onClick={() => fileRef.current && fileRef.current.click()} style={{ ...btnGhost, cursor: busy ? 'not-allowed' : 'pointer' }}>
+            {busy ? 'Enviando…' : (temAvatar ? 'Trocar foto' : 'Enviar foto')}
+          </button>
+          {temAvatar && (
+            <button type="button" disabled={busy} onClick={removerFoto} style={{ ...btnGhost, color: '#E07A5F', borderColor: '#E07A5F55', cursor: busy ? 'not-allowed' : 'pointer' }}>
+              {busy ? '…' : 'Remover foto'}
+            </button>
+          )}
+        </div>
+        {erro && <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: '#E07A5F', marginTop: 12 }}>{erro}</div>}
+        <div style={{ borderTop: `1px solid ${HUB_PALETTE.areiaDim}22`, marginTop: 24, paddingTop: 16 }}>
+          <button type="button" onClick={onClose} style={btnGhost}>Fechar</button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+function HubHeader({ theme, onToggleTheme, isMobile, userName, userEmail, userTipo, onLogout, onOpenAdmin }) {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 1000);
@@ -6088,6 +6192,7 @@ function HubHeader({ theme, onToggleTheme, isMobile, userName, userTipo, onLogou
   const horaFmt = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Fortaleza', hour: '2-digit', minute: '2-digit' }).format(now);
   const dataHora = `${dataFmt} · ${horaFmt}`;
   const primeiroNome = userName ? userName.split(' ')[0] : '';
+  const [perfilOpen, setPerfilOpen] = useState(false);
 
   return (
     <header style={{ position: 'sticky', top: 0, zIndex: 50, backdropFilter: 'blur(10px)', background: HUB_PALETTE.headerBg, borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22` }}>
@@ -6101,7 +6206,13 @@ function HubHeader({ theme, onToggleTheme, isMobile, userName, userTipo, onLogou
         </a>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           {!isMobile && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, letterSpacing: '0.1em', color: HUB_PALETTE.marfim, fontVariantNumeric: 'tabular-nums' }} title="Horário de Fortaleza">{dataHora}</span>}
-          {!isMobile && primeiroNome && <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: HUB_PALETTE.areiaDim }}>{primeiroNome}</span>}
+          {/* Visivel tambem no mobile — so o texto some. */}
+          <button type="button" onClick={() => setPerfilOpen(true)} title="Meu perfil"
+            style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, padding: 0 }}>
+            <AvatarUsuario size={32} email={userEmail} nome={userName} />
+            {!isMobile && primeiroNome && <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: HUB_PALETTE.areiaDim }}>{primeiroNome}</span>}
+          </button>
+          {perfilOpen && <MeuPerfilModal userName={userName} userEmail={userEmail} userTipo={userTipo} onClose={() => setPerfilOpen(false)} />}
 
           {/* Engrenagem — só para admins */}
           {userTipo === 'admin' && (
@@ -6632,6 +6743,7 @@ function HubMarquise() {
             onToggleTheme={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
             isMobile={isMobile}
             userName={userName}
+            userEmail={userEmail}
             userTipo={userTipo}
             onLogout={handleLogout}
             onOpenAdmin={() => setShowAdmin(true)}

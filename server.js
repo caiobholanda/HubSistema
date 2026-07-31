@@ -724,6 +724,12 @@ function _sessaoHubValida(req) {
   if (!t) return false;
   try { jwt.verify(t, SSO_SECRET); return true; } catch { return false; }
 }
+function _sessaoHubPayload(req) {
+  const a = req.headers.authorization || '';
+  const t = a.startsWith('Bearer ') ? a.slice(7) : null;
+  if (!t) return null;
+  try { return jwt.verify(t, SSO_SECRET); } catch { return null; }
+}
 const EMAIL_GM = /^[^@\s]+@granmarquise\.com\.br$/;
 function _avatarFilename(email) { return crypto.createHash('sha1').update(email).digest('hex') + '.jpg'; }
 app.get('/api/foto/disponivel', (req, res) => {
@@ -768,17 +774,16 @@ app.get('/api/foto', async (req, res) => {
     return res.end(buf);
   } catch { return res.status(502).end(); }
 });
-// Upload de avatar manual (admin). Recebe imagem ja redimensionada (dataURL base64).
-app.post('/api/avatar', requireAdmin, (req, res) => {
-  const email = String((req.body && req.body.email) || '').trim().toLowerCase();
-  const imagem = (req.body && req.body.imagem) || '';
-  if (!EMAIL_GM.test(email)) return res.status(400).json({ ok: false, erro: 'e-mail inválido' });
+// Validacao da imagem + gravacao + audit compartilhadas entre a rota admin e o
+// auto-atendimento (/api/me/avatar). Retorna { status, body }.
+function _definirAvatar(email, imagem, autorEmail, autorNome) {
+  if (!EMAIL_GM.test(email)) return { status: 400, body: { ok: false, erro: 'e-mail inválido' } };
   // So JPEG: o front sempre envia JPEG (canvas.toDataURL), e servimos como
   // image/jpeg — evita descasar o Content-Type sob X-Content-Type-Options nosniff.
   const m = /^data:image\/jpe?g;base64,(.+)$/i.exec(imagem);
-  if (!m) return res.status(400).json({ ok: false, erro: 'imagem inválida' });
+  if (!m) return { status: 400, body: { ok: false, erro: 'imagem inválida' } };
   const buf = Buffer.from(m[1], 'base64');
-  if (!buf.length || buf.length > 800 * 1024) return res.status(400).json({ ok: false, erro: 'imagem muito grande (máx. 800KB)' });
+  if (!buf.length || buf.length > 800 * 1024) return { status: 400, body: { ok: false, erro: 'imagem muito grande (máx. 800KB)' } };
   try {
     const fn = _avatarFilename(email);
     fs.writeFileSync(path.join(AVATARES_DIR, fn), buf);
@@ -786,20 +791,64 @@ app.post('/api/avatar', requireAdmin, (req, res) => {
     if (!data.avatares || typeof data.avatares !== 'object') data.avatares = {};
     data.avatares[email] = fn;
     writeData(data);
-    appendAudit({ by_email: req.hubUser.email, by_nome: req.hubUser.nome, action: 'avatar_definir', target_tipo: 'avatar', target_id: null, target_nome: email, campos: {} });
-    res.json({ ok: true });
-  } catch { res.status(500).json({ ok: false, erro: 'erro ao salvar' }); }
-});
-app.delete('/api/avatar', requireAdmin, (req, res) => {
-  const email = String(req.query.email || (req.body && req.body.email) || '').trim().toLowerCase();
-  if (!email) return res.status(400).json({ ok: false, erro: 'e-mail obrigatório' });
+    appendAudit({ by_email: autorEmail, by_nome: autorNome, action: 'avatar_definir', target_tipo: 'avatar', target_id: null, target_nome: email, campos: {} });
+    return { status: 200, body: { ok: true } };
+  } catch { return { status: 500, body: { ok: false, erro: 'erro ao salvar' } }; }
+}
+function _removerAvatarDe(email, autorEmail, autorNome) {
   try {
     const data = readData();
     const fn = data.avatares && data.avatares[email];
     if (fn) { try { fs.unlinkSync(path.join(AVATARES_DIR, fn)); } catch {} delete data.avatares[email]; writeData(data); }
-    appendAudit({ by_email: req.hubUser.email, by_nome: req.hubUser.nome, action: 'avatar_remover', target_tipo: 'avatar', target_id: null, target_nome: email, campos: {} });
-    res.json({ ok: true });
-  } catch { res.status(500).json({ ok: false, erro: 'erro' }); }
+    appendAudit({ by_email: autorEmail, by_nome: autorNome, action: 'avatar_remover', target_tipo: 'avatar', target_id: null, target_nome: email, campos: {} });
+    return { status: 200, body: { ok: true } };
+  } catch { return { status: 500, body: { ok: false, erro: 'erro' } }; }
+}
+// Upload de avatar manual (admin). Recebe imagem ja redimensionada (dataURL base64).
+app.post('/api/avatar', requireAdmin, (req, res) => {
+  const email = String((req.body && req.body.email) || '').trim().toLowerCase();
+  const imagem = (req.body && req.body.imagem) || '';
+  const r = _definirAvatar(email, imagem, req.hubUser.email, req.hubUser.nome);
+  res.status(r.status).json(r.body);
+});
+app.delete('/api/avatar', requireAdmin, (req, res) => {
+  const email = String(req.query.email || (req.body && req.body.email) || '').trim().toLowerCase();
+  if (!email) return res.status(400).json({ ok: false, erro: 'e-mail obrigatório' });
+  const r = _removerAvatarDe(email, req.hubUser.email, req.hubUser.nome);
+  res.status(r.status).json(r.body);
+});
+// Auto-atendimento: o proprio usuario logado define/remove SEU avatar.
+// O e-mail vem SEMPRE do JWT (payload.email) — o body.email é ignorado.
+app.post('/api/me/avatar', (req, res) => {
+  const payload = _sessaoHubPayload(req);
+  if (!payload) return res.status(401).json({ ok: false, error: 'Sessão inválida' });
+  const email = String(payload.email || '').trim().toLowerCase();
+  if (!EMAIL_GM.test(email)) return res.status(400).json({ ok: false, erro: 'e-mail inválido' });
+  const r = _definirAvatar(email, (req.body && req.body.imagem) || '', email, payload.nome);
+  res.status(r.status).json(r.body);
+});
+app.delete('/api/me/avatar', (req, res) => {
+  const payload = _sessaoHubPayload(req);
+  if (!payload) return res.status(401).json({ ok: false, error: 'Sessão inválida' });
+  const email = String(payload.email || '').trim().toLowerCase();
+  const r = _removerAvatarDe(email, email, payload.nome);
+  res.status(r.status).json(r.body);
+});
+// Dados basicos do usuario logado (para a tela de perfil no front).
+app.get('/api/me', (req, res) => {
+  const payload = _sessaoHubPayload(req);
+  if (!payload) return res.status(401).json({ ok: false, error: 'Sessão inválida' });
+  const emailNorm = String(payload.email || '').trim().toLowerCase();
+  let u = null;
+  try { u = (readData().users || []).find(x => String(x.email || '').trim().toLowerCase() === emailNorm) || null; } catch {}
+  res.json({
+    ok: true,
+    nome: payload.nome,
+    email: payload.email,
+    tipo: payload.tipo,
+    setor: (u && u.setor) || null,
+    hub_status: (u && u.hub_status) || 'ativo'
+  });
 });
 
 app.get('/api/me/sistemas', (req, res) => {
