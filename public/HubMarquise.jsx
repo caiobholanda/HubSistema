@@ -745,7 +745,7 @@ function LinkForm({ form, setForm, onSave, onCancel, linkErro, linkSaving, setor
         <div>
           <div style={labelStyle}>Status *</div>
           <select value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))} style={{ ...inputStyle, cursor: 'pointer' }}>
-            {Object.entries(STATUS_LABELS).map(([v, l]) => <option key={v} value={v} style={optStyle}>{l}</option>)}
+            {[['no-ar', 'Ativo'], ['inativo', 'Inativo']].map(([v, l]) => <option key={v} value={v} style={optStyle}>{l}</option>)}
           </select>
         </div>
         <div style={{ gridColumn: '1 / -1' }}>
