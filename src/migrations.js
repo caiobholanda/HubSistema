@@ -70,4 +70,36 @@ function migrarSsoSistemas(data) {
   return data;
 }
 
-module.exports = { migrarSlugs, SISTEMA_SLUG_RENAMES, migrarSsoSistemas, ssoPadrao, SSO_SISTEMA_IDS, SSO_ORIGINS };
+// Tipos de ausencia ganharam soft-delete (campo `ativo`). Carimba `true` nos
+// registros antigos para que o `antes` das edicoes ja tenha a chave — sem isso
+// o diff de auditoria acusaria uma "mudanca" de ativo que ninguem fez.
+function migrarAusenciasAtivo(data) {
+  if (!data || !Array.isArray(data.ausencias)) return data;
+  for (const a of data.ausencias) {
+    if (a && a.ativo === undefined) a.ativo = true;
+  }
+  return data;
+}
+
+// Alinha a lista do Hub com as siglas que a escala do SPA sempre usou:
+// - "AA" (Abono Aniversário) existe na escala desde o inicio mas nunca foi
+//   cadastrada no Hub — sem ela, a escala nao poderia adotar o Hub como fonte.
+// - O seed antigo batizou FE de "Feriados", mas na escala FE sempre foi Férias
+//   (feriados de calendario tem aba propria no Hub). Renomeia so se ninguem
+//   mexeu no nome (igualdade exata com o texto do seed antigo).
+function migrarAusenciasSpa(data) {
+  if (!data || !Array.isArray(data.ausencias)) return data;
+  const temAA = data.ausencias.some(a => a && a.sigla === 'AA');
+  if (!temAA) {
+    // Id DETERMINISTICO: a migration roda em memoria a cada readData() e so
+    // persiste na proxima escrita. Com id aleatorio, cada leitura recriava AA
+    // com id diferente e o PUT/desativar dava 404 ate alguem gravar o arquivo.
+    data.ausencias.push({ id: 'mig_aa_abono', nome: 'Abono Aniversário', sigla: 'AA', ativo: true });
+  }
+  for (const a of data.ausencias) {
+    if (a && a.sigla === 'FE' && a.nome === 'Feriados') a.nome = 'Férias';
+  }
+  return data;
+}
+
+module.exports = { migrarSlugs, SISTEMA_SLUG_RENAMES, migrarSsoSistemas, ssoPadrao, SSO_SISTEMA_IDS, SSO_ORIGINS, migrarAusenciasAtivo, migrarAusenciasSpa };

@@ -3092,10 +3092,10 @@ function AusenciasPanel({ isMobile }) {
   const [lista, setLista] = useState(null);
   const [editing, setEditing] = useState(null);
   const [creating, setCreating] = useState(false);
-  const [confirmar, setConfirmar] = useState(null);
   const [saving, setSaving] = useState(false);
   const [erro, setErro] = useState('');
   const [toast, setToast] = useState('');
+  const [filtro, setFiltro] = useState('ativos'); // 'ativos' | 'inativos'
 
   function token() { return localStorage.getItem('hub_sso_token'); }
   function notify(msg, isErr) { setToast({ msg, err: !!isErr }); setTimeout(() => setToast(''), 2800); }
@@ -3131,15 +3131,21 @@ function AusenciasPanel({ isMobile }) {
     setSaving(false);
   }
 
-  async function confirmarExclusao() {
-    if (!confirmar) return;
-    const id = confirmar.id;
-    setConfirmar(null);
+  // Soft-delete no lugar de exclusao: a sigla pode estar gravada em celulas
+  // historicas da escala do SPA — apagar o tipo deixaria essas celulas sem
+  // nome/legenda. Desativar tira do seletor e de novas gravacoes, mas preserva
+  // o historico. Reversivel, entao dispensa modal de confirmacao.
+  async function toggleAtivo(a) {
+    const novoAtivo = a.ativo === false;
     try {
-      const r = await fetch(`/api/admin/ausencias/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token()}` } });
+      const r = await fetch(`/api/admin/ausencias/${a.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
+        body: JSON.stringify({ nome: a.nome, sigla: a.sigla, ativo: novoAtivo }),
+      });
       const d = await r.json().catch(() => ({}));
-      if (!r.ok || !d.ok) { notify(d.erro || 'Erro ao excluir', true); return; }
-      notify('Tipo excluído');
+      if (!r.ok || !d.ok) { notify(d.erro || 'Erro ao salvar', true); return; }
+      notify(novoAtivo ? 'Tipo reativado' : 'Tipo desativado');
       await carregar();
     } catch { notify('Erro de conexão', true); }
   }
@@ -3167,48 +3173,67 @@ function AusenciasPanel({ isMobile }) {
       <button onClick={() => { setErro(''); setCreating(true); }} style={cs.btnPrim}>+ Novo tipo</button>
     </div>
 
+    {/* Filtro Ativos / Inativos — mesmo padrao da aba Links */}
+    {(() => {
+      const itens = lista || [];
+      const nAtivos = itens.filter(a => a.ativo !== false).length;
+      const nInativos = itens.filter(a => a.ativo === false).length;
+      const tabs = [{ id: 'ativos', label: 'Ativos', count: nAtivos }, { id: 'inativos', label: 'Inativos', count: nInativos }];
+      return (
+        <div style={{ display: 'flex', gap: 0, marginBottom: 0, borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22` }}>
+          {tabs.map(t => {
+            const active = filtro === t.id;
+            return (
+              <button key={t.id} onClick={() => setFiltro(t.id)}
+                style={{ background: 'transparent', border: 'none', borderBottom: `2px solid ${active ? HUB_PALETTE.champanhe : 'transparent'}`, color: active ? HUB_PALETTE.champanhe : HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', padding: '10px 20px 8px', cursor: 'pointer', transition: 'color 200ms, border-color 200ms', display: 'flex', alignItems: 'center', gap: 8 }}>
+                {t.label}
+                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, background: active ? `${HUB_PALETTE.champanhe}20` : `${HUB_PALETTE.areiaDim}15`, color: active ? HUB_PALETTE.champanhe : HUB_PALETTE.areiaDim, padding: '1px 6px', borderRadius: 2, transition: 'background 200ms, color 200ms' }}>{t.count}</span>
+              </button>
+            );
+          })}
+        </div>
+      );
+    })()}
+
     {lista === null ? (
       <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.2em', color: HUB_PALETTE.areiaDim, textTransform: 'uppercase', padding: '40px 0' }}>Carregando...</div>
-    ) : lista.length === 0 ? (
-      <div style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontSize: 16, color: HUB_PALETTE.areiaDim, padding: '40px 0' }}>Nenhum tipo cadastrado ainda.</div>
-    ) : (
-      <div style={{ display: 'flex', flexDirection: 'column', borderTop: `1px solid ${HUB_PALETTE.areiaDim}22` }}>
-        {lista.map(a => (
-          <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px 4px', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, flexWrap: 'wrap' }}>
-            <div style={{ minWidth: 48, textAlign: 'center', padding: '4px 10px', background: HUB_PALETTE.champanhe + '18', border: `1px solid ${HUB_PALETTE.champanhe}44`, fontFamily: 'JetBrains Mono, monospace', fontSize: 13, fontWeight: 700, letterSpacing: '0.12em', color: HUB_PALETTE.champanhe }}>
+    ) : (() => {
+      const visiveis = lista.filter(a => filtro === 'ativos' ? a.ativo !== false : a.ativo === false);
+      if (visiveis.length === 0) return (
+        <div style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontSize: 16, color: HUB_PALETTE.areiaDim, padding: '40px 0' }}>
+          {filtro === 'ativos' ? 'Nenhum tipo ativo.' : 'Nenhum tipo desativado.'}
+        </div>
+      );
+      return (
+      <div style={{ display: 'flex', flexDirection: 'column' }}>
+        {visiveis.map(a => {
+          const inativo = a.ativo === false;
+          return (
+          <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px 4px', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, flexWrap: 'wrap', opacity: inativo ? 0.55 : 1 }}>
+            <div style={{ minWidth: 48, textAlign: 'center', padding: '4px 10px', background: inativo ? HUB_PALETTE.areiaDim + '15' : HUB_PALETTE.champanhe + '18', border: `1px solid ${inativo ? HUB_PALETTE.areiaDim + '44' : HUB_PALETTE.champanhe + '44'}`, fontFamily: 'JetBrains Mono, monospace', fontSize: 13, fontWeight: 700, letterSpacing: '0.12em', color: inativo ? HUB_PALETTE.areiaDim : HUB_PALETTE.champanhe }}>
               {a.sigla}
             </div>
             <div style={{ flex: 1, minWidth: 180, fontFamily: 'Inter, sans-serif', fontSize: 16, color: HUB_PALETTE.marfim, fontWeight: 500 }}>
               {a.nome}
             </div>
             <button onClick={() => { setErro(''); setEditing(a); }} style={{ ...cs.btnGhost, padding: '8px 16px', fontSize: 11 }}>Editar</button>
-            <button onClick={() => setConfirmar({ id: a.id, nome: a.nome })} style={{ ...cs.btnDanger, padding: '8px 16px', fontSize: 11 }}>Excluir</button>
+            {inativo ? (
+              <button onClick={() => toggleAtivo(a)} style={{ ...cs.btnGhost, padding: '8px 16px', fontSize: 11, color: '#4CAF87', borderColor: '#4CAF8788' }}>Reativar</button>
+            ) : (
+              <button onClick={() => toggleAtivo(a)} style={{ ...cs.btnDanger, padding: '8px 16px', fontSize: 11 }}>Desativar</button>
+            )}
           </div>
-        ))}
+          );
+        })}
       </div>
-    )}
+      );
+    })()}
 
     {(creating || editing) && (
       <AusenciaForm isMobile={isMobile} cs={cs} erro={erro} saving={saving}
         initial={editing || null} isEdit={!!editing}
         onCancel={fechar}
         onSave={salvar} />
-    )}
-
-    {confirmar && (
-      <div style={{ position: 'fixed', inset: 0, zIndex: 160, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-        <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, maxWidth: 420, width: '100%', maxHeight: '90vh', overflowY: 'auto', padding: isMobile ? '24px 20px' : '32px 36px' }}>
-          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: '#9C5843', marginBottom: 6 }}>Confirmar exclusão</div>
-          <h3 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontWeight: 300, fontSize: 22, color: HUB_PALETTE.marfim, margin: '0 0 14px' }}>
-            Excluir "{confirmar.nome}"?
-          </h3>
-          <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areia, margin: '0 0 22px', lineHeight: 1.5 }}>Esta ação não pode ser desfeita.</p>
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-            <button onClick={() => setConfirmar(null)} style={cs.btnGhost}>Cancelar</button>
-            <button onClick={confirmarExclusao} style={{ ...cs.btnPrim, background: '#E07A5F', color: '#fff' }}>Excluir</button>
-          </div>
-        </div>
-      </div>
     )}
 
     {toast && (

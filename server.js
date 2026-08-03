@@ -42,7 +42,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // ─── Helpers de persistência ────────────────────────────────────────────────
 
-const { migrarSlugs, migrarSsoSistemas, ssoPadrao } = require('./src/migrations');
+const { migrarSlugs, migrarSsoSistemas, ssoPadrao, migrarAusenciasAtivo, migrarAusenciasSpa } = require('./src/migrations');
 const sitePerm = require('./src/site-permissions');
 
 const HUB_DATA_TMP = HUB_DATA_FILE + '.tmp';
@@ -194,6 +194,8 @@ function _parseDataFile(filePath) {
   const data = JSON.parse(raw);
   migrarSlugs(data);
   migrarSsoSistemas(data);
+  migrarAusenciasAtivo(data);
+  migrarAusenciasSpa(data);
   sitePerm.migrarSitePermissoes(data);
   sitePerm.migrarSitePermissoesV2(data);
   sitePerm.migrarPermissionsV3(data);
@@ -1655,6 +1657,22 @@ app.get('/api/hub/feriados', (req, res) => {
   res.json({ ok: true, anos, feriados: feriados.map(f => ({ id: f.id, data: f.data, nome: f.nome, tipo: f.tipo || 'nacional' })) });
 });
 
+// S2S: tipos de ausencia para a escala do Gran Spa. Mesmo modelo de auth de
+// feriados/site-roles: Bearer === SSO_SECRET. Devolve TODOS os tipos com a flag
+// `ativo` — o SPA precisa dos inativos para renderizar celulas historicas
+// (nome/tooltip), mas so oferece os ativos no seletor e em novas gravacoes.
+app.get('/api/hub/ausencias', (req, res) => {
+  const auth = req.headers.authorization || '';
+  const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
+  if (!token || token !== SSO_SECRET) return res.status(403).json({ ok: false, erro: 'Acesso negado' });
+  const data = readData();
+  const ausencias = (Array.isArray(data.ausencias) ? data.ausencias : [])
+    .filter(a => a && a.sigla)
+    .slice().sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'pt-BR'))
+    .map(a => ({ id: a.id, nome: a.nome, sigla: a.sigla, ativo: a.ativo !== false }));
+  res.json({ ok: true, ausencias });
+});
+
 // ─── Feriados (CRUD) ─────────────────────────────────────────────────────────
 
 const FERIADOS_TIPOS = new Set(['nacional', 'estadual', 'municipal', 'interno']);
@@ -1778,9 +1796,10 @@ app.post('/api/admin/ausencias', requireAdmin, (req, res) => {
   const data = readData();
   if (!Array.isArray(data.ausencias)) data.ausencias = [];
   const siglaUp = sigla.trim().toUpperCase();
-  if (data.ausencias.some(a => a.sigla === siglaUp)) return res.status(409).json({ ok: false, erro: 'Já existe um tipo com esta sigla' });
+  // Unicidade so entre ativos — permite recriar uma sigla aposentada.
+  if (data.ausencias.some(a => a.sigla === siglaUp && a.ativo !== false)) return res.status(409).json({ ok: false, erro: 'Já existe um tipo ativo com esta sigla' });
   const id = Date.now() + '_' + Math.random().toString(36).slice(2, 8);
-  const ausencia = { id, nome: nome.trim(), sigla: siglaUp };
+  const ausencia = { id, nome: nome.trim(), sigla: siglaUp, ativo: true };
   data.ausencias.push(ausencia);
   writeData(data);
   appendAudit({ by_email: req.hubUser.email, by_nome: req.hubUser.nome, action: 'criar', target_tipo: 'ausencia', target_id: id, target_nome: nome.trim(), campos: { sigla: siglaUp } });
@@ -1789,7 +1808,7 @@ app.post('/api/admin/ausencias', requireAdmin, (req, res) => {
 
 app.put('/api/admin/ausencias/:id', requireAdmin, (req, res) => {
   const { id } = req.params;
-  const { nome, sigla } = req.body || {};
+  const { nome, sigla, ativo } = req.body || {};
   if (!nome || !sigla) return res.status(400).json({ ok: false, erro: 'nome e sigla obrigatórios' });
   if (!/^[A-Za-zÀ-ÿ0-9]{1,4}$/.test(sigla.trim())) return res.status(400).json({ ok: false, erro: 'sigla inválida (1–4 caracteres alfanuméricos)' });
   const data = readData();
@@ -1797,10 +1816,25 @@ app.put('/api/admin/ausencias/:id', requireAdmin, (req, res) => {
   const idx = data.ausencias.findIndex(a => a.id === id);
   if (idx === -1) return res.status(404).json({ ok: false, erro: 'Tipo não encontrado' });
   const siglaUp = sigla.trim().toUpperCase();
-  if (data.ausencias.some((a, i) => a.sigla === siglaUp && i !== idx)) return res.status(409).json({ ok: false, erro: 'Já existe um tipo com esta sigla' });
-  data.ausencias[idx] = { ...data.ausencias[idx], nome: nome.trim(), sigla: siglaUp };
+  // A sigla so precisa ser unica entre os tipos ATIVOS: tipo desativado nao
+  // aparece na legenda nem no seletor da escala, entao nao conflita — e exigir
+  // unicidade global impediria recriar um "X" depois de aposentar o antigo.
+  const ficaraAtivo = ativo !== undefined ? !!ativo : data.ausencias[idx].ativo !== false;
+  if (ficaraAtivo && data.ausencias.some((a, i) => a.sigla === siglaUp && i !== idx && a.ativo !== false)) {
+    return res.status(409).json({ ok: false, erro: 'Já existe um tipo ativo com esta sigla' });
+  }
+  const antes = { ...data.ausencias[idx] };
+  data.ausencias[idx] = { ...data.ausencias[idx], nome: nome.trim(), sigla: siglaUp, ...(ativo !== undefined ? { ativo: !!ativo } : {}) };
   writeData(data);
-  appendAudit({ by_email: req.hubUser.email, by_nome: req.hubUser.nome, action: 'editar', target_tipo: 'ausencia', target_id: id, target_nome: nome.trim(), campos: { sigla: siglaUp } });
+  // Deriva ativar/inativar quando a unica mudanca foi o soft-delete — mesma
+  // convencao dos links (facilita leitura do historico).
+  const diff = {};
+  for (const k of ['nome', 'sigla', 'ativo']) {
+    if (antes[k] !== data.ausencias[idx][k]) diff[k] = data.ausencias[idx][k];
+  }
+  const keys = Object.keys(diff);
+  const action = keys.length === 1 && keys[0] === 'ativo' ? (diff.ativo ? 'ativar' : 'inativar') : 'editar';
+  appendAudit({ by_email: req.hubUser.email, by_nome: req.hubUser.nome, action, target_tipo: 'ausencia', target_id: id, target_nome: nome.trim(), campos: diff });
   res.json({ ok: true, ausencia: data.ausencias[idx] });
 });
 
@@ -2183,8 +2217,9 @@ _sanitizarAuditLog();
   try {
     const data = readData();
     if (Array.isArray(data.ausencias) && data.ausencias.length > 0) return;
+    // Mesmo conjunto de siglas que a escala do SPA usa (escala-spa.html).
     const SEED = [
-      { nome: 'Feriados', sigla: 'FE' },
+      { nome: 'Férias', sigla: 'FE' },
       { nome: 'Atestado Médico', sigla: 'AT' },
       { nome: 'Compensação Hora', sigla: 'CH' },
       { nome: 'Comp. Feriado', sigla: 'CF' },
@@ -2192,10 +2227,12 @@ _sanitizarAuditLog();
       { nome: 'Falta', sigla: 'F' },
       { nome: 'Licença Casamento', sigla: 'LC' },
       { nome: 'Licença Sindical', sigla: 'LS' },
+      { nome: 'Abono Aniversário', sigla: 'AA' },
     ];
     data.ausencias = SEED.map((a, i) => ({
       id: (Date.now() + i) + '_' + Math.random().toString(36).slice(2, 8),
       ...a,
+      ativo: true,
     }));
     writeData(data);
     console.log('[init] ausencias inicializadas com seed');
