@@ -487,6 +487,11 @@ function notifyUser(email, sistemas) {
   if (client) client.write(`event: permissions\ndata: ${JSON.stringify({ sistemas })}\n\n`);
 }
 
+function broadcastToAll(eventName, data) {
+  const payload = `event: ${eventName}\ndata: ${JSON.stringify(data)}\n\n`;
+  sseClients.forEach(res => { try { res.write(payload); } catch {} });
+}
+
 // ─── Middleware admin ────────────────────────────────────────────────────────
 
 function requireAdmin(req, res, next) {
@@ -2341,6 +2346,38 @@ _sanitizarAuditLog();
     console.error('[migrar] falha ao migrar vista:', e.message);
   }
 }());
+
+// ─── Atualizações dos sistemas ────────────────────────────────────────────────
+app.get('/api/updates', (req, res) => {
+  const token = (req.headers.authorization || '').replace('Bearer ', '');
+  if (!token) return res.status(401).json({ ok: false, erro: 'Não autenticado' });
+  try { jwt.verify(token, SSO_SECRET); } catch { return res.status(401).json({ ok: false, erro: 'Token inválido' }); }
+  const data = readData();
+  res.json({ ok: true, updates: data.updates || [] });
+});
+
+app.post('/api/admin/updates', requireAdmin, (req, res) => {
+  const { sistemaId, sistemaNome, tipo, titulo, descricao } = req.body || {};
+  if (!descricao?.trim()) return res.status(400).json({ ok: false, erro: 'Descrição obrigatória' });
+  const data = readData();
+  if (!Array.isArray(data.updates)) data.updates = [];
+  const update = {
+    id: Date.now(),
+    sistemaId: sistemaId || 'hub',
+    sistemaNome: sistemaNome || 'Hub',
+    tipo: tipo || 'feat',
+    titulo: titulo?.trim() || undefined,
+    descricao: descricao.trim(),
+    ts: new Date().toISOString(),
+    by: req.hubUser.email,
+  };
+  data.updates.unshift(update);
+  if (data.updates.length > 100) data.updates = data.updates.slice(0, 100);
+  writeData(data);
+  broadcastToAll('update', update);
+  appendAudit({ by_email: req.hubUser.email, by_nome: req.hubUser.nome || req.hubUser.email, action: 'nova_atualizacao', target_tipo: 'update', target_id: String(update.id), target_nome: update.titulo || update.descricao.slice(0, 40), campos: {} });
+  res.json({ ok: true, update });
+});
 
 // ─── Ativação de conta Hub-nativo ────────────────────────────────────────────
 // GET /ativar é servido via express.static → public/ativar.html (antes do catch-all).

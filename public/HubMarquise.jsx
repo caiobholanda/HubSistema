@@ -153,7 +153,7 @@ const HUB_SYSTEMS = [
   statusHint: 'Pode usar agora',
   url: 'https://sistema-chamados-granmarquise.fly.dev',
   mobileAdminUrl: 'https://sistema-chamados-granmarquise.fly.dev/mobile',
-  repo: 'caiobholanda/sistema-chamados',
+  repo: 'Hotel-Gran-Marquise/hub-helpdesk',
   stack: ['Anexar fotos e prints', 'Acompanhar atendimento', 'Histórico de chamados', 'Acesso pelo navegador'],
   preview: 'tickets'
 },
@@ -168,7 +168,7 @@ const HUB_SYSTEMS = [
   statusLabel: 'Disponível',
   statusHint: 'Pode usar agora',
   url: 'https://diretorio-ramais-granmarquise.fly.dev',
-  repo: 'caiobholanda/ListaRamais',
+  repo: 'Hotel-Gran-Marquise/hub-contatos',
   stack: ['Busca por nome ou setor', 'Ramais e contatos'],
   preview: 'directory'
 },
@@ -186,7 +186,7 @@ const HUB_SYSTEMS = [
   adminUrl: 'https://pesquisa-satisfacao.fly.dev/admin',
   terapeutaUrl: 'https://pesquisa-satisfacao.fly.dev/terapeuta',
   adminEmails: ['estagio.ti@granmarquise.com.br', 'suporte.ti@granmarquise.com.br', 'richard@granmarquise.com.br'],
-  repo: 'caiobholanda/PesquisaSatisfacao',
+  repo: 'Hotel-Gran-Marquise/hub-spa',
   stack: ['Avaliação pós-tratamento', 'Painel de relatórios', 'Gestão de massoterapeutas'],
   preview: 'tickets'
 }];
@@ -6393,6 +6393,8 @@ function NewUpdateModal({ hubSystems, onSave, onClose }) {
   const [titulo, setTitulo] = useState('');
   const [descricao, setDescricao] = useState('');
   const [visible, setVisible] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveErro, setSaveErro] = useState('');
 
   useEffect(() => {
     const id = requestAnimationFrame(() => setVisible(true));
@@ -6404,20 +6406,25 @@ function NewUpdateModal({ hubSystems, onSave, onClose }) {
     setTimeout(onClose, 320);
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
-    if (!descricao.trim()) return;
+    if (!descricao.trim() || saving) return;
+    setSaving(true);
+    setSaveErro('');
     const sistema = sistemasNoAr.find(s => s.id === sistemaId);
-    onSave({
-      id: Date.now(),
-      sistemaId,
-      sistemaNome: sistema ? sistema.nome : 'Hub',
-      tipo,
-      titulo: titulo.trim() || undefined,
-      descricao: descricao.trim(),
-      ts: new Date().toISOString(),
-    });
-    handleClose();
+    try {
+      await onSave({
+        sistemaId,
+        sistemaNome: sistema ? sistema.nome : 'Hub',
+        tipo,
+        titulo: titulo.trim() || undefined,
+        descricao: descricao.trim(),
+      });
+      handleClose();
+    } catch (err) {
+      setSaveErro(err.message || 'Erro ao publicar');
+      setSaving(false);
+    }
   }
 
   const inputStyle = { width: '100%', background: `${HUB_PALETTE.noite}aa`, border: `1px solid ${HUB_PALETTE.areiaDim}33`, color: HUB_PALETTE.marfim, fontFamily: 'Inter, sans-serif', fontSize: 13, padding: '9px 12px', outline: 'none', boxSizing: 'border-box' };
