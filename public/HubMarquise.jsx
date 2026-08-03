@@ -890,6 +890,27 @@ function LinkEditModal({ sys, form, setForm, onSave, onCancel, linkErro, linkSav
   );
 }
 
+function LinkCreateModal({ form, setForm, onSave, onCancel, linkErro, linkSaving, isMobile, setoresLista }) {
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 185, background: 'rgba(0,0,0,0.68)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, overflow: 'hidden' }}>
+      <div style={{ background: HUB_PALETTE.noite, border: `1px solid ${HUB_PALETTE.areiaDim}33`, maxWidth: 680, width: '100%', maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div style={{ flexShrink: 0, padding: '18px 24px', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, background: HUB_PALETTE.noite }}>
+          <div>
+            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe }}>Novo link</div>
+            <div style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontSize: 22, color: HUB_PALETTE.marfim, marginTop: 4 }}>Adicionar sistema ao Hub.</div>
+          </div>
+          <button onClick={onCancel} aria-label="Fechar" style={{ background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}33`, color: HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 14, padding: '6px 12px', cursor: 'pointer' }}>×</button>
+        </div>
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
+          <div style={{ padding: isMobile ? '12px' : '4px 24px 8px' }}>
+            <LinkForm form={form} setForm={setForm} onSave={onSave} onCancel={onCancel} linkErro={linkErro} linkSaving={linkSaving} setoresLista={setoresLista} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Aba LIBERACAO: gerencia papeis (admin/usuario) por email para um sistema.
 // Le e escreve no banco do Hub via /api/admin/site-permissions.
 // LiberacaoPanel: gerencia APENAS quem tem cookie de admin no sistema.
@@ -1461,7 +1482,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
 
         {/* ── Aba Links ── */}
         {aba === 'links' && (<>
-          <div style={{ marginBottom: addingNew ? 24 : 40 }}>
+          <div style={{ marginBottom: 40 }}>
             <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.35em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
               <span style={{ width: 18, height: 1, background: HUB_PALETTE.champanhe }} />Gerenciar Links
             </div>
@@ -1472,22 +1493,13 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
                   Edite os sistemas existentes ou adicione novos links ao Hub.
                 </p>
               </div>
-              {!addingNew && (
-                <button onClick={() => { setAddingNew(true); setEditingId(null); setLinkErro(''); }}
-                  style={{ flexShrink: 0, marginBottom: 2, display: 'inline-flex', alignItems: 'center', gap: 8, background: '#996442', border: '1px solid #996442', color: '#ECE4D2', fontFamily: 'Inter, sans-serif', fontSize: 12, letterSpacing: 'normal', textTransform: 'none', padding: '10px 20px', cursor: 'pointer' }}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                  Adicionar novo link
-                </button>
-              )}
+              <button onClick={() => { setAddingNew(true); setEditingId(null); setLinkErro(''); }}
+                style={{ flexShrink: 0, marginBottom: 2, display: 'inline-flex', alignItems: 'center', gap: 8, background: '#996442', border: '1px solid #996442', color: '#ECE4D2', fontFamily: 'Inter, sans-serif', fontSize: 12, letterSpacing: 'normal', textTransform: 'none', padding: '10px 20px', cursor: 'pointer' }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Adicionar novo link
+              </button>
             </div>
           </div>
-
-          {addingNew && (
-            <div style={{ marginBottom: 32 }}>
-              <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 16 }}>Novo link</div>
-              <LinkForm form={newForm} setForm={setNewForm} onSave={saveNew} onCancel={() => { setAddingNew(false); setLinkErro(''); }} linkErro={linkErro} linkSaving={linkSaving} />
-            </div>
-          )}
 
           {/* Filtro Ativos / Inativos */}
           {(() => {
@@ -1754,6 +1766,11 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
             linkErro={linkErro} linkSaving={linkSaving} isMobile={isMobile} users={users} setoresLista={setoresLista} />
         );
       })()}
+      {addingNew && (
+        <LinkCreateModal form={newForm} setForm={setNewForm} onSave={saveNew}
+          onCancel={() => { setAddingNew(false); setLinkErro(''); }}
+          linkErro={linkErro} linkSaving={linkSaving} isMobile={isMobile} setoresLista={setoresLista} />
+      )}
     </div>
   );
 }
