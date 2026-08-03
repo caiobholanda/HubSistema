@@ -6666,7 +6666,7 @@ function UpdatesFeed({ updates, onClose, userTipo, onOpenNewUpdate, isMobile, on
               Sistema · Changelog
             </div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 11 }}>
-              <span style={{ fontFamily: "'Georgia', 'Times New Roman', serif", fontStyle: 'italic', fontWeight: 400, fontSize: isMobile ? 22 : 26, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim }}>
+              <span style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'normal', fontWeight: 300, fontSize: isMobile ? 22 : 26, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim }}>
                 Atualizações
               </span>
               <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: HUB_PALETTE.noite, background: HUB_PALETTE.champanhe, padding: '2px 8px', fontWeight: 700, lineHeight: 1.6 }}>
@@ -6706,7 +6706,7 @@ function UpdatesFeed({ updates, onClose, userTipo, onOpenNewUpdate, isMobile, on
           {updates.length === 0 ? (
             <div style={{ padding: '72px 32px', textAlign: 'center' }}>
               <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 28, color: HUB_PALETTE.areiaDim, opacity: 0.2, marginBottom: 14 }}>◇</div>
-              <div style={{ fontFamily: "'Georgia', serif", fontStyle: 'italic', fontSize: 14, color: HUB_PALETTE.areiaDim }}>Nenhuma atualização recente.</div>
+              <div style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontWeight: 300, fontSize: 14, color: HUB_PALETTE.areiaDim }}>Nenhuma atualização recente.</div>
             </div>
           ) : updates.map((u, i) => {
             const tipo = UPDATE_TIPO[u.tipo] || UPDATE_TIPO.fix;
@@ -6770,14 +6770,14 @@ function UpdatesFeed({ updates, onClose, userTipo, onOpenNewUpdate, isMobile, on
 
                 {/* Título */}
                 {u.titulo && (
-                  <div style={{ fontFamily: "'Georgia', 'Times New Roman', serif", fontWeight: 400, fontSize: isMobile ? 15 : 17, color: HUB_PALETTE.marfim, lineHeight: 1.38, marginBottom: 9, letterSpacing: '-0.01em' }}>
+                  <div style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 400, fontSize: isMobile ? 15 : 17, color: HUB_PALETTE.marfim, lineHeight: 1.38, marginBottom: 9, letterSpacing: '-0.01em' }}>
                     {u.titulo}
                   </div>
                 )}
 
                 {/* Descrição */}
                 {u.descricao && (
-                  <div style={{ fontFamily: "'Georgia', 'Times New Roman', serif", fontStyle: 'italic', fontSize: 13, lineHeight: 1.70, color: HUB_PALETTE.areia }}>
+                  <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, lineHeight: 1.68, color: HUB_PALETTE.areia }}>
                     {u.descricao}
                   </div>
                 )}
