@@ -19,12 +19,14 @@ jobs:
           flyctl volumes list --app hub-granmarquise || true
           echo "=== releases ==="
           flyctl releases list --app hub-granmarquise --json | jq '.[0:3]' || true
-      - name: Redeploy em MIA (GRU sem capacity)
+      - name: Criar volume hub_data em MIA e redeploy
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
+          echo "=== Criando volume hub_data em MIA ==="
+          flyctl volumes create hub_data --region mia --size 1 --app hub-granmarquise --yes
+          echo "=== Atualizando região e deployando ==="
           sed -i "s/primary_region = 'gru'/primary_region = 'mia'/" fly.toml
-          cat fly.toml | grep primary_region
           flyctl deploy --remote-only
       - name: Verificar resultado
         env:
