@@ -2014,6 +2014,15 @@ app.delete('/api/admin/tipos-cortesia/:id', requireAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
+// Atualizações — GET deve ficar antes do catch-all SPA.
+app.get('/api/updates', (req, res) => {
+  const token = (req.headers.authorization || '').replace('Bearer ', '');
+  if (!token) return res.status(401).json({ ok: false, erro: 'Não autenticado' });
+  try { jwt.verify(token, SSO_SECRET); } catch { return res.status(401).json({ ok: false, erro: 'Token inválido' }); }
+  const data = readData();
+  res.json({ ok: true, updates: data.updates || [] });
+});
+
 // Página de ativação de conta — servida antes do catch-all SPA.
 app.get('/ativar', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'ativar.html')));
 
@@ -2348,14 +2357,6 @@ _sanitizarAuditLog();
 }());
 
 // ─── Atualizações dos sistemas ────────────────────────────────────────────────
-app.get('/api/updates', (req, res) => {
-  const token = (req.headers.authorization || '').replace('Bearer ', '');
-  if (!token) return res.status(401).json({ ok: false, erro: 'Não autenticado' });
-  try { jwt.verify(token, SSO_SECRET); } catch { return res.status(401).json({ ok: false, erro: 'Token inválido' }); }
-  const data = readData();
-  res.json({ ok: true, updates: data.updates || [] });
-});
-
 app.post('/api/admin/updates', requireAdmin, (req, res) => {
   const { sistemaId, sistemaNome, tipo, titulo, descricao } = req.body || {};
   if (!descricao?.trim()) return res.status(400).json({ ok: false, erro: 'Descrição obrigatória' });
