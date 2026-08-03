@@ -6320,7 +6320,7 @@ const MOCK_UPDATES = [
   },
   {
     id: 2,
-    sistemaId: 'sistema-chamados',
+    sistemaId: 'chamados',
     sistemaNome: 'Helpdesk',
     tipo: 'fix',
     titulo: 'Spinner travado no Estoque e Inventário',
@@ -6329,7 +6329,7 @@ const MOCK_UPDATES = [
   },
   {
     id: 1,
-    sistemaId: 'sistema-chamados',
+    sistemaId: 'chamados',
     sistemaNome: 'Helpdesk',
     tipo: 'fix',
     titulo: 'Botões de ação paravam de funcionar',
