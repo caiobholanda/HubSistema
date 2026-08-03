@@ -6181,7 +6181,7 @@ function MeuPerfilModal({ userName, userEmail, userTipo, onClose }) {
   );
 }
 
-function HubHeader({ theme, onToggleTheme, isMobile, userName, userEmail, userTipo, onLogout, onOpenAdmin, updatesCount, onOpenFeed, onOpenNewUpdate }) {
+function HubHeader({ theme, onToggleTheme, isMobile, userName, userEmail, userTipo, onLogout, onOpenAdmin, updatesCount, onOpenFeed }) {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 1000);
@@ -6223,17 +6223,6 @@ function HubHeader({ theme, onToggleTheme, isMobile, userName, userEmail, userTi
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
               </svg>
-            </button>
-          )}
-
-          {/* Botão nova atualização — apenas admins */}
-          {userTipo === 'admin' && (
-            <button type="button" onClick={onOpenNewUpdate} title="Publicar nova atualização"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'transparent', border: `1px solid ${HUB_PALETTE.champanhe}44`, padding: isMobile ? '0 8px' : '0 12px', height: 34, color: HUB_PALETTE.champanhe, cursor: 'pointer', fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', transition: `background 250ms ease, border-color 250ms ease`, whiteSpace: 'nowrap' }}
-              onMouseEnter={e => { e.currentTarget.style.background = HUB_PALETTE.champanhe + '18'; e.currentTarget.style.borderColor = HUB_PALETTE.champanhe + '88'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = HUB_PALETTE.champanhe + '44'; }}>
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              {!isMobile && 'Atualização'}
             </button>
           )}
 
@@ -6487,7 +6476,7 @@ function NewUpdateModal({ hubSystems, onSave, onClose }) {
   );
 }
 
-function UpdatesFeed({ updates, onClose }) {
+function UpdatesFeed({ updates, onClose, userTipo, onOpenNewUpdate, isMobile }) {
   const [visible, setVisible] = useState(false);
   useEffect(() => {
     const id = requestAnimationFrame(() => setVisible(true));
@@ -6496,61 +6485,85 @@ function UpdatesFeed({ updates, onClose }) {
 
   function handleClose() {
     setVisible(false);
-    setTimeout(onClose, 340);
+    setTimeout(onClose, 300);
   }
 
+  const top = isMobile ? 62 : 73;
+  const right = isMobile ? 8 : 48;
+  const width = isMobile ? 'calc(100vw - 16px)' : 540;
+
   return (
-    <>
-      <div onClick={handleClose} style={{ position: 'fixed', inset: 0, zIndex: 199, background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)', opacity: visible ? 1 : 0, transition: 'opacity 280ms ease' }} />
-      <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: '100%', maxWidth: 420, background: HUB_PALETTE.noiteAlt, zIndex: 200, display: 'flex', flexDirection: 'column', transform: visible ? 'translateX(0)' : 'translateX(40px)', opacity: visible ? 1 : 0, transition: `transform 380ms cubic-bezier(0.16,1,0.3,1), opacity 280ms ease`, boxShadow: '-32px 0 80px -20px rgba(0,0,0,0.55)', borderLeft: `1px solid ${HUB_PALETTE.areiaDim}22` }}>
-        <div style={{ padding: '28px 28px 20px', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}1a`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-          <div>
-            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 6 }}>Sistema · Changelog</div>
-            <div style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 300, fontSize: 22, letterSpacing: '-0.015em', color: HUB_PALETTE.marfim, display: 'flex', alignItems: 'center', gap: 12 }}>
-              Atualizações
-              <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.05em', color: HUB_PALETTE.noite, background: HUB_PALETTE.champanhe, padding: '1px 7px', fontWeight: 600, lineHeight: 1.6 }}>{updates.length}</span>
-            </div>
+    <div style={{
+      position: 'fixed',
+      top,
+      right,
+      width,
+      maxHeight: 'calc(100vh - 90px)',
+      background: HUB_PALETTE.noiteAlt,
+      zIndex: 200,
+      display: 'flex',
+      flexDirection: 'column',
+      transform: visible ? 'translateY(0) scale(1)' : 'translateY(-10px) scale(0.97)',
+      opacity: visible ? 1 : 0,
+      transition: 'transform 320ms cubic-bezier(0.16,1,0.3,1), opacity 240ms ease',
+      boxShadow: '0 20px 70px -15px rgba(0,0,0,0.75), 0 4px 16px -4px rgba(0,0,0,0.4)',
+      border: `1px solid ${HUB_PALETTE.areiaDim}28`,
+      transformOrigin: 'top right',
+    }}>
+      {/* Header */}
+      <div style={{ padding: '20px 24px 16px', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}1a`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+        <div>
+          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 5 }}>Sistema · Changelog</div>
+          <div style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 300, fontSize: 20, letterSpacing: '-0.015em', color: HUB_PALETTE.marfim, display: 'flex', alignItems: 'center', gap: 10 }}>
+            Atualizações
+            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: HUB_PALETTE.noite, background: HUB_PALETTE.champanhe, padding: '1px 6px', fontWeight: 700, lineHeight: 1.7 }}>{updates.length}</span>
           </div>
-          <button type="button" onClick={handleClose}
-            style={{ background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}33`, borderRadius: '50%', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', color: HUB_PALETTE.areiaDim, cursor: 'pointer', padding: 0, flexShrink: 0 }}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+          {userTipo === 'admin' && (
+            <button type="button" onClick={onOpenNewUpdate} title="Publicar nova atualização"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'transparent', border: `1px solid ${HUB_PALETTE.champanhe}44`, padding: '0 11px', height: 30, color: HUB_PALETTE.champanhe, cursor: 'pointer', fontFamily: 'JetBrains Mono, monospace', fontSize: 8, letterSpacing: '0.18em', textTransform: 'uppercase', whiteSpace: 'nowrap', transition: 'background 220ms, border-color 220ms' }}
+              onMouseEnter={e => { e.currentTarget.style.background = HUB_PALETTE.champanhe + '1a'; e.currentTarget.style.borderColor = HUB_PALETTE.champanhe + '88'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = HUB_PALETTE.champanhe + '44'; }}>
+              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Nova
+            </button>
+          )}
+          <button type="button" onClick={handleClose} title="Fechar"
+            style={{ background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}33`, borderRadius: '50%', width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', color: HUB_PALETTE.areiaDim, cursor: 'pointer', padding: 0, flexShrink: 0, transition: 'border-color 200ms, color 200ms' }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = HUB_PALETTE.champanhe + '66'; e.currentTarget.style.color = HUB_PALETTE.champanhe; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = HUB_PALETTE.areiaDim + '33'; e.currentTarget.style.color = HUB_PALETTE.areiaDim; }}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
         </div>
-
-        <div style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}>
-          {updates.length === 0 ? (
-            <div style={{ padding: '48px 28px', textAlign: 'center', color: HUB_PALETTE.areiaDim, fontFamily: 'Inter, sans-serif', fontSize: 14 }}>Nenhuma atualização recente.</div>
-          ) : updates.map((u, i) => {
-            const tipo = UPDATE_TIPO[u.tipo] || UPDATE_TIPO.fix;
-            return (
-              <div key={u.id} style={{ display: 'flex', gap: 16, padding: '18px 28px', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}12`, opacity: 0, animation: `hubSlideDown 420ms cubic-bezier(0.16,1,0.3,1) ${i * 55 + 60}ms both` }}>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0, paddingTop: 2 }}>
-                  <div style={{ width: 22, height: 22, borderRadius: '50%', flexShrink: 0, background: `${tipo.cor}18`, border: `1px solid ${tipo.cor}44`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: tipo.cor, fontWeight: 600 }}>{tipo.glyph}</div>
-                  {i < updates.length - 1 && <div style={{ width: 1, flex: 1, minHeight: 16, background: `${HUB_PALETTE.areiaDim}18`, margin: '4px 0' }} />}
-                </div>
-                <div style={{ flex: 1, minWidth: 0, paddingBottom: 2 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
-                    <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 8, letterSpacing: '0.22em', textTransform: 'uppercase', color: tipo.cor, padding: '1px 6px', border: `1px solid ${tipo.cor}40`, background: `${tipo.cor}10` }}>{tipo.label}</span>
-                    <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim }}>{u.sistemaNome}</span>
-                  </div>
-                  {u.titulo && <div style={{ fontFamily: 'Inter, sans-serif', fontWeight: 500, fontSize: 13, color: HUB_PALETTE.marfim, lineHeight: 1.35, marginBottom: 5 }}>{u.titulo}</div>}
-                  <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, lineHeight: 1.55, color: HUB_PALETTE.areia }}>{u.descricao}</div>
-                  <div style={{ marginTop: 8, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: HUB_PALETTE.areiaDim, letterSpacing: '0.08em' }}>{fmtRelativo(u.ts)}</div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        <div style={{ padding: '14px 28px', borderTop: `1px solid ${HUB_PALETTE.areiaDim}1a`, flexShrink: 0 }}>
-          <div style={{ fontFamily: 'Inter, sans-serif', fontStyle: 'italic', fontSize: 12, color: HUB_PALETTE.areiaDim, lineHeight: 1.5 }}>
-            Integração com backend em breve — atualizações em tempo real.
-          </div>
-        </div>
       </div>
-    </>
+
+      {/* Lista */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '6px 0' }}>
+        {updates.length === 0 ? (
+          <div style={{ padding: '44px 24px', textAlign: 'center', color: HUB_PALETTE.areiaDim, fontFamily: 'Inter, sans-serif', fontSize: 13 }}>Nenhuma atualização recente.</div>
+        ) : updates.map((u, i) => {
+          const tipo = UPDATE_TIPO[u.tipo] || UPDATE_TIPO.fix;
+          return (
+            <div key={u.id} style={{ display: 'flex', gap: 14, padding: '16px 24px', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}12`, opacity: 0, animation: `hubSlideDown 380ms cubic-bezier(0.16,1,0.3,1) ${i * 45 + 40}ms both` }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0, paddingTop: 2 }}>
+                <div style={{ width: 20, height: 20, borderRadius: '50%', flexShrink: 0, background: `${tipo.cor}18`, border: `1px solid ${tipo.cor}44`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: tipo.cor, fontWeight: 600 }}>{tipo.glyph}</div>
+                {i < updates.length - 1 && <div style={{ width: 1, flex: 1, minHeight: 14, background: `${HUB_PALETTE.areiaDim}18`, margin: '4px 0' }} />}
+              </div>
+              <div style={{ flex: 1, minWidth: 0, paddingBottom: 2 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5, flexWrap: 'wrap' }}>
+                  <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 8, letterSpacing: '0.22em', textTransform: 'uppercase', color: tipo.cor, padding: '1px 5px', border: `1px solid ${tipo.cor}40`, background: `${tipo.cor}10` }}>{tipo.label}</span>
+                  <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 8, letterSpacing: '0.12em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim }}>{u.sistemaNome}</span>
+                </div>
+                {u.titulo && <div style={{ fontFamily: 'Inter, sans-serif', fontWeight: 500, fontSize: 13, color: HUB_PALETTE.marfim, lineHeight: 1.35, marginBottom: 4 }}>{u.titulo}</div>}
+                <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, lineHeight: 1.55, color: HUB_PALETTE.areia }}>{u.descricao}</div>
+                <div style={{ marginTop: 7, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: HUB_PALETTE.areiaDim, letterSpacing: '0.08em' }}>{fmtRelativo(u.ts)}</div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -7045,9 +7058,8 @@ function HubMarquise() {
               const now = new Date().toISOString();
               try { localStorage.setItem('hub_updates_seen_at', now); } catch {}
               setSeenAt(now);
-              setFeedOpen(true);
+              setFeedOpen(v => !v);
             }}
-            onOpenNewUpdate={() => setNewUpdateOpen(true)}
           />
           <main style={{ position: 'relative' }}>
             <HubDecoration />
@@ -7064,7 +7076,7 @@ function HubMarquise() {
             </section>
             <HubFooter easterActive={easter} isMobile={isMobile} />
           </main>
-          {feedOpen && <UpdatesFeed updates={visibleUpdates} onClose={() => setFeedOpen(false)} />}
+          {feedOpen && <UpdatesFeed updates={visibleUpdates} onClose={() => setFeedOpen(false)} userTipo={userTipo} onOpenNewUpdate={() => setNewUpdateOpen(true)} isMobile={isMobile} />}
           {newUpdateOpen && <NewUpdateModal
             hubSystems={hubSystems}
             onSave={async u => {
