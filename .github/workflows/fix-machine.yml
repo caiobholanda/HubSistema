@@ -9,31 +9,32 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: superfly/flyctl-actions/setup-flyctl@master
-      - name: Listar machines
-        env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-        run: flyctl machine list --app hub-granmarquise
-      - name: Tentar machine run direto com volume
+      - name: Diagnostico
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
-          # Descobre a ultima imagem deployada
-          IMAGE=$(flyctl releases list --app hub-granmarquise --json 2>/dev/null | jq -r '.[0].ImageRef' 2>/dev/null || echo "")
-          if [ -z "$IMAGE" ] || [ "$IMAGE" = "null" ]; then
-            IMAGE="registry.fly.io/hub-granmarquise:latest"
+          echo "=== machines ==="
+          flyctl machine list --app hub-granmarquise || true
+          echo "=== volumes ==="
+          flyctl volumes list --app hub-granmarquise || true
+          echo "=== releases ==="
+          flyctl releases list --app hub-granmarquise --json | jq '.[0:3]' || true
+      - name: Tentar criar volume novo e redeploy
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          echo "Tentando criar novo volume hub_data_2 em GRU..."
+          NEW_VOL=$(flyctl volumes create hub_data_2 --region gru --size 1 --app hub-granmarquise --json 2>/dev/null | jq -r '.id' || echo "")
+          echo "Novo volume: $NEW_VOL"
+          if [ -z "$NEW_VOL" ] || [ "$NEW_VOL" = "null" ]; then
+            echo "Falha ao criar volume em GRU - GRU sem capacity"
+            exit 1
           fi
-          echo "Usando imagem: $IMAGE"
-          flyctl machine run "$IMAGE" \
-            --app hub-granmarquise \
-            --region gru \
-            --volume vol_rkgj7okkq839k6o4:/app/data \
-            --port 443:3000/tcp:tls:http \
-            --port 80:3000/tcp:http \
-            --vm-size shared-cpu-1x \
-            --vm-memory 256 || true
-      - name: Aguardar e verificar
+          echo "Volume criado! Atualizando fly.toml..."
+          sed -i "s/source = \"hub_data\"/source = \"hub_data_2\"/" fly.toml
+          cat fly.toml | grep source
+          flyctl deploy --remote-only
+      - name: Verificar resultado
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-        run: |
-          sleep 15
-          flyctl machine list --app hub-granmarquise
+        run: flyctl machine list --app hub-granmarquise || true
