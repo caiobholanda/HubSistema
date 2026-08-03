@@ -6572,6 +6572,11 @@ function UpdatesFeed({ updates, onClose, userTipo, onOpenNewUpdate, isMobile, on
   const [deletingId, setDeletingId] = useState(null);
   const [hoveredId, setHoveredId] = useState(null);
   const [hubSysLocal, setHubSysLocal] = useState([]);
+  const [, _tick] = useState(0);
+  useEffect(() => {
+    const iv = setInterval(() => _tick(t => t + 1), 60_000);
+    return () => clearInterval(iv);
+  }, []);
 
   useEffect(() => {
     fetch('/api/sistemas').then(r => r.json()).then(d => { if (d.ok) setHubSysLocal(d.sistemas); }).catch(() => {});
@@ -7158,7 +7163,15 @@ function HubMarquise() {
     const token = localStorage.getItem('hub_sso_token');
     fetch('/api/updates', { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
-      .then(d => { if (d.ok && d.updates.length > 0) setAllUpdates(d.updates); })
+      .then(d => {
+        if (d.ok && d.updates.length > 0)
+          setAllUpdates(prev => {
+            const fromApi = d.updates;
+            const apiIds = new Set(fromApi.map(u => u.id));
+            const sseOnly = prev.filter(u => !apiIds.has(u.id));
+            return [...sseOnly, ...fromApi];
+          });
+      })
       .catch(() => {});
   }, [authed]);
 
