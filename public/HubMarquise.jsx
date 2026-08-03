@@ -6476,8 +6476,107 @@ function NewUpdateModal({ hubSystems, onSave, onClose }) {
   );
 }
 
-function UpdatesFeed({ updates, onClose, userTipo, onOpenNewUpdate, isMobile }) {
+function EditUpdateModal({ update, hubSystems, onSave, onClose }) {
+  const sistemasNoAr = hubSystems.filter(s => s.status === 'no-ar');
+  const [sistemaId, setSistemaId] = useState(update.sistemaId || 'hub');
+  const [tipo, setTipo] = useState(update.tipo || 'feat');
+  const [titulo, setTitulo] = useState(update.titulo || '');
+  const [descricao, setDescricao] = useState(update.descricao || '');
   const [visible, setVisible] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveErro, setSaveErro] = useState('');
+
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setVisible(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+
+  function handleClose() {
+    setVisible(false);
+    setTimeout(onClose, 320);
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (!descricao.trim() || saving) return;
+    setSaving(true);
+    setSaveErro('');
+    const sistema = sistemasNoAr.find(s => s.id === sistemaId);
+    try {
+      await onSave(update.id, { sistemaId, sistemaNome: sistema ? sistema.nome : 'Hub', tipo, titulo: titulo.trim() || undefined, descricao: descricao.trim() });
+      handleClose();
+    } catch (err) {
+      setSaveErro(err.message || 'Erro ao salvar');
+      setSaving(false);
+    }
+  }
+
+  const inputStyle = { width: '100%', background: `${HUB_PALETTE.noite}cc`, border: `1px solid ${HUB_PALETTE.areiaDim}33`, color: HUB_PALETTE.marfim, fontFamily: 'Inter, sans-serif', fontSize: 13, padding: '9px 12px', outline: 'none', boxSizing: 'border-box' };
+
+  return (
+    <>
+      <div onClick={handleClose} style={{ position: 'fixed', inset: 0, zIndex: 399, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', opacity: visible ? 1 : 0, transition: 'opacity 280ms ease' }} />
+      <div style={{ position: 'fixed', top: '50%', left: '50%', transform: visible ? 'translate(-50%,-50%)' : 'translate(-50%,-46%)', opacity: visible ? 1 : 0, transition: `transform 380ms cubic-bezier(0.16,1,0.3,1), opacity 280ms ease`, zIndex: 400, width: '100%', maxWidth: 480, background: HUB_PALETTE.noiteAlt, boxShadow: '0 32px 80px -20px rgba(0,0,0,0.7)', border: `1px solid ${HUB_PALETTE.areiaDim}22` }}>
+        <div style={{ padding: '22px 26px 18px', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}1a`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 5 }}>Admin · Editar</div>
+            <div style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 300, fontSize: 19, letterSpacing: '-0.015em', color: HUB_PALETTE.marfim }}>Editar Atualização</div>
+          </div>
+          <button type="button" onClick={handleClose} style={{ background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}33`, borderRadius: '50%', width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', color: HUB_PALETTE.areiaDim, cursor: 'pointer', padding: 0 }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = HUB_PALETTE.champanhe + '66'; e.currentTarget.style.color = HUB_PALETTE.champanhe; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = HUB_PALETTE.areiaDim + '33'; e.currentTarget.style.color = HUB_PALETTE.areiaDim; }}>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} style={{ padding: '20px 26px 22px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div>
+              <label style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, display: 'block', marginBottom: 7 }}>Sistema</label>
+              <select value={sistemaId} onChange={e => setSistemaId(e.target.value)} style={{ ...inputStyle, cursor: 'pointer' }}>
+                <option value="hub">Hub (geral)</option>
+                {sistemasNoAr.map(s => <option key={s.id} value={s.id}>{s.nome}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, display: 'block', marginBottom: 7 }}>Tipo</label>
+              <select value={tipo} onChange={e => setTipo(e.target.value)} style={{ ...inputStyle, cursor: 'pointer' }}>
+                <option value="feat">+ Novidade</option>
+                <option value="fix">◆ Correção</option>
+                <option value="melhoria">↑ Melhoria</option>
+                <option value="hotfix">! Urgente</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, display: 'block', marginBottom: 7 }}>Título <span style={{ opacity: 0.5, textTransform: 'none', fontSize: 9 }}>(opcional)</span></label>
+            <input type="text" value={titulo} onChange={e => setTitulo(e.target.value)} placeholder="Resumo em uma linha..." style={inputStyle} maxLength={80} />
+          </div>
+          <div>
+            <label style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, display: 'block', marginBottom: 7 }}>Descrição <span style={{ color: HUB_PALETTE.champanhe }}>*</span></label>
+            <textarea value={descricao} onChange={e => setDescricao(e.target.value)} required rows={3} style={{ ...inputStyle, resize: 'vertical', minHeight: 76 }} maxLength={300} />
+          </div>
+          {saveErro && <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: '#e07070', textAlign: 'right' }}>{saveErro}</div>}
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+            <button type="button" onClick={handleClose} disabled={saving} style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areiaDim, background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}33`, padding: '8px 18px', cursor: saving ? 'not-allowed' : 'pointer' }}>Cancelar</button>
+            <button type="submit" disabled={!descricao.trim() || saving} style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.noite, background: descricao.trim() && !saving ? HUB_PALETTE.champanhe : HUB_PALETTE.areiaDim, border: 'none', padding: '8px 22px', cursor: descricao.trim() && !saving ? 'pointer' : 'not-allowed', transition: 'background 200ms' }}>{saving ? 'Salvando…' : 'Salvar'}</button>
+          </div>
+        </form>
+      </div>
+    </>
+  );
+}
+
+function UpdatesFeed({ updates, onClose, userTipo, onOpenNewUpdate, isMobile, onUpdateEdited, onUpdateDeleted }) {
+  const [visible, setVisible] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
+  const [hoveredId, setHoveredId] = useState(null);
+  const [hubSysLocal, setHubSysLocal] = useState([]);
+
+  useEffect(() => {
+    fetch('/api/sistemas').then(r => r.json()).then(d => { if (d.ok) setHubSysLocal(d.sistemas); }).catch(() => {});
+  }, []);
+
   useEffect(() => {
     const id = requestAnimationFrame(() => setVisible(true));
     return () => cancelAnimationFrame(id);
@@ -6488,82 +6587,162 @@ function UpdatesFeed({ updates, onClose, userTipo, onOpenNewUpdate, isMobile }) 
     setTimeout(onClose, 300);
   }
 
+  async function handleDelete(id) {
+    setDeletingId(id);
+    try {
+      const token = localStorage.getItem('hub_sso_token');
+      const r = await fetch(`/api/admin/updates/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+      const d = await r.json();
+      if (!d.ok) throw new Error(d.erro || 'Erro');
+      onUpdateDeleted(id);
+    } catch (err) {
+      alert(err.message || 'Erro ao excluir');
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  async function handleEdit(id, body) {
+    const token = localStorage.getItem('hub_sso_token');
+    const r = await fetch(`/api/admin/updates/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(body) });
+    const d = await r.json();
+    if (!d.ok) throw new Error(d.erro || 'Erro ao salvar');
+    onUpdateEdited(d.update);
+  }
+
   const top = isMobile ? 62 : 73;
   const right = isMobile ? 8 : 48;
-  const width = isMobile ? 'calc(100vw - 16px)' : 540;
+  const width = isMobile ? 'calc(100vw - 16px)' : 700;
 
   return (
-    <div style={{
-      position: 'fixed',
-      top,
-      right,
-      width,
-      maxHeight: 'calc(100vh - 90px)',
-      background: HUB_PALETTE.noiteAlt,
-      zIndex: 200,
-      display: 'flex',
-      flexDirection: 'column',
-      transform: visible ? 'translateY(0) scale(1)' : 'translateY(-10px) scale(0.97)',
-      opacity: visible ? 1 : 0,
-      transition: 'transform 320ms cubic-bezier(0.16,1,0.3,1), opacity 240ms ease',
-      boxShadow: '0 20px 70px -15px rgba(0,0,0,0.75), 0 4px 16px -4px rgba(0,0,0,0.4)',
-      border: `1px solid ${HUB_PALETTE.areiaDim}28`,
-      transformOrigin: 'top right',
-    }}>
-      {/* Header */}
-      <div style={{ padding: '20px 24px 16px', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}1a`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-        <div>
-          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 5 }}>Sistema · Changelog</div>
-          <div style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 300, fontSize: 20, letterSpacing: '-0.015em', color: HUB_PALETTE.marfim, display: 'flex', alignItems: 'center', gap: 10 }}>
-            Atualizações
-            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: HUB_PALETTE.noite, background: HUB_PALETTE.champanhe, padding: '1px 6px', fontWeight: 700, lineHeight: 1.7 }}>{updates.length}</span>
-          </div>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-          {userTipo === 'admin' && (
-            <button type="button" onClick={onOpenNewUpdate} title="Publicar nova atualização"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'transparent', border: `1px solid ${HUB_PALETTE.champanhe}44`, padding: '0 11px', height: 30, color: HUB_PALETTE.champanhe, cursor: 'pointer', fontFamily: 'JetBrains Mono, monospace', fontSize: 8, letterSpacing: '0.18em', textTransform: 'uppercase', whiteSpace: 'nowrap', transition: 'background 220ms, border-color 220ms' }}
-              onMouseEnter={e => { e.currentTarget.style.background = HUB_PALETTE.champanhe + '1a'; e.currentTarget.style.borderColor = HUB_PALETTE.champanhe + '88'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = HUB_PALETTE.champanhe + '44'; }}>
-              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              Nova
-            </button>
-          )}
-          <button type="button" onClick={handleClose} title="Fechar"
-            style={{ background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}33`, borderRadius: '50%', width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', color: HUB_PALETTE.areiaDim, cursor: 'pointer', padding: 0, flexShrink: 0, transition: 'border-color 200ms, color 200ms' }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = HUB_PALETTE.champanhe + '66'; e.currentTarget.style.color = HUB_PALETTE.champanhe; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = HUB_PALETTE.areiaDim + '33'; e.currentTarget.style.color = HUB_PALETTE.areiaDim; }}>
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
-        </div>
-      </div>
+    <>
+      {editing && (
+        <EditUpdateModal
+          update={editing}
+          hubSystems={hubSysLocal}
+          onSave={handleEdit}
+          onClose={() => setEditing(null)}
+        />
+      )}
+      <div style={{
+        position: 'fixed', top, right, width,
+        maxHeight: 'calc(100vh - 90px)',
+        background: HUB_PALETTE.noiteAlt,
+        zIndex: 200,
+        display: 'flex', flexDirection: 'column',
+        transform: visible ? 'translateY(0) scale(1)' : 'translateY(-12px) scale(0.97)',
+        opacity: visible ? 1 : 0,
+        transition: 'transform 340ms cubic-bezier(0.16,1,0.3,1), opacity 250ms ease',
+        boxShadow: '0 24px 80px -16px rgba(0,0,0,0.8), 0 4px 20px -4px rgba(0,0,0,0.45)',
+        border: `1px solid ${HUB_PALETTE.areiaDim}22`,
+        transformOrigin: 'top right',
+      }}>
 
-      {/* Lista */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '6px 0' }}>
-        {updates.length === 0 ? (
-          <div style={{ padding: '44px 24px', textAlign: 'center', color: HUB_PALETTE.areiaDim, fontFamily: 'Inter, sans-serif', fontSize: 13 }}>Nenhuma atualização recente.</div>
-        ) : updates.map((u, i) => {
-          const tipo = UPDATE_TIPO[u.tipo] || UPDATE_TIPO.fix;
-          return (
-            <div key={u.id} style={{ display: 'flex', gap: 14, padding: '16px 24px', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}12`, opacity: 0, animation: `hubSlideDown 380ms cubic-bezier(0.16,1,0.3,1) ${i * 45 + 40}ms both` }}>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0, paddingTop: 2 }}>
-                <div style={{ width: 20, height: 20, borderRadius: '50%', flexShrink: 0, background: `${tipo.cor}18`, border: `1px solid ${tipo.cor}44`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: tipo.cor, fontWeight: 600 }}>{tipo.glyph}</div>
-                {i < updates.length - 1 && <div style={{ width: 1, flex: 1, minHeight: 14, background: `${HUB_PALETTE.areiaDim}18`, margin: '4px 0' }} />}
-              </div>
-              <div style={{ flex: 1, minWidth: 0, paddingBottom: 2 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5, flexWrap: 'wrap' }}>
-                  <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 8, letterSpacing: '0.22em', textTransform: 'uppercase', color: tipo.cor, padding: '1px 5px', border: `1px solid ${tipo.cor}40`, background: `${tipo.cor}10` }}>{tipo.label}</span>
-                  <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 8, letterSpacing: '0.12em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim }}>{u.sistemaNome}</span>
-                </div>
-                {u.titulo && <div style={{ fontFamily: 'Inter, sans-serif', fontWeight: 500, fontSize: 13, color: HUB_PALETTE.marfim, lineHeight: 1.35, marginBottom: 4 }}>{u.titulo}</div>}
-                <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, lineHeight: 1.55, color: HUB_PALETTE.areia }}>{u.descricao}</div>
-                <div style={{ marginTop: 7, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: HUB_PALETTE.areiaDim, letterSpacing: '0.08em' }}>{fmtRelativo(u.ts)}</div>
+        {/* ── Header ── */}
+        <div style={{ padding: '22px 26px 18px', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}18`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, background: `linear-gradient(135deg, ${HUB_PALETTE.champanhe}08 0%, transparent 60%)` }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div style={{ width: 3, height: 36, background: `linear-gradient(180deg, ${HUB_PALETTE.champanhe} 0%, ${HUB_PALETTE.champanhe}00 100%)`, flexShrink: 0 }} />
+            <div>
+              <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.32em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 5 }}>Sistema · Changelog</div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+                <span style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 300, fontSize: 22, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim }}>Atualizações</span>
+                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: HUB_PALETTE.noite, background: HUB_PALETTE.champanhe, padding: '2px 7px', fontWeight: 700, lineHeight: 1.6 }}>{updates.length}</span>
               </div>
             </div>
-          );
-        })}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+            {userTipo === 'admin' && (
+              <button type="button" onClick={onOpenNewUpdate} title="Publicar nova atualização"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: `${HUB_PALETTE.champanhe}14`, border: `1px solid ${HUB_PALETTE.champanhe}55`, padding: '0 14px', height: 32, color: HUB_PALETTE.champanhe, cursor: 'pointer', fontFamily: 'JetBrains Mono, monospace', fontSize: 8, letterSpacing: '0.2em', textTransform: 'uppercase', whiteSpace: 'nowrap', transition: 'background 220ms, border-color 220ms' }}
+                onMouseEnter={e => { e.currentTarget.style.background = HUB_PALETTE.champanhe + '28'; e.currentTarget.style.borderColor = HUB_PALETTE.champanhe + 'aa'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = HUB_PALETTE.champanhe + '14'; e.currentTarget.style.borderColor = HUB_PALETTE.champanhe + '55'; }}>
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Nova
+              </button>
+            )}
+            <button type="button" onClick={handleClose} title="Fechar"
+              style={{ background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}33`, borderRadius: '50%', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', color: HUB_PALETTE.areiaDim, cursor: 'pointer', padding: 0, flexShrink: 0, transition: 'border-color 200ms, color 200ms, background 200ms' }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = '#E07A5F88'; e.currentTarget.style.color = '#E07A5F'; e.currentTarget.style.background = '#E07A5F10'; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = HUB_PALETTE.areiaDim + '33'; e.currentTarget.style.color = HUB_PALETTE.areiaDim; e.currentTarget.style.background = 'transparent'; }}>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+        </div>
+
+        {/* ── Cards ── */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '8px 0 4px' }}>
+          {updates.length === 0 ? (
+            <div style={{ padding: '56px 32px', textAlign: 'center' }}>
+              <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 28, color: HUB_PALETTE.areiaDim, opacity: 0.3, marginBottom: 12 }}>◇</div>
+              <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areiaDim }}>Nenhuma atualização recente.</div>
+            </div>
+          ) : updates.map((u, i) => {
+            const tipo = UPDATE_TIPO[u.tipo] || UPDATE_TIPO.fix;
+            const isHovered = hoveredId === u.id;
+            const isDeleting = deletingId === u.id;
+            return (
+              <div key={u.id}
+                onMouseEnter={() => setHoveredId(u.id)}
+                onMouseLeave={() => setHoveredId(null)}
+                style={{
+                  display: 'flex', gap: 0,
+                  borderBottom: `1px solid ${HUB_PALETTE.areiaDim}10`,
+                  opacity: isDeleting ? 0.4 : 0,
+                  animation: `hubSlideDown 400ms cubic-bezier(0.16,1,0.3,1) ${i * 50 + 30}ms both`,
+                  background: isHovered ? `${HUB_PALETTE.areiaDim}06` : 'transparent',
+                  transition: 'background 180ms ease',
+                  position: 'relative',
+                }}>
+
+                {/* Barra lateral de tipo */}
+                <div style={{ width: 4, flexShrink: 0, background: `linear-gradient(180deg, ${tipo.cor} 0%, ${tipo.cor}55 100%)`, opacity: 0.85 }} />
+
+                {/* Conteúdo */}
+                <div style={{ flex: 1, padding: '20px 24px 18px 20px', minWidth: 0 }}>
+                  {/* Topo: tags + ações admin */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 8, letterSpacing: '0.25em', textTransform: 'uppercase', color: tipo.cor, padding: '2px 8px', border: `1px solid ${tipo.cor}50`, background: `${tipo.cor}12`, fontWeight: 600 }}>{tipo.label}</span>
+                      <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 8, letterSpacing: '0.18em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, padding: '2px 7px', border: `1px solid ${HUB_PALETTE.areiaDim}22`, background: `${HUB_PALETTE.areiaDim}08` }}>{u.sistemaNome}</span>
+                      {u.editedAt && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 8, letterSpacing: '0.12em', color: HUB_PALETTE.areiaDim, opacity: 0.6 }}>editado</span>}
+                    </div>
+
+                    {/* Ações admin — aparecem no hover */}
+                    {userTipo === 'admin' && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, opacity: isHovered ? 1 : 0, transform: isHovered ? 'translateX(0)' : 'translateX(6px)', transition: 'opacity 180ms ease, transform 180ms ease', flexShrink: 0 }}>
+                        <button type="button" onClick={() => setEditing(u)} title="Editar"
+                          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}30`, borderRadius: '50%', color: HUB_PALETTE.areiaDim, cursor: 'pointer', padding: 0, transition: 'all 180ms' }}
+                          onMouseEnter={e => { e.currentTarget.style.borderColor = HUB_PALETTE.jangadaGlow + '88'; e.currentTarget.style.color = HUB_PALETTE.jangadaGlow; e.currentTarget.style.background = HUB_PALETTE.jangadaGlow + '12'; }}
+                          onMouseLeave={e => { e.currentTarget.style.borderColor = HUB_PALETTE.areiaDim + '30'; e.currentTarget.style.color = HUB_PALETTE.areiaDim; e.currentTarget.style.background = 'transparent'; }}>
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                        </button>
+                        <button type="button" onClick={() => handleDelete(u.id)} disabled={isDeleting} title="Excluir"
+                          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}30`, borderRadius: '50%', color: HUB_PALETTE.areiaDim, cursor: isDeleting ? 'not-allowed' : 'pointer', padding: 0, transition: 'all 180ms' }}
+                          onMouseEnter={e => { if (!isDeleting) { e.currentTarget.style.borderColor = '#E07A5F88'; e.currentTarget.style.color = '#E07A5F'; e.currentTarget.style.background = '#E07A5F12'; } }}
+                          onMouseLeave={e => { e.currentTarget.style.borderColor = HUB_PALETTE.areiaDim + '30'; e.currentTarget.style.color = HUB_PALETTE.areiaDim; e.currentTarget.style.background = 'transparent'; }}>
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Título */}
+                  {u.titulo && (
+                    <div style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 500, fontSize: 15, color: HUB_PALETTE.marfim, lineHeight: 1.35, marginBottom: 8, letterSpacing: '-0.01em' }}>{u.titulo}</div>
+                  )}
+
+                  {/* Descrição */}
+                  <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, lineHeight: 1.65, color: HUB_PALETTE.areia }}>{u.descricao}</div>
+
+                  {/* Timestamp */}
+                  <div style={{ marginTop: 10, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: HUB_PALETTE.areiaDim, letterSpacing: '0.1em' }}>{fmtRelativo(u.ts)}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 
@@ -6959,6 +7138,18 @@ function HubMarquise() {
         setAllUpdates(prev => prev.some(x => x.id === u.id) ? prev : [u, ...prev]);
       } catch {}
     });
+    es.addEventListener('update_edit', e => {
+      try {
+        const u = JSON.parse(e.data);
+        setAllUpdates(prev => prev.map(x => x.id === u.id ? u : x));
+      } catch {}
+    });
+    es.addEventListener('update_delete', e => {
+      try {
+        const { id } = JSON.parse(e.data);
+        setAllUpdates(prev => prev.filter(x => x.id !== id));
+      } catch {}
+    });
     return () => es.close();
   }, [authed]);
 
@@ -7076,7 +7267,15 @@ function HubMarquise() {
             </section>
             <HubFooter easterActive={easter} isMobile={isMobile} />
           </main>
-          {feedOpen && <UpdatesFeed updates={visibleUpdates} onClose={() => setFeedOpen(false)} userTipo={userTipo} onOpenNewUpdate={() => setNewUpdateOpen(true)} isMobile={isMobile} />}
+          {feedOpen && <UpdatesFeed
+            updates={visibleUpdates}
+            onClose={() => setFeedOpen(false)}
+            userTipo={userTipo}
+            onOpenNewUpdate={() => setNewUpdateOpen(true)}
+            isMobile={isMobile}
+            onUpdateEdited={u => setAllUpdates(prev => prev.map(x => x.id === u.id ? u : x))}
+            onUpdateDeleted={id => setAllUpdates(prev => prev.filter(x => x.id !== id))}
+          />}
           {newUpdateOpen && <NewUpdateModal
             hubSystems={hubSystems}
             onSave={async u => {
