@@ -6638,7 +6638,6 @@ function UpdatesFeed({ updates, onClose, userTipo, onOpenNewUpdate, isMobile, on
         zIndex: 199,
         opacity: visible ? 1 : 0,
         transition: 'opacity 320ms ease',
-        pointerEvents: 'none',
       }} />
 
       {/* Drawer — desliza da direita, altura total */}
