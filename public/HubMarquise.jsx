@@ -6181,7 +6181,7 @@ function MeuPerfilModal({ userName, userEmail, userTipo, onClose }) {
   );
 }
 
-function HubHeader({ theme, onToggleTheme, isMobile, userName, userEmail, userTipo, onLogout, onOpenAdmin, updatesCount, onOpenFeed }) {
+function HubHeader({ theme, onToggleTheme, isMobile, userName, userEmail, userTipo, onLogout, onOpenAdmin, updatesCount, onOpenFeed, onOpenNewUpdate }) {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 1000);
@@ -6223,6 +6223,17 @@ function HubHeader({ theme, onToggleTheme, isMobile, userName, userEmail, userTi
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
               </svg>
+            </button>
+          )}
+
+          {/* Botão nova atualização — apenas admins */}
+          {userTipo === 'admin' && (
+            <button type="button" onClick={onOpenNewUpdate} title="Publicar nova atualização"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'transparent', border: `1px solid ${HUB_PALETTE.champanhe}44`, padding: isMobile ? '0 8px' : '0 12px', height: 34, color: HUB_PALETTE.champanhe, cursor: 'pointer', fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', transition: `background 250ms ease, border-color 250ms ease`, whiteSpace: 'nowrap' }}
+              onMouseEnter={e => { e.currentTarget.style.background = HUB_PALETTE.champanhe + '18'; e.currentTarget.style.borderColor = HUB_PALETTE.champanhe + '88'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = HUB_PALETTE.champanhe + '44'; }}>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              {!isMobile && 'Atualização'}
             </button>
           )}
 
@@ -6308,7 +6319,7 @@ function HubHero({ revealed, easterActive, isMobile, userName, sistemasVisiveis 
 
 // ─── Updates ──────────────────────────────────────────────────────────────────
 
-const MOCK_UPDATES = [
+const INITIAL_UPDATES = [
   {
     id: 3,
     sistemaId: 'hub',
@@ -6372,6 +6383,99 @@ function UpdateBadge({ count }) {
       <span style={{ width: 4, height: 4, borderRadius: '50%', background: HUB_PALETTE.champanhe, flexShrink: 0 }} />
       {count === 1 ? '1 novo' : `${count} novos`}
     </div>
+  );
+}
+
+function NewUpdateModal({ hubSystems, onSave, onClose }) {
+  const sistemasNoAr = hubSystems.filter(s => s.status === 'no-ar');
+  const [sistemaId, setSistemaId] = useState('hub');
+  const [tipo, setTipo] = useState('feat');
+  const [titulo, setTitulo] = useState('');
+  const [descricao, setDescricao] = useState('');
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setVisible(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+
+  function handleClose() {
+    setVisible(false);
+    setTimeout(onClose, 320);
+  }
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    if (!descricao.trim()) return;
+    const sistema = sistemasNoAr.find(s => s.id === sistemaId);
+    onSave({
+      id: Date.now(),
+      sistemaId,
+      sistemaNome: sistema ? sistema.nome : 'Hub',
+      tipo,
+      titulo: titulo.trim() || undefined,
+      descricao: descricao.trim(),
+      ts: new Date().toISOString(),
+    });
+    handleClose();
+  }
+
+  const inputStyle = { width: '100%', background: `${HUB_PALETTE.noite}aa`, border: `1px solid ${HUB_PALETTE.areiaDim}33`, color: HUB_PALETTE.marfim, fontFamily: 'Inter, sans-serif', fontSize: 13, padding: '9px 12px', outline: 'none', boxSizing: 'border-box' };
+
+  return (
+    <>
+      <div onClick={handleClose} style={{ position: 'fixed', inset: 0, zIndex: 299, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(6px)', opacity: visible ? 1 : 0, transition: 'opacity 280ms ease' }} />
+      <div style={{ position: 'fixed', top: '50%', left: '50%', transform: visible ? 'translate(-50%,-50%)' : 'translate(-50%,-46%)', opacity: visible ? 1 : 0, transition: `transform 380ms cubic-bezier(0.16,1,0.3,1), opacity 280ms ease`, zIndex: 300, width: '100%', maxWidth: 480, background: HUB_PALETTE.noiteAlt, boxShadow: '0 32px 80px -20px rgba(0,0,0,0.7)', border: `1px solid ${HUB_PALETTE.areiaDim}22` }}>
+        <div style={{ padding: '24px 28px 20px', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}1a`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 6 }}>Admin · Changelog</div>
+            <div style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 300, fontSize: 20, letterSpacing: '-0.015em', color: HUB_PALETTE.marfim }}>Nova Atualização</div>
+          </div>
+          <button type="button" onClick={handleClose} style={{ background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}33`, borderRadius: '50%', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', color: HUB_PALETTE.areiaDim, cursor: 'pointer', padding: 0 }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = HUB_PALETTE.champanhe + '66'; e.currentTarget.style.color = HUB_PALETTE.champanhe; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = HUB_PALETTE.areiaDim + '33'; e.currentTarget.style.color = HUB_PALETTE.areiaDim; }}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} style={{ padding: '22px 28px 24px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div>
+              <label style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, display: 'block', marginBottom: 7 }}>Sistema</label>
+              <select value={sistemaId} onChange={e => setSistemaId(e.target.value)} style={{ ...inputStyle, cursor: 'pointer' }}>
+                <option value="hub">Hub (geral)</option>
+                {sistemasNoAr.map(s => <option key={s.id} value={s.id}>{s.nome}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, display: 'block', marginBottom: 7 }}>Tipo</label>
+              <select value={tipo} onChange={e => setTipo(e.target.value)} style={{ ...inputStyle, cursor: 'pointer' }}>
+                <option value="feat">+ Novidade</option>
+                <option value="fix">◆ Correção</option>
+                <option value="melhoria">↑ Melhoria</option>
+                <option value="hotfix">! Urgente</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, display: 'block', marginBottom: 7 }}>
+              Título <span style={{ opacity: 0.5, textTransform: 'none', fontSize: 9 }}>(opcional)</span>
+            </label>
+            <input type="text" value={titulo} onChange={e => setTitulo(e.target.value)} placeholder="Resumo em uma linha..." style={inputStyle} maxLength={80} />
+          </div>
+          <div>
+            <label style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, display: 'block', marginBottom: 7 }}>
+              Descrição <span style={{ color: HUB_PALETTE.champanhe }}>*</span>
+            </label>
+            <textarea value={descricao} onChange={e => setDescricao(e.target.value)} required placeholder="O que mudou? Descreva a atualização para os usuários..." rows={3} style={{ ...inputStyle, resize: 'vertical', minHeight: 76 }} maxLength={300} />
+          </div>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', paddingTop: 2 }}>
+            <button type="button" onClick={handleClose} style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areiaDim, background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}33`, padding: '8px 20px', cursor: 'pointer' }}>Cancelar</button>
+            <button type="submit" disabled={!descricao.trim()} style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.noite, background: descricao.trim() ? HUB_PALETTE.champanhe : HUB_PALETTE.areiaDim, border: 'none', padding: '8px 24px', cursor: descricao.trim() ? 'pointer' : 'not-allowed', transition: 'background 250ms ease' }}>Publicar</button>
+          </div>
+        </form>
+      </div>
+    </>
   );
 }
 
@@ -6697,6 +6801,8 @@ function HubMarquise() {
   const [hubSystems, setHubSystems] = useState(HUB_SYSTEMS);
   const [userEmail, setUserEmail] = useState('');
   const [feedOpen, setFeedOpen] = useState(false);
+  const [newUpdateOpen, setNewUpdateOpen] = useState(false);
+  const [allUpdates, setAllUpdates] = useState(INITIAL_UPDATES);
   const seqRef = useRef('');
   const winW = useWindowWidth();
   const isMobile = winW < 768;
@@ -6889,7 +6995,7 @@ function HubMarquise() {
 
   // Somente updates de sistemas que o usuário tem acesso + updates do hub (visíveis a todos).
   const visibleSystemIds = new Set(sistemasVisiveis.map(s => s.id));
-  const visibleUpdates = MOCK_UPDATES.filter(u => u.sistemaId === 'hub' || visibleSystemIds.has(u.sistemaId));
+  const visibleUpdates = allUpdates.filter(u => u.sistemaId === 'hub' || visibleSystemIds.has(u.sistemaId));
   const updatesBySystem = {};
   visibleUpdates.forEach(u => { updatesBySystem[u.sistemaId] = (updatesBySystem[u.sistemaId] || 0) + 1; });
 
@@ -6911,6 +7017,7 @@ function HubMarquise() {
             onOpenAdmin={() => setShowAdmin(true)}
             updatesCount={visibleUpdates.length}
             onOpenFeed={() => setFeedOpen(true)}
+            onOpenNewUpdate={() => setNewUpdateOpen(true)}
           />
           <main style={{ position: 'relative' }}>
             <HubDecoration />
@@ -6928,6 +7035,7 @@ function HubMarquise() {
             <HubFooter easterActive={easter} isMobile={isMobile} />
           </main>
           {feedOpen && <UpdatesFeed updates={visibleUpdates} onClose={() => setFeedOpen(false)} />}
+          {newUpdateOpen && <NewUpdateModal hubSystems={hubSystems} onSave={u => setAllUpdates(prev => [u, ...prev])} onClose={() => setNewUpdateOpen(false)} />}
         </>
       )}
     </div>
