@@ -140,6 +140,33 @@ async function hubFetch(url, opts) {
   return r;
 }
 
+// ─── SSO: quais destinos aceitam o handshake do Hub ──────────────────────────
+// Os satelites internos expoem GET /sso?sso_token=<jwt> e trocam o token por
+// sessao propria. Um link novo cadastrado no admin (site externo, ERP, planilha,
+// sistema de terceiro) nao tem essa rota: redirecionar para <origem>/sso?sso_token=
+// resulta em erro/404 no destino e ainda entregaria o JWT do Hub a terceiros.
+// Por isso o token so viaja para origens desta lista ou para cards em que o
+// admin marcou explicitamente "login integrado" (campo `sso`).
+const SSO_ORIGINS = [
+  'https://sistema-chamados-granmarquise.fly.dev',
+  'https://diretorio-ramais-granmarquise.fly.dev',
+  'https://pesquisa-satisfacao.fly.dev',
+  'https://gestao-qualidade-granmarquise.fly.dev',
+];
+
+function originDe(url) {
+  try { return new URL(url).origin; } catch { return ''; }
+}
+
+// Regra unica de decisao: flag explicita do card vence; sem flag, cai na lista
+// de origens internas — assim os cards antigos (que nao tem o campo) continuam
+// abrindo via /sso exatamente como antes.
+function cardUsaSso(system) {
+  if (!system) return false;
+  if (system.sso !== undefined) return !!system.sso;
+  return SSO_ORIGINS.includes(originDe(system.url));
+}
+
 const HUB_SYSTEMS = [
 {
   id: 'chamados',
@@ -706,6 +733,22 @@ function LinkForm({ form, setForm, onSave, onCancel, linkErro, linkSaving, setor
           <div style={labelStyle}>URL</div>
           <input value={form.url} onChange={e => setForm(p => ({ ...p, url: e.target.value }))} placeholder="https://..." style={inputStyle} />
         </div>
+        {/* Login integrado (SSO) — desligado por padrao em link novo. So os
+            sistemas internos do hotel tem a rota /sso; marcar isso em um site
+            que nao tem faz o link abrir com erro. */}
+        <div style={{ gridColumn: '1 / -1', marginBottom: 4 }}>
+          <div
+            onClick={() => setForm(p => ({ ...p, sso: !p.sso }))}
+            style={{ display: 'flex', alignItems: 'flex-start', gap: 14, cursor: 'pointer', padding: '12px 16px', border: `1px solid ${form.sso ? '#996442' : HUB_PALETTE.areiaDim + '33'}`, background: form.sso ? '#99644210' : 'transparent', userSelect: 'none' }}>
+            <span style={{ flexShrink: 0, width: 16, height: 16, marginTop: 1, border: `1.5px solid ${form.sso ? '#996442' : HUB_PALETTE.areiaDim + '88'}`, background: form.sso ? '#996442' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {form.sso && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><polyline points="1,4 3.5,6.5 9,1" stroke="#ECE4D2" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+            </span>
+            <span style={{ flex: 1 }}>
+              <span style={{ display: 'block', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', color: form.sso ? '#996442' : HUB_PALETTE.areiaDim, marginBottom: 3 }}>Login integrado (SSO)</span>
+              <span style={{ display: 'block', fontFamily: 'Inter, sans-serif', fontSize: 12, color: HUB_PALETTE.areia, lineHeight: 1.45 }}>Só para sistemas internos do hotel que aceitam o login do Hub. Para qualquer site externo deixe desmarcado — o link abre direto, sem token na URL.</span>
+            </span>
+          </div>
+        </div>
         <div style={{ gridColumn: '1 / -1' }}>
           <div style={labelStyle}>Categoria</div>
           <input value={form.categoria} onChange={e => setForm(p => ({ ...p, categoria: e.target.value }))} placeholder="Ex: Operação · Hospedagem" style={inputStyle} />
@@ -1169,7 +1212,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
   // Snapshot do link no momento do startEdit; usado para detectar 'nada mudou'.
   const [editOriginal, setEditOriginal] = useState({});
   const [addingNew, setAddingNew] = useState(false);
-  const [newForm, setNewForm] = useState({ nome: '', url: '', status: 'no-ar', categoria: '', descricao: '', acessoPadrao: false, setoresAcesso: [] });
+  const [newForm, setNewForm] = useState({ nome: '', url: '', status: 'no-ar', categoria: '', descricao: '', acessoPadrao: false, setoresAcesso: [], sso: false });
   const [setoresLista, setSetoresLista] = useState([]);
   const [linkSaving, setLinkSaving] = useState(false);
   const [linkErro, setLinkErro] = useState('');
@@ -1258,7 +1301,9 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
 
   function startEdit(sys) {
     setEditingId(sys.id);
-    const initial = { nome: sys.nome, url: sys.url, status: sys.status, categoria: sys.categoria || '', descricao: sys.descricao || '', acessoPadrao: !!sys.acessoPadrao, setoresAcesso: sys.setoresAcesso || [] };
+    // sso: cards antigos nao tem o campo — deriva do padrao (origem interna)
+    // para que abrir e salvar a edicao nao desligue o SSO sem querer.
+    const initial = { nome: sys.nome, url: sys.url, status: sys.status, categoria: sys.categoria || '', descricao: sys.descricao || '', acessoPadrao: !!sys.acessoPadrao, setoresAcesso: sys.setoresAcesso || [], sso: cardUsaSso(sys) };
     setEditForm(initial);
     setEditOriginal(initial);
     setLinkErro('');
@@ -1267,7 +1312,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
   async function saveEdit() {
     if (!editForm.nome || !editForm.status) { setLinkErro('Nome e status são obrigatórios'); return; }
     // Bloqueia salvar se nada mudou em relacao ao snapshot do startEdit.
-    const camposLink = ['nome', 'url', 'status', 'categoria', 'descricao', 'acessoPadrao'];
+    const camposLink = ['nome', 'url', 'status', 'categoria', 'descricao', 'acessoPadrao', 'sso'];
     const algumMudou = camposLink.some(k => (editOriginal[k] ?? '') !== (editForm[k] ?? ''))
       || JSON.stringify(editOriginal.setoresAcesso || []) !== JSON.stringify(editForm.setoresAcesso || []);
     if (!algumMudou) {
@@ -1336,7 +1381,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
       }
       setHubSystems(prev => [...prev, d.sistema]);
       setAddingNew(false);
-      setNewForm({ nome: '', url: '', status: 'no-ar', categoria: '', descricao: '', acessoPadrao: false, setoresAcesso: [] });
+      setNewForm({ nome: '', url: '', status: 'no-ar', categoria: '', descricao: '', acessoPadrao: false, setoresAcesso: [], sso: false });
       notifyHubMutation();
       notifyLink('Link criado.');
     } catch {
@@ -6918,14 +6963,22 @@ function SystemPanel({ system, index, revealed, isMobile, userEmail, userTipo, b
     let url;
     let parsedDest = null;
     try { parsedDest = new URL(destUrl); } catch { /* invalid or '#' — fallback to direct open */ }
-    if (token && parsedDest) {
+    const usaSso = cardUsaSso(system);
+    if (token && parsedDest && usaSso) {
       const origin = parsedDest.origin;
       const destPath = (parsedDest.pathname + parsedDest.search) || '/';
       const nextParam = destPath !== '/' ? `&next=${encodeURIComponent(destPath)}` : '';
       url = `${origin}/sso?sso_token=${encodeURIComponent(token)}${nextParam}&theme=${themeAtual}`;
-    } else {
+    } else if (usaSso) {
+      // Sistema interno sem token em maos (sessao ainda nao restaurada): abre
+      // direto, mas ainda propaga o tema — ele entende esse parametro.
       const sep = destUrl.includes('?') ? '&' : '?';
       url = `${destUrl}${sep}theme=${themeAtual}`;
+    } else {
+      // Destino externo: abre a URL exatamente como o admin cadastrou. Nao
+      // acrescenta token nem theme — nenhum site de fora entende esses
+      // parametros e sujar a URL e' justamente o que quebrava os links novos.
+      url = destUrl;
     }
     window.open(url, '_blank', 'noopener,noreferrer');
   }
@@ -7078,11 +7131,9 @@ function HubMarquise() {
   }, []);
 
   // Whitelist de origens aceitas em ?next=<url>. Evita open redirect.
-  const NEXT_ALLOWED_ORIGINS = [
-    'https://sistema-chamados-granmarquise.fly.dev',
-    'https://diretorio-ramais-granmarquise.fly.dev',
-    'https://pesquisa-satisfacao.fly.dev',
-  ];
+  // Mesma lista do handshake: so faz sentido redirecionar via /sso para quem
+  // implementa /sso. Fonte unica em SSO_ORIGINS.
+  const NEXT_ALLOWED_ORIGINS = SSO_ORIGINS;
 
   // Se a URL atual tem ?next=<url-completa> e o token esta valido, redireciona
   // o usuario para <origin>/sso?sso_token=<token>&next=<path> e devolve true.

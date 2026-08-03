@@ -1005,7 +1005,7 @@ app.get('/api/admin/all-users', requireAdmin, async (_req, res) => {
 });
 
 app.post('/api/admin/sistemas', requireAdmin, (req, res) => {
-  const { nome, url, status, categoria, descricao, acessoPadrao, setoresAcesso } = req.body || {};
+  const { nome, url, status, categoria, descricao, acessoPadrao, setoresAcesso, sso } = req.body || {};
   if (!nome || !status) return res.status(400).json({ ok: false, erro: 'Nome e status são obrigatórios' });
   const data = readData();
   if (!Array.isArray(data.sistemas)) data.sistemas = JSON.parse(JSON.stringify(DEFAULT_SISTEMAS));
@@ -1013,7 +1013,10 @@ app.post('/api/admin/sistemas', requireAdmin, (req, res) => {
   const id = nome.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
   if (sistemas.find(s => s.id === id)) return res.status(409).json({ ok: false, erro: 'Já existe um sistema com esse nome' });
   const num = String(sistemas.length + 1).padStart(2, '0');
-  const novo = { id, num, nome, url: url || '#', status, categoria: categoria || '', descricao: descricao || '', acessoPadrao: !!acessoPadrao, setoresAcesso: Array.isArray(setoresAcesso) ? setoresAcesso : [] };
+  // sso: link novo nasce sem login integrado. Se ficasse ligado, o Hub mandaria
+  // o usuario para <destino>/sso?sso_token=... — rota que so os sistemas internos
+  // tem, resultando em erro ao abrir o card.
+  const novo = { id, num, nome, url: url || '#', status, categoria: categoria || '', descricao: descricao || '', acessoPadrao: !!acessoPadrao, setoresAcesso: Array.isArray(setoresAcesso) ? setoresAcesso : [], sso: !!sso };
   data.sistemas = [...sistemas, novo];
   data.permissions = data.permissions || {};
   if (acessoPadrao) autoAssociarTodos(data, id);
@@ -1028,14 +1031,14 @@ app.post('/api/admin/sistemas', requireAdmin, (req, res) => {
 });
 
 app.put('/api/admin/sistemas/:id', requireAdmin, (req, res) => {
-  const { nome, url, status, categoria, descricao, acessoPadrao, setoresAcesso } = req.body || {};
+  const { nome, url, status, categoria, descricao, acessoPadrao, setoresAcesso, sso } = req.body || {};
   const data = readData();
   if (!Array.isArray(data.sistemas)) data.sistemas = JSON.parse(JSON.stringify(DEFAULT_SISTEMAS));
   const sistemas = data.sistemas;
   const idx = sistemas.findIndex(s => s.id === req.params.id);
   if (idx === -1) return res.status(404).json({ ok: false, erro: 'Sistema não encontrado' });
   const antes = { ...sistemas[idx] };
-  sistemas[idx] = { ...sistemas[idx], ...(nome && { nome }), url: url !== undefined ? url : sistemas[idx].url, ...(status && { status }), categoria: categoria !== undefined ? categoria : sistemas[idx].categoria, descricao: descricao !== undefined ? descricao : sistemas[idx].descricao, acessoPadrao: acessoPadrao !== undefined ? !!acessoPadrao : !!sistemas[idx].acessoPadrao, setoresAcesso: setoresAcesso !== undefined ? (Array.isArray(setoresAcesso) ? setoresAcesso : []) : (sistemas[idx].setoresAcesso || []) };
+  sistemas[idx] = { ...sistemas[idx], ...(nome && { nome }), url: url !== undefined ? url : sistemas[idx].url, ...(status && { status }), categoria: categoria !== undefined ? categoria : sistemas[idx].categoria, descricao: descricao !== undefined ? descricao : sistemas[idx].descricao, acessoPadrao: acessoPadrao !== undefined ? !!acessoPadrao : !!sistemas[idx].acessoPadrao, setoresAcesso: setoresAcesso !== undefined ? (Array.isArray(setoresAcesso) ? setoresAcesso : []) : (sistemas[idx].setoresAcesso || []), ...(sso !== undefined ? { sso: !!sso } : {}) };
   data.sistemas = sistemas;
   if (acessoPadrao && !antes.acessoPadrao) autoAssociarTodos(data, req.params.id);
   writeData(data);
@@ -1056,7 +1059,7 @@ app.put('/api/admin/sistemas/:id', requireAdmin, (req, res) => {
   }
   // So loga campos efetivamente alterados
   const diff = {};
-  for (const k of ['nome', 'url', 'status', 'categoria', 'descricao', 'acessoPadrao']) {
+  for (const k of ['nome', 'url', 'status', 'categoria', 'descricao', 'acessoPadrao', 'sso']) {
     if (antes[k] !== sistemas[idx][k]) diff[k] = sistemas[idx][k];
   }
   if (JSON.stringify(antes.setoresAcesso || []) !== JSON.stringify(sistemas[idx].setoresAcesso || [])) {
