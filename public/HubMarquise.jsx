@@ -1461,27 +1461,32 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
 
         {/* ── Aba Links ── */}
         {aba === 'links' && (<>
-          <div style={{ marginBottom: 40 }}>
+          <div style={{ marginBottom: addingNew ? 24 : 40 }}>
             <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.35em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
               <span style={{ width: 18, height: 1, background: HUB_PALETTE.champanhe }} />Gerenciar Links
             </div>
-            <h2 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 300, fontStyle: 'italic', fontSize: 40, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: '0 0 10px' }}>Links do Hub.</h2>
-            <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: HUB_PALETTE.areiaDim, lineHeight: 1.5, margin: 0 }}>
-              Edite os sistemas existentes ou adicione novos links ao Hub.
-            </p>
+            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 32 }}>
+              <div style={{ minWidth: 0 }}>
+                <h2 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 300, fontStyle: 'italic', fontSize: 40, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: '0 0 10px' }}>Links do Hub.</h2>
+                <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: HUB_PALETTE.areiaDim, lineHeight: 1.5, margin: 0 }}>
+                  Edite os sistemas existentes ou adicione novos links ao Hub.
+                </p>
+              </div>
+              {!addingNew && (
+                <button onClick={() => { setAddingNew(true); setEditingId(null); setLinkErro(''); }}
+                  style={{ flexShrink: 0, marginBottom: 2, display: 'inline-flex', alignItems: 'center', gap: 8, background: '#996442', border: '1px solid #996442', color: '#ECE4D2', fontFamily: 'Inter, sans-serif', fontSize: 12, letterSpacing: 'normal', textTransform: 'none', padding: '10px 20px', cursor: 'pointer' }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  Adicionar novo link
+                </button>
+              )}
+            </div>
           </div>
 
-          {addingNew ? (
+          {addingNew && (
             <div style={{ marginBottom: 32 }}>
               <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 16 }}>Novo link</div>
               <LinkForm form={newForm} setForm={setNewForm} onSave={saveNew} onCancel={() => { setAddingNew(false); setLinkErro(''); }} linkErro={linkErro} linkSaving={linkSaving} />
             </div>
-          ) : (
-            <button onClick={() => { setAddingNew(true); setEditingId(null); setLinkErro(''); }}
-              style={{ marginBottom: 32, display: 'inline-flex', alignItems: 'center', gap: 8, background: '#996442', border: '1px solid #996442', color: '#ECE4D2', fontFamily: 'Inter, sans-serif', fontSize: 12, letterSpacing: 'normal', textTransform: 'none', padding: '10px 20px', cursor: 'pointer' }}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              Adicionar novo link
-            </button>
           )}
 
           {/* Filtro Ativos / Inativos */}
