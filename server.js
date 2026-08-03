@@ -42,7 +42,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // ─── Helpers de persistência ────────────────────────────────────────────────
 
-const { migrarSlugs } = require('./src/migrations');
+const { migrarSlugs, migrarSsoSistemas, ssoPadrao } = require('./src/migrations');
 const sitePerm = require('./src/site-permissions');
 
 const HUB_DATA_TMP = HUB_DATA_FILE + '.tmp';
@@ -193,6 +193,7 @@ function _parseDataFile(filePath) {
   const raw = fs.readFileSync(filePath, 'utf8');
   const data = JSON.parse(raw);
   migrarSlugs(data);
+  migrarSsoSistemas(data);
   sitePerm.migrarSitePermissoes(data);
   sitePerm.migrarSitePermissoesV2(data);
   sitePerm.migrarPermissionsV3(data);
@@ -529,7 +530,11 @@ function getSistemas() {
   const sistemas = data.sistemas || DEFAULT_SISTEMAS;
   return sistemas.map(s => {
     const override = URL_OVERRIDES[s.id];
-    return override ? { ...s, url: override } : s;
+    const base = override ? { ...s, url: override } : s;
+    // Garante que o front sempre receba a decisao de SSO explicita — inclusive
+    // no fallback DEFAULT_SISTEMAS e quando a URL veio de env override (que
+    // pode tirar o card da lista de origens conhecidas).
+    return base.sso !== undefined ? base : { ...base, sso: ssoPadrao(base) };
   });
 }
 
@@ -1013,10 +1018,12 @@ app.post('/api/admin/sistemas', requireAdmin, (req, res) => {
   const id = nome.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
   if (sistemas.find(s => s.id === id)) return res.status(409).json({ ok: false, erro: 'Já existe um sistema com esse nome' });
   const num = String(sistemas.length + 1).padStart(2, '0');
-  // sso: link novo nasce sem login integrado. Se ficasse ligado, o Hub mandaria
-  // o usuario para <destino>/sso?sso_token=... — rota que so os sistemas internos
-  // tem, resultando em erro ao abrir o card.
-  const novo = { id, num, nome, url: url || '#', status, categoria: categoria || '', descricao: descricao || '', acessoPadrao: !!acessoPadrao, setoresAcesso: Array.isArray(setoresAcesso) ? setoresAcesso : [], sso: !!sso };
+  // sso: link novo nasce sem login integrado, porque o Hub mandaria o usuario
+  // para <destino>/sso?sso_token=... — rota que so os sistemas internos tem, e
+  // no resto isso vira erro ao abrir o card. Se o cliente nao mandar o campo,
+  // deriva do proprio destino em vez de assumir false (um card novo apontando
+  // para um sistema interno continua com SSO).
+  const novo = { id, num, nome, url: url || '#', status, categoria: categoria || '', descricao: descricao || '', acessoPadrao: !!acessoPadrao, setoresAcesso: Array.isArray(setoresAcesso) ? setoresAcesso : [], sso: sso !== undefined ? !!sso : ssoPadrao({ id, url: url || '#' }) };
   data.sistemas = [...sistemas, novo];
   data.permissions = data.permissions || {};
   if (acessoPadrao) autoAssociarTodos(data, id);

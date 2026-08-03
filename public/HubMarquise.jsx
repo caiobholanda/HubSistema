@@ -147,6 +147,10 @@ async function hubFetch(url, opts) {
 // resulta em erro/404 no destino e ainda entregaria o JWT do Hub a terceiros.
 // Por isso o token so viaja para origens desta lista ou para cards em que o
 // admin marcou explicitamente "login integrado" (campo `sso`).
+// Espelha src/migrations.js (SSO_SISTEMA_IDS / SSO_ORIGINS). O backend ja manda
+// `sso` explicito em /api/sistemas; isto aqui e' a rede de seguranca para dados
+// antigos em cache e para o formulario do admin sugerir o valor certo.
+const SSO_SISTEMA_IDS = ['chamados', 'ramais', 'pesquisa-satisfacao', 'gestao-de-qualidade'];
 const SSO_ORIGINS = [
   'https://sistema-chamados-granmarquise.fly.dev',
   'https://diretorio-ramais-granmarquise.fly.dev',
@@ -158,13 +162,21 @@ function originDe(url) {
   try { return new URL(url).origin; } catch { return ''; }
 }
 
-// Regra unica de decisao: flag explicita do card vence; sem flag, cai na lista
-// de origens internas — assim os cards antigos (que nao tem o campo) continuam
-// abrindo via /sso exatamente como antes.
+// Valor sugerido quando o card ainda nao tem decisao gravada. Casa por id
+// (sobrevive a troca de dominio via URL_OVERRIDES) e por origem.
+function ssoPadrao(system) {
+  if (!system) return false;
+  if (SSO_SISTEMA_IDS.includes(system.id)) return true;
+  return SSO_ORIGINS.includes(originDe(system.url));
+}
+
+// Regra unica de decisao: flag explicita do card vence; sem flag, cai no padrao
+// — assim os cards antigos (que nao tem o campo) continuam abrindo via /sso
+// exatamente como antes.
 function cardUsaSso(system) {
   if (!system) return false;
   if (system.sso !== undefined) return !!system.sso;
-  return SSO_ORIGINS.includes(originDe(system.url));
+  return ssoPadrao(system);
 }
 
 const HUB_SYSTEMS = [
@@ -706,6 +718,13 @@ const STATUS_CORES = { 'no-ar': '#4CAF87', 'construcao': '#E0A85F', 'beta': '#5F
 function LinkForm({ form, setForm, onSave, onCancel, linkErro, linkSaving, setoresLista }) {
   const isMobile = useWindowWidth() < 768;
   const [setorFiltro, setSetorFiltro] = useState('');
+  // Enquanto o admin nao mexer no checkbox de SSO, ele acompanha a URL digitada:
+  // colou a URL de um sistema interno, ja vem marcado; trocou para um site de
+  // fora, desmarca sozinho. Depois de um clique manual, a escolha dele manda.
+  const [ssoManual, setSsoManual] = useState(false);
+  function mudarUrl(v) {
+    setForm(p => ({ ...p, url: v, ...(ssoManual ? {} : { sso: ssoPadrao({ id: p.id, url: v }) }) }));
+  }
   const inputStyle = {
     width: '100%', boxSizing: 'border-box',
     background: HUB_PALETTE.noiteAlt,
@@ -731,14 +750,14 @@ function LinkForm({ form, setForm, onSave, onCancel, linkErro, linkSaving, setor
         </div>
         <div style={{ gridColumn: '1 / -1' }}>
           <div style={labelStyle}>URL</div>
-          <input value={form.url} onChange={e => setForm(p => ({ ...p, url: e.target.value }))} placeholder="https://..." style={inputStyle} />
+          <input value={form.url} onChange={e => mudarUrl(e.target.value)} placeholder="https://..." style={inputStyle} />
         </div>
         {/* Login integrado (SSO) — desligado por padrao em link novo. So os
             sistemas internos do hotel tem a rota /sso; marcar isso em um site
             que nao tem faz o link abrir com erro. */}
         <div style={{ gridColumn: '1 / -1', marginBottom: 4 }}>
           <div
-            onClick={() => setForm(p => ({ ...p, sso: !p.sso }))}
+            onClick={() => { setSsoManual(true); setForm(p => ({ ...p, sso: !p.sso })); }}
             style={{ display: 'flex', alignItems: 'flex-start', gap: 14, cursor: 'pointer', padding: '12px 16px', border: `1px solid ${form.sso ? '#996442' : HUB_PALETTE.areiaDim + '33'}`, background: form.sso ? '#99644210' : 'transparent', userSelect: 'none' }}>
             <span style={{ flexShrink: 0, width: 16, height: 16, marginTop: 1, border: `1.5px solid ${form.sso ? '#996442' : HUB_PALETTE.areiaDim + '88'}`, background: form.sso ? '#996442' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               {form.sso && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><polyline points="1,4 3.5,6.5 9,1" stroke="#ECE4D2" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
@@ -1303,7 +1322,9 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
     setEditingId(sys.id);
     // sso: cards antigos nao tem o campo — deriva do padrao (origem interna)
     // para que abrir e salvar a edicao nao desligue o SSO sem querer.
-    const initial = { nome: sys.nome, url: sys.url, status: sys.status, categoria: sys.categoria || '', descricao: sys.descricao || '', acessoPadrao: !!sys.acessoPadrao, setoresAcesso: sys.setoresAcesso || [], sso: cardUsaSso(sys) };
+    // id vai junto so para o formulario derivar o SSO por sistema conhecido;
+    // o PUT ignora esse campo (o id vem da rota).
+    const initial = { id: sys.id, nome: sys.nome, url: sys.url, status: sys.status, categoria: sys.categoria || '', descricao: sys.descricao || '', acessoPadrao: !!sys.acessoPadrao, setoresAcesso: sys.setoresAcesso || [], sso: cardUsaSso(sys) };
     setEditForm(initial);
     setEditOriginal(initial);
     setLinkErro('');
@@ -6963,7 +6984,9 @@ function SystemPanel({ system, index, revealed, isMobile, userEmail, userTipo, b
     let url;
     let parsedDest = null;
     try { parsedDest = new URL(destUrl); } catch { /* invalid or '#' — fallback to direct open */ }
-    const usaSso = cardUsaSso(system);
+    // Decide sobre o destino REAL (pode ser adminUrl/terapeutaUrl/mobileAdminUrl,
+    // nao necessariamente system.url) — mantendo o id para o casamento por id.
+    const usaSso = cardUsaSso({ ...system, url: destUrl });
     if (token && parsedDest && usaSso) {
       const origin = parsedDest.origin;
       const destPath = (parsedDest.pathname + parsedDest.search) || '/';
