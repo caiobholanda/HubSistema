@@ -1237,6 +1237,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
   const [linkErro, setLinkErro] = useState('');
   const [expandedLink, setExpandedLink] = useState(null);
   const [filtroSemAcesso, setFiltroSemAcesso] = useState('');
+  const [filtroLinks, setFiltroLinks] = useState('ativos');
   const [sitePermissions, setSitePermissions] = useState([]);
   // Toast simples para feedback de Links (sucesso/erro). Auto-some em 2.6s.
   const [linkToast, setLinkToast] = useState(null); // { msg, err: boolean }
@@ -1470,8 +1471,29 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
             </p>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', borderTop: `1px solid ${HUB_PALETTE.areiaDim}22` }}>
-            {hubSystems.map(sys => {
+          {/* Filtro Ativos / Inativos */}
+          {(() => {
+            const nAtivos = hubSystems.filter(s => s.status === 'no-ar').length;
+            const nInativos = hubSystems.filter(s => s.status !== 'no-ar').length;
+            const tabs = [{ id: 'ativos', label: 'Ativos', count: nAtivos }, { id: 'inativos', label: 'Inativos', count: nInativos }];
+            return (
+              <div style={{ display: 'flex', gap: 0, marginBottom: 0, borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22` }}>
+                {tabs.map(t => {
+                  const active = filtroLinks === t.id;
+                  return (
+                    <button key={t.id} onClick={() => { setFiltroLinks(t.id); setExpandedLink(null); setFiltroSemAcesso(''); }}
+                      style={{ background: 'transparent', border: 'none', borderBottom: `2px solid ${active ? HUB_PALETTE.champanhe : 'transparent'}`, color: active ? HUB_PALETTE.champanhe : HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', padding: '10px 20px 8px', cursor: 'pointer', transition: 'color 200ms, border-color 200ms', display: 'flex', alignItems: 'center', gap: 8 }}>
+                      {t.label}
+                      <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, background: active ? `${HUB_PALETTE.champanhe}20` : `${HUB_PALETTE.areiaDim}15`, color: active ? HUB_PALETTE.champanhe : HUB_PALETTE.areiaDim, padding: '1px 6px', borderRadius: 2, transition: 'background 200ms, color 200ms' }}>{t.count}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })()}
+
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {hubSystems.filter(sys => filtroLinks === 'ativos' ? sys.status === 'no-ar' : sys.status !== 'no-ar').map(sys => {
               const isLinkOpen = expandedLink === sys.id;
               // Mesma regra do back-end: admin/master sempre tem acesso; demais
               // precisam do id no array (undefined/null/vazio = sem acesso).
