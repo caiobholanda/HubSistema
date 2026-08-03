@@ -6476,9 +6476,10 @@ function NewUpdateModal({ hubSystems, onSave, onClose }) {
             </label>
             <textarea value={descricao} onChange={e => setDescricao(e.target.value)} required placeholder="O que mudou? Descreva a atualização para os usuários..." rows={3} style={{ ...inputStyle, resize: 'vertical', minHeight: 76 }} maxLength={300} />
           </div>
+          {saveErro && <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: '#e07070', textAlign: 'right', marginTop: -8 }}>{saveErro}</div>}
           <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', paddingTop: 2 }}>
-            <button type="button" onClick={handleClose} style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areiaDim, background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}33`, padding: '8px 20px', cursor: 'pointer' }}>Cancelar</button>
-            <button type="submit" disabled={!descricao.trim()} style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.noite, background: descricao.trim() ? HUB_PALETTE.champanhe : HUB_PALETTE.areiaDim, border: 'none', padding: '8px 24px', cursor: descricao.trim() ? 'pointer' : 'not-allowed', transition: 'background 250ms ease' }}>Publicar</button>
+            <button type="button" onClick={handleClose} disabled={saving} style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areiaDim, background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}33`, padding: '8px 20px', cursor: saving ? 'not-allowed' : 'pointer' }}>Cancelar</button>
+            <button type="submit" disabled={!descricao.trim() || saving} style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.noite, background: descricao.trim() && !saving ? HUB_PALETTE.champanhe : HUB_PALETTE.areiaDim, border: 'none', padding: '8px 24px', cursor: descricao.trim() && !saving ? 'pointer' : 'not-allowed', transition: 'background 250ms ease' }}>{saving ? 'Publicando…' : 'Publicar'}</button>
           </div>
         </form>
       </div>
@@ -6810,6 +6811,7 @@ function HubMarquise() {
   const [feedOpen, setFeedOpen] = useState(false);
   const [newUpdateOpen, setNewUpdateOpen] = useState(false);
   const [allUpdates, setAllUpdates] = useState(INITIAL_UPDATES);
+  const [seenAt, setSeenAt] = useState(() => { try { return localStorage.getItem('hub_updates_seen_at') || '1970-01-01T00:00:00Z'; } catch { return '1970-01-01T00:00:00Z'; } });
   const seqRef = useRef('');
   const winW = useWindowWidth();
   const isMobile = winW < 768;
@@ -6938,7 +6940,22 @@ function HubMarquise() {
       const { sistemas: s } = JSON.parse(e.data);
       setSistemas(s);
     });
+    es.addEventListener('update', e => {
+      try {
+        const u = JSON.parse(e.data);
+        setAllUpdates(prev => prev.some(x => x.id === u.id) ? prev : [u, ...prev]);
+      } catch {}
+    });
     return () => es.close();
+  }, [authed]);
+
+  useEffect(() => {
+    if (!authed) return;
+    const token = localStorage.getItem('hub_sso_token');
+    fetch('/api/updates', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json())
+      .then(d => { if (d.ok && d.updates.length > 0) setAllUpdates(d.updates); })
+      .catch(() => {});
   }, [authed]);
 
   useEffect(() => {
@@ -7005,6 +7022,7 @@ function HubMarquise() {
   const visibleUpdates = allUpdates.filter(u => u.sistemaId === 'hub' || visibleSystemIds.has(u.sistemaId));
   const updatesBySystem = {};
   visibleUpdates.forEach(u => { updatesBySystem[u.sistemaId] = (updatesBySystem[u.sistemaId] || 0) + 1; });
+  const unseenCount = visibleUpdates.filter(u => new Date(u.ts) > new Date(seenAt)).length;
 
   return (
     <div id="top" style={{ minHeight: '100vh', background: easter ? `radial-gradient(ellipse at 70% -10%, ${HUB_PALETTE.jangada}22, transparent 50%), ${HUB_PALETTE.noite}` : HUB_PALETTE.noite, color: HUB_PALETTE.marfim, fontFamily: 'Inter, sans-serif', transition: `background 1200ms ${HUB_EASE}`, position: 'relative', overflow: 'hidden' }}>
@@ -7022,8 +7040,13 @@ function HubMarquise() {
             userTipo={userTipo}
             onLogout={handleLogout}
             onOpenAdmin={() => setShowAdmin(true)}
-            updatesCount={visibleUpdates.length}
-            onOpenFeed={() => setFeedOpen(true)}
+            updatesCount={unseenCount}
+            onOpenFeed={() => {
+              const now = new Date().toISOString();
+              try { localStorage.setItem('hub_updates_seen_at', now); } catch {}
+              setSeenAt(now);
+              setFeedOpen(true);
+            }}
             onOpenNewUpdate={() => setNewUpdateOpen(true)}
           />
           <main style={{ position: 'relative' }}>
@@ -7042,7 +7065,17 @@ function HubMarquise() {
             <HubFooter easterActive={easter} isMobile={isMobile} />
           </main>
           {feedOpen && <UpdatesFeed updates={visibleUpdates} onClose={() => setFeedOpen(false)} />}
-          {newUpdateOpen && <NewUpdateModal hubSystems={hubSystems} onSave={u => setAllUpdates(prev => [u, ...prev])} onClose={() => setNewUpdateOpen(false)} />}
+          {newUpdateOpen && <NewUpdateModal
+            hubSystems={hubSystems}
+            onSave={async u => {
+              const token = localStorage.getItem('hub_sso_token');
+              const r = await fetch('/api/admin/updates', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(u) });
+              const d = await r.json();
+              if (!d.ok) throw new Error(d.erro || 'Erro ao publicar');
+              setAllUpdates(prev => prev.some(x => x.id === d.update.id) ? prev : [d.update, ...prev]);
+            }}
+            onClose={() => setNewUpdateOpen(false)}
+          />}
         </>
       )}
     </div>
