@@ -134,6 +134,61 @@ function agendarBackup() {
   if (_backupTimer.unref) _backupTimer.unref();
 }
 
+/* ── Backup diário garantido ────────────────────────────────────────────────
+ * O backup por escrita (agendarBackup) já cobre o dia a dia, mas só grava
+ * quando alguém altera algo: num fim de semana sem uso, o histórico fica sem
+ * ponto de restauração. Este job garante UMA cópia por dia, de madrugada,
+ * havendo alteração ou não.
+ *
+ * Chave separada (daily/) da horária (history/) para a retenção poder ser
+ * diferente: horária é para desfazer um erro recente; diária é para voltar
+ * semanas atrás.
+ *
+ * Roda às 03:00 de Fortaleza. O contêiner roda em UTC e Fortaleza é UTC-3 o
+ * ano inteiro (não há horário de verão), então o alvo é 06:00 UTC — cálculo
+ * em UTC de propósito, para não depender do TZ da máquina.
+ */
+const _BACKUP_DIARIO_HORA_UTC = 6;
+
+async function _uploadBackupDiario() {
+  if (!backupConfigurado || !backupsHabilitados) return;
+  const aws = _aws(); if (!aws) return;
+  let body; try { body = fs.readFileSync(HUB_DATA_FILE); } catch { return; }
+  const d = new Date(); const pad = n => String(n).padStart(2, '0');
+  const key = `hub_data/daily/${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}.json`;
+  try {
+    const r = await aws.fetch(_s3url(key), { method: 'PUT', body, headers: { 'Content-Type': 'application/json' }, signal: _s3signal(15000) });
+    if (r.ok) console.log('[BACKUP] copia diaria gravada:', key);
+    else console.error('[BACKUP] copia diaria falhou, status', r.status);
+  } catch (e) {
+    console.error('[BACKUP] copia diaria falhou:', e && e.message);
+  }
+  // Atualiza tambem o latest: se a maquina cair logo apos, o restore no boot
+  // pega o estado de hoje e nao o da ultima escrita.
+  await _uploadBackupS3().catch(() => {});
+}
+
+function _msAteProximoBackupDiario() {
+  const agora = new Date();
+  const alvo = new Date(agora);
+  alvo.setUTCHours(_BACKUP_DIARIO_HORA_UTC, 0, 0, 0);
+  if (alvo <= agora) alvo.setUTCDate(alvo.getUTCDate() + 1);
+  return alvo - agora;
+}
+
+function _agendarBackupDiario() {
+  if (!backupConfigurado) return;
+  const espera = _msAteProximoBackupDiario();
+  const t = setTimeout(() => {
+    _uploadBackupDiario().catch(e => console.error('[BACKUP] diario:', e && e.message));
+    _agendarBackupDiario(); // reagenda para o dia seguinte
+  }, espera);
+  // unref: um timer pendente não deve segurar o processo num shutdown.
+  if (t.unref) t.unref();
+  const horas = (espera / 3600000).toFixed(1);
+  console.log(`[BACKUP] copia diaria agendada para daqui a ${horas}h (03:00 de Fortaleza)`);
+}
+
 function _parseDataFile(filePath) {
   const raw = fs.readFileSync(filePath, 'utf8');
   const data = JSON.parse(raw);
@@ -2516,6 +2571,10 @@ app.use((err, req, res, next) => {
     console.error('[BACKUP] ATENCAO: volume vazio e S3 inacessivel no boot — servindo SEED e backups DESLIGADOS nesta sessao para NAO sobrescrever o backup bom. Reinicie a maquina quando o S3 voltar para restaurar os dados reais.');
   } else if (backupConfigurado) {
     _uploadBackupS3().catch(() => {}); // snapshot inicial (idempotente / bootstrap)
+    _agendarBackupDiario();
+  }
+  if (!backupConfigurado) {
+    console.warn('[BACKUP] DESATIVADO: sem BUCKET_NAME/AWS_* no ambiente. Os dados existem em UMA copia so (volume do Fly). Ative com: fly storage create -a hub-granmarquise');
   }
   app.listen(PORT, () => console.log(`Hub rodando em http://localhost:${PORT}`));
 })();
