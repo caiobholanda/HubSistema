@@ -2380,6 +2380,35 @@ app.post('/api/admin/updates', requireAdmin, (req, res) => {
   res.json({ ok: true, update });
 });
 
+app.patch('/api/admin/updates/:id', requireAdmin, (req, res) => {
+  const id = Number(req.params.id);
+  const { tipo, titulo, descricao } = req.body || {};
+  if (!descricao?.trim()) return res.status(400).json({ ok: false, erro: 'Descrição obrigatória' });
+  const data = readData();
+  if (!Array.isArray(data.updates)) return res.status(404).json({ ok: false, erro: 'Não encontrado' });
+  const idx = data.updates.findIndex(u => u.id === id);
+  if (idx === -1) return res.status(404).json({ ok: false, erro: 'Não encontrado' });
+  if (tipo) data.updates[idx].tipo = tipo;
+  data.updates[idx].titulo = titulo?.trim() || undefined;
+  data.updates[idx].descricao = descricao.trim();
+  data.updates[idx].editedAt = new Date().toISOString();
+  writeData(data);
+  broadcastToAll('update_edit', data.updates[idx]);
+  res.json({ ok: true, update: data.updates[idx] });
+});
+
+app.delete('/api/admin/updates/:id', requireAdmin, (req, res) => {
+  const id = Number(req.params.id);
+  const data = readData();
+  if (!Array.isArray(data.updates)) return res.status(404).json({ ok: false });
+  const idx = data.updates.findIndex(u => u.id === id);
+  if (idx === -1) return res.status(404).json({ ok: false, erro: 'Não encontrado' });
+  data.updates.splice(idx, 1);
+  writeData(data);
+  broadcastToAll('update_delete', { id });
+  res.json({ ok: true });
+});
+
 // ─── Ativação de conta Hub-nativo ────────────────────────────────────────────
 // GET /ativar é servido via express.static → public/ativar.html (antes do catch-all).
 app.post('/api/ativar', async (req, res) => {
