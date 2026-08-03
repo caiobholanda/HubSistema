@@ -6703,11 +6703,6 @@ function HubMarquise() {
   // Etapa intermediaria: em tablets (768-1100px) o grid de 4 colunas ficava
   // ilegivel (~100px uteis por painel). 2 colunas nessa faixa.
   const gridCols = isMobile ? 1 : winW < 1100 ? 2 : 4;
-  const updatesBySystem = useMemo(() => {
-    const map = {};
-    MOCK_UPDATES.forEach(u => { map[u.sistemaId] = (map[u.sistemaId] || 0) + 1; });
-    return map;
-  }, []);
 
   applyHubTheme(theme);
 
@@ -6892,6 +6887,12 @@ function HubMarquise() {
     .filter(s => s.status === 'no-ar')
     .filter(s => Array.isArray(sistemas) && sistemas.includes(s.id));
 
+  // Somente updates de sistemas que o usuário tem acesso + updates do hub (visíveis a todos).
+  const visibleSystemIds = new Set(sistemasVisiveis.map(s => s.id));
+  const visibleUpdates = MOCK_UPDATES.filter(u => u.sistemaId === 'hub' || visibleSystemIds.has(u.sistemaId));
+  const updatesBySystem = {};
+  visibleUpdates.forEach(u => { updatesBySystem[u.sistemaId] = (updatesBySystem[u.sistemaId] || 0) + 1; });
+
   return (
     <div id="top" style={{ minHeight: '100vh', background: easter ? `radial-gradient(ellipse at 70% -10%, ${HUB_PALETTE.jangada}22, transparent 50%), ${HUB_PALETTE.noite}` : HUB_PALETTE.noite, color: HUB_PALETTE.marfim, fontFamily: 'Inter, sans-serif', transition: `background 1200ms ${HUB_EASE}`, position: 'relative', overflow: 'hidden' }}>
       {booting && <HubBoot onDone={() => setBooting(false)} />}
@@ -6908,7 +6909,7 @@ function HubMarquise() {
             userTipo={userTipo}
             onLogout={handleLogout}
             onOpenAdmin={() => setShowAdmin(true)}
-            updatesCount={MOCK_UPDATES.length}
+            updatesCount={visibleUpdates.length}
             onOpenFeed={() => setFeedOpen(true)}
           />
           <main style={{ position: 'relative' }}>
@@ -6926,7 +6927,7 @@ function HubMarquise() {
             </section>
             <HubFooter easterActive={easter} isMobile={isMobile} />
           </main>
-          {feedOpen && <UpdatesFeed updates={MOCK_UPDATES} onClose={() => setFeedOpen(false)} />}
+          {feedOpen && <UpdatesFeed updates={visibleUpdates} onClose={() => setFeedOpen(false)} />}
         </>
       )}
     </div>
