@@ -1471,6 +1471,19 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
             </p>
           </div>
 
+          {addingNew ? (
+            <div style={{ marginBottom: 32 }}>
+              <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 16 }}>Novo link</div>
+              <LinkForm form={newForm} setForm={setNewForm} onSave={saveNew} onCancel={() => { setAddingNew(false); setLinkErro(''); }} linkErro={linkErro} linkSaving={linkSaving} />
+            </div>
+          ) : (
+            <button onClick={() => { setAddingNew(true); setEditingId(null); setLinkErro(''); }}
+              style={{ marginBottom: 32, display: 'inline-flex', alignItems: 'center', gap: 8, background: '#996442', border: '1px solid #996442', color: '#ECE4D2', fontFamily: 'Inter, sans-serif', fontSize: 12, letterSpacing: 'normal', textTransform: 'none', padding: '10px 20px', cursor: 'pointer' }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Adicionar novo link
+            </button>
+          )}
+
           {/* Filtro Ativos / Inativos */}
           {(() => {
             const nAtivos = hubSystems.filter(s => s.status === 'no-ar').length;
@@ -1666,18 +1679,6 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
             })}
           </div>
 
-          {addingNew ? (
-            <div style={{ marginTop: 24 }}>
-              <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 16 }}>Novo link</div>
-              <LinkForm form={newForm} setForm={setNewForm} onSave={saveNew} onCancel={() => { setAddingNew(false); setLinkErro(''); }} linkErro={linkErro} linkSaving={linkSaving} />
-            </div>
-          ) : (
-            <button onClick={() => { setAddingNew(true); setEditingId(null); setLinkErro(''); }}
-              style={{ marginTop: 32, display: 'inline-flex', alignItems: 'center', gap: 8, background: '#996442', border: '1px solid #996442', color: '#ECE4D2', fontFamily: 'Inter, sans-serif', fontSize: 12, letterSpacing: 'normal', textTransform: 'none', padding: '10px 20px', cursor: 'pointer' }}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              Adicionar novo link
-            </button>
-          )}
         </>)}
 
         {/* ── Aba Contas ── */}
