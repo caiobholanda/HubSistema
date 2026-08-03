@@ -2409,6 +2409,36 @@ app.delete('/api/admin/updates/:id', requireAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
+// ─── Webhook de deploy (chamado pelo CI de cada satélite) ────────────────────
+app.post('/api/webhook/update', (req, res) => {
+  const secret = process.env.WEBHOOK_SECRET;
+  if (!secret) return res.status(503).json({ ok: false, erro: 'Webhook não configurado' });
+  const auth = (req.headers.authorization || '').replace('Bearer ', '');
+  if (auth !== secret) return res.status(401).json({ ok: false, erro: 'Não autorizado' });
+
+  const { sistemaId, sistemaNome, tipo, titulo, descricao } = req.body || {};
+  if (!sistemaId || !titulo) return res.status(400).json({ ok: false, erro: 'sistemaId e titulo obrigatórios' });
+
+  const TIPOS_VALIDOS = ['feat', 'fix', 'melhoria', 'hotfix'];
+  const update = {
+    id: Date.now(),
+    sistemaId: String(sistemaId).slice(0, 50),
+    sistemaNome: String(sistemaNome || sistemaId).slice(0, 50),
+    tipo: TIPOS_VALIDOS.includes(tipo) ? tipo : 'melhoria',
+    titulo: String(titulo).slice(0, 120),
+    descricao: descricao ? String(descricao).slice(0, 400) : '',
+    ts: new Date().toISOString(),
+  };
+
+  const data = readData();
+  if (!Array.isArray(data.updates)) data.updates = [];
+  data.updates.unshift(update);
+  if (data.updates.length > 100) data.updates = data.updates.slice(0, 100);
+  writeData(data);
+  broadcastToAll('update', update);
+  res.json({ ok: true, update });
+});
+
 // ─── Ativação de conta Hub-nativo ────────────────────────────────────────────
 // GET /ativar é servido via express.static → public/ativar.html (antes do catch-all).
 app.post('/api/ativar', async (req, res) => {
