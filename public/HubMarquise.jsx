@@ -6860,7 +6860,7 @@ function UpdatesFeed({ updates, onClose, userTipo, onOpenNewUpdate, isMobile, on
         <div style={{ height: 1, background: `linear-gradient(90deg, ${HUB_PALETTE.champanhe}60 0%, ${HUB_PALETTE.champanhe}00 100%)`, flexShrink: 0 }} />
 
         {/* ── Filtro de data ── */}
-        <div style={{ padding: isMobile ? '10px 22px 8px' : '12px 32px 10px', display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0, borderBottom: `1px solid ${HUB_PALETTE.areiaDim}0e` }}>
+        <div style={{ padding: isMobile ? '10px 22px 8px' : '12px 32px 10px', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, borderBottom: `1px solid ${HUB_PALETTE.areiaDim}0e` }}>
           {[
             { key: 'all',   label: 'Todos'   },
             { key: 'today', label: 'Hoje'    },
@@ -6871,12 +6871,14 @@ function UpdatesFeed({ updates, onClose, userTipo, onOpenNewUpdate, isMobile, on
             return (
               <button key={opt.key} type="button" onClick={() => setDateFilter(opt.key)}
                 style={{
-                  fontFamily: 'JetBrains Mono, monospace',
-                  fontSize: 8, letterSpacing: '0.22em', textTransform: 'uppercase',
-                  padding: '4px 11px',
-                  background: active ? `${HUB_PALETTE.champanhe}14` : 'transparent',
-                  border: `1px solid ${active ? HUB_PALETTE.champanhe + '55' : HUB_PALETTE.areiaDim + '20'}`,
-                  color: active ? HUB_PALETTE.champanhe : HUB_PALETTE.areiaDim,
+                  fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif",
+                  fontWeight: active ? 500 : 400,
+                  fontSize: 13,
+                  letterSpacing: 0,
+                  padding: '5px 14px',
+                  background: active ? `${HUB_PALETTE.champanhe}18` : 'transparent',
+                  border: `1px solid ${active ? HUB_PALETTE.champanhe + '60' : HUB_PALETTE.areiaDim + '28'}`,
+                  color: active ? HUB_PALETTE.champanhe : HUB_PALETTE.areia,
                   cursor: 'pointer',
                   transition: 'all 160ms ease',
                   whiteSpace: 'nowrap',
@@ -6969,9 +6971,8 @@ function UpdatesFeed({ updates, onClose, userTipo, onOpenNewUpdate, isMobile, on
                 )}
 
                 {/* Timestamp */}
-                <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: HUB_PALETTE.areia, letterSpacing: '0.10em' }}>{fmtData(u.ts)}</span>
-                  <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 8, color: HUB_PALETTE.areiaDim, letterSpacing: '0.10em', opacity: 0.55 }}>· {fmtRelativo(u.ts)}</span>
+                <div style={{ marginTop: 14 }}>
+                  <span style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 400, fontSize: 13, color: HUB_PALETTE.areia, letterSpacing: 0 }}>{fmtData(u.ts)} · {fmtRelativo(u.ts)}</span>
                 </div>
               </div>
             );
