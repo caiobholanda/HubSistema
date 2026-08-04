@@ -6703,7 +6703,7 @@ function EditUpdateModal({ update, hubSystems, onSave, onClose }) {
   );
 }
 
-function UpdatesFeed({ updates, onClose, userTipo, onOpenNewUpdate, isMobile, onUpdateEdited, onUpdateDeleted }) {
+function UpdatesFeed({ updates, onClose, userTipo, onOpenNewUpdate, isMobile, onUpdateEdited, onUpdateDeleted, seenAt }) {
   const [visible, setVisible] = useState(false);
   const [editing, setEditing] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
@@ -6801,13 +6801,11 @@ function UpdatesFeed({ updates, onClose, userTipo, onOpenNewUpdate, isMobile, on
             <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.36em', textTransform: 'uppercase', color: HUB_PALETTE.areiaDim, marginBottom: 8 }}>
               Sistema · Changelog
             </div>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 11 }}>
-              <span style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'normal', fontWeight: 300, fontSize: isMobile ? 22 : 26, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+              <span style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'normal', fontWeight: 300, fontSize: isMobile ? 22 : 26, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, lineHeight: 1 }}>
                 Atualizações
               </span>
-              <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: HUB_PALETTE.noite, background: HUB_PALETTE.champanhe, padding: '2px 8px', fontWeight: 700, lineHeight: 1.6 }}>
-                {updates.length}
-              </span>
+              {(() => { const n = seenAt ? updates.filter(u => new Date(u.ts) > new Date(seenAt)).length : 0; return n > 0 ? <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: HUB_PALETTE.noite, background: HUB_PALETTE.champanhe, padding: '2px 8px', fontWeight: 700, lineHeight: 1 }}>{n}</span> : null; })()}
             </div>
           </div>
 
@@ -7474,6 +7472,7 @@ function HubMarquise() {
             userTipo={userTipo}
             onOpenNewUpdate={() => setNewUpdateOpen(true)}
             isMobile={isMobile}
+            seenAt={seenAt}
             onUpdateEdited={u => setAllUpdates(prev => prev.map(x => x.id === u.id ? u : x))}
             onUpdateDeleted={id => setAllUpdates(prev => prev.filter(x => x.id !== id))}
           />}
