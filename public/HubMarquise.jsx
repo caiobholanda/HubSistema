@@ -7022,7 +7022,7 @@ function SystemPreview({ kind }) {
 
 // ─── System Panel ─────────────────────────────────────────────────────────────
 
-function SystemPanel({ system, index, revealed, isMobile, userEmail, userTipo, badgeCount }) {
+function SystemPanel({ system, index, revealed, isMobile, userEmail, userTipo }) {
   const [hover, setHover] = useState(false);
   const disabled = system.url === '#';
 
@@ -7079,7 +7079,7 @@ function SystemPanel({ system, index, revealed, isMobile, userEmail, userTipo, b
       onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
       style={{ position: 'relative', display: 'flex', flexDirection: 'column', height: '100%', padding: isMobile ? '20px 18px 22px' : '28px 32px 30px', textDecoration: 'none', color: 'inherit', opacity: revealed ? 1 : 0, transform: !revealed ? 'translateY(28px)' : hover && !disabled ? 'translateY(-4px)' : 'translateY(0)', transition: `opacity 900ms ${HUB_EASE} ${index * 110}ms, transform ${hover && revealed && !disabled ? 500 : 900}ms ${HUB_EASE} ${index * 110}ms, background 500ms ${HUB_EASE}, box-shadow 550ms ${HUB_EASE}`, background: hover && !disabled ? HUB_PALETTE.panelHover : 'transparent', boxShadow: hover && !disabled ? `0 20px 44px -10px rgba(0,0,0,0.38), 0 0 0 1px ${HUB_PALETTE.linkAbrir}28` : 'none', cursor: disabled ? 'not-allowed' : 'pointer', overflow: 'hidden', zIndex: hover && !disabled ? 2 : 1 }}>
       <span style={{ position: 'absolute', top: 0, left: 0, height: 1, width: hover ? '100%' : '0%', background: HUB_PALETTE.linkAbrir, transition: `width 900ms ${HUB_EASE}` }} />
-      {badgeCount > 0 && <UpdateBadge count={badgeCount} />}
+
       <div style={{ marginBottom: 18 }}>
         <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.28em', color: HUB_PALETTE.areiaDim, textTransform: 'uppercase' }}>{system.categoria}</span>
       </div>
@@ -7423,8 +7423,7 @@ function HubMarquise() {
   // Somente updates de sistemas que o usuário tem acesso + updates do hub (visíveis a todos).
   const visibleSystemIds = new Set(sistemasVisiveis.map(s => s.id));
   const visibleUpdates = allUpdates.filter(u => u.sistemaId === 'hub' || visibleSystemIds.has(u.sistemaId));
-  const updatesBySystem = {};
-  visibleUpdates.forEach(u => { updatesBySystem[u.sistemaId] = (updatesBySystem[u.sistemaId] || 0) + 1; });
+
   const unseenCount = visibleUpdates.filter(u => new Date(u.ts) > new Date(seenAt)).length;
 
   return (
@@ -7459,7 +7458,7 @@ function HubMarquise() {
               <div style={{ display: 'grid', gridTemplateColumns: `repeat(${gridCols}, 1fr)`, gap: 0, borderTop: `1px solid ${HUB_PALETTE.areiaDim}2a` }}>
                 {sistemasVisiveis.map((sys, i, arr) => (
                   <div key={sys.id} style={{ borderBottom: `1px solid ${HUB_PALETTE.areiaDim}2a`, borderRight: gridCols > 1 && i % gridCols !== gridCols - 1 && i < arr.length - 1 ? `1px solid ${HUB_PALETTE.areiaDim}2a` : 'none' }}>
-                    <SystemPanel system={sys} index={i} revealed={revealed} isMobile={isMobile} userEmail={userEmail} userTipo={userTipo} badgeCount={updatesBySystem[sys.id] || 0} />
+                    <SystemPanel system={sys} index={i} revealed={revealed} isMobile={isMobile} userEmail={userEmail} userTipo={userTipo} />
                   </div>
                 ))}
               </div>
