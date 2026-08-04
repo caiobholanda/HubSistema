@@ -6493,6 +6493,15 @@ function fmtRelativo(isoStr) {
   } catch { return ''; }
 }
 
+function fmtData(isoStr) {
+  try {
+    const d = new Date(isoStr);
+    const data = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Fortaleza', day: '2-digit', month: '2-digit', year: 'numeric' }).format(d);
+    const hora = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Fortaleza', hour: '2-digit', minute: '2-digit' }).format(d);
+    return `${data} · ${hora}`;
+  } catch { return ''; }
+}
+
 function UpdateBadge({ count }) {
   if (!count) return null;
   return (
@@ -6709,7 +6718,22 @@ function UpdatesFeed({ updates, onClose, userTipo, onOpenNewUpdate, isMobile, on
   const [deletingId, setDeletingId] = useState(null);
   const [hoveredId, setHoveredId] = useState(null);
   const [hubSysLocal, setHubSysLocal] = useState([]);
+  const [dateFilter, setDateFilter] = useState('all');
   const [, _tick] = useState(0);
+
+  const filteredUpdates = React.useMemo(() => {
+    if (dateFilter === 'all') return updates;
+    const now = new Date();
+    return updates.filter(u => {
+      const ts = new Date(u.ts);
+      if (dateFilter === 'today') {
+        return ts.toLocaleDateString('pt-BR', { timeZone: 'America/Fortaleza' }) === now.toLocaleDateString('pt-BR', { timeZone: 'America/Fortaleza' });
+      }
+      if (dateFilter === 'week') return ts >= new Date(now - 7 * 86400000);
+      if (dateFilter === 'month') return ts >= new Date(now - 30 * 86400000);
+      return true;
+    });
+  }, [updates, dateFilter]);
   useEffect(() => {
     const iv = setInterval(() => _tick(t => t + 1), 60_000);
     return () => clearInterval(iv);
@@ -6835,14 +6859,42 @@ function UpdatesFeed({ updates, onClose, userTipo, onOpenNewUpdate, isMobile, on
         {/* Linha dourada decorativa abaixo do header */}
         <div style={{ height: 1, background: `linear-gradient(90deg, ${HUB_PALETTE.champanhe}60 0%, ${HUB_PALETTE.champanhe}00 100%)`, flexShrink: 0 }} />
 
+        {/* ── Filtro de data ── */}
+        <div style={{ padding: isMobile ? '10px 22px 8px' : '12px 32px 10px', display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0, borderBottom: `1px solid ${HUB_PALETTE.areiaDim}0e` }}>
+          {[
+            { key: 'all',   label: 'Todos'   },
+            { key: 'today', label: 'Hoje'    },
+            { key: 'week',  label: '7 dias'  },
+            { key: 'month', label: '30 dias' },
+          ].map(opt => {
+            const active = dateFilter === opt.key;
+            return (
+              <button key={opt.key} type="button" onClick={() => setDateFilter(opt.key)}
+                style={{
+                  fontFamily: 'JetBrains Mono, monospace',
+                  fontSize: 8, letterSpacing: '0.22em', textTransform: 'uppercase',
+                  padding: '4px 11px',
+                  background: active ? `${HUB_PALETTE.champanhe}14` : 'transparent',
+                  border: `1px solid ${active ? HUB_PALETTE.champanhe + '55' : HUB_PALETTE.areiaDim + '20'}`,
+                  color: active ? HUB_PALETTE.champanhe : HUB_PALETTE.areiaDim,
+                  cursor: 'pointer',
+                  transition: 'all 160ms ease',
+                  whiteSpace: 'nowrap',
+                }}>
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
+
         {/* ── Lista de cards ── */}
         <div style={{ flex: 1, overflowY: 'auto' }}>
-          {updates.length === 0 ? (
+          {filteredUpdates.length === 0 ? (
             <div style={{ padding: '72px 32px', textAlign: 'center' }}>
               <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 28, color: HUB_PALETTE.areiaDim, opacity: 0.2, marginBottom: 14 }}>◇</div>
-              <div style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontWeight: 300, fontSize: 14, color: HUB_PALETTE.areiaDim }}>Nenhuma atualização recente.</div>
+              <div style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontStyle: 'italic', fontWeight: 300, fontSize: 14, color: HUB_PALETTE.areiaDim }}>{dateFilter === 'all' ? 'Nenhuma atualização recente.' : 'Nenhuma atualização neste período.'}</div>
             </div>
-          ) : updates.map((u, i) => {
+          ) : filteredUpdates.map((u, i) => {
             const tipo = UPDATE_TIPO[u.tipo] || UPDATE_TIPO.fix;
             const isHovered = hoveredId === u.id;
             const isDeleting = deletingId === u.id;
@@ -6917,8 +6969,9 @@ function UpdatesFeed({ updates, onClose, userTipo, onOpenNewUpdate, isMobile, on
                 )}
 
                 {/* Timestamp */}
-                <div style={{ marginTop: 14, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: HUB_PALETTE.areiaDim, letterSpacing: '0.14em' }}>
-                  {fmtRelativo(u.ts)}
+                <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: HUB_PALETTE.areia, letterSpacing: '0.10em' }}>{fmtData(u.ts)}</span>
+                  <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 8, color: HUB_PALETTE.areiaDim, letterSpacing: '0.10em', opacity: 0.55 }}>· {fmtRelativo(u.ts)}</span>
                 </div>
               </div>
             );
