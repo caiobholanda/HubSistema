@@ -1467,10 +1467,10 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
           </button>
         </div>
         {/* Tabs */}
-        <div style={{ display: 'flex', padding: isMobile ? '0 18px' : '0 48px', gap: 0, overflowX: 'auto' }}>
+        <div className="hub-tabs-scroll" style={{ display: 'flex', padding: isMobile ? '0 18px' : '0 48px', gap: 0, overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
           {ABAS.map(a => (
             <button key={a.id} onClick={() => { setAba(a.id); setEditingId(null); setAddingNew(false); setLinkErro(''); }}
-              style={{ background: 'transparent', border: 'none', borderBottom: `2px solid ${aba === a.id ? HUB_PALETTE.champanhe : 'transparent'}`, color: aba === a.id ? HUB_PALETTE.champanhe : HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', padding: '12px 20px 10px', cursor: 'pointer', transition: `color 200ms, border-color 200ms` }}>
+              style={{ background: 'transparent', border: 'none', borderBottom: `2px solid ${aba === a.id ? HUB_PALETTE.champanhe : 'transparent'}`, color: aba === a.id ? HUB_PALETTE.champanhe : HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: isMobile ? 9 : 10, letterSpacing: '0.22em', textTransform: 'uppercase', padding: isMobile ? '12px 13px 10px' : '12px 20px 10px', cursor: 'pointer', transition: `color 200ms, border-color 200ms`, whiteSpace: 'nowrap', flexShrink: 0 }}>
               {a.label}
             </button>
           ))}
@@ -1486,9 +1486,9 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
             <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.35em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
               <span style={{ width: 18, height: 1, background: HUB_PALETTE.champanhe }} />Gerenciar Links
             </div>
-            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 32 }}>
+            <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'flex-start' : 'flex-end', justifyContent: 'space-between', gap: isMobile ? 16 : 32 }}>
               <div style={{ minWidth: 0 }}>
-                <h2 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 300, fontStyle: 'italic', fontSize: 40, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: '0 0 10px' }}>Links do Hub.</h2>
+                <h2 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 300, fontStyle: 'italic', fontSize: isMobile ? 26 : 40, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: '0 0 10px' }}>Links do Hub.</h2>
                 <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: HUB_PALETTE.areiaDim, lineHeight: 1.5, margin: 0 }}>
                   Edite os sistemas existentes ou adicione novos links ao Hub.
                 </p>
@@ -2282,7 +2282,7 @@ function HistoricoPanel({ isMobile }) {
       <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.35em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
         <span style={{ width: 18, height: 1, background: HUB_PALETTE.champanhe }} />Histórico
       </div>
-      <h2 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 300, fontStyle: 'italic', fontSize: 40, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: '0 0 10px' }}>Alterações no painel.</h2>
+      <h2 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 300, fontStyle: 'italic', fontSize: isMobile ? 26 : 40, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: '0 0 10px' }}>Alterações no painel.</h2>
       <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: HUB_PALETTE.areiaDim, lineHeight: 1.5, margin: 0 }}>
         Toda mudança em admins, usuários, setores, links e permissões fica registrada — quem fez e quando.
         {filterDate || filterTipo !== 'todos'
@@ -2440,7 +2440,7 @@ function MassoterapeutasPanel({ isMobile }) {
       <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.35em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
         <span style={{ width: 18, height: 1, background: HUB_PALETTE.champanhe }} />Massoterapeutas
       </div>
-      <h2 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 300, fontStyle: 'italic', fontSize: 40, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: '0 0 10px' }}>Massoterapeutas do Spa.</h2>
+      <h2 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 300, fontStyle: 'italic', fontSize: isMobile ? 26 : 40, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: '0 0 10px' }}>Massoterapeutas do Spa.</h2>
       <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: HUB_PALETTE.areiaDim, lineHeight: 1.5, margin: 0 }}>
         Ative ou inative massoterapeutas na pesquisa de satisfação.
       </p>
@@ -2630,7 +2630,7 @@ function SetoresPanel({ isMobile }) {
       <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.35em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
         <span style={{ width: 18, height: 1, background: HUB_PALETTE.champanhe }} />Setores
       </div>
-      <h2 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 300, fontStyle: 'italic', fontSize: 40, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: '0 0 10px' }}>Setores do hotel.</h2>
+      <h2 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 300, fontStyle: 'italic', fontSize: isMobile ? 26 : 40, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: '0 0 10px' }}>Setores do hotel.</h2>
       <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: HUB_PALETTE.areiaDim, lineHeight: 1.5, margin: 0 }}>
         Gerencie os setores disponíveis para seleção em chamados e cadastros de usuários. Os dados ficam no sistema-chamados; aqui é só a interface.
       </p>
@@ -2932,7 +2932,7 @@ function FeriadosPanel({ isMobile }) {
       <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.35em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
         <span style={{ width: 18, height: 1, background: HUB_PALETTE.champanhe }} />Feriados
       </div>
-      <h2 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 300, fontStyle: 'italic', fontSize: 40, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: '0 0 10px' }}>Feriados do hotel.</h2>
+      <h2 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 300, fontStyle: 'italic', fontSize: isMobile ? 26 : 40, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: '0 0 10px' }}>Feriados do hotel.</h2>
       <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: HUB_PALETTE.areiaDim, lineHeight: 1.5, margin: 0 }}>
         Feriados usados na construção da escala do SPA. Colaboradores que trabalham em feriados têm direito a <strong style={{ color: HUB_PALETTE.areia }}>CF — Compensação de Feriado</strong>.
       </p>
@@ -3163,7 +3163,7 @@ function AusenciasPanel({ isMobile }) {
       <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.35em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
         <span style={{ width: 18, height: 1, background: HUB_PALETTE.champanhe }} />Ausências
       </div>
-      <h2 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 300, fontStyle: 'italic', fontSize: 40, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: '0 0 10px' }}>Tipos de ausência.</h2>
+      <h2 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 300, fontStyle: 'italic', fontSize: isMobile ? 26 : 40, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: '0 0 10px' }}>Tipos de ausência.</h2>
       <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: HUB_PALETTE.areiaDim, lineHeight: 1.5, margin: 0 }}>
         Legenda usada na escala do SPA. Cada tipo tem uma sigla de identificação rápida.
       </p>
@@ -5281,7 +5281,7 @@ function ContasPanel({ isMobile }) {
       <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.35em', textTransform: 'uppercase', color: HUB_PALETTE.champanhe, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
         <span style={{ width: 18, height: 1, background: HUB_PALETTE.champanhe }} />Contas
       </div>
-      <h2 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 400, fontSize: 40, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: '0 0 10px' }}>Gerenciar contas.</h2>
+      <h2 style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 400, fontSize: isMobile ? 26 : 40, letterSpacing: '-0.02em', color: HUB_PALETTE.marfim, margin: '0 0 10px' }}>Gerenciar contas.</h2>
       <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: HUB_PALETTE.areiaDim, lineHeight: 1.5, margin: 0 }}>
         Administração das contas de acesso da plataforma.
       </p>
@@ -6860,7 +6860,7 @@ function UpdatesFeed({ updates, onClose, userTipo, onOpenNewUpdate, isMobile, on
         <div style={{ height: 1, background: `linear-gradient(90deg, ${HUB_PALETTE.champanhe}60 0%, ${HUB_PALETTE.champanhe}00 100%)`, flexShrink: 0 }} />
 
         {/* ── Filtro de data ── */}
-        <div style={{ padding: isMobile ? '10px 22px 8px' : '12px 32px 10px', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, borderBottom: `1px solid ${HUB_PALETTE.areiaDim}0e` }}>
+        <div style={{ padding: isMobile ? '10px 22px 8px' : '12px 32px 10px', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, flexWrap: 'wrap', borderBottom: `1px solid ${HUB_PALETTE.areiaDim}0e` }}>
           {[
             { key: 'all',   label: 'Todos'   },
             { key: 'today', label: 'Hoje'    },
@@ -7313,6 +7313,10 @@ function HubMarquise() {
       '@keyframes hubUpdatePop{0%{transform:scale(.65) translateY(3px);opacity:0}60%{transform:scale(1.1) translateY(0)}100%{transform:scale(1) translateY(0);opacity:1}}',
       '@keyframes hubSlideDown{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}',
       '@keyframes hubBellRing{0%,100%{transform:rotate(0)}12%{transform:rotate(18deg)}24%{transform:rotate(-14deg)}36%{transform:rotate(9deg)}48%{transform:rotate(-5deg)}60%{transform:rotate(0)}}',
+      '.hub-tabs-scroll::-webkit-scrollbar{display:none}',
+      '@media(max-width:767px){input,select,textarea{font-size:16px!important}}',
+      '@media(max-width:767px){body{padding-bottom:env(safe-area-inset-bottom,0px)}}',
+      '@media(max-width:767px){button{-webkit-tap-highlight-color:transparent}}',
     ].join('');
     document.head.appendChild(s);
   }, []);
