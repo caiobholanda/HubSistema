@@ -864,11 +864,7 @@ function LinkEditModal({ sys, form, setForm, onSave, onCancel, linkErro, linkSav
           <button onClick={onCancel} aria-label="Fechar" style={{ background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}33`, color: HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 14, padding: '6px 12px', cursor: 'pointer' }}>×</button>
         </div>
         <div style={{ flexShrink: 0, display: 'flex', gap: 0, borderBottom: `1px solid ${HUB_PALETTE.areiaDim}22`, padding: '0 24px', background: HUB_PALETTE.noite }}>
-          {/* Aba Liberacao escondida para sistemas com admin local proprio:
-              'chamados': admins gerenciados pelo banco do proprio sistema-chamados.
-              'ramais': admins gerenciados pelo /data/admins.json local (aba Administradores).
-              Manter a aba seria enganoso — mudanca aqui nao afeta quem e admin nesses sistemas. */}
-          {[{ id: 'edicao', label: 'Informações' }, ...(!['chamados', 'ramais'].includes(sys.id) ? [{ id: 'liberacao', label: 'Liberação' }] : [])].map(t => (
+          {[{ id: 'edicao', label: 'Informações' }, { id: 'liberacao', label: 'Liberação' }].map(t => (
             <button key={t.id} onClick={() => setAba(t.id)}
               style={{ background: 'transparent', border: 'none', borderBottom: `2px solid ${aba === t.id ? HUB_PALETTE.champanhe : 'transparent'}`, color: aba === t.id ? HUB_PALETTE.champanhe : HUB_PALETTE.areiaDim, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', padding: '12px 18px 10px', cursor: 'pointer' }}>
               {t.label}
@@ -1028,21 +1024,6 @@ function LiberacaoPanel({ sistemaId, sistemaNome, isMobile, users, acessoPadrao,
   const item = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '10px 12px', border: `1px solid ${HUB_PALETTE.areiaDim}22`, fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.marfim };
   const btn = { background: 'transparent', border: `1px solid ${HUB_PALETTE.areiaDim}44`, color: HUB_PALETTE.areiaDim, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 11, letterSpacing: '0.02em', textTransform: 'none', padding: '5px 10px', cursor: busy ? 'wait' : 'pointer' };
 
-  if (acessoPadrao) {
-    return (
-      <div style={{ padding: isMobile ? '12px' : '18px 24px 24px' }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, padding: '16px 18px', border: `1px solid #99644244`, background: '#99644208' }}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#996442" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 1 }}><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
-          <div>
-            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: '#996442', marginBottom: 6 }}>Aplicativo Padrão</div>
-            <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areia, margin: 0, lineHeight: 1.55 }}>
-              Todos os usuários ativos possuem acesso padrão a este sistema. O gerenciamento individual de acesso não está disponível para aplicativos padrão.
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div style={{ padding: isMobile ? '12px' : '18px 24px 24px' }}>
