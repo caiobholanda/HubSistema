@@ -139,33 +139,7 @@
     }
   ],
   "audit_log": [],
-  "site_permissions": [
-    {
-      "email": "ana.souza@exemplo.local",
-      "sistema_id": "chamados",
-      "papel": "admin"
-    },
-    {
-      "email": "ana.souza@exemplo.local",
-      "sistema_id": "ramais",
-      "papel": "admin"
-    },
-    {
-      "email": "ana.souza@exemplo.local",
-      "sistema_id": "pesquisa-satisfacao",
-      "papel": "admin"
-    },
-    {
-      "email": "ana.souza@exemplo.local",
-      "sistema_id": "gestao-de-qualidade",
-      "papel": "admin"
-    },
-    {
-      "email": "ana.souza@exemplo.local",
-      "sistema_id": "temp",
-      "papel": "admin"
-    }
-  ],
+  "site_permissions": [],
   "_site_permissions_seeded": true,
   "feriados": [
     {

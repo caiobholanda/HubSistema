@@ -173,6 +173,34 @@ const MIGRATION_SEED_V4 = [
   { email: 'valderlania.bezerra@granmarquise.com.br', sistema_id: 'pesquisa-satisfacao', papel: 'massoterapeuta' },
 ];
 
+// Migration v5: estado canônico completo — corrige perda de permissões causada por
+// reset de volume (migração de região Fly.io) + seed sanitizado sem dados reais.
+// Idempotente: remove entradas fictícias (@exemplo.local) e e-mail errado (v4),
+// então upserta todos os 21 registros reais com papéis corretos (master não admin).
+const MIGRATION_SEED_V5 = [
+  { email: 'christian.bernard@granmarquise.com.br',  sistema_id: 'ramais',              papel: 'admin'          },
+  { email: 'ana.louise@granmarquise.com.br',          sistema_id: 'ramais',              papel: 'admin'          },
+  { email: 'kamilly.sousa@granmarquise.com.br',       sistema_id: 'ramais',              papel: 'admin'          },
+  { email: 'richard@granmarquise.com.br',             sistema_id: 'ramais',              papel: 'admin'          },
+  { email: 'suporte.ti@granmarquise.com.br',          sistema_id: 'ramais',              papel: 'admin'          },
+  { email: 'estagio.ti@granmarquise.com.br',          sistema_id: 'ramais',              papel: 'admin'          },
+  { email: 'francisco.rodrigues@granmarquise.com.br', sistema_id: 'ramais',              papel: 'admin'          },
+  { email: 'richard@granmarquise.com.br',             sistema_id: 'pesquisa-satisfacao', papel: 'master'         },
+  { email: 'suporte.ti@granmarquise.com.br',          sistema_id: 'pesquisa-satisfacao', papel: 'master'         },
+  { email: 'estagio.ti@granmarquise.com.br',          sistema_id: 'pesquisa-satisfacao', papel: 'master'         },
+  { email: 'georgia.gomes@granmarquise.com.br',       sistema_id: 'pesquisa-satisfacao', papel: 'spa'            },
+  { email: 'julia.santos@granmarquise.com.br',        sistema_id: 'pesquisa-satisfacao', papel: 'spa'            },
+  { email: 'germana.silva@granmarquise.com.br',       sistema_id: 'pesquisa-satisfacao', papel: 'massoterapeuta' },
+  { email: 'isadora.menezes@granmarquise.com.br',     sistema_id: 'pesquisa-satisfacao', papel: 'massoterapeuta' },
+  { email: 'karoline.freitas@granmarquise.com.br',    sistema_id: 'pesquisa-satisfacao', papel: 'massoterapeuta' },
+  { email: 'valderlania.bezerra@granmarquise.com.br', sistema_id: 'pesquisa-satisfacao', papel: 'massoterapeuta' },
+  { email: 'mayara.dias@granmarquise.com.br',         sistema_id: 'pesquisa-satisfacao', papel: 'massoterapeuta' },
+  { email: 'antonia.cristina@granmarquise.com.br',    sistema_id: 'pesquisa-satisfacao', papel: 'massoterapeuta' },
+  { email: 'suporte.ti@granmarquise.com.br',          sistema_id: 'chamados',            papel: 'admin'          },
+  { email: 'richard@granmarquise.com.br',             sistema_id: 'chamados',            papel: 'admin'          },
+  { email: 'estagiousuario.ti@granmarquise.com.br',   sistema_id: 'chamados',            papel: 'admin'          },
+];
+
 function migrarSitePermissoesV4(data) {
   if (!data || typeof data !== 'object') return data;
   if (data._site_permissions_v4_seeded) return data;
@@ -192,15 +220,42 @@ function migrarSitePermissoesV4(data) {
   return data;
 }
 
+function migrarSitePermissoesV5(data) {
+  if (!data || typeof data !== 'object') return data;
+  if (data._site_permissions_v5_seeded) return data;
+  if (!Array.isArray(data.site_permissions)) data.site_permissions = [];
+  // Remove entradas fictícias de sanitização e e-mail errado do v4
+  data.site_permissions = data.site_permissions.filter(
+    r => !_norm(r.email).endsWith('@exemplo.local') &&
+         !(_norm(r.email) === 'antonia.sousa@granmarquise.com.br' && r.sistema_id === 'pesquisa-satisfacao')
+  );
+  for (const entry of MIGRATION_SEED_V5) {
+    const e = _norm(entry.email);
+    const s = entry.sistema_id;
+    const p = entry.papel;
+    const existente = data.site_permissions.find(r => _norm(r.email) === e && r.sistema_id === s);
+    if (existente) {
+      existente.papel = p;
+      existente.email = e;
+    } else {
+      data.site_permissions.push({ email: e, sistema_id: s, papel: p });
+    }
+  }
+  data._site_permissions_v5_seeded = true;
+  return data;
+}
+
 module.exports = {
   MIGRATION_SEED,
   MIGRATION_SEED_V2,
   MIGRATION_SEED_V4,
+  MIGRATION_SEED_V5,
   PAPEIS_VALIDOS,
   migrarSitePermissoes,
   migrarSitePermissoesV2,
   migrarPermissionsV3,
   migrarSitePermissoesV4,
+  migrarSitePermissoesV5,
   listarPapeis,
   sitesOndeEhAdmin,
   sitesUsuario,
