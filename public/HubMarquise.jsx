@@ -1039,9 +1039,9 @@ function LiberacaoPanel({ sistemaId, sistemaNome, isMobile, users, acessoPadrao,
         </div>
       )}
       <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areia, lineHeight: 1.55, margin: '0 0 18px' }}>
-        Quem aparece abaixo recebe <strong>cookie de admin</strong> no <em>{sistemaNome}</em> no próximo login.
-        Quem tem acesso ao link no Hub mas não está aqui recebe cookie de usuário comum automaticamente.
-        Mudanças valem no <strong>próximo login</strong> da conta afetada.
+        Quem aparece abaixo recebe <strong>acesso de admin</strong> no <em>{sistemaNome}</em>.
+        Quem tem acesso ao link no Hub mas não está aqui entra como usuário comum automaticamente.
+        Mudanças valem na <strong>próxima vez que a conta abrir o sistema pelo Hub</strong>.
       </p>
 
       {/* Adicionar — autocomplete com sugestoes de emails cadastrados no Hub.
@@ -1143,7 +1143,7 @@ function LiberacaoPanel({ sistemaId, sistemaNome, isMobile, users, acessoPadrao,
               <strong style={{ color: HUB_PALETTE.marfim }}>{confirmRemover.email}</strong>
             </p>
             <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: HUB_PALETTE.areia, margin: '0 0 24px', lineHeight: 1.5 }}>
-              Perderá o acesso de admin no próximo login. Esta ação pode ser desfeita adicionando o e-mail novamente.
+              Perderá o acesso de admin na próxima vez que abrir o sistema pelo Hub. Esta ação pode ser desfeita adicionando o e-mail novamente.
             </p>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
               <button onClick={() => setConfirmRemover(null)}
@@ -7057,15 +7057,46 @@ function SystemPreview({ kind }) {
 
 // ─── System Panel ─────────────────────────────────────────────────────────────
 
+// Renova o hub_sso_token com dados frescos do banco (site_roles/sites_admin/
+// sistemas) e o grava no localStorage. Sem isso, um papel concedido na aba
+// Liberacao so valia no proximo LOGIN (o token vive 8h no localStorage e a
+// restauracao de sessao o reusa) — "adicionei como admin e continuou usuario".
+// Timeout curto: em falha devolve o token atual e o fluxo segue como antes.
+async function refreshHubToken() {
+  const atual = localStorage.getItem('hub_sso_token');
+  if (!atual) return null;
+  try {
+    const r = await fetch('/api/auth/refresh', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${atual}` },
+      signal: AbortSignal.timeout(2500),
+    });
+    const d = await r.json().catch(() => null);
+    if (r.ok && d && d.ok && d.token) {
+      localStorage.setItem('hub_sso_token', d.token);
+      return d.token;
+    }
+  } catch {}
+  return atual;
+}
+
 function SystemPanel({ system, index, revealed, isMobile, userEmail, userTipo }) {
   const [hover, setHover] = useState(false);
   const disabled = system.url === '#';
 
-  function handleOpen(e) {
+  async function handleOpen(e) {
     e.preventDefault();
     if (disabled) return;
     logHubEvento(`abrir_${system.id}`, system.nome);
-    const token = localStorage.getItem('hub_sso_token');
+    // Abre a janela AINDA DENTRO do gesto do clique (sincrono) — depois do
+    // await o navegador poderia bloquear o popup. O opener e' cortado a mao
+    // porque window.open com 'noopener' devolve null e impediria o redirect.
+    let popup = null;
+    try {
+      popup = window.open('about:blank', '_blank');
+      if (popup) popup.opener = null;
+    } catch {}
+    const token = await refreshHubToken();
     let destUrl = system.url;
     const parsedToken = token ? parseJwt(token) : {};
     const siteRole = parsedToken?.site_roles?.[system.id];
@@ -7105,6 +7136,9 @@ function SystemPanel({ system, index, revealed, isMobile, userEmail, userTipo })
       // acrescenta token nem theme — nenhum site de fora entende esses
       // parametros e sujar a URL e' justamente o que quebrava os links novos.
       url = destUrl;
+    }
+    if (popup && !popup.closed) {
+      try { popup.location.replace(url); return; } catch {}
     }
     window.open(url, '_blank', 'noopener,noreferrer');
   }
@@ -7263,6 +7297,9 @@ function HubMarquise() {
 
   // Se a URL atual tem ?next=<url-completa> e o token esta valido, redireciona
   // o usuario para <origin>/sso?sso_token=<token>&next=<path> e devolve true.
+  // Sincrono na decisao (o caller usa o retorno para abortar a restauracao);
+  // o refresh do token acontece dentro, antes do replace — mesmo motivo do
+  // handleOpen: papel dado na Liberacao precisa valer ja no proximo acesso.
   function redirectToNextIfAny() {
     try {
       const token = localStorage.getItem('hub_sso_token');
@@ -7276,8 +7313,11 @@ function HubMarquise() {
       const themeAtual = (() => {
         try { return localStorage.getItem('gm-theme') === 'dark' ? 'dark' : 'light'; } catch { return 'light'; }
       })();
-      const url = `${u.origin}/sso?sso_token=${encodeURIComponent(token)}&next=${encodeURIComponent(destPath)}&theme=${themeAtual}`;
-      window.location.replace(url);
+      refreshHubToken().then(fresco => {
+        const t = fresco || token;
+        const url = `${u.origin}/sso?sso_token=${encodeURIComponent(t)}&next=${encodeURIComponent(destPath)}&theme=${themeAtual}`;
+        window.location.replace(url);
+      });
       return true;
     } catch (_) { return false; }
   }

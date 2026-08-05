@@ -941,6 +941,13 @@ app.post('/api/auth/refresh', (req, res) => {
   try {
     const old = jwt.verify(token, SSO_SECRET);
     const dados = readData();
+    // readData em falha devolve estrutura vazia sem lancar. Assinar um token
+    // "fresco" com sites_admin=[]/sistemas=[] rebaixaria TODO mundo — e agora
+    // os satelites derrubam cookie admin no rebaixamento. Melhor falhar: o
+    // front continua com o token atual e nada muda ate o volume voltar.
+    if (!Array.isArray(dados.users) || dados.users.length === 0) {
+      return res.status(503).json({ ok: false, erro: 'dados indisponíveis' });
+    }
     const payload = { nome: old.nome, email: old.email, tipo: old.tipo };
     if (old.tipo === 'admin') payload.is_master = !!old.is_master;
     payload.sites_admin = sitePerm.sitesOndeEhAdmin(dados, old.email);
