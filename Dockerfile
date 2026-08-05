@@ -1,6 +1,7 @@
 FROM node:20-alpine
 WORKDIR /app
 COPY package*.json ./
+COPY vendor/ ./vendor/
 RUN npm ci --production
 COPY . .
 # Seed embutido na imagem (fora do mount /app/data) para recuperar dados quando o
