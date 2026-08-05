@@ -1640,6 +1640,44 @@ app.get('/api/hub/site-roles', (req, res) => {
   });
 });
 
+// S2S: satélite define papel de email no seu próprio sistema. Bearer === SSO_SECRET.
+app.post('/api/hub/site-permissions', (req, res) => {
+  const auth = req.headers.authorization || '';
+  const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
+  if (!token || token !== SSO_SECRET) return res.status(403).json({ ok: false, erro: 'Acesso negado' });
+  const { email, sistema_id, papel } = req.body || {};
+  if (!email || !sistema_id || !papel) return res.status(400).json({ ok: false, erro: 'email, sistema_id e papel obrigatorios' });
+  const dados = readData();
+  const r = sitePerm.setPapel(dados, email, sistema_id, papel);
+  if (!r.ok) return res.status(400).json({ ok: false, erro: r.erro });
+  writeData(dados);
+  if (r.mudou) {
+    const emailNorm = sitePerm._norm(email);
+    const tu = (dados.users || []).find(u => sitePerm._norm(u.email) === emailNorm) || {};
+    notifyUser(emailNorm, getUserSistemas(emailNorm, tu.tipo || 'usuario', !!tu.is_master));
+  }
+  res.json({ ok: true, ...r });
+});
+
+// S2S: satélite remove papel de email no seu próprio sistema. Bearer === SSO_SECRET.
+app.delete('/api/hub/site-permissions', (req, res) => {
+  const auth = req.headers.authorization || '';
+  const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
+  if (!token || token !== SSO_SECRET) return res.status(403).json({ ok: false, erro: 'Acesso negado' });
+  const email = req.query.email || (req.body && req.body.email);
+  const sistema_id = req.query.sistema_id || (req.body && req.body.sistema_id);
+  if (!email || !sistema_id) return res.status(400).json({ ok: false, erro: 'email e sistema_id obrigatorios' });
+  const dados = readData();
+  const r = sitePerm.removerPapel(dados, email, sistema_id);
+  writeData(dados);
+  if (r.mudou) {
+    const emailNorm = sitePerm._norm(email);
+    const tu = (dados.users || []).find(u => sitePerm._norm(u.email) === emailNorm) || {};
+    notifyUser(emailNorm, getUserSistemas(emailNorm, tu.tipo || 'usuario', !!tu.is_master));
+  }
+  res.json({ ok: true, ...r });
+});
+
 // S2S: feriados ATIVOS para sistemas satelites (ex.: escala do Gran Spa).
 // Mesmo modelo de auth de site-admins/site-roles: Bearer === SSO_SECRET.
 app.get('/api/hub/feriados', (req, res) => {
