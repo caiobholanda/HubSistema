@@ -1,0 +1,163 @@
+================================================================================
+Sprint 5B-B1.5 — VALIDACAO POS-MIGRACAO EM PRODUCAO
+================================================================================
+
+Data:   2026-08-04
+STATUS: BLOQUEADO — AGUARDANDO EXECUCAO DO COMANDO DE SECRETS
+
+--------------------------------------------------------------------------------
+POR QUE ESTE RELATORIO AINDA NAO CONTEM RESULTADOS
+--------------------------------------------------------------------------------
+
+  A Atividade 4 pede para "executar novamente toda a validacao contra o
+  ambiente ja configurado" — isso exige que os Secrets do Fly
+  (S3_BUCKET/S3_ACCESS_KEY_ID/S3_SECRET_ACCESS_KEY) JA' estejam
+  atualizados para os valores de `hub-portal-prod`/
+  `hub-portal-prod-runtime`.
+
+  Ate' o momento da geracao deste documento, esse comando AINDA NAO foi
+  executado (nem por mim — nao recebi as credenciais, por decisao sua
+  explicita — nem confirmado por voce como executado). Ver
+  Sprint5BB15-SecretsMigration.txt para o comando exato a rodar.
+
+  Gerar resultados de validacao "de antemao" aqui seria fabricar
+  evidencia — por isso este documento fica como PLACEHOLDER ate' a
+  confirmacao.
+
+--------------------------------------------------------------------------------
+O QUE SERA' FEITO ASSIM QUE VOCE CONFIRMAR A ATUALIZACAO DOS SECRETS
+--------------------------------------------------------------------------------
+
+  Metodo (identico ao usado com sucesso na Sprint 5B-B1.2 — SSH na
+  maquina de producao ja em execucao, lendo os Secrets JA' injetados
+  pelo Fly, sem nunca precisar que voce me informe a credencial em
+  texto puro):
+
+    1. flyctl secrets list -a hub-granmarquise — confirmar que os
+       digests de S3_BUCKET/S3_ACCESS_KEY_ID/S3_SECRET_ACCESS_KEY
+       mudaram em relacao aos valores conhecidos das Sprints
+       5B-B1.1/5B-B1.2.
+    2. flyctl ssh console -a hub-granmarquise + script Node.js
+       (aws4fetch, mesmo padrao das Sprints 5B-B1.2/5B-B1.4) rodando
+       DENTRO da maquina, usando as credenciais JA' injetadas pelo
+       proprio restart do `secrets set`:
+         - autenticacao
+         - confirmar S3_BUCKET aponta para `hub-portal-prod` (comparar
+           o valor de process.env.S3_BUCKET, sem imprimir a Access
+           Key/Secret Key — apenas fingerprint, como sempre)
+         - ListBucket + confirmar bucket vazio (ou apenas com objeto de
+           teste orfao, se aplicavel)
+         - PutObject + GetObject (upload/leitura de objeto temporario,
+           removido ao final se o DELETE for permitido — sabemos, pela
+           validacao da Sprint 5B-B1.4, que o papel "Editor" permite
+           DELETE, entao a limpeza do objeto de teste sera' possivel
+           desta vez)
+    3. flyctl logs -a hub-granmarquise — revisar o periodo apos o
+       restart em busca de qualquer excecao relacionada a storage
+       (Fase 6 do plano original da Sprint 5B-B1.4).
+    4. Confirmar, pela ausencia de qualquer Secret com digest do bucket
+       antigo, que `hub-prod-backups` deixou de ser referenciado por
+       qualquer variavel de ambiente do app `hub-granmarquise`.
+
+  PROXIMO PASSO PARA VOCE: rodar o comando `flyctl secrets set` de
+  Sprint5BB15-SecretsMigration.txt e me avisar (pode colar apenas a
+  saida de `flyctl secrets list`, que nao expoe nenhum valor) para eu
+  prosseguir com esta validacao e reemitir este documento com os
+  resultados reais.
+
+--------------------------------------------------------------------------------
+ATIVIDADE 2 (2026-08-04, incorporado por pedido de governanca) —
+ETAPA FORMAL DE AUDITORIA POS-`flyctl secrets set`
+--------------------------------------------------------------------------------
+
+  Esta etapa e' PARTE do que sera' executado apos a confirmacao (nao foi
+  executada agora — nenhum comando abaixo foi rodado ainda). Documentada
+  aqui como procedimento formal, na ordem exata em que sera' seguida:
+
+  2.1. flyctl status -a hub-granmarquise
+       Objetivo: confirmar que a maquina concluiu o restart disparado
+       pelo `secrets set` e voltou ao estado STATE=started, numa unica
+       maquina, sem instancias extras/orfas.
+       Resultado esperado: 1 maquina, STATE=started, versao de release
+       incrementada em relacao a` observada antes do comando.
+
+  2.2. flyctl secrets list -a hub-granmarquise
+       Objetivo: capturar o novo DIGEST de S3_BUCKET, S3_ACCESS_KEY_ID e
+       S3_SECRET_ACCESS_KEY (e de S3_ENDPOINT/S3_REGION, se tiverem sido
+       incluidos no comando).
+
+  2.3. CONFIRMACAO DE MUDANCA DE DIGEST
+       Comparar os digests capturados no passo 2.2 contra a BASELINE
+       conhecida (capturada nesta mesma Sprint, em 2026-08-04, ANTES de
+       qualquer alteracao):
+         S3_BUCKET             baseline digest: b0866194e10d15d8
+         S3_ACCESS_KEY_ID       baseline digest: 1e42ddad853a99d5
+         S3_SECRET_ACCESS_KEY   baseline digest: 96d84008e0d464a2
+       Resultado esperado: os TRES digests pos-migracao devem ser
+       DIFERENTES dos tres valores de baseline acima. Se qualquer um dos
+       tres permanecer identico a` baseline, isso e' evidencia de que o
+       comando nao teve o efeito esperado sobre aquela variavel
+       especifica — registrar como FAIL nesse item pontual.
+
+  2.4. CONFIRMACAO DE QUE NENHUM VALOR SECRETO FOI EXPOSTO
+       `flyctl secrets list` NUNCA imprime o valor de um Secret — apenas
+       nome, digest (hash) e status "Deployed". Este e' o unico comando
+       usado para esta confirmacao, precisamente porque, por design da
+       propria ferramenta, ele NAO tem capacidade de expor o valor —
+       nao ha' "modo verbose" que revele o segredo. Nenhum outro comando
+       desta auditoria (status/logs) imprime valor de Secret. Onde a
+       validacao funcional precisar USAR a credencial (list/put/get
+       contra o Tigris), isso sera' feito via SSH DENTRO da maquina
+       (Atividade 4 abaixo), lendo `process.env` diretamente no
+       processo, sem jamais fazer `console.log` do valor — apenas
+       fingerprint (4+4 caracteres) e comprimento, exatamente como em
+       todas as Sprints anteriores desta serie.
+
+  2.5. CONFIRMACAO DO RESTART DA MAQUINA
+       Evidenciado por DOIS sinais independentes, cruzados entre si:
+         (a) `flyctl status` (passo 2.1): numero de versao/release da
+             maquina incrementado em relacao ao observado antes do
+             comando.
+         (b) `flyctl logs`: presenca de uma nova sequencia de boot
+             (linhas de inicializacao do processo Node, ex.: qualquer
+             log de startup do `server.js`) com timestamp POSTERIOR ao
+             horario em que o `secrets set` foi executado.
+       Resultado esperado: ambos os sinais concordam num unico evento de
+       restart, sem restarts adicionais nao explicados no mesmo periodo.
+
+--------------------------------------------------------------------------------
+ATIVIDADE 3 (2026-08-04, incorporado por pedido de governanca) — ITEM
+ESPECIFICO: REFERENCIA RESIDUAL AO BUCKET/CREDENCIAL ANTIGOS
+--------------------------------------------------------------------------------
+
+  Item adicional, especifico, a ser avaliado como PASS/FAIL binario
+  (nao apenas texto descritivo) durante a validacao pos-migracao:
+
+    VERIFICACAO: existe QUALQUER variavel de ambiente do processo em
+    producao (capturada via SSH, `process.env` completo do processo
+    Node — nao apenas as 5 variaveis S3_*) cujo DIGEST/fingerprint
+    corresponda ao bucket antigo (`hub-prod-backups`) ou a` Access Key
+    antiga (fingerprint conhecido: tid_...KCeW)?
+
+      Criterio de FAIL: SIM, alguma variavel ainda referencia o bucket
+      ou a credencial antigos.
+      Criterio de PASS: NAO, nenhuma variavel do processo referencia o
+      bucket ou a credencial antigos.
+
+    Metodo: dentro do mesmo script Node executado via SSH (Atividade 4
+    do corpo principal deste documento), alem de ler S3_BUCKET/
+    S3_ACCESS_KEY_ID diretamente, iterar `Object.keys(process.env)` e
+    reportar (SEM imprimir valores) quais delas, ao ter seu fingerprint
+    calculado, batem com os fingerprints conhecidos do ambiente antigo
+    — cobre tanto os nomes esperados (S3_*) quanto qualquer variavel
+    inesperada (ex.: um nome de variavel esquecido de uma tentativa
+    anterior) que por acaso ainda contenha o valor antigo.
+
+  RESULTADO DESTE ITEM NESTA VERSAO DO DOCUMENTO: NAO AVALIADO — nenhuma
+  execucao ocorreu ainda. Sera' preenchido como PASS ou FAIL,
+  explicitamente, na proxima revisao deste documento, apos a validacao
+  real.
+
+================================================================================
+FIM DO DOCUMENTO (PARCIAL) — Sprint5BB15-ProductionValidation.txt
+================================================================================

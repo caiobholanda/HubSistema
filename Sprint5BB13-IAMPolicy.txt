@@ -1,0 +1,114 @@
+================================================================================
+Sprint 5B-B1.3 — POLITICA MINIMA DE PERMISSOES (IAM) PARA A ACCESS KEY DE RUNTIME
+================================================================================
+
+Data:   2026-08-04
+Metodo: leitura direta do CODIGO REAL vendorizado
+(`vendor/hub-storage-client-1.0.0.tgz` -> `S3CompatibleProvider.js`,
+`vendor/hub-backup-core-1.1.0.tgz` -> `FileSnapshotStrategy.js`) para
+confirmar, por evidencia de codigo, quais comandos S3 cada operacao do
+Shadow Mode realmente dispara — nao suposicao.
+
+--------------------------------------------------------------------------------
+ATIVIDADE 3 — POLITICA MINIMA
+--------------------------------------------------------------------------------
+
+  ✓ PutObject — NECESSARIA
+
+    Onde e' usada: `S3CompatibleProvider.upload()` (linha ~64 da regiao
+    de upload em S3CompatibleProvider.js) usa `PutObjectCommand`.
+    Chamada por: `BackupService.runBackup(source)` — o proprio metodo que
+    `runShadowBackup()` (src/backup-adapter.js) invoca a cada ciclo de
+    backup. SEM esta permissao, todo backup do Shadow Mode falharia no
+    primeiro passo (upload), sempre.
+
+  ✓ GetObject — NECESSARIA
+
+    Onde e' usada: `S3CompatibleProvider.download()`/leitura de objeto
+    usa `GetObjectCommand`.
+    Chamada por: `strategy.restoreLatestTo()` (FileSnapshotStrategy),
+    que e' exatamente o que `dryRunRestoreProbe()` (src/backup-
+    adapter.js) chama a cada ciclo de Shadow Mode para validar que o
+    backup recem-enviado pode ser lido de volta. TAMBEM sera'
+    necessaria, sem nenhuma mudanca adicional de policy, para um
+    eventual restore REAL no Estagio 2 (fora do escopo desta Sprint,
+    mas relevante para nao ter que re-provisionar a credencial depois).
+
+  ✓ ListBucket (ListObjectsV2) — NECESSARIA, CONFIRMADO POR CODIGO
+    (nao apenas "se necessario" — E' necessario)
+
+    Onde e' usada: dois pontos distintos, ambos confirmados lendo o
+    codigo-fonte real:
+      (a) `S3CompatibleProvider.list(prefix)` usa `ListObjectsV2Command`
+          — chamado internamente por `FileSnapshotStrategy` (linhas 343
+          e 353 de FileSnapshotStrategy.js) para localizar o snapshot
+          MAIS RECENTE antes de um restore — exatamente o mecanismo por
+          tras de `restoreLatestTo()`, usado pelo `dryRunRestoreProbe()`
+          do Shadow Mode. Sem ListBucket, o restore-probe nao consegue
+          nem descobrir QUAL objeto ler.
+      (b) `S3CompatibleProvider.health()` usa
+          `ListObjectsV2Command({Bucket, MaxKeys: 1})` especificamente
+          para verificar "conectividade, autenticacao e permissao de
+          leitura/listagem" (comentario do proprio codigo-fonte do
+          hub-sdk). Um health-check dessa natureza, se algum dia exposto
+          pelo hub-portal, tambem dependeria desta permissao.
+
+    CONCLUSAO: a condicional da Sprint ("somente se realmente
+    necessario") esta' RESOLVIDA — sim, e' necessario, com evidencia de
+    codigo, nao apenas por precaucao.
+
+  ✗ DeleteObject — NAO NECESSARIA PARA O RUNTIME, CONFIRMADO POR CODIGO
+
+    O `S3CompatibleProvider` SUPORTA `DeleteObjectCommand`/
+    `DeleteObjectsCommand` (a classe implementa a operacao — faz parte
+    da interface generica `IStorageProvider`), mas NENHUM caminho de
+    codigo realmente exercitado pelo hub-portal hoje a invoca:
+      - `BackupService.runBackup()` (usado por `runShadowBackup()`): so'
+        faz upload, nunca delete.
+      - `strategy.restoreLatestTo()` (usado por `dryRunRestoreProbe()`):
+        so' faz list + get, nunca delete.
+      - Nao existe, no hub-portal, nenhum job de retencao/pruning
+        implementado hoje que chamaria delete (o `RetentionPolicy`
+        mencionado no ADR-010 e' declarado como responsabilidade do
+        `backup-core`, mas o disparo desse job — "executado via GitHub
+        Actions, nunca embutido no runtime da app", per ADR-010 Modelo
+        IAM — nao foi implementado para o hub-portal em nenhuma Sprint
+        ate' agora).
+
+    CONCLUSAO: remover DeleteObject da credencial de runtime NAO
+    quebra NENHUMA funcionalidade hoje existente do hub-portal —
+    confirmado por leitura de codigo, nao apenas por seguir a
+    recomendacao do ADR-010 as cegas.
+
+--------------------------------------------------------------------------------
+CREDENCIAL DE PRUNE (SEGUNDA CREDENCIAL, SEPARADA) — STATUS
+--------------------------------------------------------------------------------
+
+  O ADR-010 preve' uma SEGUNDA credencial, com DeleteObject/
+  DeleteObjectsCommand, usada exclusivamente por um job de retencao via
+  GitHub Actions, nunca embutida no runtime da aplicacao.
+
+  Esse job NAO existe hoje para o hub-portal (nem para o Shadow Mode,
+  nem para o mecanismo legado). Criar essa segunda credencial AGORA,
+  sem o job que a usaria, so' criaria uma credencial ociosa e uma
+  superficie de gestao extra sem beneficio imediato.
+
+  RECOMENDACAO: NAO criar a credencial de prune nesta migracao. Ela deve
+  ser criada quando (e se) um job de retencao real for implementado para
+  o hub-portal — item que ja' consta como Backlog Tecnico do proprio
+  ADR-010 (RetentionPolicy/lifecycle nativo), fora do escopo de
+  qualquer Sprint realizada ate' aqui.
+
+--------------------------------------------------------------------------------
+POLICY RESUMIDA (referencia para quem for criar a Access Key)
+--------------------------------------------------------------------------------
+
+  Acoes permitidas:   s3:PutObject, s3:GetObject, s3:ListBucket
+  Acoes negadas:       s3:DeleteObject, s3:DeleteObjects, e qualquer
+                       acao administrativa de bucket (nunca s3:* nem
+                       Resource:* — escopar explicitamente ao ARN/nome
+                       do bucket `hub-portal`, per ADR-010 Modelo IAM).
+
+================================================================================
+FIM DO DOCUMENTO — Sprint5BB13-IAMPolicy.txt
+================================================================================

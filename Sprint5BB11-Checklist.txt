@@ -1,0 +1,119 @@
+================================================================================
+Sprint 5B-B1.1 — CHECKLIST OPERACIONAL DA HOMOLOGACAO
+================================================================================
+
+Data:   2026-08-04
+Pre-requisito: aprovacao explicita do usuario para EXECUTAR (esta Sprint
+apenas prepara o checklist — nenhum passo abaixo foi executado).
+
+Nenhuma etapa abaixo modifica o backup legado: o legado so' e' tocado no
+sentido de "continuar rodando exatamente como hoje" (que, per Atividade 1,
+e' DESATIVADO por falta de BUCKET_NAME/AWS_*) — nenhum passo altera essa
+condicao.
+
+--------------------------------------------------------------------------------
+PASSO 0 — PRE-CHECAGEM (recomendado, ver Atividade 2 do Plano)
+--------------------------------------------------------------------------------
+  [ ] Confirmar no console da Tigris que o bucket referenciado por
+      S3_BUCKET existe e e' o bucket dedicado do Portal HUB (ADR-010 V2).
+  [ ] Confirmar horario de baixo trafego para a janela de homologacao
+      (o `flyctl secrets set`/`unset` reinicia a maquina).
+  [ ] Ter este checklist e o Sprint5BB11-RollbackPlan.txt abertos antes
+      de comecar.
+
+--------------------------------------------------------------------------------
+1. ATIVAR SHADOW MODE
+--------------------------------------------------------------------------------
+  [ ] Executar: flyctl secrets set BACKUP_ENGINE=shadow -a hub-granmarquise
+  [ ] Aguardar o release/restart terminar: flyctl status -a hub-granmarquise
+      (verificar STATE=started na nova versao da maquina)
+  [ ] Confirmar no log de boot que o processo reconheceu a mudanca:
+      flyctl logs -a hub-granmarquise
+      Procurar por qualquer linha "[SHADOW" ou confirmar ausencia de erro
+      de boot. (Nao ha' hoje um log de boot dedicado a
+      "shadow mode ativado" — a confirmacao efetiva vem do Passo 3.)
+
+--------------------------------------------------------------------------------
+2. PROVOCAR UM BACKUP
+--------------------------------------------------------------------------------
+  [ ] Realizar UMA escrita real e minima no Portal (ex.: editar um campo
+      de um contato de teste e salvar, ou qualquer acao que chame
+      writeData()) para disparar agendarBackup().
+  [ ] Aguardar o debounce de 5000ms.
+
+--------------------------------------------------------------------------------
+3. VALIDAR UPLOAD
+--------------------------------------------------------------------------------
+  [ ] flyctl logs -a hub-granmarquise
+  [ ] Confirmar, NESTA ORDEM, as linhas (Sprint 5B-B1):
+        [LEGACY BACKUP] iniciado
+        [LEGACY BACKUP] concluído   (sera' um no-op silencioso dado o
+                                     achado da Atividade 1 — sem erro
+                                     esperado, apenas sem efeito real)
+        [SHADOW BACKUP] iniciado
+        [SHADOW BACKUP] upload realizado
+  [ ] Se aparecer "[SHADOW BACKUP] falhou: ..." em vez de "upload
+      realizado" — PARAR AQUI e seguir Sprint5BB11-RollbackPlan.txt.
+      Nao prosseguir para os passos 4-6 com uma falha de upload nao
+      diagnosticada.
+
+--------------------------------------------------------------------------------
+4. VALIDAR CHECKSUM
+--------------------------------------------------------------------------------
+  [ ] Confirmar a linha "[SHADOW BACKUP] checksum validado" no log.
+  [ ] Confirmar tambem, no log detalhado pre-existente
+      "[backup-shadow] objectKey=... sizeBytes=... uploadMs=..." (nao
+      removido pela Sprint 5B-B1), que NAO ha' uma linha
+      "[backup-shadow] DIVERGENCIA...". Se houver divergencia de
+      checksum, tratar como falha (ver Sprint5BB11-EvidenceGuide.txt
+      para o que coletar) e seguir o rollback.
+
+--------------------------------------------------------------------------------
+5. VALIDAR RESTORE DE LEITURA
+--------------------------------------------------------------------------------
+  [ ] Confirmar a linha "[SHADOW BACKUP] concluído" no log — ela so'
+      ocorre DEPOIS que `dryRunRestoreProbe()` retorna, ou seja, so'
+      aparece se o restore de leitura (para arquivo temporario,
+      NUNCA hub_data.json) tiver sido executado.
+  [ ] Nao ha' comando de inspecao direta do resultado de
+      `dryRunRestoreProbe()` fora do log — ele nao e' exposto em nenhum
+      endpoint HTTP nesta fase (Estagio 1). A confirmacao e' 100%
+      via log estruturado.
+  [ ] Confirmar explicitamente, por leitura de codigo (ja' revisado nesta
+      Sprint, Atividade 1 do plano) e por ausencia de qualquer alerta,
+      que `data/hub_data.json` no volume do Fly NAO foi tocado por este
+      passo (dryRunRestoreProbe grava exclusivamente em os.tmpdir()).
+
+--------------------------------------------------------------------------------
+6. VALIDAR LOGS
+--------------------------------------------------------------------------------
+  [ ] Conferir que a sequencia completa dos 4 logs bracket do shadow
+      apareceu na ORDEM correta para o ciclo de backup provocado no
+      Passo 2 (iniciado -> upload realizado -> checksum validado ->
+      concluído), sem repeticao nem entrelacamento com um segundo ciclo
+      concorrente.
+  [ ] Conferir que "[LEGACY BACKUP] concluído" aparece ANTES de
+      "[SHADOW BACKUP] iniciado" nesse mesmo ciclo (confirma o
+      sequenciamento da Sprint 5B-B1 em condicoes reais de producao, nao
+      apenas em harness).
+  [ ] Copiar o trecho relevante do log (ver
+      Sprint5BB11-EvidenceGuide.txt) antes de prosseguir para o passo 7.
+
+--------------------------------------------------------------------------------
+7. DESATIVAR SHADOW MODE
+--------------------------------------------------------------------------------
+  [ ] Executar: flyctl secrets unset BACKUP_ENGINE -a hub-granmarquise
+  [ ] Aguardar o release/restart terminar: flyctl status -a hub-granmarquise
+  [ ] flyctl secrets list -a hub-granmarquise — confirmar que
+      BACKUP_ENGINE NAO aparece mais na lista.
+  [ ] Provocar uma nova escrita minima e confirmar, no log, que SOMENTE
+      "[LEGACY BACKUP] iniciado"/"concluído" aparecem — nenhuma linha
+      "[SHADOW BACKUP]" deve mais ocorrer.
+  [ ] Confirmar em flyctl status que a maquina voltou ao estado
+      "started" normal, sem novas maquinas orfas ou volumes extras
+      criados durante a janela (comparar com
+      Sprint5BB11-RollbackPlan.txt, secao "Confirmacao final").
+
+================================================================================
+FIM DO DOCUMENTO — Sprint5BB11-Checklist.txt
+================================================================================

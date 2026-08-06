@@ -1,0 +1,132 @@
+================================================================================
+Sprint 5B-B1.5 — CHECKLIST DE PRE-MIGRACAO (TEMPLATE PREENCHIVEL)
+================================================================================
+
+Gerado em: 2026-08-04
+NOTA: este e' um TEMPLATE, a ser preenchido/assinado no momento em que o
+comando `flyctl secrets set` for efetivamente executado — nao foi
+preenchido com valores fabricados. Os campos marcados "(fato conhecido)"
+refletem informacao ja' confirmada nas Sprints anteriores desta serie;
+os demais devem ser preenchidos por quem executar a migracao.
+
+--------------------------------------------------------------------------------
+IDENTIFICACAO
+--------------------------------------------------------------------------------
+
+  Aplicacao:                   hub-granmarquise (fato conhecido)
+  Ambiente:                    Production (fato conhecido — unico
+                                ambiente existente hoje para este app;
+                                nao ha' staging formal, per ADR-010)
+  Sprint:                      5B-B1.5 (fato conhecido)
+
+  Responsavel pela APROVACAO:  ____________________ (preencher — pessoa
+                                que autoriza a mudanca, distinta de quem
+                                executa; ver Sprint5BB15-ArchitectReview.txt,
+                                Atividade 1, sobre segregacao de funcoes)
+  Responsavel pela EXECUCAO:    ____________________ (preencher — pessoa
+                                que roda o comando)
+  Responsavel pela VALIDACAO:  ____________________ (preencher — pessoa
+                                que confere os resultados pos-migracao;
+                                pode ser a mesma pessoa da execucao, mas
+                                deve ser registrada explicitamente, nao
+                                presumida)
+
+--------------------------------------------------------------------------------
+JANELA DA MUDANCA
+--------------------------------------------------------------------------------
+
+  Horario previsto de inicio:    ____________________ (preencher)
+  Horario previsto de termino:    ____________________ (preencher)
+  Duracao estimada da execucao:  NAO MEDIDA em nenhuma Sprint anterior
+                                 desta serie (nenhum `flyctl secrets set`
+                                 real foi executado ate' agora neste
+                                 app) — preencher com uma estimativa
+                                 conservadora antes da primeira execucao
+                                 (ex.: 10-15 min, cobrindo comando +
+                                 restart + validacao completa) e depois
+                                 substituir pelo tempo REAL medido em
+                                 Sprint5BB15-PostImplementationReview.txt,
+                                 para que futuras janelas usem um numero
+                                 real, nao estimado.
+  Indisponibilidade esperada:    Impacto FUNCIONAL: nenhum (backup
+                                 legado ja' desativado, Shadow Mode
+                                 dormente — nada em producao depende
+                                 destes Secrets hoje). Impacto de
+                                 DISPONIBILIDADE DO PORTAL: uma janela
+                                 curta e NAO MEDIDA existe, inerente ao
+                                 restart de maquina que todo `flyctl
+                                 secrets set` provoca (min_machines_
+                                 running=1, sem redundancia) — usuarios
+                                 acessando o Portal durante o restart
+                                 podem ver uma falha transitoria de
+                                 conexao. Ver Sprint5BB15-
+                                 ArchitectReview.txt, Atividade 1.
+
+--------------------------------------------------------------------------------
+OBJETIVO DA ALTERACAO
+--------------------------------------------------------------------------------
+
+  Apontar os Secrets `S3_BUCKET`/`S3_ACCESS_KEY_ID`/
+  `S3_SECRET_ACCESS_KEY` do app `hub-granmarquise`, hoje referenciando o
+  bucket de validacao do hub-sdk (`hub-prod-backups`), para o bucket
+  dedicado do Portal HUB (`hub-portal-prod`) e sua Access Key propria
+  (`hub-portal-prod-runtime`) — conforme plano aprovado nas Sprints
+  5B-B1.2/5B-B1.3/5B-B1.4. (fato conhecido, documentado em
+  Sprint5BB15-SecretsMigration.txt)
+
+--------------------------------------------------------------------------------
+VARIAVEIS QUE SERAO ALTERADAS
+--------------------------------------------------------------------------------
+
+  [ ] S3_BUCKET              (hub-prod-backups -> hub-portal-prod)
+  [ ] S3_ACCESS_KEY_ID        (credencial antiga -> hub-portal-prod-runtime)
+  [ ] S3_SECRET_ACCESS_KEY    (credencial antiga -> hub-portal-prod-runtime)
+  [ ] S3_ENDPOINT             (SOMENTE se o console da Tigris mostrou
+                               valor diferente de https://t3.storage.dev
+                               para o bucket novo — marcar N/A se
+                               inalterado)
+  [ ] S3_REGION                (SOMENTE se diferente de "auto" —
+                               marcar N/A se inalterado)
+
+  (lista de variaveis = fato conhecido, per Sprint5BB15-
+  SecretsMigration.txt; as caixas em si devem ser marcadas por quem
+  executa, confirmando que sabe exatamente quais das 5 estao sendo
+  alteradas nesta execucao especifica)
+
+--------------------------------------------------------------------------------
+CONFIRMACOES OBRIGATORIAS ANTES DE EXECUTAR
+--------------------------------------------------------------------------------
+
+  [ ] Confirmo que NENHUM codigo sera' alterado por esta execucao
+      (server.js, backup-adapter.js, hub-sdk, Dockerfile, package.json,
+      package-lock.json permanecem intocados — esta migracao e'
+      exclusivamente de Secrets).
+
+  [ ] Confirmo que BACKUP_ENGINE permanece indefinido antes desta
+      execucao.
+      Ultima verificacao read-only conhecida: 2026-08-04, via
+      `flyctl secrets list -a hub-granmarquise` — BACKUP_ENGINE NAO
+      aparece na lista de Secrets do app. RECONFIRMAR imediatamente
+      antes de executar, caso o tempo decorrido desde esta checklist
+      seja significativo.
+
+  [ ] Confirmo que BUCKET_NAME/AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY/
+      AWS_ENDPOINT_URL_S3/AWS_REGION continuam ausentes (mecanismo
+      legado permanece desativado, achado da Sprint 5B-B1.1).
+      Ultima verificacao read-only conhecida: 2026-08-04, via
+      `flyctl secrets list -a hub-granmarquise` — nenhuma dessas 5
+      variaveis aparece na lista de Secrets do app. RECONFIRMAR
+      imediatamente antes de executar.
+
+--------------------------------------------------------------------------------
+ASSINATURA (preencher no momento da execucao)
+--------------------------------------------------------------------------------
+
+  Executado por: ____________________
+  Data/Hora:     ____________________
+  Comando efetivamente rodado (confirmar que bate com
+  Sprint5BB15-SecretsMigration.txt antes de rodar): [ ] Sim, confere
+
+================================================================================
+FIM DO DOCUMENTO — Sprint5BB15-PreMigrationChecklist.txt
+================================================================================

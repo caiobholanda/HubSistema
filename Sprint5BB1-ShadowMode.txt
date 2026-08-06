@@ -1,0 +1,200 @@
+================================================================================
+Sprint 5B-B1 — SHADOW MODE: CONEXAO DO NOVO BACKUP EM MODO SOMBRA
+================================================================================
+
+Data:   2026-08-04
+Objetivo: conectar o backup-adapter em modo sombra — legado executa
+normalmente, novo backup via hub-sdk roda DEPOIS, falhas do novo nunca
+afetam o legado. O backup legado permanece 100% funcional e inalterado
+em seu comportamento observável.
+
+--------------------------------------------------------------------------------
+NOTA DE TRANSPARENCIA — IMPORTANTE PARA ESTA SPRINT
+--------------------------------------------------------------------------------
+
+Parte substancial da infraestrutura de Shadow Mode (o arquivo
+`src/backup-adapter.js`, sua chamada a partir de `server.js`, e o
+respectivo arquivo de teste) JA EXISTIA no working tree do hub-portal
+ANTES do inicio deste engajamento — identificada e documentada desde a
+primeira sessao (Sprint5B-PreDeploy-Review.txt) como um trabalho
+"Sprint 5B, Estagio 1" ja escrito, porem nunca commitado, bloqueado pela
+falta de um mecanismo de distribuicao valido para o hub-sdk (resolvido
+nas Sprints 5B-A/5B-B0). Este relatorio documenta tanto o que JA EXISTIA
+(Atividade 1) quanto o que foi efetivamente ALTERADO nesta Sprint
+(Atividades 2-3) — sem apagar essa distincao.
+
+--------------------------------------------------------------------------------
+ATIVIDADE 1 — INFRAESTRUTURA EXISTENTE (ANTES DE QUALQUER MODIFICACAO)
+--------------------------------------------------------------------------------
+
+  Onde o backup atual e' disparado:
+
+    1. A CADA ESCRITA — `writeData(data)` (server.js:204-218), chamada
+       em 80+ pontos do codigo sempre que qualquer dado muda. Ao final,
+       chama `agendarBackup()` (linha 217).
+    2. NO BOOT — IIFE assincrona (server.js:2478-2512), roda uma vez ao
+       subir o processo.
+    3. NO SHUTDOWN — handlers de `SIGTERM`/`SIGINT` (server.js:2518-2527).
+
+  Quais arquivos sao utilizados:
+
+    server.js                — orquestra os tres pontos de disparo acima;
+                                contem TODA a logica do mecanismo legado
+                                (`_uploadBackupS3`, `_restaurarBackupS3`).
+    src/backup-adapter.js     — UNICO arquivo que fala com o hub-sdk
+                                (`@hub/storage-client`, `@hub/backup-core`);
+                                chamado por server.js, nunca o inverso.
+    data/hub_data.json         — fonte de dados que ambos os mecanismos
+                                (legado e shadow) leem e replicam.
+
+  Qual "scheduler" executa o backup:
+
+    Nao ha' um scheduler externo (cron, worker, fila). O disparo e'
+    inteiramente reativo e local ao processo:
+      - `agendarBackup()` usa um UNICO `setTimeout` de 5000ms com
+        DEBOUNCE (`_backupTimer`) — rajadas de escritas coalescem num
+        so' upload, nunca um por escrita.
+      - O timer e' `.unref()`'d — nunca impede o processo de encerrar
+        por conta propria.
+      - So' comeca a disparar DEPOIS que o boot termina
+        (`backupsHabilitados`), para nao replicar dado transitorio do
+        seed/init.
+
+  Qual o fluxo completo executado HOJE (antes desta Sprint):
+
+    writeData() -> agendarBackup() -> (apos 5s de debounce) ->
+      EM PARALELO, SEM SEQUENCIAMENTO:
+        - _uploadBackupS3() [legado, aws4fetch, PUT direto no Tigris]
+        - _shadowBackupSeHabilitado() [novo, so' roda se BACKUP_ENGINE=
+          shadow|hub-sdk — DORMENTE por padrao]
+
+    O modo sombra, quando ativo, executa (dentro de
+    `backupAdapter.runShadowBackup()`):
+      1. calcula checksum SHA256 local do hub_data.json
+      2. `backupService.runBackup(source)` — upload real via
+         `@hub/backup-core` (FileSnapshotStrategy) + `@hub/storage-client`
+         (S3CompatibleProvider) para o MESMO bucket Tigris (credenciais
+         reaproveitadas do legado por padrao)
+      3. compara o checksum retornado pelo hub-sdk com o checksum local
+      4. `dryRunRestoreProbe()` — um restore de LEITURA para um arquivo
+         TEMPORARIO (nunca hub_data.json), so' para medir tempo/checksum
+         de restore e comparar
+      5. retorna um objeto estruturado com o resultado — NUNCA lanca
+         excecao (documentado desde a criacao do arquivo)
+
+  ACHADO DA AUDITORIA (documentado, nao corrigido antes desta Sprint):
+  o disparo do legado e do shadow ocorria EM PARALELO (ambos chamados em
+  sequencia sintatica, mas sem `await` entre eles) — nao "legado, depois
+  shadow" como esta Sprint pede. Esse era o UNICO ponto de ajuste real
+  necessario para atender a Atividade 2 (ver abaixo).
+
+--------------------------------------------------------------------------------
+ATIVIDADE 2 — SEQUENCIAMENTO: LEGADO PRIMEIRO, SHADOW DEPOIS
+--------------------------------------------------------------------------------
+
+  Alteracao em `server.js`, funcao `agendarBackup()` (unico ponto
+  tocado no arquivo):
+
+    ANTES:
+      _backupTimer = setTimeout(() => {
+        _backupTimer = null;
+        _uploadBackupS3().catch(e => console.error(...));
+        _shadowBackupSeHabilitado();
+      }, 5000);
+
+    DEPOIS:
+      _backupTimer = setTimeout(async () => {
+        _backupTimer = null;
+        console.log('[LEGACY BACKUP] iniciado');
+        try {
+          await _uploadBackupS3();
+          console.log('[LEGACY BACKUP] concluído');
+        } catch (e) {
+          console.error('[BACKUP] upload agendado falhou:', e && e.message);
+        }
+        _shadowBackupSeHabilitado();
+      }, 5000);
+
+  O que MUDA: `_shadowBackupSeHabilitado()` agora so' e' chamada DEPOIS
+  que a Promise de `_uploadBackupS3()` se resolve (sucesso OU falha
+  capturada) — nunca mais em paralelo.
+
+  O que NAO MUDA: guardas de entrada (`backupConfigurado`,
+  `backupsHabilitados`, `_backupTimer`), debounce de 5000ms,
+  `.unref()`, mensagem de erro do legado
+  (`'[BACKUP] upload agendado falhou:'`), e o proprio corpo de
+  `_uploadBackupS3()`/`_shadowBackupSeHabilitado()` (nenhuma das duas
+  funcoes foi alterada em si). `_uploadBackupS3()` nunca lanca excecao
+  (todo erro interno ja e' capturado por chave individual) — o
+  `try/catch` ao redor do `await` e' uma rede de seguranca adicional,
+  nao uma mudanca de comportamento esperado.
+
+  Boot e Shutdown: DELIBERADAMENTE NAO ALTERADOS. No boot, o shadow mode
+  nunca chamava `_shadowBackupSeHabilitado()` (so' logava seu status —
+  comportamento preservado). No shutdown, legado e shadow CONTINUAM
+  rodando em paralelo via `Promise.race()` — e' o comportamento CORRETO
+  e INTENCIONAL ali (comentario original: "nunca estende o shutdown alem
+  do que ja era esperado") — sequenciar ali estenderia o orcamento de 4s
+  do SIGTERM, o oposto do que se deseja. A Atividade 2 pede
+  sequenciamento no fluxo de escrita regular, nao no shutdown.
+
+--------------------------------------------------------------------------------
+ATIVIDADE 3 — LOGGING CLARO
+--------------------------------------------------------------------------------
+
+  Implementado exatamente o conjunto de mensagens solicitado:
+
+    [LEGACY BACKUP] iniciado          — server.js, agendarBackup()
+    [LEGACY BACKUP] concluído          — server.js, agendarBackup()
+    [SHADOW BACKUP] iniciado          — src/backup-adapter.js,
+                                        runShadowBackup() (logo apos os
+                                        dois early-returns de skip —
+                                        nunca loga quando o modo sombra
+                                        esta desligado, preservando
+                                        silencio total no modo legacy
+                                        default)
+    [SHADOW BACKUP] upload realizado   — src/backup-adapter.js, logo
+                                        apos `backupResult.success`
+                                        confirmado
+    [SHADOW BACKUP] checksum validado  — src/backup-adapter.js, logo
+                                        apos o objeto de comparacao ser
+                                        montado (registra que a
+                                        comparacao OCORREU; divergencias
+                                        continuam logadas separadamente
+                                        pelo `[backup-shadow]
+                                        DIVERGENCIA...` ja existente em
+                                        server.js — preservado)
+    [SHADOW BACKUP] concluído          — src/backup-adapter.js, ultima
+                                        linha antes do `return`
+    [SHADOW BACKUP] falhou             — em TRES pontos possiveis
+                                        (falha ao carregar hub-sdk,
+                                        falha do proprio backup, ou
+                                        excecao nao prevista) — o
+                                        terceiro caso inclui `err.stack`
+                                        completo no log, os dois
+                                        primeiros incluem a mensagem
+                                        especifica de contexto (mantendo
+                                        as mensagens ja existentes,
+                                        nao substituindo-as)
+
+  Logging PRE-EXISTENTE preservado sem alteracao: a linha detalhada
+  `[backup-shadow] objectKey=%s sizeBytes=%d uploadMs=%d ...` em
+  server.js, e as mensagens de divergencia de checksum
+  (`[backup-shadow] DIVERGENCIA...`) — nao removidas, per a regra
+  explicita "NAO remover codigo existente". O novo logging bracket e' um
+  ADICIONAL de clareza no ciclo de vida, nao um substituto do log
+  detalhado ja existente.
+
+  REDE DE SEGURANCA ADICIONAL introduzida em `runShadowBackup()`: um
+  `try/catch` externo, envolvendo toda a logica ativa (apos os
+  early-returns de skip), que GARANTE que absolutamente NENHUMA excecao
+  escapa da funcao como rejeicao — mesmo uma falha totalmente
+  inesperada agora retorna `{ok:false, error}` com stack completa
+  logada, em vez de potencialmente propagar como uma rejeicao nao
+  tratada. Isso fortalece (nao contradiz) a garantia ja documentada no
+  cabecalho do arquivo desde sua criacao ("Best-effort: qualquer erro e
+  capturado e retornado como {ok:false, error}, nunca lancado").
+
+================================================================================
+FIM DO DOCUMENTO — Sprint5BB1-ShadowMode.txt
+================================================================================

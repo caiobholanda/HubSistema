@@ -1,0 +1,289 @@
+================================================================================
+Sprint 5B-B1.5 — PLANO DE EXECUCAO OPERACIONAL (AUTOCONTIDO)
+================================================================================
+
+Data:   2026-08-04
+Este documento contem TUDO que e' necessario para executar a mudanca —
+nenhuma outra Sprint/relatorio precisa ser consultado durante a
+execucao em si. Referencias a outros documentos, quando existem, sao
+apenas para contexto adicional, nunca para completar um passo.
+
+Pre-requisitos (verificar ANTES do Passo 1):
+  - Sprint5BB15-PreMigrationChecklist.txt preenchido e assinado.
+  - Sprint5BB15-GoNoGo.txt, secao "APROVACAO DA MUDANCA", com
+    Resultado = GO.
+  - Access Key ID e Secret Access Key de `hub-portal-prod-runtime` em
+    maos de quem executa (nao fornecidas por mim em nenhum documento).
+  - PowerShell com `flyctl` autenticado (`flyctl auth whoami` deve
+    retornar um usuario valido) e acesso ao diretorio
+    `hub-portal` (para o teste local, se o Passo 2 opcional for usado).
+
+--------------------------------------------------------------------------------
+PASSO 1
+--------------------------------------------------------------------------------
+
+  Objetivo:        Capturar a baseline dos digests ATUAIS dos 3 Secrets,
+                   antes de qualquer alteracao, para comparacao
+                   posterior.
+
+  Comando:
+    flyctl secrets list -a hub-granmarquise
+
+  Resultado esperado:
+    Uma tabela contendo (entre outras linhas) S3_BUCKET,
+    S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, cada uma com um DIGEST
+    (hash). Baseline conhecida no momento da emissao deste documento
+    (2026-08-04, pode ja' estar desatualizada se outra mudanca ocorreu
+    entre a emissao e a execucao — SEMPRE recapturar e usar o valor
+    LIDO AGORA, nao o valor abaixo, como baseline real):
+      S3_BUCKET             b0866194e10d15d8
+      S3_ACCESS_KEY_ID      1e42ddad853a99d5
+      S3_SECRET_ACCESS_KEY  96d84008e0d464a2
+
+  Criterio PASS:   Comando executa sem erro; os 3 digests foram
+                   anotados (copiar para o campo "Baseline" do
+                   Sprint5BB15-PostImplementationReview.txt).
+  Criterio FAIL:   Comando retorna erro de autenticacao/permissao, ou
+                   qualquer uma das 3 variaveis nao aparece na lista
+                   (nesse caso, PARAR — investigar antes de prosseguir,
+                   nao seguir para o Passo 2).
+
+--------------------------------------------------------------------------------
+PASSO 2
+--------------------------------------------------------------------------------
+
+  Objetivo:        Atualizar os Secrets do Fly para a nova
+                   infraestrutura, num unico comando (evita restarts
+                   multiplos).
+
+  Comando (substituir os dois placeholders pelos valores reais da
+  Access Key `hub-portal-prod-runtime` antes de rodar; ajustar/adicionar
+  S3_ENDPOINT/S3_REGION somente se o bucket novo usar valores diferentes
+  de `https://t3.storage.dev`/`auto`):
+
+    flyctl secrets set S3_BUCKET=hub-portal-prod S3_ACCESS_KEY_ID="<ACCESS_KEY_ID>" S3_SECRET_ACCESS_KEY="<SECRET_ACCESS_KEY>" -a hub-granmarquise
+
+  Resultado esperado:
+    O CLI confirma o envio dos Secrets e informa que uma nova release
+    esta' sendo criada/implantada (mensagem tipica: "Release vNNN
+    created"). O comando pode retornar antes do restart terminar por
+    completo — isso e' esperado, o Passo 3 confirma a conclusao
+    separadamente.
+
+  Criterio PASS:   Comando retorna sem erro, com uma nova versao de
+                   release sendo referenciada na saida.
+  Criterio FAIL:   Erro de autenticacao/permissao, ou qualquer mensagem
+                   de falha explicita. Se falhar AQUI (antes do restart
+                   iniciar), NENHUM rollback e' necessario — os Secrets
+                   antigos permanecem em vigor; apenas corrigir o
+                   comando e tentar novamente.
+
+--------------------------------------------------------------------------------
+PASSO 3
+--------------------------------------------------------------------------------
+
+  Objetivo:        Confirmar que o restart da maquina, disparado pelo
+                   Passo 2, foi concluido.
+
+  Comando (repetir a cada 15-20s ate' o resultado esperado aparecer;
+  nao assumir sucesso a partir de uma unica checagem):
+
+    flyctl status -a hub-granmarquise
+
+  Resultado esperado:
+    Exatamente 1 maquina, coluna STATE = "started", sem maquinas extras
+    ou em estado de erro. Anotar o horario em que este resultado foi
+    observado pela primeira vez (usar para calcular a duracao real do
+    restart no Sprint5BB15-PostImplementationReview.txt).
+
+  Criterio PASS:   STATE=started numa unica maquina, dentro de um tempo
+                   razoavel (se ultrapassar ~5 minutos sem chegar a
+                   started, tratar como FAIL).
+  Criterio FAIL:   Maquina presa em estado diferente de "started" por
+                   tempo prolongado, ou mais de 1 maquina aparecendo. Se
+                   FAIL: acionar Sprint5BB15-RollbackPlan.txt
+                   imediatamente.
+
+--------------------------------------------------------------------------------
+PASSO 4
+--------------------------------------------------------------------------------
+
+  Objetivo:        Confirmar que os digests dos 3 Secrets realmente
+                   mudaram em relacao a` baseline do Passo 1.
+
+  Comando:
+    flyctl secrets list -a hub-granmarquise
+
+  Resultado esperado:
+    Os digests de S3_BUCKET, S3_ACCESS_KEY_ID e S3_SECRET_ACCESS_KEY
+    sao DIFERENTES dos capturados no Passo 1 (nao e' necessario saber o
+    valor novo — apenas que e' diferente do antigo).
+
+  Criterio PASS:   Os 3 digests mudaram.
+  Criterio FAIL:   Qualquer um dos 3 digests permanece IGUAL ao da
+                   baseline. Se FAIL: acionar Sprint5BB15-
+                   RollbackPlan.txt (o comando do Passo 2 nao teve o
+                   efeito esperado sobre aquela variavel especifica —
+                   nao prosseguir para validacao funcional com Secrets
+                   parcialmente aplicados).
+
+--------------------------------------------------------------------------------
+PASSO 5
+--------------------------------------------------------------------------------
+
+  Objetivo:        Validar funcionalmente a nova infraestrutura (auth,
+                   nome do bucket, bucket vazio, put, get) e confirmar
+                   ausencia de qualquer referencia residual ao bucket ou
+                   a` credencial antigos — tudo executado DENTRO da
+                   maquina de producao, lendo os Secrets ja' injetados,
+                   sem que a pessoa que executa precise digitar a
+                   credencial novamente.
+
+  Comando (PowerShell — copiar o bloco inteiro, colar no terminal, e
+  executar; nao requer nenhum arquivo externo):
+
+    $js = @'
+const { AwsClient } = require("aws4fetch");
+const bucket = process.env.S3_BUCKET || "";
+const accessKeyId = process.env.S3_ACCESS_KEY_ID || "";
+const secretAccessKey = process.env.S3_SECRET_ACCESS_KEY || "";
+const endpoint = (process.env.S3_ENDPOINT || "https://t3.storage.dev").replace(/\/+$/, "");
+const region = process.env.S3_REGION || "auto";
+function mask(s) { return s ? (s.slice(0,4)+"..."+s.slice(-4)+" (len="+s.length+")") : "(vazio)"; }
+const OLD_BUCKET = "hub-prod-backups";
+const OLD_KEY_FINGERPRINT = "tid_...KCeW (len=54)";
+const aws = new AwsClient({ accessKeyId, secretAccessKey, region, service: "s3" });
+const sig = ms => { try { return AbortSignal.timeout(ms); } catch { return undefined; } };
+async function req(method, path, body, extraHeaders) {
+  const url = `${endpoint}/${bucket}${path}`;
+  const res = await aws.fetch(url, { method, body, headers: extraHeaders || {}, signal: sig(10000) });
+  const text = await res.text();
+  return { status: res.status, text };
+}
+(async () => {
+  const out = {};
+  out.config = {
+    bucket_name: bucket,
+    bucket_matches_new: bucket === "hub-portal-prod",
+    bucket_matches_old: bucket === OLD_BUCKET,
+    endpoint, region,
+    access_key_fingerprint: mask(accessKeyId),
+    access_key_matches_old_fingerprint: mask(accessKeyId) === OLD_KEY_FINGERPRINT,
+  };
+  const oldRefs = [];
+  for (const [k, v] of Object.entries(process.env)) {
+    if (typeof v === "string" && v.includes(OLD_BUCKET)) oldRefs.push(k + " (bucket antigo no valor)");
+    if (typeof v === "string" && mask(v) === OLD_KEY_FINGERPRINT) oldRefs.push(k + " (fingerprint da key antiga)");
+  }
+  out.old_reference_scan = { vars_with_old_reference: oldRefs, pass: oldRefs.length === 0 };
+  try {
+    const r = await req("GET", "/?list-type=2&max-keys=10");
+    const nameMatch = /<Name>([^<]*)<\/Name>/.exec(r.text);
+    const hasContents = /<Contents>/.test(r.text);
+    out.list_and_auth = { status: r.status, ok: r.status === 200, bucket_name_in_response: nameMatch ? nameMatch[1] : null, is_empty: r.status === 200 && !hasContents };
+  } catch (e) { out.list_and_auth = { error: e.message }; }
+  const key = `_postmigration-test/${Date.now()}-${process.pid}.txt`;
+  const content = `postmigration-validation ${new Date().toISOString()}`;
+  try { const r = await req("PUT", `/${key}`, content, { "content-type": "text/plain" }); out.put_test = { status: r.status, ok: r.status >= 200 && r.status < 300 }; } catch (e) { out.put_test = { error: e.message }; }
+  try { const r = await req("GET", `/${key}`); out.get_test = { status: r.status, content_matches: r.text === content }; } catch (e) { out.get_test = { error: e.message }; }
+  try { const r = await req("DELETE", `/${key}`); out.cleanup_delete = { status: r.status, ok: r.status >= 200 && r.status < 300 }; } catch (e) { out.cleanup_delete = { error: e.message }; }
+  console.log(JSON.stringify(out, null, 2));
+})();
+'@
+    $bytes = [System.Text.Encoding]::UTF8.GetBytes($js)
+    $b64 = [Convert]::ToBase64String($bytes)
+    $remoteCmd = "node -e `"eval(Buffer.from('$b64','base64').toString('utf8'))`""
+    flyctl ssh console -a hub-granmarquise -C $remoteCmd
+
+  Resultado esperado (JSON impresso no terminal):
+    - config.bucket_matches_new = true
+    - config.bucket_matches_old = false
+    - config.access_key_matches_old_fingerprint = false
+    - old_reference_scan.pass = true (lista vazia)
+    - list_and_auth.status = 200, ok = true, is_empty = true (ou apenas
+      com o objeto de teste deste proprio script, nunca com o
+      "sample-data" do bucket antigo)
+    - put_test.ok = true
+    - get_test.status = 200, content_matches = true
+    - cleanup_delete.ok = true (papel "Editor" permite; se retornar
+      403 aqui, nao e' FAIL — apenas remover manualmente depois, ver
+      nota de limpeza no Sprint5BB14-ValidationCommand.txt)
+
+  Criterio PASS:   TODOS os campos acima batem com o resultado esperado.
+  Criterio FAIL:   Qualquer um diverge — especialmente
+                   `bucket_matches_new=false`,
+                   `old_reference_scan.pass=false`, ou `list_and_auth.
+                   ok=false`. Se FAIL: acionar Sprint5BB15-
+                   RollbackPlan.txt imediatamente, NAO prosseguir para
+                   o Passo 6.
+
+--------------------------------------------------------------------------------
+PASSO 6
+--------------------------------------------------------------------------------
+
+  Objetivo:        Revisar os logs da aplicacao no periodo pos-restart,
+                   em busca de qualquer excecao relacionada a
+                   storage/S3/Tigris.
+
+  Comando:
+    flyctl logs -a hub-granmarquise
+
+  Resultado esperado:
+    Nenhuma linha contendo erro relacionado a S3/storage/Tigris/backup
+    apos o horario do restart (Passo 3). E' normal e esperado continuar
+    vendo a linha pre-existente "[BACKUP] DESATIVADO: sem BUCKET_NAME/
+    AWS_* no ambiente" (mecanismo legado, nao afetado por esta mudanca)
+    — isso NAO e' uma falha desta migracao.
+
+  Criterio PASS:   Nenhuma excecao NOVA relacionada a storage apos o
+                   restart, alem da mensagem esperada de backup legado
+                   desativado (inalterada por esta mudanca).
+  Criterio FAIL:   Qualquer excecao/stack trace relacionada a S3/
+                   storage/Tigris apos o restart. Se FAIL: acionar
+                   Sprint5BB15-RollbackPlan.txt.
+
+--------------------------------------------------------------------------------
+PASSO 7
+--------------------------------------------------------------------------------
+
+  Objetivo:        Confirmar que `BACKUP_ENGINE` continua indefinido
+                   (esta migracao NAO deve, em nenhuma circunstancia,
+                   ter ativado o Shadow Mode).
+
+  Comando:
+    flyctl secrets list -a hub-granmarquise
+
+  Resultado esperado:
+    `BACKUP_ENGINE` NAO aparece na lista de Secrets do app.
+
+  Criterio PASS:   `BACKUP_ENGINE` ausente.
+  Criterio FAIL:   `BACKUP_ENGINE` presente (nao deveria acontecer por
+                   nenhum passo deste plano — se acontecer, e' sinal de
+                   uma mudanca nao rastreada por este processo; tratar
+                   como incidente, nao apenas como FAIL deste passo).
+
+--------------------------------------------------------------------------------
+PASSO 8
+--------------------------------------------------------------------------------
+
+  Objetivo:        Fechar a execucao — registrar os resultados e obter
+                   a validacao final.
+
+  Comando:         N/A (passo documental).
+
+  Resultado esperado:
+    Sprint5BB15-PostImplementationReview.txt preenchido com: horario
+    real de inicio/termino, tempo de restart medido (Passo 3),
+    resultado de cada passo acima (PASS/FAIL), problemas encontrados (se
+    houver) e se rollback foi necessario.
+
+  Criterio PASS:   Todos os Passos 1-7 = PASS, documento de revisao
+                   preenchido, "Responsavel pela Validacao" (Sprint5BB15-
+                   PreMigrationChecklist.txt) confirma por escrito.
+  Criterio FAIL:   Qualquer passo anterior = FAIL e nao revertido; ou
+                   documento de revisao nao preenchido antes de encerrar
+                   a janela de mudanca.
+
+================================================================================
+FIM DO DOCUMENTO — Sprint5BB15-ExecutionPlan.txt
+================================================================================

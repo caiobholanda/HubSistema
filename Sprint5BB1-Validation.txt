@@ -1,0 +1,114 @@
+================================================================================
+Sprint 5B-B1 — VALIDACAO COMPLETA
+================================================================================
+
+Data:   2026-08-04
+Metodo: execucao real de codigo (nao suposicao), em tres camadas —
+harness isolado com o codigo real, suite de testes do repositorio, e
+build remoto real no Fly.io.
+
+--------------------------------------------------------------------------------
+ATIVIDADE 4 — VALIDACAO FUNCIONAL
+--------------------------------------------------------------------------------
+
+  Nao ha' credenciais reais de Tigris disponiveis neste ambiente (nem
+  deveriam ser criadas — regra explicita "NAO alterar Secrets"). Por
+  isso, a validacao do caminho de UPLOAD REAL BEM-SUCEDIDO contra o
+  bucket de producao permanece — como sempre foi, por decisao ja
+  documentada em `tests/backup-adapter.test.js` desde sua criacao —
+  fora do escopo de teste automatizado, validada manualmente contra um
+  bucket de homologacao quando a ativacao real ocorrer. O que PODE e FOI
+  validado com evidencia real nesta Sprint:
+
+  4.1 — Sequenciamento legado -> shadow (harness com o CODIGO REAL de
+        `agendarBackup()`, stubs controlados com atraso artificial para
+        expor qualquer condicao de corrida):
+
+    === ORDEM DE EVENTOS OBSERVADA ===
+    1. [LEGACY BACKUP] iniciado
+    2. [LEGACY BACKUP] concluído
+    3. [SHADOW BACKUP] iniciado (disparado)
+
+    VALIDACAO OK: "concluído" do legado ocorre ANTES de "iniciado" do
+    shadow — sequenciamento correto confirmado empiricamente, shadow
+    NUNCA roda em paralelo ao legado.
+
+  4.2 — Caminho de FALHA real do shadow (`src/backup-adapter.js` REAL,
+        requerido diretamente — nao uma reproducao — com
+        BACKUP_ENGINE=shadow e um endpoint LOCAL inalcancavel,
+        127.0.0.1:1, para forcar uma falha de rede REAL, rapida, sem
+        depender de nenhuma credencial ou rede externa):
+
+    getBackupEngineMode(): shadow
+    isShadowModeActive(): true
+    isHubSdkConfigured(): true
+    [SHADOW BACKUP] iniciado
+    [SHADOW BACKUP] falhou: backup hub-sdk falhou: ... connect ECONNREFUSED 127.0.0.1:1
+
+    Resultado retornado (NAO lancou excecao):
+      { "ok": false, "error": "backup hub-sdk falhou: ...", "uploadMs": 85 }
+
+    VALIDACAO OK: falha de rede tratada corretamente pelo proprio
+    hub-sdk (`@hub/backup-core`) e pelo adapter — retorno estruturado,
+    log com contexto, ZERO excecao escapou (a Promise sempre resolveu,
+    nunca rejeitou).
+
+  4.3 — Upload realizado / checksum calculado:
+    O calculo de checksum (`sha256File`) e' codigo SINCRONO, local,
+    inalterado por esta Sprint — ja coberto indiretamente pelos testes
+    existentes de `resolveStorageConfig`/`isHubSdkConfigured`. O
+    "upload realizado" (rede real) so' e' alcancavel com credenciais
+    reais — nao testado nesta Sprint pelos motivos ja expostos acima.
+
+  4.4 — Nenhum arquivo e' sobrescrito:
+    `dryRunRestoreProbe()` (src/backup-adapter.js) NAO foi alterada
+    nesta Sprint — confirmado por leitura direta: grava exclusivamente
+    em `path.join(os.tmpdir(), ...)`, nunca em `hub_data.json`, e remove
+    o arquivo temporario no `finally`. Nenhuma mudanca nesta Sprint
+    afeta essa garantia.
+
+  4.5 — Nenhuma excecao afeta o Portal:
+    Confirmado em 4.2 (nenhuma excecao escapou do adapter) e por
+    construcao em server.js: `_shadowBackupSeHabilitado()` continua
+    fire-and-forget com `.then()/.catch()` proprios — mesmo que o novo
+    `try/catch` externo do adapter falhasse por algum motivo
+    imprevisivel, o `.catch()` em server.js (linha 174, inalterada)
+    ainda capturaria qualquer rejeicao residual antes que ela afetasse o
+    processo principal.
+
+--------------------------------------------------------------------------------
+ATIVIDADE 5 — npm test
+--------------------------------------------------------------------------------
+
+  Comando: `npm test` (apos as edicoes de server.js e
+  src/backup-adapter.js)
+  Resultado: 60/60 testes aprovados, 0 falhas — INCLUINDO os 12 testes
+  de `tests/backup-adapter.test.js` (flag parsing, resolveStorageConfig,
+  skip paths de `runShadowBackup`) — todos passaram sem nenhuma
+  alteracao necessaria nos testes, confirmando que o contrato de retorno
+  do adapter permanece identico ao que os testes ja existentes esperam.
+
+--------------------------------------------------------------------------------
+ATIVIDADE 6 — flyctl deploy --build-only
+--------------------------------------------------------------------------------
+
+  Executado apos as edicoes desta Sprint. Resultado: SUCESSO (exit code
+  0).
+
+    image: registry.fly.io/hub-granmarquise:deployment-01KZ7NP4RM1YPNX2H9C2ZFJQC2
+    image size: 47 MB (identico ao build da Sprint 5B-B0.2)
+
+  Passos `COPY package*.json`, `COPY vendor/` e `RUN npm ci --production`
+  — todos reaproveitados de CACHE (nao foram invalidados), confirmando
+  que as mudancas desta Sprint (server.js, src/backup-adapter.js) NAO
+  afetam a resolucao de dependencias — apenas `COPY . .` (passo 6)
+  precisou re-executar, como esperado para qualquer mudanca de
+  codigo-fonte.
+
+  Nenhuma regressao. `vendor/*.tgz` continua resolvendo
+  `@hub/backup-core`/`@hub/storage-client` corretamente dentro do
+  builder remoto real do Fly.io.
+
+================================================================================
+FIM DO DOCUMENTO — Sprint5BB1-Validation.txt
+================================================================================

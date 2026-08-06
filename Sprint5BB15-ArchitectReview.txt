@@ -1,0 +1,555 @@
+================================================================================
+Sprint 5B-B1.5 — REVISAO TECNICA INDEPENDENTE (ARQUITETO SENIOR / DEVSECOPS)
+================================================================================
+
+Data:   2026-08-04
+Papel:  revisor independente — NAO sou o autor da execucao que esta' sendo
+revisada (mesmo tendo sido eu quem produziu os documentos anteriores,
+esta revisao foi conduzida deliberadamente questionando cada decisao,
+nao confirmando-a). Nenhuma alteracao foi feita em codigo, Fly.io,
+Secrets, buckets, credenciais ou nos documentos existentes desta Sprint.
+Evidencias novas coletadas nesta revisao vieram exclusivamente de
+comandos READ-ONLY (flyctl releases, flyctl orgs list, flyctl config
+show, flyctl auth whoami — nenhum deles muta estado).
+
+--------------------------------------------------------------------------------
+ATIVIDADE 1 — COMPLETUDE DO Sprint5BB15-PreMigrationChecklist.txt
+--------------------------------------------------------------------------------
+
+  INCOMPLETO. Confirmado por releitura do documento — faltam, literalmente,
+  todos os 8 campos apontados:
+
+    [FALTA] Janela prevista da mudanca (change window) — o documento nao
+            define nenhuma janela; "Data/Hora da execucao" e' um
+            timestamp unico, nao um intervalo planejado.
+    [FALTA] Horario de inicio previsto
+    [FALTA] Horario previsto de termino
+    [FALTA] Tempo estimado da execucao — nenhuma Sprint desta serie
+            mediu quanto tempo um `flyctl secrets set` + restart leva
+            de fato neste app; nao invento um numero — recomendo que o
+            PRIMEIRO uso real desta janela sirva de medicao de
+            referencia para futuras mudancas.
+    [FALTA] Tempo esperado de indisponibilidade — MERECE NUANCE: com
+            `min_machines_running=1` (confirmado via `flyctl config
+            show`) e sem estrategia de deploy declarada (ver Atividade
+            3), o restart de uma unica maquina implica uma janela real,
+            ainda que provavelmente curta, em que a maquina antiga ja
+            parou e a nova ainda nao aceita conexoes — o documento atual
+            trata o impacto como "nenhum" (correto do ponto de vista
+            FUNCIONAL, ja' que nada depende do Shadow Mode hoje), mas
+            isso NAO e' o mesmo que "zero indisponibilidade do Portal
+            HUB como um todo" — usuarios acessando o Portal durante o
+            restart podem ver uma falha transitoria de conexao. Rotulo
+            recomendado: "impacto funcional: nenhum (backup); impacto de
+            disponibilidade do Portal: janela curta, nao medida,
+            esperada em segundos, dada imagem de 47MB e ausencia de
+            rebuild".
+    [FALTA] Responsavel pela APROVACAO (distinto de quem executa)
+    [FALTA] Responsavel pela EXECUCAO — PARCIALMENTE presente ("Executado
+            por" existe na secao de Assinatura, mas nao na secao de
+            Identificacao inicial; e' uma duplicacao inconsistente, nao
+            uma ausencia total)
+    [FALTA] Responsavel pela VALIDACAO (distinto de quem aprova e de
+            quem executa)
+
+  POR QUE ISSO IMPORTA (nao e' burocracia por si so'): o proprio ADR-010
+  ja' identifica, na secao de Modelo IAM, a separacao de papeis como
+  principio de seguranca ("processo... nunca embutida no runtime da
+  app", credencial de escrita separada da de delecao). O MESMO principio
+  de segregacao de funcoes se aplica a` MUDANCA em si, nao so' a`
+  credencial: se a mesma pessoa aprova, executa E valida uma alteracao
+  de producao, nao ha' um segundo par de olhos revisando antes do
+  impacto acontecer — exatamente o padrao de controle que um checklist
+  de pre-migracao existe para impor. Hoje, o documento tem estrutura de
+  checklist mas nao tem estrutura de CONTROLE (quem verifica quem).
+
+  MELHORIA PROPOSTA (nao aplicada — proposta apenas): adicionar, na
+  secao "IDENTIFICACAO" do template, tres linhas distintas —
+  "Aprovado por:", "Executado por:", "Validado por:" — e uma secao
+  "JANELA DA MUDANCA" com Inicio previsto/Termino previsto/Duracao
+  estimada/Indisponibilidade esperada (com a nuance acima).
+
+--------------------------------------------------------------------------------
+ATIVIDADE 2 — Sprint5BB15-GoNoGo.txt: FALTA SECAO DE APROVACAO FORMAL?
+--------------------------------------------------------------------------------
+
+  SIM, FALTA. O documento hoje contem: (a) respostas objetivas ao estado
+  atual, (b) os 12 Criterios Formais de Aprovacao (tecnicos), (c) uma
+  nota de que nenhuma acao foi tomada. Nao existe nenhum bloco de
+  ASSINATURA/SIGN-OFF humano.
+
+  JUSTIFICATIVA TECNICA: os 12 criterios da Atividade 4 anterior sao
+  necessarios, mas NAO SAO SUFICIENTES para uma mudanca de producao em
+  qualquer modelo de governanca de mudanca reconhecido (ITIL Change
+  Management, COBIT, ou qualquer CAB corporativo) — criterios tecnicos
+  automatizaveis/verificaveis (os 12 itens) respondem "a mudanca ESTA
+  PRONTA tecnicamente?"; um sign-off formal responde uma pergunta
+  DIFERENTE: "uma pessoa com autoridade, ciente do contexto e do risco
+  residual (ex.: o DeleteObject aceito, o achado desta revisao sobre
+  deploys concorrentes — ver Atividade 3), DECIDIU seguir em frente?"
+  Sao decisoes de natureza distinta (uma tecnica, uma de negocio/risco) e
+  a ausencia da segunda significa que, hoje, o unico "aprovador" de fato
+  e' quem roda o comando — sem um registro formal e separado dessa
+  decisao.
+
+  MELHORIA PROPOSTA (nao aplicada): adicionar ao final do
+  Sprint5BB15-GoNoGo.txt uma secao:
+
+    APROVACAO DA MUDANCA
+    ---------------------
+    Mudanca aprovada por: ____________________
+    Cargo:                 ____________________
+    Data:                   ____________________
+    Hora:                   ____________________
+    Resultado:              [ ] GO   [ ] NO-GO
+    Observacoes/ressalvas:  ____________________
+
+--------------------------------------------------------------------------------
+ATIVIDADE 3 — CENARIOS DE ROLLBACK AINDA NAO CONSIDERADOS
+--------------------------------------------------------------------------------
+
+  Avaliados um a um, com evidencia real onde possivel (flyctl config
+  show, flyctl releases, flyctl status):
+
+  • Restart parcial / falha durante o restart — CENARIO REAL NAO COBERTO.
+    `flyctl config show -a hub-granmarquise` confirma que o app NAO tem
+    nenhuma secao `[deploy]` (estrategia de rollout) nem checks de saude
+    customizados declarados — apenas `http_service.internal_port=3000`.
+    Isso significa que o "gate" de saude que decide se a nova maquina
+    (com os Secrets atualizados) esta' "boa o suficiente" para
+    permanecer no ar e', na pratica, o minimo padrao do Fly (a porta
+    responde) — NAO uma verificacao de que a aplicacao esta'
+    funcionalmente correta. Se um Secret mal-formatado (ex.: erro de
+    digitacao numa das 3 variaveis) fizer o processo Node subir e
+    escutar a porta normalmente (o que aconteceria, ja' que nenhum
+    codigo LE os S3_* no boot de forma que travasse o processo — sao
+    lidos sob demanda, so' quando um backup e' de fato disparado), o
+    Fly consideraria o deploy "saudavel" mesmo com uma credencial
+    quebrada. CONSEQUENCIA: a validacao pos-migracao MANUAL (Sprint5BB15-
+    ProductionValidation.txt) e' hoje o UNICO gate real de correcao
+    funcional — nao ha' rede de seguranca automatica da plataforma.
+    RECOMENDACAO (nao aplicada agora): considerar, em Sprint futura,
+    adicionar um health check HTTP customizado que exercite
+    minimamente a config de storage (sem fazer IO real de backup) e uma
+    secao `[deploy]` com `strategy` explicita, para que o proprio Fly
+    recuse promover um restart que revele Secrets invalidos.
+
+  • Timeout do Fly — PARCIALMENTE COBERTO, pode ser mais explicito. O
+    plano ja' pede `flyctl status` como confirmacao SEPARADA (nao confia
+    apenas no retorno do `secrets set`) — correto, porque o CLI pode
+    retornar antes da operacao assincrona no backend do Fly realmente
+    concluir. RECOMENDACAO: no procedimento de auditoria (Sprint5BB15-
+    ProductionValidation.txt, Atividade 2.1), tornar explicito que
+    `flyctl status` deve ser CONSULTADO REPETIDAMENTE ate' STATE=started
+    ser observado, nao checado uma unica vez logo apos o comando.
+
+  • Secrets parcialmente aplicados — JA' MITIGADO POR DESIGN, vale
+    registrar o porque: o plano agrupa as 3 variaveis num UNICO comando
+    `flyctl secrets set` (decisao ja' tomada nas Sprints anteriores, com
+    a justificativa correta de evitar restarts multiplos) — e a
+    Atividade 2.3 do documento de validacao ja' compara os TRES digests
+    individualmente contra a baseline. Se so' 1 ou 2 dos 3 mudarem, isso
+    JA' seria capturado como FAIL localizado nesse item. Nenhuma mudanca
+    adicional necessaria aqui — ja' esta' coberto, apontar isso
+    explicitamente evita retrabalho.
+
+  • Multiplas maquinas — BAIXO RISCO HOJE, MAS COM UM DADO RELEVANTE NAO
+    DOCUMENTADO ATE' AGORA: `min_machines_running=1` e o `flyctl status`
+    das Sprints anteriores sempre mostrou 1 unica maquina — o risco de
+    Secrets inconsistentes ENTRE maquinas simultaneas e' hoje
+    inaplicavel. PORE M: `flyctl volumes list` (Sprint 5B-B1.1) mostrou
+    DOIS volumes `hub_data` (um em `gru`, criado ha' 1 semana, e outro em
+    `iad`, criado ha' 1 dia, este' o anexado) — evidencia de uma
+    migracao de regiao/maquina recente que NAO faz parte de nenhuma
+    Sprint desta serie. Isso nao e' uma falha do plano atual, mas e' um
+    lembrete de que a topologia "1 maquina fixa" nao e' imutavel por
+    natureza — se o app voltar a escalar ou migrar de regiao no futuro,
+    o plano de Secrets precisaria ser reavaliado quanto a propagacao
+    simultanea.
+
+  • Inconsistencia entre release e Secrets — CENARIO REAL, CONFIRMADO
+    COM EVIDENCIA CONCRETA, NAO HIPOTETICA. `flyctl releases -a
+    hub-granmarquise` mostra que a maquina de producao recebeu deploys
+    de CODIGO (nao apenas Secrets) intercalados nas ULTIMAS HORAS por
+    DOIS usuarios distintos:
+      v357 (15:31) caiobholanda2007@gmail.com  <- release ATUALMENTE em
+                                                   producao
+      v356 (15:21) caiobholanda2007@gmail.com
+      v355 (15:17) ti@granmarquise.com.br
+      v354 (15:05) caiobholanda2007@gmail.com
+    Ou seja: HA' outra pessoa (`caiobholanda2007@gmail.com`) fazendo
+    deploys ATIVOS de codigo neste MESMO app, no MESMO dia, intercalado
+    com as janelas em que esta propria serie de Sprints rodou testes
+    (SSH, `flyctl status`, etc.). Isso e' uma condicao de corrida REAL
+    em potencial: se essa pessoa fizer um `git push`/deploy de codigo
+    durante a janela em que os Secrets forem atualizados (ou logo
+    depois), o restart triggado pelos Secrets pode ser seguido por um
+    SEGUNDO restart (deploy de codigo) minutos depois, tornando dificil
+    saber qual das duas mudancas causou um eventual problema observado
+    na validacao pos-migracao. NENHUM dos documentos desta Sprint
+    (5B-B1.1 a 5B-B1.5) menciona ou coordena com esse segundo operador.
+    RECOMENDACAO CONCRETA: antes de rodar o `flyctl secrets set`,
+    confirmar com `caiobholanda2007@gmail.com` que nenhum deploy de
+    codigo esta' planejado para a mesma janela — isso e' uma pratica de
+    governanca de mudanca basica (janela de mudanca exclusiva) que
+    faltava inteiramente nesta serie de Sprints ate' esta revisao.
+
+  • Cache (em memoria, no processo) — CENARIO REAL NO CODIGO, MAS
+    INAPLICAVEL A ESTA MIGRACAO ESPECIFICA, vale documentar o porque:
+    `backup-adapter.js` mantem `_hubSdkModules`/`_backupService` como
+    cache em modulo (`let _backupService = null`), preenchido na
+    PRIMEIRA chamada de `getBackupService()` e nunca invalidado
+    manualmente. Se o Shadow Mode JA' tivesse sido ativado antes desta
+    migracao (nao esta', BACKUP_ENGINE continua indefinido), uma
+    atualizacao de Secrets SEM restart do processo deixaria esse cache
+    apontando para a credencial ANTIGA ate' o processo reiniciar. Como
+    `flyctl secrets set` SEMPRE reinicia o processo (comportamento do
+    Fly, ja' documentado em Sprints anteriores), esse cache e'
+    automaticamente invalidado toda vez — o risco so' se materializaria
+    se, no futuro, alguem implementasse um mecanismo de reload de config
+    "a quente" sem restart. Registrar como nota arquitetural para
+    quando esse cenario for avaliado, nao como bloqueio agora.
+
+  • Rollback automatico do Fly — INVESTIGADO, NAO CONFIRMADO. Nao
+    encontrei, em `flyctl config show`, nenhuma configuracao de
+    `[deploy]`/estrategia que indique rollback automatico em caso de
+    falha de healthcheck. O comportamento padrao do Fly Machines (nao
+    Nomad legado) e', pelo meu conhecimento, NAO reverter Secrets/imagem
+    automaticamente em caso de falha — exige `flyctl releases rollback`
+    manual. NAO EXECUTEI nenhum teste que forcasse uma falha real para
+    confirmar isso de forma definitiva (seria destrutivo, fora do
+    escopo desta revisao). Tratar como PREMISSA A VALIDAR, nao como
+    fato confirmado — recomendo, no dia da execucao real, ter o comando
+    de rollback (Sprint5BB15-RollbackPlan.txt) literalmente aberto e
+    pronto, nao apenas documentado, precisamente porque nao ha' garantia
+    de rede de seguranca automatica.
+
+--------------------------------------------------------------------------------
+ATIVIDADE 4 — MITIGACOES DE SOFTWARE PARA O RISCO DE DeleteObject (SEM
+APOIO DA PLATAFORMA)
+--------------------------------------------------------------------------------
+
+  Contexto: confirmado (Sprint 5B-B1.4) que o papel "Editor" da Tigris
+  permite DeleteObject; nao ha' hoje, no console, um papel mais restrito.
+  As opcoes abaixo sao TODAS de camada de aplicacao/processo — nenhuma
+  foi implementada, apenas documentada, per instrucao explicita.
+
+  1. FACHADA/WRAPPER COM SUPERFICIE REDUZIDA (mitigacao mais forte e
+     mais barata). `S3CompatibleProvider` (hub-sdk) expõe `.delete()`/
+     `.deleteMany()` como parte de `IStorageProvider` — mas nada em
+     `backup-adapter.js` hoje CHAMA esses metodos (confirmado por
+     leitura de codigo, Sprint 5B-B1.3). Uma mitigacao futura seria
+     `backup-adapter.js` nunca guardar uma referencia direta ao
+     `storageProvider`/`backupService` completo, e sim construir/expor
+     internamente um objeto com APENAS os metodos usados
+     (upload/restore/list), nunca repassando `.delete` para nenhum
+     escopo que pudesse, por erro de programacao futuro, vir a chama-lo.
+     Isso e' "least authority" na camada de linguagem — independente da
+     policy do provider, o proprio codigo nunca teria, sintaticamente,
+     como executar um delete.
+
+  2. FEATURE FLAG DEFENSIVA EXPLICITA. Um flag interno (ex.:
+     `ALLOW_DESTRUCTIVE_STORAGE_OPS`, default `false`, nunca exposto via
+     variavel de ambiente comum/documentada) verificado antes de
+     QUALQUER chamada que pudesse remover dados — mesmo sabendo que hoje
+     nenhum caminho de codigo tenta isso, o flag funcionaria como uma
+     trava adicional para qualquer FUTURA feature (ex.: um job de
+     pruning implementado sem cuidado) que tentasse usar delete sem
+     passar por uma decisao explicita.
+
+  3. CANARIO / AUTOTESTE PERIODICO DE PERMISSAO. Um health-check
+     periodico (ex.: uma vez ao dia, fora do caminho critico) que tenta
+     um DELETE controlado (numa chave de teste dedicada, nunca em dado
+     real) e ALERTA se o resultado for diferente do esperado — nao para
+     prevenir o delete em si (a policy do provider decide isso), mas
+     para DETECTAR DRIFT: se algum dia a Tigris passar a oferecer um
+     papel mais restrito e ele for aplicado, esse teste vira' a
+     confirmacao continua de que a policy esta' correta; se a policy
+     regredir (ex.: alguem trocar a Access Key por engano), o alerta
+     dispara antes de um incidente real.
+
+  4. LOGGING/ALERTA DE ALTA SEVERIDADE EM QUALQUER CHAMADA DE DELETE
+     REAL. Se, no futuro, algum codigo legitimo vier a precisar de
+     delete (ex.: um job de retencao real, conforme backlog do
+     ADR-010), essa chamada deveria emitir um log estruturado de
+     severidade alta e distinta (ex.: `[SECURITY][STORAGE-DELETE]`),
+     nunca misturado ao log de backup comum — isso NAO impede a acao,
+     mas garante rastreabilidade/alertabilidade imediata, e serve como
+     ponto natural para um alerta externo (webhook, ja' previsto na
+     estrutura de `backup.config.json` do ADR-010, hoje configurado como
+     `null`).
+
+  5. RECONCILIACAO PERIODICA DE OBJETOS (camada de armazenamento,
+     complementar ao codigo). Um job (fora do runtime da aplicacao,
+     ex.: GitHub Actions agendado — mesmo padrao ja' previsto pelo
+     ADR-010 para o job de prune) que compara a contagem/lista de
+     objetos esperados (baseada no manifesto `status/manifest.json` que
+     o `backup-core` ja' escreve, per ADR-010) contra o que
+     efetivamente existe no bucket, e alerta em caso de reducao
+     inesperada — detecta uma delecao (por bug, credencial vazada, ou
+     erro humano) mesmo que tenha ocorrido por um caminho totalmente
+     fora do controle do proprio hub-portal.
+
+  6. CAMADA DE ARMAZENAMENTO (fora do controle do codigo do hub-portal,
+     mas vale registrar): habilitar VERSIONAMENTO no bucket
+     `hub-portal-prod` (hoje desabilitado, confirmado na Sprint
+     5B-B1.2/repetivel na 5B-B1.4) nao IMPEDE um delete, mas transforma
+     um DELETE simples num "delete marker" reversivel, dando uma janela
+     de recuperacao mesmo que a credencial de runtime tecnicamente
+     consiga deletar. E' a mitigacao de mais baixo esforco de
+     implantacao (configuracao de bucket, nao codigo) e a que mais se
+     aproxima, na pratica, do efeito de "negar delete", sem depender de
+     um papel IAM que a Tigris ainda nao oferece.
+
+  PRIORIZACAO SUGERIDA (nao implementada, apenas ordenada por
+  custo/beneficio): (6) versionamento do bucket primeiro — e' config,
+  nao codigo, e da' a maior protecao pratica pelo menor esforco; depois
+  (1) fachada de superficie reduzida — barato, prescritivo, prova por
+  construcao; (3)+(5) deteccao/alerta como camada complementar; (2)+(4)
+  como reforco adicional se/quando um job de delete real for construido.
+
+--------------------------------------------------------------------------------
+ATIVIDADE 5 — PRIVILEGIOS REAIS DA SESSAO flyctl UTILIZADA NESTA SERIE
+DE SPRINTS
+--------------------------------------------------------------------------------
+
+  Esta e' a parte mais desconfortavel, e mais importante, desta revisao
+  — respondida com o maximo de honestidade tecnica possivel, sem
+  suavizar.
+
+  1) Quais permissoes minha sessao realmente possui?
+
+     `flyctl auth whoami` retorna `ti@granmarquise.com.br` — uma conta
+     de USUARIO HUMANO real, autenticada via `flyctl auth login`
+     (sessao de longa duracao, nao um token de API escopado gerado
+     especificamente para este trabalho). `flyctl orgs list` confirma
+     que essa conta e' membro pleno da org `personal` (tipo PERSONAL).
+     Isso significa, em termos praticos: minha sessao tem, tecnicamente,
+     AS MESMAS PERMISSOES que o proprio usuario humano tem no dashboard
+     web do Fly.io para essa organizacao — nao existe, hoje, nenhuma
+     credencial separada, mais restrita, criada especificamente para as
+     acoes que eu executo.
+
+  2) Possuo apenas leitura?
+
+     NAO. Isso ja' deixou de ser verdade nesta propria serie de
+     Sprints: usei `flyctl ssh console` (Sprints 5B-B1.2/5B-B1.4) para
+     rodar codigo DENTRO do container de producao — um shell remoto
+     completo, com os mesmos privilegios do processo Node em execucao
+     (capaz de ler/escrever qualquer arquivo acessivel ao processo,
+     nao apenas os 2-3 comandos Node que eu efetivamente rodei). Alem
+     disso, `flyctl deploy --build-only` (Sprints 5B-B1.1) e' uma
+     operacao real de build usando a infraestrutura remota do Fly — nao
+     e' "somente leitura" em nenhum sentido estrito, mesmo nao publicando
+     a imagem. O que tem sido "somente leitura" e' uma escolha
+     comportamental minha a cada Sprint (rodar so' os comandos que o
+     escopo autorizado permite), NAO um limite tecnico imposto pela
+     plataforma ou pela credencial.
+
+  3) Consigo executar `flyctl deploy` / `secrets set` / `scale` /
+     `machines destroy` / `releases rollback` / `volumes` /
+     `apps destroy`, ou isso e' apenas teorico?
+
+     Com altissima probabilidade, TODOS sao tecnicamente executaveis por
+     esta sessao — nao apenas teoricamente disponiveis no binario. Nao
+     testei os comandos destrutivos (correto — nunca deveria, e nao
+     farei sem autorizacao explicita e escopada), entao nao posso
+     provar 100% com uma execucao real, mas a evidencia disponivel
+     aponta fortemente nessa direcao: (a) `secrets list`/`status`/`logs`
+     /`storage list`/`releases`/`config show` — todos ja' executados com
+     sucesso ao longo desta serie de Sprints, sem NENHUM erro de
+     permissao em nenhum momento; (b) `flyctl deploy --build-only`
+     (Sprints 5B-B1.1) — uma operacao de infraestrutura real, nao
+     apenas leitura de metadado, tambem sem erro de permissao; (c)
+     nenhuma das chamadas acima jamais retornou algo como "insufficient
+     permissions"/"forbidden" — o padrao normal quando uma credencial e'
+     de fato restrita. A conclusao tecnica honesta e': `machines
+     destroy`, `apps destroy`, `releases rollback`, `scale`, `volumes
+     destroy` NAO sao bloqueados por nada alem da minha propria decisao
+     de nao os executar sem autorizacao explicita, Sprint a Sprint,
+     exatamente como vem sendo seguido ate' aqui.
+
+  4) Existe forma de limitar ainda mais esse acesso para futuras
+     Sprints?
+
+     SIM, duas frentes, uma tecnica e uma de processo:
+
+     TECNICA (plataforma): o Fly.io oferece tokens escopados (deploy
+     tokens por app, entre outras variacoes de escopo reduzido, geradas
+     via `flyctl tokens create`) que sao mais restritos que uma sessao
+     de usuario completa — tipicamente permitem operacoes dentro de UM
+     app especifico sem acesso a operacoes de organizacao inteira (como
+     billing, membros, ou apps de outros times). Nao tenho, hoje,
+     confirmacao de qual variacao exata de token cobriria PRECISAMENTE
+     "pode secrets set + logs + status, mas nao pode apps destroy/scale"
+     — o Fly.io nao documenta, ate' onde sei, um RBAC granular por
+     comando (nao e' como IAM da AWS/Tigris, com policies por acao) —
+     isso e' uma limitacao real da PLATAFORMA, nao algo que eu possa
+     contornar sozinho. Recomendo que a proxima vez que uma credencial
+     for gerada para este proposito, seja investigado explicitamente
+     (na documentacao oficial do Fly, no momento da criacao) qual e' o
+     escopo mais restrito disponivel — nao presumo aqui uma sintaxe
+     exata que nao verifiquei.
+
+     PROCESSO (ja' demonstrado como funcional nesta propria Sprint): o
+     padrao que voce mesmo adotou ao NAO me passar a Access Key/Secret
+     Key da Tigris, preferindo rodar o comando de validacao voce mesmo,
+     e' EXATAMENTE o modelo certo — e pode/deve ser estendido ao
+     Fly.io: eu preparo o comando exato (`flyctl secrets set ...`), voce
+     roda. Isso ja' esta' acontecendo de fato nesta Sprint para o
+     `secrets set` em si (aguardando voce executar) — a recomendacao e'
+     formalizar isso como REGRA PADRAO para qualquer comando mutativo
+     (nao so' Secrets), nao como excecao pontual.
+
+  5) Qual seria o modelo ideal de menor privilegio para uma IA auxiliar
+     na administracao do HUB?
+
+     Um modelo de DUAS credenciais distintas, no mesmo espirito do
+     Modelo IAM que o proprio ADR-010 ja' define para o Tigris (escrita
+     separada de delecao) — aplicado agora ao PLANO DE CONTROLE
+     (Fly.io), nao so' ao plano de dados (Tigris):
+
+       (a) Credencial de INVESTIGACAO/AUDITORIA — escopo read-only onde
+           a plataforma permitir (logs, status, secrets list — que ja'
+           e' inerentemente "list", nunca "get" do valor —, releases,
+           config show). Usada para 90%+ das interacoes desta serie de
+           Sprints. Idealmente de longa duracao, baixo risco mesmo se
+           usada sem supervisao direta a cada comando.
+
+       (b) Autorizacao PONTUAL E ESCOPADA para qualquer acao mutativa —
+           nao uma segunda credencial permanente e sim, no minimo, uma
+           confirmacao explicita do usuario NO MOMENTO, para o comando
+           EXATO a ser rodado (nao uma autorizacao generica "pode
+           mexer em Secrets a partir de agora") — e', na pratica, o que
+           este engajamento inteiro ja' vem fazendo, Sprint a Sprint,
+           com "Ao concluir: parar e aguardar aprovacao" repetido
+           consistentemente. O ponto fraco NAO e' o processo humano (que
+           tem sido rigoroso) — e' que ele depende inteiramente de
+           disciplina comportamental, sem um controle tecnico de
+           reforco (ex.: um token que simplesmente NAO Tem o
+           `secrets set` fisicamente disponivel ate' ser elevado por
+           algum mecanismo de aprovacao). Isso e' uma divida tecnica
+           de plataforma, nao um problema desta Sprint especificamente.
+
+--------------------------------------------------------------------------------
+ATIVIDADE 6 — MELHORIAS DE CONFIABILIDADE
+--------------------------------------------------------------------------------
+
+  Alem das ja' citadas nas Atividades 3-5 (health check custom,
+  versionamento do bucket, wrapper de superficie reduzida, coordenacao
+  de janela de mudanca com outros deployers), pontos adicionais:
+
+  • CONSOLIDACAO DA TRILHA DE AUDITORIA. Esta serie de Sprints ja
+    produziu ~20 arquivos `.txt` (5B-B1.1 a 5B-B1.5) em duas pastas
+    (hub-portal/ e Desktop/HUB GRAN MARQUISE/). Sao excelentes
+    individualmente, mas nao ha' um indice unico que amarre "que Secret
+    estava ativo em que momento, aprovado por quem, com qual resultado"
+    ao longo do tempo — hoje, reconstruir essa linha do tempo exige ler
+    varios arquivos em ordem. Recomendo (Sprint futura, nao agora) um
+    unico "INFRA-CHANGELOG.md" append-only no hub-portal, com uma linha
+    por mudanca real de infraestrutura, linkando para o `.txt` da Sprint
+    correspondente.
+
+  • MONITORAMENTO DE IDADE DO ULTIMO BACKUP. O proprio ADR-010 ja' lista
+    isso como item do roadmap ("health check com idade de backup") —
+    nao implementado ainda para o hub-portal. Quando o Shadow Mode for
+    ativado (fora desta Sprint), sem esse monitoramento, uma falha
+    SILENCIOSA e continua do Shadow Mode (ex.: credencial expirada) so'
+    seria percebida por leitura manual de log — nao ha' alerta ativo.
+
+  • MEDICAO REAL DE TEMPO DE RESTART. Ja' apontado na Atividade 1 — a
+    primeira execucao real desta migracao e' a oportunidade de
+    finalmente medir (nao estimar) quanto tempo um `secrets set` leva
+    neste app especifico, dado que nenhuma Sprint anterior mediu isso
+    ainda. Vale registrar esse numero no proprio
+    Sprint5BB15-ProductionValidation.txt quando a execucao acontecer.
+
+  • COORDENACAO COM OUTROS OPERADORES (ver Atividade 3). Esta e' hoje a
+    lacuna de maior impacto pratico imediato: nenhuma Sprint desta serie
+    verificou ou coordenou com `caiobholanda2007@gmail.com`, que
+    demonstravelmente faz deploys frequentes neste mesmo app. Qualquer
+    melhoria de observabilidade/confiabilidade tecnica e' de valor
+    limitado se duas pessoas podem alterar o mesmo ambiente de producao
+    sem visibilidade uma da outra.
+
+--------------------------------------------------------------------------------
+ATIVIDADE 7 — CLASSIFICACAO GERAL
+--------------------------------------------------------------------------------
+
+  CLASSIFICACAO GERAL
+
+  Arquitetura:        8/10 — separacao clara (bucket dedicado, adapter
+                       isolado do legado, ADR-010 majoritariamente
+                       seguido); perde pontos so' pela nomenclatura de
+                       variaveis ainda divergente do ADR (BACKUP_WRITE_*)
+                       e pela ausencia de health check/estrategia de
+                       deploy explicita.
+  Seguranca:           6/10 — DeleteObject permitido na credencial de
+                       runtime (limitacao de plataforma, mitigavel, nao
+                       mitigada ainda); e', mais grave, a sessao usada
+                       para EXECUTAR toda esta serie de Sprints tem
+                       privilegios de conta completa, sem nenhuma
+                       restricao tecnica — o menor dos dois problemas de
+                       seguranca encontrados nesta revisao (o DeleteObject
+                       na Tigris) na verdade e' o MENOR risco; o maior e'
+                       o ponto 5.
+  Governanca:          7/10 — antes desta revisao, 6/10 (faltavam as
+                       secoes de aprovacao formal e o achado do deployer
+                       concorrente); os gaps identificados sao corrigiveis
+                       rapidamente e sem re-trabalho do plano tecnico.
+  Operacao:            8/10 — sequenciamento cuidadoso, testes reais em
+                       cada etapa, nenhuma acao apressada; perde pontos
+                       pela falta de coordenacao com o segundo operador.
+  Rollback:            7/10 — simples, barato, bem documentado para o
+                       caso feliz; nao cobria explicitamente restart
+                       parcial/timeout ate' esta revisao.
+  Observabilidade:     6/10 — logs bracket claros para leitura humana,
+                       mas sem metricas, sem alerta, sem health endpoint.
+  Rastreabilidade:     7/10 — documentacao extensa e detalhada Sprint a
+                       Sprint; fragmentada, sem indice consolidado.
+  Confiabilidade:      7/10 — alta ate' agora precisamente porque nada
+                       tocou dado real de producao (Shadow Mode dormente);
+                       a descoberta do deployer concorrente e' o principal
+                       fator de risco a` confiabilidade da PROXIMA etapa
+                       (a migracao em si).
+
+  Nota final (0-10): 7.0
+
+--------------------------------------------------------------------------------
+ATIVIDADE 8 — APROVARIA NUM CAB CORPORATIVO?
+--------------------------------------------------------------------------------
+
+  NAO APROVARIA, na forma atual.
+
+  Justificativa tecnica: o plano de migracao de Secrets em si (Sprints
+  5B-B1.3/5B-B1.4/5B-B1.5) e' solido, bem testado, reversivel e de baixo
+  risco funcional — isso, isoladamente, eu aprovaria sem hesitar. A
+  razao do NAO APROVARIA nesta revisao e' especifica e corrigivel, nao
+  uma rejeicao do trabalho como um todo:
+
+    1. Existe HOJE, com evidencia real e nao hipotetica, uma SEGUNDA
+       pessoa (`caiobholanda2007@gmail.com`) fazendo deploys ativos
+       neste MESMO app, sem qualquer coordenacao ou janela de mudanca
+       exclusiva estabelecida com esta Sprint. Um CAB corporativo
+       rejeitaria rotineiramente qualquer RFC (Request for Change) que
+       nao demonstrasse controle de janela exclusiva quando multiplos
+       operadores tem acesso de deploy ao mesmo recurso.
+    2. Falta o registro formal de aprovacao (Atividade 2) — um CAB
+       exige, por definicao, um registro auditavel de QUEM autorizou,
+       nao apenas que os criterios tecnicos foram satisfeitos.
+    3. A sessao tecnica usada para executar a mudanca (Atividade 5) tem
+       privilegios muito alem do necessario para a acao especifica —
+       um CAB de seguranca madura questionaria por que uma automacao
+       (eu) tem, tecnicamente, capacidade de `apps destroy` para
+       executar uma troca de 3 Secrets.
+
+  Nenhum dos tres pontos exige refazer o trabalho ja' feito — sao
+  ADICOES (coordenar a janela, preencher o sign-off, e — como melhoria
+  de mais longo prazo — escopar a credencial usada). Corrigidos os itens
+  1 e 2 (rapidos), eu mudaria a recomendacao para APROVARIA COM
+  RESSALVAS, registrando o item 3 como divida tecnica a ser tratada
+  separadamente, nao bloqueante para esta mudanca especifica.
+
+================================================================================
+FIM DO DOCUMENTO — Sprint5BB15-ArchitectReview.txt
+================================================================================

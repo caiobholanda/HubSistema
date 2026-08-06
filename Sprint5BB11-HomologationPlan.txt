@@ -1,0 +1,174 @@
+================================================================================
+Sprint 5B-B1.1 — HOMOLOGACAO REAL DO SHADOW MODE: PLANO
+================================================================================
+
+Data:   2026-08-04
+Metodo: leitura de configuracao real (flyctl secrets list, flyctl status,
+flyctl storage list, flyctl volumes list, flyctl logs, teste de rede sem
+credenciais) — NENHUMA alteracao foi feita em Secrets, Fly ou codigo.
+
+--------------------------------------------------------------------------------
+ATIVIDADE 1 — REVISAO DA CONFIGURACAO ATUAL
+--------------------------------------------------------------------------------
+
+  1.1 — BACKUP_ENGINE ainda nao esta habilitado em producao?
+
+    CONFIRMADO. `flyctl secrets list -a hub-granmarquise` NAO lista
+    nenhum secret chamado `BACKUP_ENGINE`. `getBackupEngineMode()`
+    (src/backup-adapter.js:36-40) retorna 'legacy' por padrao quando a
+    variavel esta ausente — logo o Shadow Mode esta 100% DORMENTE na
+    producao atual, exatamente como reportado ao final da Sprint 5B-B1.
+
+  1.2 — Os Secrets necessarios estao presentes?
+
+    ACHADO CRITICO — LEIA COM ATENCAO. Existem DOIS conjuntos de nomes de
+    variavel em jogo neste codebase, e eles NAO sao intercambiaveis:
+
+      Mecanismo LEGADO (server.js:81-86) le exclusivamente:
+        BUCKET_NAME, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY,
+        AWS_ENDPOINT_URL_S3, AWS_REGION
+
+      Mecanismo SHADOW/hub-sdk (src/backup-adapter.js:54-60,
+      resolveStorageConfig) le, em ordem de prioridade:
+        S3_BUCKET > BUCKET_NAME, S3_ACCESS_KEY_ID > AWS_ACCESS_KEY_ID,
+        S3_SECRET_ACCESS_KEY > AWS_SECRET_ACCESS_KEY, S3_ENDPOINT >
+        AWS_ENDPOINT_URL_S3, S3_REGION > AWS_REGION
+
+    O `flyctl secrets list -a hub-granmarquise` (executado nesta Sprint)
+    mostra que os Secrets HOJE configurados na producao usam
+    EXCLUSIVAMENTE a convencao `S3_*`:
+
+        S3_ENDPOINT, S3_REGION, S3_BUCKET, S3_ACCESS_KEY_ID,
+        S3_SECRET_ACCESS_KEY
+
+    NAO existe `BUCKET_NAME` nem `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`
+    /`AWS_ENDPOINT_URL_S3`/`AWS_REGION` na lista de Secrets do app.
+
+    CONSEQUENCIA CONFIRMADA EM LOG (flyctl logs -a hub-granmarquise,
+    ultimas 4 inicializacoes da maquina ate' 2026-08-04T15:31:52Z):
+
+      "[BACKUP] DESATIVADO: sem BUCKET_NAME/AWS_* no ambiente. Os dados
+      existem em UMA copia so (volume do Fly). Ative com: fly storage
+      create -a hub-granmarquise"
+
+    Ou seja: O BACKUP LEGADO ESTA DESATIVADO EM PRODUCAO HOJE, ANTES E
+    INDEPENDENTEMENTE de qualquer acao desta Sprint ou da Sprint 5B-B1.
+    Este NAO e' um efeito colateral do Shadow Mode — e' o estado atual
+    real do ambiente, causado por uma divergencia de nomenclatura de
+    Secrets que ja existia antes deste engajamento.
+
+    IMPLICACAO DIRETA PARA A HOMOLOGACAO: como os Secrets `S3_*` sao
+    EXATAMENTE os que `resolveStorageConfig()` do Shadow Mode consome (e
+    tem prioridade sobre os `AWS_*`), `isHubSdkConfigured()` avalia como
+    TRUE hoje. Isso significa que, se `BACKUP_ENGINE=shadow` for
+    ativado, o Shadow Mode ENCONTRARA credenciais e tentara' rodar — mas
+    NAO havera' um backup legado rodando em paralelo para comparar,
+    porque o legado permanece DESATIVADO pelo motivo acima. A
+    homologacao vai validar o Shadow Mode ISOLADAMENTE, nao "Shadow vs.
+    Legado lado a lado" como o nome do mecanismo sugere.
+
+    Esta e' uma condicao PRE-EXISTENTE fora do escopo desta Sprint
+    (nenhuma alteracao de Secrets e' permitida aqui). Fica registrada
+    como achado de auditoria e como um risco operacional relevante ja
+    existente (Portal roda hoje com uma unica copia dos dados, no volume
+    do Fly, sem nenhum backup externo ativo) — ver
+    Sprint5BB11-RollbackPlan.txt e as respostas finais desta Sprint.
+
+  1.3 — Tigris continua acessivel?
+
+    PARCIALMENTE CONFIRMADO, com uma ressalva. Teste de rede realizado
+    SEM usar nenhuma credencial (apenas TLS/HTTP contra o endpoint
+    publico):
+
+      curl -sS https://fly.storage.tigris.dev/
+      HTTP_STATUS: 307   TLS: OK
+
+    O SERVICO Tigris (endpoint padrao usado por `resolveStorageConfig()`
+    e por `server.js`) esta no ar e alcancavel pela rede. Isso NAO
+    confirma que o bucket especifico apontado por `S3_BUCKET` existe nem
+    que as credenciais `S3_ACCESS_KEY_ID`/`S3_SECRET_ACCESS_KEY` sao
+    validas — confirmar isso exigiria uma chamada autenticada (fora do
+    escopo de leitura pura desta Sprint; ver Atividade 2 para como fazer
+    isso com seguranca durante a homologacao real).
+
+  1.4 — Bucket configurado corretamente?
+
+    NAO TOTALMENTE VERIFICAVEL COM OS DADOS DISPONIVEIS NESTA SPRINT —
+    achado adicional relevante:
+
+      `flyctl storage list -o personal` retornou uma tabela VAZIA (sem
+      nenhum bucket Tigris provisionado atraves da integracao gerenciada
+      do Fly para esta organizacao).
+
+    Isso NAO prova que o bucket referenciado por `S3_BUCKET` nao existe
+    — buckets Tigris podem ser criados diretamente pelo console/API da
+    Tigris, fora do fluxo `fly storage create`, e nesse caso nao
+    aparecem em `flyctl storage list`. Mas tambem significa que NAO HA'
+    confirmacao positiva, dentro do que e' visivel via flyctl, de que
+    existe um bucket valido e gerenciado associado a este app.
+
+    RECOMENDACAO (nao executada nesta Sprint): antes de prosseguir com
+    a homologacao real (Atividade 2), verificar a existencia e o nome
+    exato do bucket diretamente no console da Tigris
+    (storage.new/tigris), ou autorizar explicitamente um teste de
+    conectividade autenticado (ver Atividade 2, Passo 0).
+
+--------------------------------------------------------------------------------
+ATIVIDADE 2 — COMO REALIZAR UMA HOMOLOGACAO SEGURA
+--------------------------------------------------------------------------------
+
+  PASSO 0 (RECOMENDADO, NAO OBRIGATORIO) — Confirmar bucket antes de
+  ativar qualquer coisa:
+    Verificar no console da Tigris (ou pedir a quem provisionou os
+    Secrets `S3_*`) que o bucket referenciado por `S3_BUCKET` existe e
+    pertence ao Portal HUB, per exigencia do ADR-010 V2 (bucket
+    dedicado). Isso evita descobrir um bucket invalido apenas DEPOIS de
+    ja' ter ativado o Shadow Mode.
+
+  QUAL SECRET PRECISA SER ALTERADO:
+    `BACKUP_ENGINE` — hoje inexistente (ausente = 'legacy'/desligado).
+
+  QUAL VALOR DEVE SER UTILIZADO:
+    `shadow`
+    (equivalente a `hub-sdk` no codigo atual — Estagio 1 trata os dois
+    como sinonimos; usar `shadow` por ser o nome semanticamente correto
+    para esta fase, conforme a propria Sprint 5B-B1 documentou.)
+
+  QUAL COMANDO EXECUTAR (quando autorizado — NAO executado nesta
+  Sprint):
+    flyctl secrets set BACKUP_ENGINE=shadow -a hub-granmarquise
+
+    ATENCAO: `flyctl secrets set` SEMPRE dispara um novo release/restart
+    da maquina para injetar a variavel — nao existe forma de "setar sem
+    reiniciar". Isso significa que este comando, por si so, ja conta
+    como uma mudanca operacional em producao (reinicio do processo), mesmo
+    sem build de nova imagem. Por isso o texto da Sprint 5B-B1.1 pede
+    para NAO executa-lo agora — a execucao e' o proprio ato de
+    homologacao, a ser feito somente com aprovacao explicita e,
+    idealmente, em uma janela de baixo trafego.
+
+  COMO DESFAZER A ALTERACAO AO FINAL:
+    flyctl secrets unset BACKUP_ENGINE -a hub-granmarquise
+
+    Isso remove a variavel por completo (nao apenas zera o valor) —
+    `getBackupEngineMode()` volta a retornar 'legacy' e
+    `isShadowModeActive()` volta a `false`, restaurando o estado
+    DORMENTE exato de antes da homologacao. Tambem dispara um novo
+    restart da maquina (mesmo efeito colateral do `set`, na direcao
+    inversa).
+
+  DURANTE A JANELA COM `BACKUP_ENGINE=shadow` ATIVO:
+    - O backup LEGADO continua tecnicamente "tentando" rodar a cada
+      escrita (chamada de `_uploadBackupS3()` preservada, sequenciada
+      ANTES do shadow — Sprint 5B-B1), mas continuara' sendo um no-op
+      silencioso enquanto `BUCKET_NAME`/`AWS_*` nao existirem (achado da
+      Atividade 1.2) — ou seja, nenhuma mudanca de risco para o legado,
+      que ja esta' desativado hoje.
+    - O SHADOW passara' a rodar de verdade: calculo de checksum local,
+      upload real via hub-sdk para o bucket apontado por `S3_BUCKET`, e
+      um restore de LEITURA para um arquivo temporario (nunca
+      `hub_data.json`).
+
+================================================================================
+FIM DO DOCUMENTO — Sprint5BB11-HomologationPlan.txt
+================================================================================

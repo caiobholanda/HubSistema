@@ -1,0 +1,116 @@
+================================================================================
+SPRINT 5B — ESTAGIO 1 (MODO SOMBRA) — RESUMO EXECUTIVO DA REVISAO DE PRE-DEPLOY
+Plataforma HUB Gran Marquise
+================================================================================
+
+Data:                 2026-08-04
+Revisor:              Claude (assistido por IA), a pedido de Richard Anderson
+Documentos completos: Sprint5B-PreDeploy-Review.txt (revisao tecnica detalhada)
+                       Sprint5B-PreDeploy-Checklist.txt (checklist operacional)
+Natureza desta revisao: SOMENTE LEITURA. Nenhum arquivo de codigo foi alterado.
+                        Nenhum commit, push ou deploy foi realizado.
+
+--------------------------------------------------------------------------------
+NOTA SOBRE LOCALIZACAO
+--------------------------------------------------------------------------------
+A sessao foi aberta no repositorio hub-contatos (Diretorio de Ramais), mas o
+trabalho da Sprint 5B/backup vive em hub-portal (integracao) e hub-sdk (SDK
+consumido). A revisao cobriu os quatro ADRs obrigatorios, a documentacao
+operacional do hub-sdk, todo o diff nao commitado, o codigo-fonte do
+backup-core/storage-client, e a execucao real das suites de teste. Os tres
+documentos desta revisao foram gerados em hub-portal/.
+
+--------------------------------------------------------------------------------
+SITUACAO ATUAL DA SPRINT
+--------------------------------------------------------------------------------
+Estagio 1 (modo sombra) tecnicamente bem implementado — aditivo, fail-safe
+por padrao, aderente aos ADRs 005/010/011/012 exceto por um ponto (pin de
+versao). Nada commitado, nada enviado, como declarado no inicio da sessao.
+
+--------------------------------------------------------------------------------
+PERCENTUAL ESTIMADO DE CONCLUSAO DO PROJETO DE BACKUP
+--------------------------------------------------------------------------------
+~15-20% do roadmap completo do ADR-010 (Sprint 1 do hub-sdk concluida +
+Estagio 1 de 4 do Portal HUB, primeira das 5 aplicacoes da plataforma). O
+Portal HUB ainda nao e a fonte de restore real — isso continua 100% a
+cargo do aws4fetch legado nesta fase.
+
+--------------------------------------------------------------------------------
+RISCOS CRITICOS (1)
+--------------------------------------------------------------------------------
+- BUILD DOCKER/FLY.IO QUEBRADO. O package.json do hub-portal aponta para
+  "file:../hub-sdk/packages/backup-core" e "file:../hub-sdk/packages/
+  storage-client", mas o pipeline real de deploy (actions/checkout@v4
+  fazendo checkout SOMENTE do hub-portal -> flyctl deploy --remote-only)
+  nunca disponibiliza o diretorio hub-sdk dentro do contexto de build.
+  "npm ci --production" falhara ao resolver essas dependencias, derrubando
+  o build da imagem Docker inteira — independente do valor de
+  BACKUP_ENGINE (a falha ocorre em tempo de build, antes de qualquer
+  codigo de runtime rodar). Isso bloqueia commit e deploy ate uma decisao
+  de arquitetura de distribuicao de pacotes (vendorizar no pipeline,
+  publicar @hub/* em um registro privado com pin semver exato, ou ajustar
+  o workflow para clonar o hub-sdk antes do build). Ver secao 6.1 da
+  revisao tecnica completa para as 3 opcoes detalhadas.
+
+--------------------------------------------------------------------------------
+RISCOS MEDIOS (3)
+--------------------------------------------------------------------------------
+- Contrato de erro nao honrado internamente em runShadowBackup(): a leitura
+  sincrona sha256File() nao esta protegida por try/catch dentro da propria
+  funcao, apesar do comentario afirmar que "nunca lanca". Sem impacto hoje
+  porque o unico chamador (server.js) tem seu proprio .catch(), mas e uma
+  divida tecnica a resolver antes do Estagio 2.
+- Pin de versao do hub-sdk nao segue o ADR-011: a dependencia via file:
+  nao fixa uma versao imutavel — qualquer mudanca local no hub-sdk se
+  propaga ao hub-portal sem bump de versao. Mesma raiz do risco critico
+  acima; resolvida junto com a mesma decisao de arquitetura.
+- Ausencia de trava de reentrancia no shadow backup: sem um lock
+  equivalente ao _backupTimer legado, execucoes de runShadowBackup()
+  poderiam se sobrepor sob rede lenta. Nao e bug de corretude (sem risco
+  de corrupcao de dado), mas gera chamadas concorrentes extras contra o
+  Tigris — relevante apenas quando BACKUP_ENGINE=shadow for de fato
+  ativado sob carga real.
+
+--------------------------------------------------------------------------------
+RISCOS BAIXOS (3)
+--------------------------------------------------------------------------------
+- resolveStorageConfig() nao repassa forcePathStyle/S3_FORCE_PATH_STYLE ao
+  S3CompatibleProvider — inofensivo hoje (default ja e o que Tigris usa).
+- Acoplamento a propriedades nao documentadas de BackupService
+  (.strategy/.storageProvider) em vez de manter referencias proprias,
+  como o padrao oficial do IntegrationGuide.md sugere.
+- hub-portal/package.json sem "engines.node" explicito (o Dockerfile ja
+  fixa node:20-alpine, entao o risco pratico e minimo).
+
+--------------------------------------------------------------------------------
+TESTES
+--------------------------------------------------------------------------------
+73/73 testes passando no hub-sdk (64 backup-core + 9 storage-client) e
+60/60 no hub-portal (incluindo os 13 novos testes do adapter) — verificado
+por execucao real da suite, nao apenas assumido a partir de documentacao.
+
+--------------------------------------------------------------------------------
+ACHADO ADICIONAL — DOCUMENTACAO
+--------------------------------------------------------------------------------
+Os tres documentos citados como fonte de contexto desta sessao e no proprio
+codigo (Sprint5B-Stage1-Relatorio.txt, Sprint5B-Release-Checklist.txt e
+Sprint5-Revisao-Arquitetural-Final.txt) nao foram encontrados em nenhum dos
+6 repositorios do workspace, nem commitados nem como arquivo solto. Vale
+esclarecer se existem em outro lugar (wiki externa, rascunho local nao
+salvo) ou se ficaram pendentes de geracao.
+
+--------------------------------------------------------------------------------
+VEREDITO
+--------------------------------------------------------------------------------
+GO / NO-GO PARA COMMIT:   NO-GO — resolver o bloqueio critico de build
+                          Docker/Fly.io primeiro (decisao de arquitetura,
+                          nao correcao mecanica trivial)
+GO / NO-GO PARA DEPLOY:   NO-GO — mesma razao; o estado atual quebraria o
+                          build de producao do Portal HUB
+
+Nenhuma alteracao de codigo foi feita durante esta revisao. Aguardando
+decisao sobre os achados antes de qualquer correcao.
+
+================================================================================
+FIM DO DOCUMENTO — Sprint5B-PreDeploy-ResumoExecutivo.txt
+================================================================================

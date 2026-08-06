@@ -1,0 +1,111 @@
+================================================================================
+Sprint 5B-B1.2 — TESTE REAL DE CONECTIVIDADE AUTENTICADA
+================================================================================
+
+Data:   2026-08-04
+Onde executado: dentro da propria maquina de producao do Fly.io
+(`flyctl ssh console -a hub-granmarquise`), usando `aws4fetch` (ja
+presente na imagem, mesma biblioteca que `server.js` usa para o backup
+legado) para assinar requisicoes SigV4 REAIS contra o Tigris, com as
+credenciais REAIS ja injetadas no ambiente pelo Fly (S3_BUCKET,
+S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, S3_ENDPOINT, S3_REGION).
+
+Por que executar DENTRO da maquina, e nao localmente: as credenciais
+reais so' existem como variaveis de ambiente ja injetadas no processo em
+producao — trazer esses valores para fora da maquina (para este
+ambiente local) violaria a regra "NAO alterar Secrets" no sentido de
+exfiltrar segredo de producao para um ambiente externo. Executar o teste
+DENTRO da maquina, sem nunca imprimir os valores brutos das credenciais
+(apenas fingerprint de 4+4 caracteres e comprimento), preserva a regra.
+
+Nenhuma alteracao de Secret, codigo, Fly.io ou deploy foi feita — a
+conexao SSH usada e' uma execucao de comando pontual numa maquina JA
+em execucao (mesmo mecanismo usado para consultar `flyctl logs`/
+`flyctl status` em Sprints anteriores), nao uma mudanca de
+configuracao/infraestrutura.
+
+--------------------------------------------------------------------------------
+ATIVIDADE 2 — RESULTADO BRUTO DO TESTE (transcricao integral)
+--------------------------------------------------------------------------------
+
+  config:
+    bucket_name:            hub-prod-backups
+    endpoint:                https://t3.storage.dev
+    region:                  auto
+    access_key_fingerprint:  tid_...KCeW (len=54)
+    secret_key_present:      true
+    secret_key_len:          75
+
+  1) AUTENTICACAO + LISTAGEM (GET /?list-type=2&max-keys=5)
+     status: 200 — OK
+     Corpo (trecho): ListBucketResult valido, contendo pelo menos 1
+     objeto pre-existente:
+       Key: backup/snapshots/manual/sample-data/2026-08-04T14-48-53-252Z.snapshot.gz
+       Size: 264 bytes
+       LastModified: 2026-08-04T14:49:31Z
+       IsTruncated: true  (ha' MAIS objetos alem dos 5 retornados —
+         numero exato nao levantado nesta Sprint, fora do escopo minimo
+         pedido)
+
+  2) VERSIONAMENTO (GET /?versioning)
+     status: 200
+     Corpo: <VersioningConfiguration></VersioningConfiguration>
+     (vazio = nunca habilitado)
+
+  3) OBJECT LOCK (GET /?object-lock)
+     status: 200
+     Corpo: identico a` listagem do item 1 (ListBucketResult) — Tigris
+     nao respondeu com uma configuracao de lock nem com o erro padrao
+     S3 para "lock nunca habilitado"; subresource aparentemente nao
+     suportado/ignorado. Ver interpretacao na Atividade 1 do
+     Sprint5BB12-TigrisAudit.txt.
+
+  4) LIFECYCLE / RETENCAO (GET /?lifecycle)
+     status: 200
+     Corpo: <LifecycleConfiguration></LifecycleConfiguration>
+     (vazio = nenhuma regra configurada)
+
+  5) PUT — permissao de escrita (objeto TEMPORARIO)
+     key: _homolog-test/1785891572220-683.txt
+     status: 200 — OK
+
+  6) GET — permissao de leitura (do mesmo objeto temporario)
+     status: 200
+     content_matches: true (o conteudo lido bate exatamente com o
+     conteudo escrito — integridade confirmada, nao apenas o status
+     HTTP)
+
+  7) DELETE — permissao de remocao (do mesmo objeto temporario)
+     status: 204 — OK
+
+  8) VERIFICACAO DE REMOCAO (GET do mesmo objeto apos o DELETE)
+     status: 404
+     deleted: true — confirmado que o objeto temporario NAO existe mais
+     no bucket. Nenhum objeto permanente foi deixado para tras, per
+     exigencia explicita da Sprint.
+
+--------------------------------------------------------------------------------
+RESUMO DE PERMISSOES CONFIRMADAS
+--------------------------------------------------------------------------------
+
+  ListBucket:    SIM (item 1)
+  GetBucket*:    SIM, para versioning/lifecycle (itens 2 e 4); object-lock
+                 inconclusivo (item 3)
+  PutObject:     SIM (item 5)
+  GetObject:     SIM (item 6)
+  DeleteObject:  SIM (item 7) — NOTA: o ADR-010 recomenda que a
+                 credencial de escrita da aplicacao NAO tenha
+                 `DeleteObject` (separacao de credencial de
+                 escrita/leitura vs. credencial de delecao, usada so'
+                 pelo job de pruning via GitHub Actions). O fato desta
+                 credencial (a mesma usada por S3_ACCESS_KEY_ID/
+                 S3_SECRET_ACCESS_KEY, potencialmente a mesma que o
+                 runtime da aplicacao usaria) TER conseguido deletar um
+                 objeto e' evidencia de que essa segregacao de IAM
+                 recomendada pelo ADR-010 NAO esta' implementada aqui —
+                 achado adicional relevante de seguranca, nao apenas de
+                 conectividade.
+
+================================================================================
+FIM DO DOCUMENTO — Sprint5BB12-ConnectivityTest.txt
+================================================================================

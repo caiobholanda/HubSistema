@@ -1,0 +1,55 @@
+================================================================================
+Sprint 5B-B0.1 — AUDITORIA DE AMBIENTE (ESCOPO AJUSTADO)
+================================================================================
+
+Data:   2026-08-04
+Escopo ajustado: a ausencia de Docker Desktop local NAO e' considerada
+bloqueante. O objetivo passou a ser validar o ambiente REAL de build do
+Fly.io — o efetivamente usado em producao — em vez do Docker local.
+
+--------------------------------------------------------------------------------
+ATIVIDADE 1 — REGISTRO OFICIAL: DOCKER DESKTOP LOCAL
+--------------------------------------------------------------------------------
+
+  Docker Desktop NAO esta instalado nesta maquina. Verificado de forma
+  completa (sessao anterior, Sprint 5B-B0.1 original):
+    - `docker` ausente do PATH tanto no Bash quanto no PowerShell.
+    - Nenhum servico com "docker" no nome encontrado
+      (`Get-Service`).
+    - Nenhum dos caminhos de instalacao padrao existe
+      (`C:\Program Files\Docker\...`, `C:\ProgramData\DockerDesktop`).
+    - Nenhum processo com "docker" no nome em execucao.
+
+  CONCLUSAO OFICIAL: esta limitacao e' real e completa (ausencia de
+  instalacao, nao apenas de configuracao), mas — por decisao explicita
+  desta sessao — NAO IMPEDE a validacao da infraestrutura de build,
+  porque o ambiente que efetivamente importa para producao e' o BUILDER
+  REMOTO do Fly.io, nao o Docker local. Essa validacao foi realizada
+  integralmente nesta Sprint (ver Sprint5BB01-FlyBuild.txt) usando
+  credenciais e infraestrutura reais.
+
+--------------------------------------------------------------------------------
+AMBIENTE VALIDADO NESTA SPRINT
+--------------------------------------------------------------------------------
+
+  flyctl:              v0.4.77 (windows/amd64)
+  Autenticacao:         ti@granmarquise.com.br (confirmado via
+                        `flyctl auth whoami`)
+  App Fly.io:           hub-granmarquise (confirmado acessivel via
+                        `flyctl apps list` — status "deployed")
+  Builder remoto:       Depot (builder gerenciado pelo Fly.io,
+                        confirmado no log real do build — ver
+                        Sprint5BB01-FlyBuild.txt)
+  Node local (para
+  npm install/test):    disponivel, usado apenas para `npm test` local —
+                        nao e' o ambiente de execucao de producao (o
+                        Dockerfile usa `node:20-alpine` dentro do
+                        builder, nao o Node local desta maquina)
+
+  Docker Desktop local: AUSENTE — nao usado, nao necessario para esta
+                        validacao (builder remoto do Fly.io independe
+                        dele).
+
+================================================================================
+FIM DO DOCUMENTO — Sprint5BB01-EnvironmentAudit.txt
+================================================================================

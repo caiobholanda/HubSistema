@@ -1,0 +1,128 @@
+================================================================================
+Sprint 5B-B0 — AUDITORIA DE INVARIANTES E AVALIACAO DE RISCO
+================================================================================
+
+Data:   2026-08-04
+
+--------------------------------------------------------------------------------
+ATIVIDADE 9 — AUDITORIA COMPLETA DOS INVARIANTES SOLICITADOS
+--------------------------------------------------------------------------------
+
+  Cada item abaixo foi verificado por evidencia direta (git diff, leitura
+  de arquivo, execucao real), nao por suposicao.
+
+  [OK] Nenhum comportamento mudou
+       server.js: diff IDENTICO ao existente ANTES desta Sprint (58
+       insercoes / 2 remocoes — os mesmos numeros capturados na auditoria
+       inicial desta sessao, byte a byte). backup-adapter.js: permanece
+       nao rastreado e NAO FOI ABERTO PARA EDICAO nesta sessao (apenas
+       lido). Nenhuma rota, funcao ou comportamento de runtime foi tocado.
+
+  [OK] BACKUP_ENGINE continua em modo legacy
+       Confirmado por execucao real (nao suposicao):
+       `backupAdapter.getBackupEngineMode()` -> "legacy";
+       `backupAdapter.isShadowModeActive()` -> false. Nenhuma variavel de
+       ambiente `BACKUP_ENGINE` foi definida em nenhum arquivo do
+       repositorio nem em nenhum Secret — o default fail-safe permanece
+       exatamente como era.
+
+  [OK] Nenhum codigo do backup foi alterado
+       O bloco de backup em server.js (linhas 75-217 e 2474-2527,
+       identificado na auditoria Sprint5BB1) nao foi tocado — o unico
+       diff em server.js e' o pre-existente, de sessao anterior a esta
+       Sprint.
+
+  [OK] Nenhum codigo do restore foi alterado
+       `_restaurarBackupS3()` nao foi tocado. Nenhuma alteracao na logica
+       de boot/restore.
+
+  [OK] Nenhum endpoint foi alterado
+       Zero rotas Express adicionadas, removidas ou modificadas —
+       server.js inalterado nesta sessao.
+
+  [OK] Nenhum fluxo HTTP foi alterado
+       Consequencia direta do item anterior.
+
+  [OK] Nenhuma alteracao ocorreu em server.js alem das referencias de
+       dependencia (caso necessario)
+       Mais forte que o pedido: server.js nao foi alterado NEM MESMO nas
+       referencias de dependencia — nao precisou, porque o modulo que
+       importa o hub-sdk e' exclusivamente `src/backup-adapter.js` (que
+       usa `import('@hub/storage-client')`/`import('@hub/backup-core')`
+       por NOME de pacote, nunca por caminho de arquivo) — a resolucao de
+       ONDE esses pacotes vivem e' responsabilidade do
+       package.json/node_modules, nao de server.js. Zero linha de
+       server.js precisou mudar.
+
+  [OK] Nenhuma alteracao ocorreu em backup-adapter.js
+       Confirmado — arquivo permanece nao rastreado (estado pre-existente
+       a esta Sprint), aberto apenas para leitura nesta sessao.
+
+  [OK] Nenhum Secret do Fly.io foi alterado
+       Nenhum comando `fly secrets`/`flyctl secrets` foi executado nesta
+       sessao.
+
+  [OK] Nenhum Secret do Tigris foi alterado
+       Idem — nenhuma credencial foi lida, gerada, rotacionada ou
+       modificada.
+
+  [OK] Nenhuma variavel de ambiente foi alterada
+       Nenhum `.env` existe no repositorio (confirmado, gitignored);
+       nenhuma variavel de ambiente do processo desta sessao persiste
+       para producao.
+
+  RESULTADO: TODOS OS 11 INVARIANTES CONFIRMADOS. Nenhuma condicao de
+  parada foi acionada.
+
+--------------------------------------------------------------------------------
+RISCOS IDENTIFICADOS (avaliacao objetiva, nao apenas confirmacao de
+ausencia de risco)
+--------------------------------------------------------------------------------
+
+  RISCO 1 — Ambiente sem Docker real para validacao final
+    Severidade: BAIXA-MEDIA
+    Descricao: nenhum `docker build` real foi executado (binario
+    indisponivel neste ambiente). A simulacao manual (Sprint5BB0-
+    DockerValidation.txt) e' forte, mas nao e' 100% equivalente a um
+    build real do Alpine com o daemon do Docker.
+    Mitigacao recomendada: validar com `docker build` real (ou
+    `flyctl deploy --build-only`) antes de qualquer push efetivo — pode
+    ser feito no proprio runner do GitHub Actions quando o momento de
+    push for autorizado (fora do escopo desta Sprint).
+
+  RISCO 2 — vendor/*.tgz commitados aumentam o tamanho do repositorio
+    Severidade: BAIXA
+    Descricao: ~25 KB de arquivos binarios passam a fazer parte do
+    historico do hub-portal a cada atualizacao futura de versao do
+    hub-sdk. Impacto desprezivel no tamanho atual, mas e' um trade-off
+    ja conhecido e aceito na decisao arquitetural (Sprint5B-
+    Recommendation.txt).
+
+  RISCO 3 — 1 vulnerabilidade de severidade baixa reportada pelo npm
+    Severidade: BAIXA
+    Descricao: `npm audit` (executado, read-only) identifica
+    `body-parser <1.20.6` (dependencia TRANSITIVA de `express`, nao do
+    hub-sdk) — "vulnerable to denial of service when invalid limit value
+    silently disables size enforcement" (GHSA-v422-hmwv-36x6).
+    PRE-EXISTENTE, NAO INTRODUZIDA POR ESTA SPRINT: a versao do `express`
+    (4.22.2) e' identica antes/depois da migracao (confirmado em
+    Sprint5BB0-PackageValidation.txt), logo `body-parser` ja estava
+    presente nessa mesma versao vulneravel antes desta Sprint — so' nao
+    havia sido reportado porque `npm audit` nao havia sido executado
+    anteriormente nesta auditoria. Nao corrigido nesta Sprint (fora do
+    escopo — nenhuma mudanca de dependencia alem da migracao do hub-sdk
+    foi autorizada; corrigi-lo exigiria `npm audit fix`, uma mudanca de
+    dependencia nao relacionada ao hub-sdk). Recomendado tratar em sessao
+    futura dedicada, sem urgencia (severidade baixa, nao relacionado a
+    esta migracao).
+
+  RISCO 4 — Nenhum risco de dado ou de comportamento identificado
+    Como a mudanca e' estritamente de MECANISMO DE RESOLUCAO DE
+    DEPENDENCIA (onde o codigo do hub-sdk e' encontrado), sem tocar em
+    nenhuma logica de leitura/escrita/backup/restore, o risco de perda ou
+    corrupcao de dado desta Sprint especificamente e' NULO — confirmado
+    pelos 11 invariantes da Atividade 9.
+
+================================================================================
+FIM DO DOCUMENTO — Sprint5BB0-RiskAssessment.txt
+================================================================================

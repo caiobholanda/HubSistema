@@ -1,0 +1,137 @@
+================================================================================
+Sprint 5B-B0 — VALIDACAO DE BUILD (npm test + simulacao de docker build)
+================================================================================
+
+Data:   2026-08-04
+
+--------------------------------------------------------------------------------
+1. DISPONIBILIDADE DO DOCKER NESTE AMBIENTE
+--------------------------------------------------------------------------------
+
+  `docker --version` / `docker info` / `which docker` -> comando nao
+  encontrado neste ambiente local (mesma limitacao ja registrada em
+  Sprint5B-Distribution-PoC.txt). Um `docker build` real NAO foi
+  executado nesta sessao.
+
+  MITIGACAO ADOTADA: reproducao MANUAL, fiel e literal, de cada instrucao
+  do Dockerfile, usando os ARQUIVOS REAIS do hub-portal (nao arquivos
+  sinteticos, diferente da PoC anterior), num diretorio isolado, com
+  cache do npm vazio (elimina falso-positivo de cache local) — a
+  evidencia mais forte disponivel sem o binario do Docker. Um
+  `docker build`/`flyctl deploy --build-only` real permanece como
+  validacao final recomendada antes de qualquer push (ver Recomendacoes).
+
+--------------------------------------------------------------------------------
+2. npm install (regeneracao do lockfile)
+--------------------------------------------------------------------------------
+
+  Executado na raiz real do hub-portal. Resultado: sucesso (ver
+  Sprint5BB0-PackageValidation.txt para o detalhamento completo).
+
+--------------------------------------------------------------------------------
+3. npm test (suite completa do hub-portal)
+--------------------------------------------------------------------------------
+
+  Comando: `npm test` (= `node --test tests/*.test.js`)
+
+  Resultado: 60/60 testes aprovados, 0 falhas, 0 cancelados.
+  Suites cobertas: audit-filtros, audit-link, backup-adapter (12 testes,
+  incluindo os que validam `getBackupEngineMode()`/`isShadowModeActive()`/
+  `resolveStorageConfig()` — todos passando, comportamento fail-safe
+  preservado), contas-filtros, migrations, permissions, site-permissions.
+
+  Nenhuma regressao detectada na suite existente apos a troca do
+  mecanismo de dependencia.
+
+--------------------------------------------------------------------------------
+4. SIMULACAO FIEL DO DOCKERFILE (arquivos reais, cache vazio)
+--------------------------------------------------------------------------------
+
+  Sequencia reproduzida, instrucao por instrucao, identica ao Dockerfile
+  real apos a Atividade 6:
+
+    STEP 1 — FROM node:20-alpine / WORKDIR /app
+      Equivalente: diretorio de trabalho isolado, vazio.
+
+    STEP 2 — COPY package*.json ./
+      `package.json` e `package-lock.json` REAIS (pos-Atividade 4/5)
+      copiados.
+
+    STEP 3 — COPY vendor/ ./vendor/
+      Diretorio `vendor/` REAL (com os 2 tarballs + 2 sha256 + manifest)
+      copiado.
+
+    STEP 4 — RUN npm ci --production
+      Executado com `--cache <diretorio vazio, nunca usado antes>` —
+      elimina qualquer chance de a instalacao "funcionar por acidente"
+      via cache local pre-aquecido.
+      RESULTADO: "added 122 packages, and audited 123 packages in 4s" —
+      SUCESSO. Exit code 0.
+
+    STEP 5 — COPY . . (restante do codigo-fonte)
+      `src/`, `public/`, `tests/`, `server.js`, `.dockerignore` REAIS
+      copiados por cima.
+
+  Confirmacao explicita: `grep -n "\.\./hub-sdk"` em package.json e
+  package-lock.json simulados -> VAZIO. Nenhuma referencia residual ao
+  caminho antigo em nenhum artefato de build.
+
+--------------------------------------------------------------------------------
+5. VALIDACAO DE RESOLUCAO DE IMPORTS (o teste mais direto de "packages
+   resolvidos, sem dependencia de ../hub-sdk")
+--------------------------------------------------------------------------------
+
+  5.1 — Resolucao ESM dinamica (exatamente como backup-adapter.js faz):
+
+    import('@hub/storage-client') -> RESOLVIDO, 10 exports
+    import('@hub/backup-core')    -> RESOLVIDO, 14 exports
+    typeof storageClient.S3CompatibleProvider -> "function"
+    typeof backupCore.BackupService           -> "function"
+    typeof backupCore.FileSnapshotStrategy     -> "function"
+
+  5.2 — Carregamento do modulo real (`src/backup-adapter.js`, CommonJS,
+        exatamente como server.js faz via `require('./src/backup-
+        adapter')`):
+
+    require('./src/backup-adapter.js') -> carregado sem erro
+    adapter.getBackupEngineMode()   -> "legacy"   (default preservado)
+    adapter.isShadowModeActive()    -> false      (dormante, como sempre)
+    API publica exposta: getBackupEngineMode, isShadowModeActive,
+      isHubSdkConfigured, resolveStorageConfig, runShadowBackup,
+      flushShadowBackup — identica a antes, nenhuma mudanca de interface.
+
+  Nao foi executado `server.js` diretamente (evitado deliberadamente —
+  `server.js` abre um servidor HTTP real via `app.listen()` dentro de uma
+  IIFE de boot; rodar isso deixaria um processo residual escutando porta,
+  fora do escopo de uma validacao read-only de resolucao de dependencia).
+  A validacao acima cobre exatamente a superficie de risco desta Sprint
+  (resolucao do hub-sdk), sem necessidade de subir o servidor completo.
+
+--------------------------------------------------------------------------------
+6. VEREDITO
+--------------------------------------------------------------------------------
+
+  [OK] Build completo (via simulacao fiel — docker real indisponivel
+       neste ambiente, mitigacao documentada acima).
+  [OK] Imports funcionando (ESM dinamico e CommonJS, ambos confirmados).
+  [OK] Packages resolvidos (@hub/storage-client, @hub/backup-core, e suas
+       25 dependencias transitivas @aws-sdk/@smithy).
+  [OK] Zero dependencia do diretorio `../hub-sdk` — confirmado por busca
+       textual vazia nos artefatos de build simulados.
+  [OK] 60/60 testes da suite existente do hub-portal aprovados.
+
+--------------------------------------------------------------------------------
+RECOMENDACAO
+--------------------------------------------------------------------------------
+
+  Antes de qualquer push real (fora do escopo desta Sprint), validar com
+  um `docker build` ou `flyctl deploy --build-only` genuino, num ambiente
+  com o binario do Docker disponivel (ex.: o proprio runner do GitHub
+  Actions) — a simulacao manual acima e' a evidencia mais forte possivel
+  sem esse binario, mas nao substitui 100% um build real do Docker
+  (camadas de cache, comportamento do Alpine especifico, etc. nao foram
+  exercitados).
+
+================================================================================
+FIM DO DOCUMENTO — Sprint5BB0-DockerValidation.txt
+================================================================================

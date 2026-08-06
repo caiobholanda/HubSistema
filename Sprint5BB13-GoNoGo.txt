@@ -1,0 +1,197 @@
+================================================================================
+Sprint 5B-B1.3 — PLANO OPERACIONAL COMPLETO E DECISAO
+================================================================================
+
+Data:   2026-08-04
+
+Esta Sprint e' EXCLUSIVAMENTE de planejamento. Nenhum passo abaixo foi
+executado. Nenhum bucket foi criado, nenhuma Access Key foi criada,
+nenhum Secret foi alterado, nenhum codigo foi alterado.
+
+--------------------------------------------------------------------------------
+ATIVIDADE 5 — PLANO OPERACIONAL DETALHADO (PARA EXECUCAO FUTURA, SE
+AUTORIZADA)
+--------------------------------------------------------------------------------
+
+  PASSO 1 — CRIAR O NOVO BUCKET
+
+    Via console/CLI da Tigris (nao via `flyctl storage create`, para
+    permitir a policy restrita da Atividade 3 — `fly storage create`,
+    no modelo atual do produto Fly, provisiona uma unica credencial de
+    acesso total ao bucket, sem opcao nativa de restringir DeleteObject
+    na criacao):
+      1.1. Acessar o console da Tigris (ou usar a CLI `tigris`, se
+           disponivel) com a conta/organizacao correta do Gran Marquise.
+      1.2. Criar um bucket chamado `hub-portal` (ou o nome alternativo
+           definido no Sprint5BB13-BucketMigrationPlan.txt, Riscos, se
+           o nome primario estiver indisponivel).
+      1.3. Confirmar visualmente, no console, que o bucket foi criado
+           vazio, sem versionamento/lifecycle herdado de nenhum template.
+      1.4. Registrar o nome final do bucket usado (para os passos
+           seguintes e para o relatorio de evidencias).
+
+  PASSO 2 — CRIAR A NOVA ACCESS KEY
+
+      2.1. No console/CLI da Tigris, criar uma nova Access Key ESCOPADA
+           exclusivamente ao bucket criado no Passo 1.
+      2.2. Aplicar a policy definida em Sprint5BB13-IAMPolicy.txt:
+           permitir s3:PutObject, s3:GetObject, s3:ListBucket; negar
+           s3:DeleteObject, s3:DeleteObjects e qualquer acao
+           administrativa; nunca `s3:*` nem `Resource:*` (escopar ao
+           ARN/nome do bucket especifico).
+      2.3. Copiar o par Access Key ID / Secret Access Key gerado para um
+           local seguro TEMPORARIO (gerenciador de senhas ou similar) —
+           NUNCA para um arquivo do repositorio, NUNCA para um `.txt` de
+           relatorio desta serie de Sprints.
+      2.4. NAO criar, nesta etapa, uma segunda credencial de prune (ver
+           Sprint5BB13-IAMPolicy.txt, secao "Credencial de Prune" —
+           adiado ate' existir um job de retencao real).
+
+  PASSO 3 — ATUALIZAR OS SECRETS DO FLY
+
+      3.1. Comando (a executar apenas quando autorizado):
+             flyctl secrets set \
+               S3_BUCKET=<nome do bucket do Passo 1> \
+               S3_ACCESS_KEY_ID=<Access Key ID do Passo 2> \
+               S3_SECRET_ACCESS_KEY=<Secret Access Key do Passo 2> \
+               -a hub-granmarquise
+           (agrupar os 3 num UNICO comando `secrets set` evita 3
+           restarts separados da maquina — apenas 1 restart no total.)
+      3.2. Se o endpoint/regiao do novo bucket diferirem dos valores
+           atuais (Sprint5BB13-SecretsMigration.txt, itens 4-5),
+           incluir `S3_ENDPOINT=...`/`S3_REGION=...` no MESMO comando.
+      3.3. Aguardar o release/restart terminar:
+             flyctl status -a hub-granmarquise
+
+  PASSO 4 — VALIDAR CONECTIVIDADE
+
+      4.1. Repetir, contra o NOVO bucket, o mesmo teste real e
+           autenticado da Sprint 5B-B1.2 (SSH na maquina + aws4fetch
+           lendo os Secrets ja' atualizados) — list, versioning,
+           lifecycle, put/get/delete de objeto TEMPORARIO, com remocao
+           imediata.
+      4.2. Confirmar: autenticacao OK, bucket vazio (sem o objeto
+           "sample-data" do bucket antigo), PutObject/GetObject/
+           ListBucket funcionais.
+      4.3. Confirmar tambem que DeleteObject com a NOVA credencial
+           FALHA com erro de permissao (AccessDenied) — essa falha e' o
+           resultado ESPERADO e CORRETO (prova que a policy restrita da
+           Atividade 3 foi aplicada de verdade, nao apenas planejada).
+           Se o DELETE do objeto de teste falhar por permissao, o
+           proprio objeto de teste temporario ficara' orfao no bucket —
+           nesse caso especifico (e SOMENTE nesse), remove-lo
+           manualmente via console da Tigris (com uma credencial
+           administrativa, nao com a nova credencial restrita).
+
+  PASSO 5 — REEXECUTAR OS TESTES DA SPRINT 5B-B1.2
+
+      5.1. Reexecutar integralmente o roteiro de
+           Sprint5BB12-ConnectivityTest.txt contra o bucket novo,
+           gerando um novo conjunto de evidencias (list/versioning/
+           lifecycle/put/get/delete) — DELETE agora esperado como
+           NEGADO (Passo 4.3), diferente do resultado original de
+           5B-B1.2 (onde DELETE foi aceito).
+      5.2. Reexecutar a Atividade 3 da Sprint 5B-B1.2 (comparacao
+           S3_BUCKET vs. convencao ADR-010) — resultado esperado desta
+           vez: CONFORME (bucket nomeado `hub-portal`, sem objetos de
+           origem desconhecida).
+      5.3. Gerar um relatorio de validacao pos-migracao (nome sugerido:
+           Sprint5BB14-PostMigrationValidation.txt, a ser definido numa
+           Sprint futura de execucao, nao nesta).
+
+  PASSO 6 — CONFIRMAR QUE O BUCKET ANTIGO NAO ESTA MAIS SENDO USADO
+
+      6.1. `flyctl secrets list -a hub-granmarquise` — confirmar que
+           nenhum Secret aponta mais para `hub-prod-backups` (comparar
+           fingerprint/digest do `S3_BUCKET` antes/depois, ja' que o
+           valor em si nao e' exibido pelo comando).
+      6.2. Buscar, em todo o hub-portal (codigo, `.env` de exemplo,
+           documentacao), qualquer referencia residual escrita
+           (hardcoded) a `hub-prod-backups` — nenhuma esperada, ja' que
+           o valor sempre veio de Secret, nunca de codigo, mas vale
+           confirmar.
+      6.3. NAO apagar nem modificar o bucket `hub-prod-backups` em si —
+           ele pertence ao hub-sdk (uso de desenvolvimento/validacao),
+           nao ao hub-portal; decisao sobre seu ciclo de vida e' do
+           time do hub-sdk, fora do escopo do hub-portal.
+      6.4. Confirmar, via `flyctl logs`, que o proximo ciclo de escrita
+           (se o Shadow Mode vier a ser ativado depois) gera logs
+           `[SHADOW BACKUP]` referenciando o objeto no bucket NOVO
+           (visivel indiretamente pelo log detalhado pre-existente
+           `[backup-shadow] objectKey=...`, que nao inclui o nome do
+           bucket em si — a confirmacao definitiva de qual bucket
+           recebeu o objeto exige o teste do Passo 5, nao apenas o log).
+
+--------------------------------------------------------------------------------
+ATIVIDADE 6 — RESPOSTAS OBJETIVAS
+--------------------------------------------------------------------------------
+
+  1. Apos essa migracao, estaremos TOTALMENTE aderentes ao ADR-010?
+
+     NAO TOTALMENTE. A migracao resolve os dois achados MAIS GRAVES
+     (bucket compartilhado com o hub-sdk / credencial sem segregacao de
+     delete) — que sao, em si, os itens de maior severidade da tabela da
+     Atividade 1. Mas DOIS itens do ADR-010 permanecem pendentes mesmo
+     apos a migracao:
+       (a) Nomenclatura de variaveis de ambiente
+           (`BACKUP_WRITE_*`/`BACKUP_PRUNE_*`) — o codigo real continua
+           usando `S3_*` (ver pergunta 2 abaixo).
+       (b) Retencao via lifecycle nativo ("avo-pai-filho") — nao faz
+           parte deste plano de migracao de bucket; precisaria ser
+           configurada separadamente no bucket novo, possivelmente via
+           `RetentionPolicy` do `backup-core` (mencionado no ADR-010
+           como responsavel por gerar essa configuracao, mas nao
+           invocado por nenhum codigo do hub-portal hoje).
+
+  2. Havera' necessidade de alterar codigo?
+
+     PARA A MIGRACAO EM SI (bucket + credencial): NAO. O codigo ja' le
+     `S3_*` com a prioridade correta (`resolveStorageConfig()`) — trocar
+     apenas o VALOR dos Secrets e' suficiente.
+
+     PARA ADERENCIA TOTAL AO ADR-010 (nomenclatura `BACKUP_WRITE_*`):
+     SIM, mas isso e' uma mudanca de codigo em `backup-adapter.js`
+     (`resolveStorageConfig()`), explicitamente fora do escopo desta
+     Sprint (arquivo protegido pela regra "NAO alterar"). Fica como
+     item de uma Sprint futura, se e quando a aderencia total a essa
+     secao especifica do ADR for priorizada.
+
+  3. Havera' necessidade de alterar o hub-sdk?
+
+     NAO. O hub-sdk (`@hub/storage-client`/`@hub/backup-core`) ja'
+     suporta tudo que este plano precisa — leitura de config via
+     `S3_*` (Sprint 2 do hub-sdk, conforme seu proprio README), upload,
+     download, list, delete (a biblioteca implementa todas as
+     operacoes; a RESTRICAO de delete e' feita na POLICY da Access Key,
+     na camada do provider Tigris — nao no codigo do hub-sdk).
+
+  4. Havera' necessidade de alterar o Shadow Mode (server.js/
+     backup-adapter.js)?
+
+     NAO. `runShadowBackup()`/`dryRunRestoreProbe()` chamam apenas
+     PutObject (via `runBackup`), GetObject e ListBucket (via
+     `restoreLatestTo`) — exatamente as 3 permissoes que a nova
+     credencial restrita (Atividade 3) mantem. Nenhum caminho de codigo
+     do Shadow Mode hoje chama DeleteObject — confirmado por leitura
+     direta do codigo vendorizado (Sprint5BB13-IAMPolicy.txt). A
+     migracao e' 100% transparente para o Shadow Mode do ponto de vista
+     funcional.
+
+--------------------------------------------------------------------------------
+DECISAO
+--------------------------------------------------------------------------------
+
+  Este documento entrega um PLANO OPERACIONAL COMPLETO, pronto para
+  execucao, mas NAO EXECUTA nada — conforme instrucao explicita desta
+  Sprint. Nao ha' uma decisao GO/NO-GO tecnica a tomar aqui (nao houve
+  teste que pudesse falhar); ha' uma AUTORIZACAO a ser dada pelo usuario
+  para que uma proxima Sprint execute os 6 passos da Atividade 5.
+
+  Nenhum codigo, Secret, Fly.io ou hub-sdk foi alterado por esta Sprint.
+  BACKUP_ENGINE continua indefinido. O bucket `hub-prod-backups`
+  continua sendo usado apenas hipoteticamente (nunca em producao real,
+  ja' que o Shadow Mode nunca foi ativado).
+
+================================================================================
+FIM DO DOCUMENTO — Sprint5BB13-GoNoGo.txt
+================================================================================

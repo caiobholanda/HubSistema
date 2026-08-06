@@ -1,0 +1,88 @@
+================================================================================
+Sprint 5B-B1.5 — PLANO DE ROLLBACK (BUCKET NOVO -> BUCKET ANTERIOR)
+================================================================================
+
+Data:   2026-08-04
+
+Pre-requisito que torna este rollback simples e seguro: por instrucao
+explicita desta Sprint, NEM o bucket antigo (`hub-prod-backups`) NEM a
+Access Key antiga continuam existindo e inalterados — nada foi
+removido. Rollback = apontar os Secrets de volta para eles.
+
+--------------------------------------------------------------------------------
+QUANDO ACIONAR ESTE ROLLBACK
+--------------------------------------------------------------------------------
+
+  - A validacao pos-migracao (Sprint5BB15-ProductionValidation.txt)
+    encontrar qualquer falha de autenticacao, upload ou leitura contra
+    `hub-portal-prod` apos os Secrets serem atualizados.
+  - `flyctl status`/`flyctl logs` mostrarem qualquer excecao relacionada
+    a storage apos o restart (ver Fase 6 do plano original, Sprint
+    5B-B1.4).
+  - Qualquer comportamento inesperado for observado depois, mesmo fora
+    da janela imediata de validacao.
+
+--------------------------------------------------------------------------------
+COMO REVERTER
+--------------------------------------------------------------------------------
+
+  Reverter e' o MESMO comando `flyctl secrets set`, com os valores
+  ANTIGOS (bucket `hub-prod-backups`, a credencial original
+  documentada/testada nas Sprints 5B-B1.1 e 5B-B1.2 — fingerprint
+  `tid_...KCeW`, ainda ativa e nao removida):
+
+    flyctl secrets set `
+      S3_BUCKET=hub-prod-backups `
+      S3_ACCESS_KEY_ID="<valor original — o mesmo usado ate a Sprint 5B-B1.4>" `
+      S3_SECRET_ACCESS_KEY="<valor original>" `
+      -a hub-granmarquise
+
+    (Incluir S3_ENDPOINT/S3_REGION no mesmo comando SOMENTE se eles
+    tiverem sido alterados na migracao para frente — caso contrario,
+    nao precisam ser tocados no rollback.)
+
+  Apos rodar:
+    flyctl status -a hub-granmarquise      (aguardar restart)
+    flyctl secrets list -a hub-granmarquise (confirmar digest de
+      S3_BUCKET/S3_ACCESS_KEY_ID/S3_SECRET_ACCESS_KEY voltou ao valor
+      anterior a` migracao)
+
+--------------------------------------------------------------------------------
+CONFIRMACAO DE QUE O ROLLBACK FUNCIONOU
+--------------------------------------------------------------------------------
+
+    [ ] flyctl status -a hub-granmarquise mostra STATE=started
+    [ ] flyctl secrets list -a hub-granmarquise mostra digests de
+        S3_BUCKET/S3_ACCESS_KEY_ID/S3_SECRET_ACCESS_KEY iguais aos que
+        existiam ANTES desta Sprint 5B-B1.5 (comparar com os digests
+        registrados no Sprint5BB12-TigrisAudit.txt/ConnectivityTest.txt,
+        se necessario)
+    [ ] Um novo teste de conectividade (mesmo metodo das Sprints
+        5B-B1.2/5B-B1.4) confirma auth/list/put/get contra
+        `hub-prod-backups` novamente
+
+--------------------------------------------------------------------------------
+O QUE O ROLLBACK NAO PRECISA FAZER
+--------------------------------------------------------------------------------
+
+  - Nao precisa recriar nada — bucket antigo e credencial antiga
+    continuam existindo e funcionais (por instrucao explicita desta
+    Sprint: "NAO remover ainda o bucket antigo" / "NAO remover ainda a
+    Access Key antiga").
+  - Nao ha' dado a perder ou migrar de volta — o bucket `hub-portal-prod`
+    permanece vazio (exceto pelo objeto de teste orfao da validacao da
+    Access Key, se o DELETE tiver sido negado — nao e' o caso aqui, ja'
+    que o DELETE teve sucesso nesta Sprint) ate' o Shadow Mode ser
+    efetivamente ativado (BACKUP_ENGINE continua indefinido).
+  - Nao envolve nenhuma alteracao de codigo, Dockerfile, package.json ou
+    hub-sdk — o rollback e' puramente uma reversao de 3 valores de
+    Secret.
+
+  Consequencia pratica: o rollback desta Sprint e' tao simples e seguro
+  quanto a propria migracao — nenhuma das duas operacoes afeta dado real
+  de producao, porque o Shadow Mode nunca foi ativado em nenhum momento
+  deste processo.
+
+================================================================================
+FIM DO DOCUMENTO — Sprint5BB15-RollbackPlan.txt
+================================================================================

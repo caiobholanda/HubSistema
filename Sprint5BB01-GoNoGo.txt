@@ -1,0 +1,148 @@
+================================================================================
+Sprint 5B-B0.1 — AUDITORIA FINAL E DECISAO GO / NO-GO
+(Validacao do ambiente REAL de build do Fly.io)
+================================================================================
+
+Data:   2026-08-04
+
+--------------------------------------------------------------------------------
+ATIVIDADE 7 — AUDITORIA COMPLETA
+--------------------------------------------------------------------------------
+
+  1. Docker build passou integralmente?
+     NAO APLICAVEL a esta Sprint (escopo formalmente ajustado pelo
+     usuario: ausencia de Docker Desktop local declarada nao-bloqueante).
+     Em substituicao, o BUILD REMOTO REAL do Fly.io (o ambiente
+     efetivamente usado em producao) foi validado e PASSOU
+     INTEGRALMENTE — ver Sprint5BB01-FlyBuild.txt.
+
+  2. Fly build passou?
+     SIM. `flyctl deploy --build-only` concluiu com exit code 0, imagem
+     exportada com sucesso (`registry.fly.io/hub-granmarquise:
+     deployment-01KZ7MJEQS06V3DK100WBY6AAR`, 49 MB). Todos os 7 passos do
+     Dockerfile executados sem erro, incluindo `COPY vendor/ ./vendor/` e
+     `npm ci --production` (122 pacotes instalados) dentro do builder
+     remoto real (Depot).
+
+  3. GitHub Actions continua compatível?
+     SIM, sem nenhuma modificacao necessaria. O workflow atual faz um
+     unico checkout (so' do hub-portal) e usa `flyctl deploy
+     --remote-only` — mesmo mecanismo de builder remoto validado nesta
+     Sprint. Nenhum secret novo, nenhum checkout adicional. Ver
+     Sprint5BB01-GitHubActions.txt.
+
+  4. Existe qualquer referência residual ao diretório ../hub-sdk?
+     NAO. Confirmado de tres formas independentes: (a) busca textual
+     vazia em package.json/package-lock.json/Dockerfile; (b) o proprio
+     sucesso do `npm ci` dentro do builder remoto do Fly — um ambiente
+     genuinamente isolado, sem NENHUM diretorio irmao `hub-sdk` —
+     e' prova direta de que nenhuma referencia a esse caminho existe mais
+     em nenhum artefato usado no build; (c) resultado identico ao
+     validado localmente na Sprint 5B-B0.
+
+  5. Existe qualquer dependência oculta?
+     UMA, ja identificada e documentada, NAO relacionada ao hub-sdk:
+     `.dockerignore` nao exclui `node_modules/`, o que fez o build
+     remoto transferir ~13 MB de contexto desnecessario (o
+     `node_modules/` local da maquina de desenvolvimento). Nao causou
+     falha nesta execucao (conteudo coincidentemente identico ao gerado
+     pelo `npm ci` dentro da imagem), mas e' uma fragilidade estrutural
+     que poderia, em cenarios futuros (node_modules local desatualizado
+     ou com binarios nativos de outro SO), introduzir inconsistencia
+     silenciosa. Recomendado (nao executado, fora do escopo desta
+     Sprint): adicionar `node_modules/` ao `.dockerignore`. Ver detalhe
+     em Sprint5BB01-FlyBuild.txt.
+
+  6. Existe qualquer risco antes do Shadow Mode?
+     Nenhum risco de dado ou de comportamento. `BACKUP_ENGINE` nao foi
+     tocado, permanece "legacy". O unico item pendente e' o achado do
+     item 5 acima (baixo risco, nao relacionado a dado/backup).
+
+  7. Existe qualquer diferença entre: ambiente local / Docker / Fly.io /
+     GitHub Actions?
+     Docker local: NAO EXISTE neste ambiente (Docker Desktop nao
+       instalado) — nao ha' comparacao possivel aqui, e essa ausencia foi
+       declarada nao-bloqueante para esta Sprint.
+     Ambiente local (npm install/test, fora de container): resultado
+       identico ao builder remoto — mesmas 4 dependencias externas
+       inalteradas, mesmos 122/123 pacotes, 60/60 testes aprovados nos
+       dois.
+     Fly.io (builder remoto real, Depot): validado nesta Sprint,
+       sucesso completo, sem diferenca de resultado em relacao ao
+       ambiente local.
+     GitHub Actions: usa o MESMO builder remoto do Fly.io (mesma
+       infraestrutura Depot por baixo de `flyctl deploy --remote-only`)
+       — nao ha' motivo tecnico para esperar comportamento diferente do
+       que foi validado nesta Sprint. Nenhuma execucao real do workflow
+       do GitHub Actions foi disparada nesta Sprint (nao foi feito push),
+       entao esta conclusao e' por EQUIVALENCIA DE MECANISMO, nao por
+       observacao direta de uma execucao do Actions em si.
+
+  8. Em uma escala de 0 a 10, qual o risco para iniciar a Sprint 5B-B1?
+     1/10. Justificativa: o build remoto REAL — o ambiente que
+     efetivamente importa para producao — foi validado com sucesso
+     completo, ponta a ponta, sem nenhum erro. O unico ponto reduzindo a
+     nota de "0" para "1" e' o achado nao-bloqueante do `.dockerignore`
+     (item 5), que nao afeta a correcao do build atual mas e' uma
+     melhoria de robustez recomendada para o futuro.
+
+--------------------------------------------------------------------------------
+ATIVIDADE 8 — CONFIRMACAO FINAL DE git diff
+--------------------------------------------------------------------------------
+
+  `git diff --stat` ao final desta Sprint: IDENTICO ao capturado ao final
+  da Sprint 5B-B0 (Dockerfile +1, package.json +2, package-lock.json
+  +561, server.js +58/-2 pre-existente). NENHUMA ALTERACAO INESPERADA
+  ocorreu. Nenhum arquivo foi tocado por esta Sprint alem da criacao dos
+  4 relatorios (nao rastreados, mesma convencao de todas as Sprints
+  anteriores).
+
+--------------------------------------------------------------------------------
+GO / NO-GO — RESPOSTAS OBJETIVAS
+--------------------------------------------------------------------------------
+
+  ✓ Podemos iniciar a Sprint 5B-B1?
+    SIM.
+
+  ✓ O ambiente está pronto para validar o Shadow Mode?
+    SIM. A infraestrutura de distribuicao (vendor/*.tgz) esta' validada
+    de ponta a ponta no ambiente real de producao (builder remoto do
+    Fly.io) — pre-requisito tecnico para ativar `BACKUP_ENGINE=shadow`
+    com confianca de que o build/deploy nao sera' a causa de uma falha.
+
+  ✓ Existe algum bloqueio técnico?
+    NAO.
+
+  ✓ Existe algum bloqueio arquitetural?
+    NAO — nenhuma decisao de ADR/Architecture.md foi reaberta ou
+    contrariada nesta Sprint.
+
+  ✓ Existe algum bloqueio operacional?
+    NAO — nenhum Secret, Fly.io, Tigris ou GitHub Release foi alterado;
+    nenhum deploy real ou Machine foi criado.
+
+  ✓ Existe algum risco de perda de dados?
+    NAO. Nenhuma logica de backup/restore/dado foi tocada nesta Sprint —
+    validacao estritamente de mecanismo de build/distribuicao de
+    dependencia.
+
+  ✓ Existe algum risco para produção?
+    NAO, para esta Sprint especificamente (nenhuma alteracao foi feita
+    em producao). Para a Sprint 5B-B1 (ativacao real do Shadow Mode), o
+    risco permanece o mesmo ja avaliado — BAIXO, dado o design
+    fail-safe/comparativo do modo sombra (ver Sprint5BB1-
+    AuditoriaHubPortal.txt).
+
+  ✓ Qual sua recomendação final?
+    APROVAR o avanco para a Sprint 5B-B1. A infraestrutura de
+    distribuicao do hub-sdk (vendor via npm pack) esta' validada nao so'
+    analiticamente (PoC), nao so' localmente (Sprint 5B-B0), mas agora
+    tambem no AMBIENTE REAL DE PRODUCAO (builder remoto do Fly.io,
+    Sprint 5B-B0.1) — as tres camadas de validacao convergem para o
+    mesmo resultado, sem nenhuma divergencia. Unica recomendacao
+    acessoria (nao bloqueante): considerar adicionar `node_modules/` ao
+    `.dockerignore` numa proxima janela de manutencao, por robustez.
+
+================================================================================
+FIM DO DOCUMENTO — Sprint5BB01-GoNoGo.txt
+================================================================================

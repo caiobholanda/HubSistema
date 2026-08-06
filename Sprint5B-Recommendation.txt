@@ -1,0 +1,118 @@
+================================================================================
+Sprint 5B — RECOMENDACAO FINAL: DISTRIBUICAO DO hub-sdk PARA A PLATAFORMA HUB
+================================================================================
+
+Data:              2026-08-04
+Papel assumido:    Arquiteto Principal (mesma postura de
+                   Sprint5B-DistribuicaoSDK-Recomendacao.txt, agora
+                   fundamentada em evidencia tecnica empirica, nao apenas
+                   analise documental)
+Baseado em:        Sprint5B-Distribution-PoC.txt (evidencia tecnica) e
+                   Sprint5B-Decision-Matrix.txt (pontuacao comparativa)
+Nenhuma alteracao de codigo foi realizada em hub-portal, hub-sdk, ADRs,
+Fly.io ou Tigris para produzir esta recomendacao. Nenhum push ou deploy
+foi executado.
+
+--------------------------------------------------------------------------------
+1. RECOMENDACAO OBJETIVA
+--------------------------------------------------------------------------------
+
+  ADOTAR A ALTERNATIVA A (VENDOR POR npm pack / TARBALL VERSIONADO) COMO
+  PADRAO DE DISTRIBUICAO DO hub-sdk PARA TODA A PLATAFORMA HUB — hub-portal
+  e futuras aplicacoes (SPA, Help Desk, Diretorio de Ramais, Qualidade).
+
+  Esta recomendacao mantem-se consistente com Sprint5B-DistribuicaoSDK-
+  Recomendacao.txt (analise anterior, puramente arquitetural), agora
+  reforcada por evidencia tecnica direta: 46 contra 26 pontos na matriz de
+  decisao (Sprint5B-Decision-Matrix.txt), com a maior distancia concentrada
+  exatamente no fator mais critico para um sistema de backup em producao —
+  modo de falha.
+
+--------------------------------------------------------------------------------
+2. POR QUE — O FATOR DECISIVO
+--------------------------------------------------------------------------------
+
+  O achado mais importante desta PoC nao e' analitico, e' empirico: quando
+  a dependencia do hub-sdk e' referenciada como DIRETORIO (Alternativa B) e
+  o Dockerfile copia os manifests antes do codigo-fonte (que e' exatamente
+  a ordem de camadas JA' EXISTENTE no Dockerfile real do hub-portal), o
+  `npm ci` cria um symlink QUEBRADO sem erro, sem aviso, com exit code 0.
+  O build passa. O deploy no Fly.io e' aceito. A aplicacao so' falha quando
+  tenta de fato importar `@hub/backup-core` — em runtime, potencialmente em
+  producao, potencialmente no meio de uma rotina de backup real.
+
+  Para um componente cuja unica razao de existir e' proteger dados contra
+  perda (BackupService, ADR-010 V2), um mecanismo de distribuicao cujo modo
+  de falha e' "build verde, backup quebrado silenciosamente" e'
+  inaceitavel como padrao default. A Alternativa A, pelo contrario, falha
+  de forma alta e imediata no build — o pior cenario possivel com A e' um
+  deploy que nao sobe, nunca um backup que finge funcionar e nao funciona.
+
+  Esse unico fator already justificaria a recomendacao, mas ele nao esta'
+  isolado: A tambem vence com folga em integracao com CI (zero secrets
+  novos vs. um secret cross-repo por aplicacao consumidora), em
+  escalabilidade (9,3x menos peso, medido), em conformidade estrutural com
+  ADR-011 ("pin-exact" e' uma propriedade do formato, nao uma disciplina a
+  seguir), e em rollback (Git puro, sem dependencia de disponibilidade do
+  GitHub no momento do rollback).
+
+--------------------------------------------------------------------------------
+3. ONDE A ALTERNATIVA B AINDA SERIA DEFENSAVEL
+--------------------------------------------------------------------------------
+
+  Para ser honesto com o trade-off: a Alternativa B tem uma vantagem real
+  e nao-trivial — a atualizacao de versao e' um diff de texto legivel (uma
+  linha de YAML) em vez de um arquivo binario substituido. Se, no futuro, a
+  frequencia de atualizacao do hub-sdk se tornar muito alta (multiplas
+  vezes por semana, por varias equipes), o atrito de revisar diffs binarios
+  repetidamente pode pesar. Isso NAO e' o cenario atual (hub-sdk esta' em
+  v1.1.0, sem nenhuma tag/release ainda, adocao por nenhuma aplicacao em
+  producao) — mas e' o unico cenario em que reabrir esta decisao faria
+  sentido tecnico, nao apenas preferencial.
+
+--------------------------------------------------------------------------------
+4. PRE-REQUISITO COMUM — NAO RESOLVIDO POR ESTA PoC (DELIBERADAMENTE)
+--------------------------------------------------------------------------------
+
+  Confirmado nesta sessao (`git tag -l`, `gh release list` — ambos vazios):
+  o hub-sdk nao tem nenhuma tag ou GitHub Release ainda. Isso e' um
+  pre-requisito para a Alternativa A funcionar com rastreabilidade real
+  (saber de qual versao exata cada `.tgz` foi gerado) e nao foi criado
+  nesta sessao, por instrucao explicita de nao alterar o hub-sdk. Fica
+  registrado como o proximo passo tecnico antes de qualquer implementacao.
+
+--------------------------------------------------------------------------------
+5. PROXIMOS PASSOS SUGERIDOS (NENHUM EXECUTADO NESTA SESSAO)
+--------------------------------------------------------------------------------
+
+  Em sequencia, condicionados a nova autorizacao explicita, cada um:
+
+  1. Criar a primeira tag SemVer no hub-sdk (`v1.1.0`, correspondente ao
+     estado atual do commit `6196138`) e o GitHub Release correspondente —
+     unico pre-requisito tecnico pendente identificado nesta PoC.
+  2. Formalizar o padrao "vendor por npm pack" como o mecanismo oficial de
+     distribuicao no proprio hub-sdk (ex.: secao dedicada em
+     HubSDK-Architecture.md ou docs/IntegrationGuide.md, ja' existente),
+     incluindo o ajuste de Dockerfile necessario (`COPY package*.json
+     vendor/ ./` antes do `npm ci`) documentado como padrao a ser replicado
+     por qualquer aplicacao consumidora.
+  3. Aplicar o padrao no hub-portal (Sprint 5B, retomada): gerar o
+     `vendor/hub-sdk/*.tgz` real a partir da tag criada no passo 1, ajustar
+     `package.json` e Dockerfile do hub-portal, validar build local antes
+     de qualquer push/deploy.
+  4. So' entao revisar/aprovar/mergear a integracao shadow-mode ja'
+     existente no working tree do hub-portal (identificada como alteracao
+     local nao commitada, preexistente a esta sessao — server.js,
+     package.json, src/backup-adapter.js), agora com a dependencia do
+     hub-sdk resolvivel em CI.
+  5. Considerar a Fase 2 (GitHub Packages) apenas apos o padrao vendor
+     estar validado em producao no hub-portal — conforme ja' roteirizado em
+     Sprint5B-DistribuicaoSDK-Roadmap.txt.
+
+  Esta sessao encerra-se sem executar nenhum destes passos, conforme
+  escopo definido: apenas construcao de PoC tecnica e documentacao.
+
+================================================================================
+FIM DO DOCUMENTO — Sprint5B-Recommendation.txt
+Ver tambem: Sprint5B-Distribution-PoC.txt, Sprint5B-Decision-Matrix.txt
+================================================================================

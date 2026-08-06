@@ -1,0 +1,501 @@
+================================================================================
+SPRINT 5B — ESTAGIO 1 (MODO SOMBRA) — REVISAO TECNICA DE PRE-DEPLOY
+Plataforma HUB Gran Marquise
+================================================================================
+
+Data da revisao:      2026-08-04
+Revisor:               Claude (assistido por IA), a pedido de Richard Anderson
+Repositorio principal:  hub-portal (integracao) + hub-sdk (biblioteca consumida)
+Branch:                 main (ambos os repositorios), working tree local
+Escopo:                 Sprint 5B, Estagio 1 — modo sombra do backup-adapter.js
+Natureza desta revisao: SOMENTE LEITURA. Nenhum arquivo de codigo foi alterado.
+                        Nenhum commit, push ou deploy foi realizado.
+
+--------------------------------------------------------------------------------
+1. FONTES OFICIAIS CONSULTADAS
+--------------------------------------------------------------------------------
+
+ADRs (hub-docs/docs/adrs/), lidos na integra antes de qualquer analise:
+  - ADR-005 — Persistencia Descentralizada e Propriedade dos Dados
+  - ADR-010 V2 — BackupService: SDK Compartilhada de Backup e Recuperacao
+  - ADR-011 — Arquitetura do Repositorio Compartilhado hub-sdk
+  - ADR-012 — Promocao de Padroes de Aplicacao a Componentes do hub-sdk
+
+Documentos operacionais/tecnicos (hub-sdk/docs/):
+  - BackupCore.md, OperationsGuide.md, HomologationChecklist.md,
+    IntegrationGuide.md, DisasterRecovery.md, Architecture.md (referenciado),
+    Flows.md (referenciado), TechnicalBacklog.md (referenciado)
+
+Codigo-fonte revisado:
+  - hub-portal/src/backup-adapter.js (novo, untracked)
+  - hub-portal/tests/backup-adapter.test.js (novo, untracked)
+  - hub-portal/server.js (diff nao commitado)
+  - hub-portal/package.json / package-lock.json (diff nao commitado)
+  - hub-portal/Dockerfile, hub-portal/fly.toml, hub-portal/.dockerignore,
+    hub-portal/.github/workflows/deploy.yml
+  - hub-sdk/packages/backup-core/src/** (BackupService, BackupScheduler,
+    FileSnapshotStrategy, ConfigLoader, index.js, _shared/concurrency.js)
+  - hub-sdk/packages/storage-client/src/** (S3CompatibleProvider, config.js,
+    env.js, IStorageProvider.js, index.js)
+
+ACHADO DE RASTREABILIDADE (ver secao 6.9): os documentos
+"Sprint5B-Stage1-Relatorio.txt", "Sprint5B-Release-Checklist.txt" e
+"Sprint5-Revisao-Arquitetural-Final.txt" — citados em comentarios dentro do
+proprio backup-adapter.js e no IntegrationGuide.md do hub-sdk como fontes de
+contexto — NAO foram localizados em nenhum lugar do workspace (nem
+versionados em nenhum dos seis repositorios, nem como arquivo untracked).
+Esta revisao foi conduzida sem eles, com base direta nos ADRs, na
+documentacao do hub-sdk e na leitura do codigo e dos testes.
+
+--------------------------------------------------------------------------------
+2. METODOLOGIA
+--------------------------------------------------------------------------------
+
+  a) Leitura integral dos 4 ADRs obrigatorios, para estabelecer a arquitetura
+     de referencia (o que e permitido, o que e proibido, o que e obrigatorio).
+  b) Busca no workspace inteiro (6 repositorios) pelos relatorios da Sprint 5B
+     citados no prompt desta sessao — nao encontrados (ver secao 6.9).
+  c) Leitura linha a linha do diff nao commitado em hub-portal (server.js,
+     package.json/lock) e dos dois arquivos novos (backup-adapter.js e seu
+     teste).
+  d) Leitura do codigo-fonte do hub-sdk efetivamente consumido pelo adapter
+     (BackupService, BackupScheduler, FileSnapshotStrategy,
+     S3CompatibleProvider, ConfigLoader/env.js) para validar que o uso feito
+     pelo hub-portal e compativel com o contrato publico documentado.
+  e) Execucao real da suite de testes de ambos os repositorios (sem alterar
+     nenhum arquivo) para confirmar o estado "verde" declarado.
+  f) Inspecao de Dockerfile, fly.toml, .dockerignore e do workflow de deploy
+     do GitHub Actions para avaliar compatibilidade real com o ambiente de
+     producao (Fly.io) — nao apenas leitura de codigo isolado.
+  g) Analise dirigida por checklist against os itens explicitamente pedidos:
+     qualidade, arquitetura, seguranca, performance, concorrencia, erros/
+     excecoes, vazamento de memoria, imports/codigo morto, TODO/FIXME,
+     compatibilidade Node, compatibilidade Fly.io, shutdown, timeout,
+     Promise.all, regressoes, compatibilidade com o legado, rollback.
+
+--------------------------------------------------------------------------------
+3. RESULTADO DA EXECUCAO DE TESTES (real, local, sem alteracao de arquivos)
+--------------------------------------------------------------------------------
+
+  hub-sdk (npm test na raiz, executa backup-core + storage-client):
+    @hub/backup-core    -> 64 testes, 64 pass, 0 fail
+    @hub/storage-client ->  9 testes,  9 pass, 0 fail
+    TOTAL hub-sdk        -> 73 testes, 73 pass, 0 fail
+    (confere exatamente com o "73/73" declarado no ADR-012, Criterios de
+    Sucesso — nenhuma regressao introduzida no hub-sdk por este Estagio)
+
+  hub-portal (npm test na raiz):
+    TOTAL -> 60 testes, 60 pass, 0 fail
+    Inclui os 13 novos testes de tests/backup-adapter.test.js (flags,
+    resolucao de config, skip em modo legacy/sem credenciais) e todos os
+    testes pre-existentes do Portal HUB (audit log, migracoes, permissoes,
+    busca, etc.) — nenhuma regressao observada nos testes ja existentes.
+
+  Observacao sobre cobertura: os testes de backup-adapter.js cobrem
+  exclusivamente a logica pura (leitura de flag, resolucao de config,
+  decisao de skip) — nao exercitam o caminho real de rede (upload/restore
+  contra Tigris). Isso e uma decisao deliberada e documentada no proprio
+  arquivo de teste, consistente com a disciplina ja usada no restante do
+  hub-sdk (testes de integracao contra o bucket real sao validacao manual,
+  nunca CI automatico). Nao e uma lacuna introduzida por este Estagio.
+
+--------------------------------------------------------------------------------
+4. ADERENCIA ARQUITETURAL AOS ADRs (verificacao ponto a ponto)
+--------------------------------------------------------------------------------
+
+  ADR-005 (persistencia descentralizada):
+    OK — o adapter le/escreve exclusivamente dados do proprio Portal HUB
+    (hub_data.json), no bucket dedicado do proprio app. Nao ha leitura/
+    escrita cruzada com dados de outra aplicacao.
+
+  ADR-010 V2 (estrategia de backup):
+    OK — uso de FileSnapshotStrategy + S3CompatibleProvider e exatamente o
+    caminho "pronto, homologado contra Tigris real" descrito no
+    IntegrationGuide.md. Nao ha daemon separado; execucao in-process,
+    acoplada a mesma janela de debounce do mecanismo legado.
+    ATENCAO (nao bloqueante): o Modelo IAM do ADR-010 V2 prevê credencial de
+    escrita separada da credencial de delecao (BACKUP_PRUNE_*). O Estagio 1
+    nao implementa retencao/delecao (RetentionPolicy.evaluate() continua
+    lancando erro por design, ver BackupCore.md), entao esta ausencia hoje
+    nao e um risco de seguranca ativo — mas fica registrada como pre-
+    requisito a resolver antes de qualquer Estagio que implemente expurgo.
+
+  ADR-011 (arquitetura do repositorio hub-sdk):
+    OK — nenhum pacote do hub-sdk foi modificado; hub-portal consome
+    somente a API publica documentada (BackupService, FileSnapshotStrategy,
+    S3CompatibleProvider). O uso de `strategy.restoreLatestTo(...)` fora do
+    BackupService segue exatamente o padrao documentado em
+    DisasterRecovery.md/IntegrationGuide.md — nao e acesso a modulo interno
+    nao reexportado.
+    DESVIO PARCIAL (ver achado 6.3): a politica de versionamento do ADR-011
+    exige "pin exato" de versao (nunca ^ ou ~) para que toda atualizacao
+    seja uma acao deliberada. A dependencia atual usa `file:../hub-sdk/...`
+    (referencia de caminho local), que nao fixa versao alguma — qualquer
+    mudanca no hub-sdk se propaga na proxima instalacao sem bump de versao
+    explicito. Este e um gap ja reconhecido pela propria documentacao do
+    hub-sdk como "decisao de infraestrutura ainda em aberto", nao introduzido
+    por este Estagio — mas hoje segue sem solucao, e a Sprint 5B e a
+    primeira vez que ele se torna operacionalmente relevante.
+
+  ADR-012 (promocao de padroes de aplicacao ao hub-sdk):
+    OK — os 3 componentes cuja promocao este ADR documenta
+    (BackupScheduler, isSafeToEnableContinuousBackup, validateContent) estao
+    implementados no hub-sdk e testados (73/73). O Estagio 1 do Portal HUB
+    ainda NAO os consome (nao chama isSafeToEnableContinuousBackup nem usa
+    BackupScheduler/validateContent) — consistente com o escopo declarado do
+    Estagio 1 ("modo sombra": so grava em paralelo, nunca decide sobre
+    restore real nem sobre habilitar backup continuo). Nao e uma omissao;
+    e o escopo correto para este estagio especifico.
+
+--------------------------------------------------------------------------------
+5. COMPATIBILIDADE COM O MECANISMO LEGADO (aws4fetch)
+--------------------------------------------------------------------------------
+
+  - aws4fetch permanece como dependencia em package.json, inalterado.
+  - _uploadBackupS3(), agendarBackup(), backupConfigurado e a trava
+    backupInseguro/backupsHabilitados no boot NAO foram modificados em
+    nenhuma linha — apenas uma nova chamada aditiva
+    (_shadowBackupSeHabilitado()) foi inserida APOS a chamada legada
+    existente, na mesma janela de debounce (nenhum timer novo criado).
+  - writeData() e os pontos de chamada existentes (~80+ call sites, por
+    comentario do proprio arquivo) nao foram tocados.
+  - Comportamento com BACKUP_ENGINE nao definido (default de producao hoje):
+    getBackupEngineMode() retorna 'legacy' -> isShadowModeActive() = false
+    -> _shadowBackupSeHabilitado() retorna imediatamente (linha 1 da
+    funcao) -> ZERO diferenca de comportamento observavel em relacao ao
+    server.js anterior a este Estagio.
+  - Esta propriedade (fail-safe por ausencia de flag) foi verificada
+    diretamente no codigo, nao apenas assumida a partir da documentacao.
+
+--------------------------------------------------------------------------------
+6. ACHADOS (por categoria solicitada)
+--------------------------------------------------------------------------------
+
+--- 6.1 CRITICO — Compatibilidade Fly.io / build Docker -----------------------
+
+PROBLEMA:
+  package.json do hub-portal declara:
+    "@hub/backup-core":    "file:../hub-sdk/packages/backup-core"
+    "@hub/storage-client": "file:../hub-sdk/packages/storage-client"
+  Essas sao referencias de CAMINHO DE ARQUIVO LOCAL para um diretorio
+  IRMAO (../hub-sdk), fora do repositorio hub-portal.
+
+  O Dockerfile do hub-portal faz:
+    COPY package*.json ./
+    RUN npm ci --production
+    COPY . .
+  O build context do Dockerfile e a raiz do proprio repositorio hub-portal.
+
+  O workflow .github/workflows/deploy.yml faz `actions/checkout@v4` (que
+  faz checkout SOMENTE do repositorio hub-portal — hub-sdk e um repositorio
+  Git completamente separado, sem submodulo, sem vendoring, sem qualquer
+  passo de checkout adicional) e entao `flyctl deploy --remote-only`, que
+  envia esse mesmo contexto (so hub-portal) ao builder remoto do Fly.io.
+
+  Em nenhum ponto do pipeline de CI/CD o diretorio hub-sdk e copiado,
+  clonado ou disponibilizado dentro do container de build.
+
+IMPACTO:
+  `npm ci --production` tentara resolver `file:../hub-sdk/packages/
+  backup-core` relativo a /app dentro do container — ou seja, procurara
+  por /hub-sdk/packages/backup-core no sistema de arquivos do container,
+  que nunca existiu ali. O `npm ci` deve falhar com um erro de
+  ENOENT/"no such file or directory", derrubando TODO o build da imagem
+  Docker — nao apenas o modo sombra, o deploy inteiro do Portal HUB para de
+  funcionar a partir do commit que introduzir esta mudanca, independente do
+  valor de BACKUP_ENGINE (o problema e em tempo de build, antes de qualquer
+  codigo de runtime rodar).
+
+  Confirmacao adicional: em node_modules/@hub/ do ambiente de
+  desenvolvimento local, os pacotes aparecem como SYMLINKS apontando para o
+  caminho absoluto local (C:\...\hub-sdk\packages\...) — o que so funciona
+  porque, neste ambiente de desenvolvimento, os dois repositorios estao
+  fisicamente lado a lado no disco. Essa premissa nao existe no ambiente de
+  CI/build remoto do Fly.io.
+
+  A propria documentacao do hub-sdk (IntegrationGuide.md, passo 3) ja
+  reconhece isso: "hoje, via referencia de path/workspace ATE O PACOTE SER
+  PUBLICADO NUM REGISTRO — a forma exata de distribuicao e decisao de
+  infraestrutura, FORA DO ESCOPO desta documentacao." Ou seja, este e um
+  problema conhecido e ainda nao resolvido pela arquitetura, e a Sprint 5B
+  e a primeira vez que ele se torna concreto (primeira integracao real de
+  uma aplicacao).
+
+CRITICIDADE: CRITICA — bloqueia deploy. Nao e um risco teorico: e uma
+  falha determinística de build dado o pipeline atual.
+
+SUGESTAO DE SOLUCAO (para aprovacao, NAO aplicada nesta revisao):
+  Opcoes possiveis, em ordem crescente de esforco/robustez — apresentadas
+  para decisao do usuario, nenhuma implementada:
+    a) Vendorizar os pacotes: copiar (nao symlink) o conteudo compilado de
+       @hub/backup-core e @hub/storage-client para dentro de
+       hub-portal/vendor/ ou node_modules via um passo de CI que faz
+       checkout dos dois repositorios antes do build Docker, e ajusta o
+       Dockerfile para copiar hub-sdk para dentro do build context antes
+       do npm ci.
+    b) Publicar os pacotes @hub/* num registro privado (GitHub Packages,
+       Verdaccio, etc.) e trocar a dependencia de `file:` para uma versao
+       semver exata resolvivel via `npm ci` sem acesso ao filesystem local
+       — resolve simultaneamente este achado E o achado 6.3 (pin exato).
+    c) Ajustar o workflow de deploy para clonar hub-sdk como um passo
+       explicito antes de `flyctl deploy`, e mudar o Dockerfile para
+       multi-stage copiando de um contexto de build que inclua ambos os
+       diretorios (exigiria mudar como `flyctl deploy` monta o contexto,
+       ou construir a imagem fora do flyctl e enviar so a imagem pronta).
+  A opcao (b) e a que mais se alinha ao que o proprio ADR-011 exige (pin
+  exato de versao) e ao que o IntegrationGuide.md ja indica como destino
+  final — mas exige decisao de infraestrutura (qual registro usar) que
+  esta fora do escopo desta revisao.
+
+--- 6.2 MEDIO — Contrato de erro nao honrado internamente em runShadowBackup() -
+
+PROBLEMA:
+  O comentario de runShadowBackup() em backup-adapter.js declara: "Best-
+  effort: qualquer erro e capturado e retornado como { ok:false, error },
+  nunca lancado". Na implementacao real, a chamada `sha256File(
+  hubDataFilePath)` (leitura sincrona do arquivo local + hash) NAO esta
+  dentro de nenhum bloco try/catch dentro de runShadowBackup() — se o
+  arquivo estiver temporariamente inacessivel (ex.: uma colisao rara com o
+  ciclo de escrita tmp+rename do proprio hub_data.json), a excecao e
+  lancada para fora da função, nao retornada como {ok:false}.
+
+IMPACTO REAL HOJE: nenhum, porque o UNICO ponto de chamada existente
+  (_shadowBackupSeHabilitado() em server.js) encadeia um `.catch()` no
+  resultado de runShadowBackup(), entao a excecao e capturada ali e
+  logada como "[backup-shadow] erro inesperado". Nao ha crash nem
+  unhandled rejection hoje.
+
+RISCO: e uma inconsistencia entre o contrato documentado da funcao e seu
+  comportamento real — o modulo so e seguro hoje porque o UNICO chamador
+  atual disciplinadamente adiciona seu proprio `.catch()`. Qualquer uso
+  futuro de runShadowBackup() (ex.: no Estagio 2, ou em um teste que passe
+  a exercitar o caminho real) que nao replique esse `.catch()` reintroduz
+  o risco de unhandled promise rejection. Os testes atuais nao cobrem este
+  caminho (so cobrem os retornos antecipados de skip).
+
+CRITICIDADE: MEDIA — nao bloqueia este Estagio (mitigado pelo chamador
+  atual), mas e uma divida tecnica que deveria ser corrigida antes do
+  Estagio 2, quando o numero de chamadores/caminhos tende a crescer.
+
+SUGESTAO (nao aplicada): envolver a linha `sha256File(hubDataFilePath)` em
+  try/catch dentro de runShadowBackup(), retornando
+  `{ ok: false, error: ... }` como o restante da funcao ja faz, tornando o
+  contrato documentado verdadeiro independentemente da disciplina do
+  chamador.
+
+--- 6.3 MEDIO — Pin de versao do hub-sdk nao segue ADR-011 --------------------
+
+Ver detalhamento completo na secao 4 (ADR-011). Resumo: a dependencia via
+`file:../hub-sdk/...` nao fixa uma versao imutavel — qualquer alteracao de
+codigo no hub-sdk local se propaga ao hub-portal na proxima instalacao, sem
+bump de versao SemVer e sem acao deliberada, o oposto do que o ADR-011
+exige textualmente ("nunca uma propagacao automatica e silenciosa").
+Reconhecido pela propria documentacao do hub-sdk como gap de infraestrutura
+ainda nao resolvido — nao introduzido por este Estagio, mas a Sprint 5B e a
+primeira vez que ele passa a ter efeito pratico. Resolvido junto com 6.1,
+opcao (b).
+
+--- 6.4 MEDIO — Ausencia de trava de reentrancia no shadow backup -------------
+
+PROBLEMA:
+  O mecanismo legado usa `_backupTimer` como guarda: `agendarBackup()`
+  ignora chamadas subsequentes enquanto ha um timer pendente (debounce
+  classico). Isso impede que duas execucoes de _uploadBackupS3() rodem em
+  paralelo. Ja _shadowBackupSeHabilitado() (chamada dentro do MESMO
+  callback do timer) dispara runShadowBackup(), que faz upload + um
+  restore de prova (dryRunRestoreProbe, que inclui um download completo) —
+  uma sequencia potencialmente mais lenta que os 5s da janela de debounce.
+  Nao ha nenhum lock/flag equivalente ao _backupTimer protegendo contra
+  duas execucoes de runShadowBackup() sobrepostas se duas janelas de
+  debounce dispararem antes da anterior terminar (ex.: rede lenta).
+
+IMPACTO: nao e um bug de corretude — cada execucao gera uma objectKey
+  unica (timestamp), o download de prova usa um arquivo temporario unico
+  (pid + Date.now()) e todo erro e best-effort/logado, nunca lancado para
+  a aplicacao principal. O impacto seria performance/ruido: chamadas
+  simultaneas extras contra a API do Tigris e linhas de log intercaladas,
+  nunca corrupcao de dado ou queda da aplicacao.
+
+CRITICIDADE: MEDIA (nao bloqueante para o Estagio 1, que roda sob
+  BACKUP_ENGINE=legacy em producao hoje) — vira relevante no momento em
+  que BACKUP_ENGINE=shadow for de fato ativado em producao sob carga real
+  de escrita. Registrar como item a observar/mitigar antes dessa ativacao.
+
+--- 6.5 BAIXO — Paridade de configuracao com loadS3ConfigFromEnv --------------
+
+`resolveStorageConfig()` no adapter reimplementa deliberadamente (nao
+copia) a resolucao de configuracao do storage-client, com fallback para as
+variaveis legadas (BUCKET_NAME/AWS_*) — decisao correta e documentada, ja
+que `loadS3ConfigFromEnv()` do proprio SDK e estrita (exige as 5 variaveis
+S3_* sem fallback) e nao serviria ao proposito de migracao incremental.
+Porem `resolveStorageConfig()` nao expoe/repassa `forcePathStyle` (nem le
+S3_FORCE_PATH_STYLE) ao construir o S3CompatibleProvider em
+getBackupService() — hoje inofensivo (default false = virtual-hosted-
+style, que e o que Tigris usa), mas e uma lacuna de paridade caso o bucket
+do Portal HUB algum dia precise de path-style. Nao bloqueante.
+
+--- 6.6 BAIXO — Acesso a propriedades nao documentadas de BackupService -------
+
+`dryRunRestoreProbe()` obtem `backupService.strategy` e
+`backupService.storageProvider` diretamente da instancia, para chamar
+`strategy.restoreLatestTo(...)`. Essas duas propriedades sao campos
+publicos de fato (JS nao tem private real aqui), mas NAO fazem parte da
+API publica documentada de BackupService em docs/BackupCore.md (que lista
+apenas os 4 metodos de instancia + 1 estatico). O padrao oficialmente
+documentado em IntegrationGuide.md/DisasterRecovery.md instancia `strategy`
+e `storage` como variaveis proprias, separadas do BackupService, nao as
+reextrai de dentro dele. Funciona hoje porque BackupService armazena os
+dois como campos publicos no construtor, mas e um acoplamento a um detalhe
+de implementacao nao contratual — uma refatoracao futura do hub-sdk que
+torne esses campos privados quebraria o adapter silenciosamente (sem
+mudanca de versao MAJOR percebida, pois nao e API documentada).
+Nao bloqueante; sugestao de robustez, nao correcao obrigatoria.
+
+--- 6.7 Qualidade de codigo / codigo morto / imports / TODO-FIXME -------------
+
+  - Nenhum TODO/FIXME/XXX real encontrado no codigo novo (Stage 1) em
+    nenhum dos dois repositorios.
+  - Nenhum import nao utilizado identificado em backup-adapter.js (path,
+    os, fs, crypto — todos usados).
+  - Nenhuma funcao morta identificada: todas as exportacoes de
+    backup-adapter.js (getBackupEngineMode, isShadowModeActive,
+    isHubSdkConfigured, resolveStorageConfig, runShadowBackup,
+    flushShadowBackup) sao exercitadas por testes e/ou por server.js.
+  - `hub-portal/package.json` nao declara `engines.node` explicitamente —
+    o Dockerfile ja fixa `node:20-alpine` (compativel com o `"node": ">=20"`
+    exigido pelos dois pacotes do hub-sdk), mas a ausencia do campo remove
+    uma camada de protecao caso alguem rode `npm install`/`node server.js`
+    localmente fora do Docker com uma versao de Node mais antiga — o erro
+    resultante (ERR_REQUIRE_ESM ou falha de sintaxe) seria menos claro do
+    que o aviso que `engines` teria dado. Achado informativo, nao
+    bloqueante.
+
+--- 6.8 Seguranca --------------------------------------------------------------
+
+  - Nenhuma credencial e logada em nenhum ponto novo (verificado por
+    leitura de todas as chamadas console.log/console.error introduzidas).
+  - O restore de teste (dryRunRestoreProbe) grava exclusivamente em
+    os.tmpdir(), nunca sobrescreve hub_data.json real — confirmado por
+    leitura direta do codigo, nao apenas pelo comentario.
+  - Checksum e sempre validado antes de qualquer promocao de arquivo no
+    hub-sdk (rename atomico so ocorre apos comparacao de SHA-256) —
+    confirmado em FileSnapshotStrategy.js.
+  - Comportamento fail-safe por ausencia de configuracao: sem
+    BACKUP_ENGINE definido -> legacy; sem credenciais completas em modo
+    shadow -> skip explicito, nunca tenta carregar o hub-sdk. Ambos
+    confirmados por teste automatizado E por leitura de codigo.
+  - Modelo IAM do ADR-010 V2 (credencial de escrita separada da de
+    delecao) ainda nao se aplica a este Estagio porque nenhuma operacao de
+    delecao e exercitada pelo adapter — nao e uma violacao, e escopo fora
+    deste Estagio.
+
+--- 6.9 Documentacao / rastreabilidade -----------------------------------------
+
+  Os tres documentos citados como fonte de contexto — Sprint5B-Stage1-
+  Relatorio.txt, Sprint5B-Release-Checklist.txt e Sprint5-Revisao-
+  Arquitetural-Final.txt (este ultimo tambem citado no IntegrationGuide.md
+  do hub-sdk como "auditoria tecnica, auditoria comparativa, revisao
+  arquitetural" da Sprint 5) — nao foram encontrados em nenhum dos 6
+  repositorios do workspace, nem commitados nem como arquivo solto. Isso
+  nao impede a analise tecnica (que foi conduzida diretamente sobre ADRs e
+  codigo), mas e uma lacuna real de rastreabilidade documental que vale
+  esclarecer antes do commit: os documentos existem em outro lugar (ex.:
+  wiki externa, Slack, rascunho local nao salvo no repositorio) ou a
+  intencao era gera-los nesta mesma sessao e isso nao chegou a acontecer?
+
+--------------------------------------------------------------------------------
+7. PERFORMANCE E CONCORRENCIA — RESUMO
+--------------------------------------------------------------------------------
+
+  - Uploads/downloads no hub-sdk sao streaming real (nunca buffer completo
+    em memoria), confirmado em S3CompatibleProvider.upload (via
+    @aws-sdk/lib-storage Upload) e em FileSnapshotStrategy (compose de
+    createReadStream + hash + gzip).
+  - mapWithConcurrency (hub-sdk) implementa um pool de concorrencia
+    limitado corretamente (sem dependencia externa), preservando ordem dos
+    resultados — usado apenas no modo diretorio, nao exercitado pelo
+    Portal HUB (fonte e um unico arquivo JSON).
+  - Nenhum Promise.all sem tratamento de rejeicao foi encontrado no codigo
+    novo. `Promise.all(tarefas.slice(1))` em server.js so agrega tarefas
+    que ja internamente engolem seus proprios erros (`.catch(() => {})` /
+    try-catch interno), entao uma rejeicao de uma tarefa nao derruba as
+    demais nem impede o shutdown.
+  - `BackupService.runBackup()`/`restoreOnBoot()` no hub-sdk NUNCA
+    propagam excecao (contrato documentado e confirmado por teste) — a
+    unica excecao verificada como nao coberta por esse contrato e a
+    chamada sincrona `sha256File()` no proprio adapter (achado 6.2).
+  - Nenhum vazamento de memoria identificado: caches em modulo
+    (_hubSdkModules, _backupService) sao singletons legitimos (carregados
+    uma vez), nao crescem sem limite; nenhum listener e adicionado
+    repetidamente; todo timer relevante usa `.unref()` para nao manter o
+    processo vivo artificialmente.
+
+--------------------------------------------------------------------------------
+8. SHUTDOWN E TIMEOUT — RESUMO
+--------------------------------------------------------------------------------
+
+  O handler de SIGTERM/SIGINT foi reescrito de:
+    if (!backupConfigurado) return fim();
+    Promise.race([_uploadBackupS3().catch(()=>{}), timeout(4000)]).then(fim);
+  para:
+    tarefas = [timeout(4000)];
+    se backupConfigurado: tarefas.push(_uploadBackupS3())
+    se shadow ativo: tarefas.push(flushShadowBackup(..., 4000))
+    se so o timeout: fim() direto
+    senao: Promise.race([Promise.all(tarefas reais), timeout]).then(fim)
+
+  Verificado como correto: o orcamento total de shutdown permanece 4s
+  (nao soma 4s do legado + 4s do shadow — ambos correm em paralelo dentro
+  do mesmo Promise.race externo). flushShadowBackup() tem seu proprio
+  Promise.race interno de ate 4s, mas isso nao estende o timeout externo,
+  pois as duas racas correm concorrentemente. Nenhuma regressao no tempo
+  de shutdown do mecanismo legado.
+
+--------------------------------------------------------------------------------
+9. RISCOS REMANESCENTES (mesmo apos resolver os achados desta revisao)
+--------------------------------------------------------------------------------
+
+  - Nenhuma validacao real contra o bucket de producao do Portal HUB foi
+    (ou podia ser, dentro do escopo desta revisao) executada — a
+    homologacao real (HomologationChecklist.md) contra o bucket dedicado
+    do Portal HUB ainda precisa ser feita antes de ativar
+    BACKUP_ENGINE=shadow em producao, mesmo depois de resolvido o achado
+    6.1.
+  - O modelo de credenciais hoje reaproveita BUCKET_NAME/AWS_* (as mesmas
+    do aws4fetch legado) — nao ha ainda a segregacao de credencial de
+    escrita/delecao exigida pelo ADR-010 V2 para quando a retencao for
+    implementada; nao bloqueia o Estagio 1 (sem delecao), mas e um
+    pre-requisito para estagios futuros.
+  - SqliteLitestreamAdapter permanece "nunca validado contra um binario
+    litestream real" — irrelevante para o Portal HUB (fonte e JSON, nao
+    SQLite), mas relevante para o roadmap de outras aplicacoes.
+
+--------------------------------------------------------------------------------
+10. CONCLUSAO TECNICA
+--------------------------------------------------------------------------------
+
+O codigo do Estagio 1 (modo sombra) e bem construido, aderente aos ADRs
+aplicaveis, coberto por testes que passam integralmente (73/73 hub-sdk +
+60/60 hub-portal), e comportamentalmente seguro em producao ENQUANTO
+BACKUP_ENGINE permanecer indefinido (default legacy) — a analise de codigo
+confirma, e nao apenas assume, essa propriedade fail-safe.
+
+Entretanto, ha um achado CRITICO (6.1) que impede o deploy do estado atual
+independentemente do valor de BACKUP_ENGINE: a dependencia
+`file:../hub-sdk/...` nao e resolvivel pelo pipeline de build real
+(GitHub Actions -> Fly.io remote builder), porque esse pipeline nunca tem
+acesso ao diretorio hub-sdk. Se este estado for commitado e enviado para
+deploy sem correcao, o build Docker falha e o Portal HUB para de
+receber deploys ate a correcao — nao ha degradacao graciosa, e falha de
+build.
+
+Recomendacao: resolver o achado 6.1 (decisao de arquitetura de
+distribuicao de pacotes, ver opcoes na secao 6.1) antes de qualquer commit
+que inclua a dependencia @hub/* no package.json do hub-portal. Os demais
+achados (6.2 a 6.6) sao de qualidade/robustez, nao bloqueiam o deploy em
+si, mas idealmente deveriam ser resolvidos antes de ativar
+BACKUP_ENGINE=shadow em producao pela primeira vez.
+
+================================================================================
+FIM DO DOCUMENTO — Sprint5B-PreDeploy-Review.txt
+================================================================================

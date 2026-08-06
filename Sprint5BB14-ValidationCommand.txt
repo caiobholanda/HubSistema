@@ -1,0 +1,163 @@
+================================================================================
+Sprint 5B-B1.4 — SCRIPT DE VALIDACAO DA NOVA ACCESS KEY (EXECUCAO LOCAL, PowerShell)
+================================================================================
+
+Data:   2026-08-04
+
+Como usar:
+  1. Copie TODO o bloco entre as linhas "===INICIO DO SCRIPT===" e
+     "===FIM DO SCRIPT===" para um arquivo `validar-nova-key.ps1` (ou
+     cole direto no terminal PowerShell).
+  2. Preencha as DUAS linhas marcadas com "COLE_AQUI_..." com a Access
+     Key ID e a Secret Access Key da credencial `hub-portal-prod-runtime`.
+  3. Confira as linhas NEW_S3_ENDPOINT / NEW_S3_REGION — os valores
+     abaixo (`https://t3.storage.dev` / `auto`) sao os mesmos observados
+     no bucket antigo na Sprint 5B-B1.2; ajuste se o console da Tigris
+     mostrou algo diferente ao criar `hub-portal-prod`.
+  4. Execute o script no PowerShell.
+  5. Cole de volta AQUI apenas a saida JSON impressa (nao contem
+     nenhuma credencial em texto puro — apenas fingerprint de 4+4
+     caracteres e comprimento).
+
+O script:
+  - Define as 5 variaveis de ambiente apenas na sessao atual do
+    PowerShell (nao persiste no sistema).
+  - Grava o codigo Node.js num arquivo temporario dentro de $env:TEMP.
+  - Executa o teste (autenticacao, ListBucket, confirmacao do nome do
+    bucket, confirmacao de bucket vazio, PutObject, GetObject, tentativa
+    de DELETE esperando AccessDenied, verificacao de objeto orfao).
+  - Ao final (bloco `finally`, executa mesmo se o teste falhar): apaga o
+    arquivo temporario E remove as 5 variaveis de ambiente da sessao.
+  - Nunca imprime a Access Key ID nem a Secret Access Key — apenas
+    fingerprint (4 primeiros + 4 ultimos caracteres) e comprimento,
+    exatamente como nos testes das Sprints 5B-B1.2/5B-B1.3.
+  - Imprime APENAS o JSON de resultado no final.
+
+================================================================================
+===INICIO DO SCRIPT===
+================================================================================
+
+$env:NEW_S3_BUCKET            = "hub-portal-prod"
+$env:NEW_S3_ACCESS_KEY_ID     = "COLE_AQUI_A_ACCESS_KEY_ID"
+$env:NEW_S3_SECRET_ACCESS_KEY = "COLE_AQUI_A_SECRET_ACCESS_KEY"
+$env:NEW_S3_ENDPOINT          = "https://t3.storage.dev"
+$env:NEW_S3_REGION            = "auto"
+
+$nodeModulesPath = "c:\Users\richard.GRANMARQUISE\Desktop\HUB GRAN MARQUISE\Projeto\HUB\hub-portal\node_modules"
+$scriptPath = Join-Path $env:TEMP ("validate-new-key-{0}.js" -f [guid]::NewGuid().ToString("N"))
+
+$jsCode = @'
+const { AwsClient } = require("aws4fetch");
+
+const bucket = process.env.NEW_S3_BUCKET || "";
+const accessKeyId = process.env.NEW_S3_ACCESS_KEY_ID || "";
+const secretAccessKey = process.env.NEW_S3_SECRET_ACCESS_KEY || "";
+const endpoint = (process.env.NEW_S3_ENDPOINT || "https://t3.storage.dev").replace(/\/+$/, "");
+const region = process.env.NEW_S3_REGION || "auto";
+
+function mask(s) { return s ? (s.slice(0, 4) + "..." + s.slice(-4) + " (len=" + s.length + ")") : "(vazio)"; }
+
+if (!bucket || !accessKeyId || !secretAccessKey) {
+  console.error("Faltam variaveis: NEW_S3_BUCKET / NEW_S3_ACCESS_KEY_ID / NEW_S3_SECRET_ACCESS_KEY");
+  process.exit(1);
+}
+
+const aws = new AwsClient({ accessKeyId, secretAccessKey, region, service: "s3" });
+const sig = ms => { try { return AbortSignal.timeout(ms); } catch { return undefined; } };
+
+async function req(method, path, body, extraHeaders) {
+  const url = `${endpoint}/${bucket}${path}`;
+  const res = await aws.fetch(url, { method, body, headers: extraHeaders || {}, signal: sig(10000) });
+  const text = await res.text();
+  return { status: res.status, text };
+}
+
+(async () => {
+  const out = {};
+  out.config = {
+    bucket_name: bucket,
+    endpoint,
+    region,
+    access_key_fingerprint: mask(accessKeyId),
+    secret_key_present: !!secretAccessKey,
+    secret_key_len: secretAccessKey.length,
+  };
+
+  try {
+    const r = await req("GET", "/?list-type=2&max-keys=10");
+    const nameMatch = /<Name>([^<]*)<\/Name>/.exec(r.text);
+    const hasContents = /<Contents>/.test(r.text);
+    out.list_and_auth = {
+      status: r.status,
+      ok: r.status === 200,
+      bucket_name_in_response: nameMatch ? nameMatch[1] : null,
+      bucket_name_matches: nameMatch ? nameMatch[1] === bucket : false,
+      is_empty: r.status === 200 && !hasContents,
+      body_snippet: r.text.slice(0, 500),
+    };
+  } catch (e) { out.list_and_auth = { error: e.message }; }
+
+  const key = `_homolog-newkey-test/${Date.now()}-${process.pid}.txt`;
+  const content = `newkey-validation-test ${new Date().toISOString()}`;
+
+  try {
+    const r = await req("PUT", `/${key}`, content, { "content-type": "text/plain" });
+    out.put_test_object = { status: r.status, ok: r.status >= 200 && r.status < 300, key };
+  } catch (e) { out.put_test_object = { error: e.message, key }; }
+
+  try {
+    const r = await req("GET", `/${key}`);
+    out.get_test_object = { status: r.status, content_matches: r.text === content };
+  } catch (e) { out.get_test_object = { error: e.message }; }
+
+  try {
+    const r = await req("DELETE", `/${key}`);
+    out.delete_attempt = {
+      status: r.status,
+      access_denied_as_expected: r.status === 403,
+      unexpectedly_succeeded: r.status >= 200 && r.status < 300,
+      body_snippet: r.text.slice(0, 300),
+    };
+  } catch (e) { out.delete_attempt = { error: e.message }; }
+
+  try {
+    const r = await req("GET", `/${key}`);
+    out.leftover_object_check = { status: r.status, still_present: r.status === 200, key };
+  } catch (e) { out.leftover_object_check = { error: e.message }; }
+
+  console.log(JSON.stringify(out, null, 2));
+})();
+'@
+
+$jsCode | Out-File -FilePath $scriptPath -Encoding utf8 -Force
+
+try {
+    $env:NODE_PATH = $nodeModulesPath
+    node $scriptPath
+}
+finally {
+    Remove-Item -Path $scriptPath -Force -ErrorAction SilentlyContinue
+    Remove-Item Env:\NEW_S3_BUCKET -ErrorAction SilentlyContinue
+    Remove-Item Env:\NEW_S3_ACCESS_KEY_ID -ErrorAction SilentlyContinue
+    Remove-Item Env:\NEW_S3_SECRET_ACCESS_KEY -ErrorAction SilentlyContinue
+    Remove-Item Env:\NEW_S3_ENDPOINT -ErrorAction SilentlyContinue
+    Remove-Item Env:\NEW_S3_REGION -ErrorAction SilentlyContinue
+    Remove-Item Env:\NODE_PATH -ErrorAction SilentlyContinue
+}
+
+================================================================================
+===FIM DO SCRIPT===
+================================================================================
+
+NOTA SOBRE O OBJETO DE TESTE: se o DELETE for corretamente NEGADO
+(resultado esperado, "access_denied_as_expected": true), o objeto
+temporario `_homolog-newkey-test/...` ficara' orfao no bucket
+`hub-portal-prod` (nao pode ser removido pela propria credencial
+restrita, por design). Isso e' esperado e inofensivo (poucos bytes,
+prefixo claramente identificavel como teste) — pode ser removido depois
+manualmente pelo console da Tigris com uma credencial administrativa, ou
+deixado ali sem problema.
+
+================================================================================
+FIM DO DOCUMENTO — Sprint5BB14-ValidationCommand.txt
+================================================================================

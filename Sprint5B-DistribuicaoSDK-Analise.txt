@@ -1,0 +1,646 @@
+================================================================================
+SPRINT 5B — DISTRIBUICAO DO hub-sdk PARA O FLY.IO — ANALISE ARQUITETURAL
+Plataforma HUB Gran Marquise
+================================================================================
+
+Data:                  2026-08-04
+Solicitante:           Richard Anderson — TI Gran Marquise
+Analise por:           Claude (assistido por IA)
+Natureza deste documento: ANALISE APENAS. Nenhum arquivo de codigo foi
+                        alterado. Nenhum commit, push ou deploy foi
+                        realizado.
+Documentos relacionados: Sprint5B-PreDeploy-Review.txt (achado 6.1, origem
+                        deste bloqueio), Sprint5B-PreDeploy-Checklist.txt,
+                        Sprint5B-PreDeploy-ResumoExecutivo.txt
+
+--------------------------------------------------------------------------------
+1. PROBLEMA (recapitulado, sem mudanca em relacao a revisao anterior)
+--------------------------------------------------------------------------------
+
+hub-portal/package.json depende de:
+  "@hub/backup-core":    "file:../hub-sdk/packages/backup-core"
+  "@hub/storage-client": "file:../hub-sdk/packages/storage-client"
+
+O pipeline real de deploy (.github/workflows/deploy.yml do hub-portal) faz
+`actions/checkout@v4` (somente do repositorio hub-portal) e em seguida
+`flyctl deploy --remote-only`. O builder remoto do Fly.io recebe apenas o
+diretorio hub-portal como contexto de build. `npm ci --production` dentro
+do Dockerfile falha ao resolver o caminho `../hub-sdk/...`, que nao existe
+nesse contexto. O build da imagem quebra, e o deploy do Portal HUB para de
+funcionar — independente do valor de BACKUP_ENGINE.
+
+--------------------------------------------------------------------------------
+2. FATO NOVO CONFIRMADO NESTA ANALISE (relevante para TODAS as alternativas)
+--------------------------------------------------------------------------------
+
+Verificacao direta do estado do repositorio hub-sdk local:
+
+  $ git -C hub-sdk status
+  fatal: not a git repository (or any of the parent directories): .git
+
+O hub-sdk, hoje, NAO E um repositorio git inicializado — nao tem `.git`,
+nao tem remote, nao existe como repositorio no GitHub. Isso contrasta com
+o enquadramento do contexto desta sessao ("Repositorios independentes:
+hub-portal, hub-sdk, hub-docs, demais apps"), que trata o hub-sdk como um
+repositorio ja estabelecido. Tecnicamente, no ambiente de trabalho atual,
+ainda nao esta.
+
+Isso muda materialmente a estimativa de tempo de QUALQUER alternativa que
+dependa do hub-sdk ser um repositorio remoto (Submodule, Subtree, GitHub
+Packages, checkout duplo no Actions, build multi-context): todas elas
+exigem, como pre-requisito ainda nao contabilizado em nenhuma estimativa
+anterior, um trabalho de bootstrap (`git init`, primeiro commit, criacao
+do repositorio em Hotel-Gran-Marquise/hub-sdk no GitHub, push, decisao de
+visibilidade publica/privada, ajuste de branch protection se aplicavel).
+Esse bootstrap NAO E dificil, mas E trabalho real, sequencial, com
+dependencia de acesso administrativo a organizacao GitHub
+Hotel-Gran-Marquise — e esta fora do controle deste ambiente de analise
+(nao verificavel/executavel a partir daqui).
+
+Confirmado tambem: hub-portal, hub-docs e hub-contatos ja sao repositorios
+reais sob https://github.com/Hotel-Gran-Marquise/ — o padrao organizacional
+existe e funciona; falta apenas hub-sdk entrar nele.
+
+--------------------------------------------------------------------------------
+3. METODOLOGIA DESTA ANALISE
+--------------------------------------------------------------------------------
+
+  - Releitura do Dockerfile, fly.toml, .dockerignore e deploy.yml do
+    hub-portal (mesmos arquivos ja inspecionados na revisao de pre-deploy).
+  - Verificacao do estado git real de hub-sdk, hub-portal, hub-docs e
+    hub-contatos (remotes, presenca de .git).
+  - Verificacao de ferramentas disponiveis no ambiente (npm 11.16.0,
+    flyctl instalado em ~/.fly/bin).
+  - Busca por configuracao de registry (.npmrc) em todo o workspace —
+    nenhuma encontrada, confirmando que nenhum mecanismo de registry
+    privado esta configurado hoje em nenhum dos repositorios.
+  - Aplicacao do conhecimento tecnico documentado sobre GitHub Packages
+    (npm), Git Submodule/Subtree, Docker BuildKit multi-context e
+    build secrets do Fly.io, contrastado com as restricoes explicitas do
+    ADR-010/ADR-011 (nenhum ponto unico de falha novo, pin exato de
+    versao, proibicao de copia de codigo entre aplicacoes salvo excecao
+    formalmente registrada).
+  - Nenhum comando de rede foi executado (nenhuma chamada real a GitHub
+    Packages, Fly.io remote builder ou registry externo) — esta analise e
+    baseada em leitura de configuracao real do repositorio e conhecimento
+    tecnico das plataformas envolvidas. Pontos que dependem de
+    comportamento nao verificavel localmente estao marcados como
+    "INCERTO — validar antes de decidir" onde aplicavel.
+
+--------------------------------------------------------------------------------
+4. ALTERNATIVAS ANALISADAS EM PROFUNDIDADE
+--------------------------------------------------------------------------------
+
+================================================================================
+ALTERNATIVA 1 — VENDOR TEMPORARIO (copia de codigo-fonte do hub-sdk para
+                dentro do repositorio hub-portal)
+================================================================================
+Descricao: copiar o conteudo de packages/backup-core e packages/
+storage-client para dentro de hub-portal (ex.: hub-portal/vendor/hub-sdk/),
+e apontar package.json para o caminho relativo interno
+("file:./vendor/hub-sdk/packages/backup-core"). O codigo passa a fazer
+parte do commit do hub-portal.
+
+Complexidade:              Baixa. Copiar diretorios + editar 2 linhas do
+                            package.json + rodar npm install para
+                            regravar o lockfile.
+Tempo estimado:             30-60 minutos, incluindo re-rodar a suite de
+                            testes do hub-portal apos a mudanca de path.
+Impacto na manutencao:      RUIM a longo prazo. Cria exatamente a
+                            duplicacao que o ADR-011 (secao "Por que nao
+                            copiar codigo entre aplicacoes") condena
+                            explicitamente: cada copia vira fonte de
+                            verdade propria; uma correcao feita no hub-sdk
+                            "de verdade" nao se propaga sozinha — exige
+                            processo manual de re-sincronizacao, que tende
+                            a ser esquecido sob pressao de prazo.
+Compatibilidade Fly.io:     Total. Resolve o bloqueio imediatamente — o
+                            codigo ja esta dentro do build context.
+Compatibilidade Docker:     Total. Nenhuma mudanca de Dockerfile
+                            necessaria.
+Compatibilidade GitHub
+Actions:                    Total. Nenhuma mudanca de workflow necessaria.
+Compatibilidade ADR-011:    VIOLA o principio de nao-copia. Deve ser
+                            tratado como excecao TEMPORARIA formalmente
+                            registrada (mesmo espirito do "casos
+                            excepcionais deverao ser formalmente
+                            aprovados por novo ADR" do ADR-005 aplicado
+                            por analogia), com prazo de expiracao
+                            explicito — nao pode ser uma excecao silenciosa
+                            sem data de revisao.
+Facilidade de rollback:      Trivial — reverter o commit remove o vendor.
+Risco operacional:          Baixo tecnicamente. Risco real e de
+                            GOVERNANCA: sem prazo/gatilho explicito de
+                            migracao, vira permanente por inercia (o
+                            proprio ADR-011, secao Riscos, ja nomeia esse
+                            padrao: "pacote entra sem ser genuinamente
+                            reutilizavel, vira codigo morto mantido por
+                            inercia" — aqui e o inverso, mas o mecanismo
+                            de "debito esquecido" e o mesmo).
+Escalabilidade futura:      RUIM. Nao escala para as outras 4 aplicacoes
+                            (Help Desk, Qualidade, SPA, Diretorio) sem
+                            multiplicar a mesma duplicacao 4 vezes — cada
+                            uma teria sua propria copia divergente.
+NOTA: 6.5 / 10
+
+================================================================================
+ALTERNATIVA 1b (variante superior de 1) — VENDOR DE TARBALL VERSIONADO
+                (npm pack)
+================================================================================
+Descricao: gerar `npm pack` de @hub/backup-core e @hub/storage-client
+localmente (produz arquivos .tgz imutaveis, ex.:
+hub-backup-core-1.1.0.tgz), commitar esses tarballs dentro de
+hub-portal/vendor/*.tgz, e referenciar via
+"file:./vendor/hub-backup-core-1.1.0.tgz" no package.json.
+
+Por que e diferente da Alternativa 1: em vez de copiar arquivos-fonte
+soltos e editaveis, versiona um ARTEFATO IMUTAVEL, com o numero de versao
+explicito no proprio nome do arquivo. E o mesmo formato de artefato que
+seria gerado por um `npm publish` real — a migracao futura para um
+registry de verdade reaproveita o mesmo artefato, sem retrabalho de build.
+
+Complexidade:              Baixa. `npm pack` nos dois pacotes + commit dos
+                            .tgz + ajuste do package.json.
+Tempo estimado:             1-2 horas (inclui gerar os tarballs, validar
+                            que `npm ci` resolve corretamente a partir de
+                            um .tgz local, rodar a suite de testes).
+Impacto na manutencao:      MELHOR que a Alternativa 1 pura, ainda
+                            inferior a um registry real. Atualizar exige
+                            um passo manual e explicito (gerar novo
+                            tarball, commitar, bump do nome do arquivo) —
+                            mas esse passo manual e, por sinal, exatamente
+                            o tipo de "acao deliberada e testada" que o
+                            ADR-011 pede para upgrades, ao contrario da
+                            Alternativa 1 (onde bastaria editar arquivos
+                            soltos sem nenhum rastro de versao).
+Compatibilidade Fly.io:     Total.
+Compatibilidade Docker:     Total.
+Compatibilidade GitHub
+Actions:                    Total.
+Compatibilidade ADR-011:    Parcialmente melhor que a Alternativa 1: ainda
+                            e uma copia fisica dentro do hub-portal (mesma
+                            objecao de fundo), mas satisfaz o espirito de
+                            "pin exato" (o artefato e imutavel e nomeado
+                            por versao) muito melhor do que arquivos-fonte
+                            soltos. Ainda exige o mesmo registro formal de
+                            excecao temporaria.
+Facilidade de rollback:      Trivial.
+Risco operacional:          Baixo — mais baixo que a Alternativa 1, pois
+                            reduz o risco de edicao acidental do vendor
+                            (o .tgz nao e um arquivo que se edita por
+                            engano durante o desenvolvimento do
+                            hub-portal).
+Escalabilidade futura:      Baixa-media (mesma limitacao estrutural da
+                            Alternativa 1 — nao e um registry), mas o
+                            CAMINHO DE MIGRACAO para GitHub Packages e
+                            quase mecanico: o mesmo .tgz gerado por
+                            `npm pack` e o artefato que `npm publish`
+                            enviaria a um registry real.
+NOTA: 7.5 / 10
+
+================================================================================
+ALTERNATIVA 2 — GIT SUBMODULE
+================================================================================
+Descricao: hub-sdk vira um repositorio git remoto proprio (pre-requisito,
+ver secao 2), e hub-portal o referencia via `git submodule add` apontando
+para um commit SHA especifico. package.json passa a apontar para
+"file:./hub-sdk/packages/backup-core" (caminho do submodule dentro do
+proprio checkout do hub-portal).
+
+Complexidade:              Media. Alem do bootstrap do hub-sdk como repo
+                            (secao 2), exige `git submodule add`,
+                            atualizar `actions/checkout@v4` com
+                            `submodules: true` (ou `recursive`), e educar
+                            a equipe sobre o fluxo de atualizar o ponteiro
+                            do submodule (`git submodule update --remote`
+                            + commit do novo SHA).
+Tempo estimado:             Bootstrap do hub-sdk (~1-2h, fora do controle
+                            direto desta analise) + configuracao do
+                            submodule e do workflow (~2-3h) + validacao
+                            completa (build local simulando o pipeline,
+                            testes) — total estimado 1 dia util.
+Impacto na manutencao:      MEDIO. Positivo: o ponteiro do submodule E,
+                            por definicao, um pin exato por commit SHA —
+                            alinhado ao espirito do ADR-011 melhor que
+                            qualquer variante de vendor. Negativo:
+                            submodules tem reputacao consolidada de UX
+                            ruim em equipes pequenas — e comum esquecer
+                            `--init --recursive` ao clonar, PRs que mudam
+                            o hub-sdk sem atualizar o ponteiro no
+                            hub-portal (silenciosamente continuam usando a
+                            versao antiga), e "detached HEAD" dentro do
+                            submodule confundir quem nao usa o padrao no
+                            dia a dia.
+Compatibilidade Fly.io:     Boa, DESDE QUE o checkout com submodules traga
+                            o conteudo antes do `flyctl deploy` rodar —
+                            confirmado como suportado pelo
+                            `actions/checkout@v4` (flag `submodules`).
+Compatibilidade Docker:     Boa — uma vez que o submodule esteja
+                            fisicamente dentro do diretorio checked-out,
+                            `COPY . .` ja o inclui, sem mudanca de
+                            Dockerfile alem do path no package.json.
+Compatibilidade GitHub
+Actions:                    Requer uma linha adicional no
+                            `actions/checkout` (`submodules: true`) e, se
+                            hub-sdk for um repositorio PRIVADO, um token
+                            com acesso a ele (o `GITHUB_TOKEN` padrao do
+                            Actions so tem escopo automatico dentro do
+                            MESMO repositorio — acesso a um segundo repo
+                            privado da mesma org exige um PAT dedicado
+                            como Secret, ou o uso de GitHub App
+                            credentials).
+Compatibilidade ADR-011:    BOA — pin exato por commit SHA satisfaz
+                            plenamente a exigencia de versionamento
+                            deliberado. Ainda nao e "consumo via
+                            dependencia de pacote declarada" no sentido
+                            estrito de NT-020, mas e o mais proximo disso
+                            entre as opcoes que nao exigem um registry.
+Facilidade de rollback:      Simples — remover a entrada do
+                            `.gitmodules`/`.git/config` e o diretorio do
+                            submodule, ou apenas apontar o ponteiro para
+                            um SHA anterior.
+Risco operacional:          MEDIO — risco concentrado em erro humano
+                            (esquecimento de sincronizacao do ponteiro,
+                            clone sem recursive quebrando CI de outro
+                            desenvolvedor) mais do que em risco tecnico de
+                            pipeline.
+Escalabilidade futura:      BOA — as outras 4 aplicacoes podem repetir o
+                            mesmo padrao de submodule de forma
+                            independente umas das outras.
+NOTA: 7 / 10
+
+================================================================================
+ALTERNATIVA 3 — GIT SUBTREE
+================================================================================
+Descricao: similar ao submodule no objetivo, mas o codigo do hub-sdk e
+mesclado (`git subtree add --prefix=hub-sdk <url> main --squash`)
+diretamente no historico de commits do hub-portal, sem referencia externa
+por ponteiro — do ponto de vista de quem clona hub-portal, o codigo
+simplesmente "esta la", sem estado de submodule.
+
+Complexidade:              Media-Alta. Comandos de subtree (`add`,
+                            `pull`, `push --prefix`) sao usados com pouca
+                            frequencia pela maioria das equipes,
+                            aumentando a chance de erro humano ao
+                            sincronizar (squash incorreto, merge confuso
+                            do historico).
+Tempo estimado:             Similar ao submodule (bootstrap do hub-sdk +
+                            configuracao do subtree) — 1 dia util,
+                            possivelmente mais se a equipe nao tiver
+                            familiaridade previa com subtree (curva de
+                            aprendizado real, mesmo sendo um comando git
+                            nativo).
+Impacto na manutencao:      PIOR que submodule para MULTIPLOS
+                            consumidores: cada app que fizer subtree do
+                            hub-sdk passa a ter sua propria copia do
+                            historico, com sincronizacoes manuais
+                            recorrentes e SEM um ponteiro explicito e
+                            visivel de "qual versao esta em uso" (ao
+                            contrario do submodule, onde o SHA fixado e
+                            visivel e auditavel em um unico lugar).
+Compatibilidade Fly.io:     Boa — o codigo ja esta fisicamente dentro do
+                            historico do hub-portal, nenhuma mudanca de
+                            pipeline de checkout necessaria (vantagem
+                            real sobre submodule neste quesito especifico).
+Compatibilidade Docker:     Total, sem mudanca de Dockerfile.
+Compatibilidade GitHub
+Actions:                    Total, sem mudanca de workflow (vantagem
+                            real sobre submodule/checkout-duplo).
+Compatibilidade ADR-011:    FRACA, pela mesma razao de fundo da
+                            Alternativa 1: fisicamente e uma copia de
+                            codigo dentro do repositorio consumidor.
+                            Diferente do submodule, nao ha um "ponteiro de
+                            versao" unico e visivel — rastrear qual
+                            versao do hub-sdk esta em uso exige investigar
+                            o historico de merge do subtree, mais opaco
+                            que um SHA de submodule.
+Facilidade de rollback:      Mais trabalhosa que submodule/vendor — o
+                            merge do subtree entrelaca o historico do
+                            hub-portal; reverter exige cuidado para nao
+                            bagunçar commits nao relacionados.
+Risco operacional:          MEDIO-ALTO para uma equipe pequena/sem
+                            familiaridade previa com subtree — comandos
+                            pouco usados no dia a dia aumentam a chance de
+                            erro ao tentar sincronizar uma atualizacao do
+                            hub-sdk.
+Escalabilidade futura:      RUIM/MEDIA — mesma limitacao estrutural de
+                            "codigo duplicado por app" da Alternativa 1,
+                            com um mecanismo de sincronizacao mais
+                            sofisticado, porem mais fragil na pratica para
+                            times pequenos.
+NOTA: 5.5 / 10
+
+================================================================================
+ALTERNATIVA 4 — GITHUB PACKAGES (registry npm do GitHub)
+================================================================================
+Descricao: hub-sdk vira repositorio remoto (pre-requisito, secao 2);
+workflow de publish (`.github/workflows/publish.yml` — ja previsto na
+propria estrutura de diretorios do ADR-010 V2) publica @hub/backup-core e
+@hub/storage-client no registry npm do GitHub associado a organizacao
+Hotel-Gran-Marquise; hub-portal consome via `.npmrc` apontando o escopo
+para esse registry, com versao semver EXATA fixada no package.json.
+
+Complexidade:              ALTA. Multiplas pecas novas e interdependentes:
+                            (a) workflow de publish com bump de versao;
+                            (b) autenticacao de leitura no hub-portal
+                            (`.npmrc` + token);
+                            (c) autenticacao de escrita no hub-sdk
+                            (token de publish);
+                            (d) repassar a credencial de leitura para
+                            DENTRO do build Docker sem vaza-la numa layer
+                            da imagem (exige `RUN --mount=type=secret`
+                            do BuildKit, mudanca real de Dockerfile, e
+                            `flyctl deploy --build-secret` ou
+                            equivalente em `fly.toml`).
+ACHADO TECNICO ESPECIFICO (verificar antes de decidir): o registry npm do
+                            GitHub normalmente exige que o ESCOPO do
+                            pacote corresponda ao nome da organizacao/
+                            usuario dono do repositorio no GitHub — ou
+                            seja, para publicar sob a organizacao
+                            "Hotel-Gran-Marquise", o pacote precisaria se
+                            chamar algo como
+                            "@hotel-gran-marquise/backup-core", NAO
+                            "@hub/backup-core". Isso significa que adotar
+                            GitHub Packages hoje provavelmente EXIGE
+                            RENOMEAR o escopo publico dos pacotes — o que,
+                            pelo proprio ADR-011 (Politica para Breaking
+                            Changes), e uma mudanca que quebra todo
+                            consumidor existente e exige MAJOR version +
+                            Migration Guide + Release Notes, formalmente.
+                            Este ponto deve ser confirmado contra a
+                            documentacao atual do GitHub antes de decidir
+                            — nao foi validado com uma chamada de rede
+                            real nesta analise, apenas apontado como um
+                            risco tecnico concreto e conhecido do
+                            mecanismo de escopo do GitHub Packages.
+Tempo estimado:             1-2 dias uteis realisticamente, considerando
+                            o bootstrap do hub-sdk, a possivel renomeacao
+                            de escopo (achado acima), a configuracao de
+                            dois conjuntos de credenciais, e a validacao
+                            de que o segredo de build chega corretamente
+                            ao builder remoto do Fly.io sem vazar na
+                            imagem final.
+Impacto na manutencao:      EXCELENTE a longo prazo. E exatamente o
+                            destino que o proprio IntegrationGuide.md do
+                            hub-sdk ja aponta ("ate o pacote ser publicado
+                            num registro"). Pin exato de versao nativo via
+                            SemVer, processo de release formalizado.
+Compatibilidade Fly.io:     Requer passar a credencial de leitura do
+                            registry como build secret — Fly.io suporta
+                            isso (`flyctl deploy --build-secret` /
+                            `[build.args]` + BuildKit secret mount), mas
+                            e configuracao adicional sensivel (erro comum:
+                            token vazando em uma layer do Docker se nao
+                            usado corretamente via mount de segredo em vez
+                            de ARG/ENV).
+Compatibilidade Docker:     Exige mudanca real do Dockerfile (`RUN
+                            --mount=type=secret=npm_token npm ci` em vez
+                            do `RUN npm ci --production` atual).
+Compatibilidade GitHub
+Actions:                    Boa em teoria (GitHub Packages e nativo do
+                            GitHub), mas leitura CROSS-REPO de pacotes
+                            privados normalmente exige um PAT dedicado
+                            como Secret (o `GITHUB_TOKEN` automatico do
+                            workflow tem escopo limitado ao proprio
+                            repositorio por padrao) — mais uma peca de
+                            configuracao e gestao de credencial.
+Compatibilidade ADR-011:    OTIMA em espirito (pacote consumido por
+                            dependencia declarada, versionado, sem copia
+                            de codigo) — mas a possivel renomeacao de
+                            escopo (achado acima) e ELA MESMA uma mudanca
+                            que o ADR-011 classifica como MAJOR breaking
+                            change, exigindo o processo formal completo
+                            antes de ser adotada.
+Facilidade de rollback:      Facil DEPOIS de configurado (trocar a
+                            versao pinada) — mas o SETUP inicial tem
+                            varias pecas moveis novas (workflow, dois
+                            conjuntos de credenciais, secret de build) que
+                            nao sao trivialmente reversiveis no meio do
+                            processo sob pressao de prazo.
+Risco operacional:          MEDIO-ALTO no curto prazo (superficie nova de
+                            autenticacao/segredo de build, mais pontos de
+                            falha durante o setup) — BAIXO no longo prazo,
+                            uma vez estabilizado.
+Escalabilidade futura:      EXCELENTE — e a solucao definitiva, serve as
+                            5 aplicacoes da plataforma sem replicar
+                            trabalho.
+NOTA: 8 / 10 (melhor opcao de LONGO PRAZO; nao e a mais rapida para "esta
+      semana" dado o volume de pre-requisitos e a incerteza de escopo).
+
+================================================================================
+ALTERNATIVA 5 — NPM PRIVADO (self-hosted, ex.: Verdaccio, ou registry
+                SaaS pago)
+================================================================================
+Descricao: provisionar e operar um servico de registry npm privado
+proprio (Verdaccio rodando como mais um app Fly.io com volume persistente,
+ou um servico SaaS de terceiros).
+
+Complexidade:              MUITO ALTA. Nao e so configuracao — e um
+                            SERVICO NOVO para provisionar, proteger com
+                            autenticacao, persistir dados e operar
+                            continuamente.
+Tempo estimado:             Dias, nao horas — provisionamento, hardening,
+                            persistencia, documentacao operacional, e
+                            (ironicamente) a propria necessidade de
+                            backup desse novo servico.
+Impacto na manutencao:      ALTO CUSTO continuo — mais um servico para
+                            manter no ar, atualizar e monitorar
+                            indefinidamente. Na pratica, pior do que
+                            GitHub Packages (que e gerenciado pelo GitHub,
+                            sem custo operacional para a equipe).
+Compatibilidade Fly.io/
+Docker/Actions:             Tecnicamente viavel (mesma mecanica de
+                            `.npmrc` + token que GitHub Packages), com a
+                            complexidade ADICIONAL de operar a propria
+                            infraestrutura do registry por cima.
+Compatibilidade ADR-011:    QUESTIONAVEL em relacao ao ADR-010: este
+                            propria ADR rejeitou explicitamente a
+                            "Alternativa A — Servico de rede centralizado"
+                            para o BackupService por criar "ponto unico de
+                            falha para a continuidade de TODAS as
+                            aplicacoes simultaneamente". Um registry npm
+                            privado, self-hosted, do qual toda a
+                            plataforma passa a depender para conseguir
+                            fazer BUILD (nao so backup) e um risco
+                            estrutural equivalente, ou pior — se cai, NADA
+                            na plataforma consegue dar deploy. Exigiria,
+                            por coerencia com o proprio raciocinio do
+                            ADR-010, uma aprovacao arquitetural formal
+                            propria antes de ser adotado.
+Facilidade de rollback:      Complexa — envolve decommissioning de um
+                            servico com estado proprio.
+Risco operacional:          ALTO — o mais alto entre todas as opcoes
+                            analisadas.
+Escalabilidade futura:      Boa em teoria, mas o custo operacional
+                            provavelmente nao se justifica frente a
+                            GitHub Packages, que resolve o mesmo problema
+                            de forma gerenciada e sem custo adicional de
+                            infraestrutura para a organizacao GitHub ja em
+                            uso.
+NOTA: 3 / 10 (para este contexto especifico: equipe pequena, sem
+      necessidade tecnica que GitHub Packages ja nao atenda).
+
+================================================================================
+ALTERNATIVA 6 — GITHUB ACTIONS: CHECKOUT DOS DOIS REPOSITORIOS
+================================================================================
+Descricao: adicionar um segundo passo `actions/checkout@v4` no workflow do
+hub-portal, apontando para Hotel-Gran-Marquise/hub-sdk (path local:
+hub-sdk/), FIXADO a um `ref:` especifico (tag ou SHA — nao "main"), seguido
+de um passo que copia (`cp -r`/`rsync`) o conteudo necessario de hub-sdk
+PARA DENTRO do diretorio hub-portal antes de `flyctl deploy` rodar
+(porque o builder remoto do Fly.io usa apenas o diretorio do fly.toml como
+contexto — checkout sozinho, em um path irmao, nao basta).
+
+Complexidade:              BAIXA-MEDIA. Exige hub-sdk como repo remoto
+                            (pre-requisito, secao 2) + um segundo step de
+                            checkout com `ref` fixo + um step de copia +
+                            ajuste do path no package.json/Dockerfile para
+                            apontar ao diretorio copiado (ex.:
+                            "file:./hub-sdk-vendor/packages/backup-core").
+Tempo estimado:             Bootstrap do hub-sdk (~1-2h) + configuracao do
+                            workflow e ajuste de paths (~2-3h) + validacao
+                            — total estimado 4-6 horas, o mais rapido
+                            entre as opcoes que dependem de hub-sdk ser um
+                            repo remoto.
+Impacto na manutencao:      BOA, SE o `ref:` do segundo checkout for
+                            fixado explicitamente (tag/SHA) — nesse caso o
+                            mecanismo fica automatizado (nao depende de
+                            disciplina manual de dev como o vendor puro) E
+                            satisfaz pin exato. RUIM se o `ref` for
+                            deixado como "main": nesse caso cada deploy do
+                            hub-portal passaria a consumir a versao MAIS
+                            RECENTE do hub-sdk automaticamente e em
+                            silencio — o oposto exato do que o ADR-011
+                            exige ("nunca uma propagacao automatica e
+                            silenciosa"). Este e o unico fator que decide
+                            se esta alternativa fica boa ou ruim nesta
+                            linha.
+Compatibilidade Fly.io:     Boa, uma vez que o conteudo copiado esteja
+                            fisicamente dentro do build context do
+                            hub-portal antes do `flyctl deploy` rodar.
+Compatibilidade Docker:     Exige ajuste de path no Dockerfile/package.json
+                            (referenciar o diretorio onde o hub-sdk foi
+                            copiado pelo workflow), mas nenhuma mudanca de
+                            sintaxe Docker propriamente dita.
+Compatibilidade GitHub
+Actions:                    E A PROPRIA mudanca — compatibilidade total
+                            por definicao. Se hub-sdk for privado, o
+                            `GITHUB_TOKEN` automatico do workflow
+                            normalmente ja tem acesso de leitura a
+                            OUTROS repositorios da MESMA organizacao
+                            quando configurado com permissoes adequadas
+                            (`permissions: contents: read` cross-repo
+                            dentro da mesma org costuma funcionar sem PAT
+                            extra, diferente do caso de GitHub Packages —
+                            mas isso deve ser validado no momento da
+                            implementacao, marcado aqui como
+                            razoavelmente confiavel, nao 100% garantido
+                            sem teste real).
+Compatibilidade ADR-011:    Depende inteiramente de fixar um `ref`
+                            explicito (ver "Impacto na manutencao" acima).
+                            Feito corretamente, satisfaz o pin exato.
+Facilidade de rollback:      Facil — reverter o arquivo YAML do workflow.
+Risco operacional:          BAIXO-MEDIO — mais um passo no pipeline de CI
+                            que pode falhar por rede ou permissao de
+                            acesso ao segundo repositorio.
+Escalabilidade futura:      RAZOAVEL — cada app poderia repetir o mesmo
+                            padrao de "checkout fixo + copia no CI", uma
+                            solucao de transicao solida, ainda nao
+                            equivalente a "instalar um pacote versionado"
+                            de verdade, mas totalmente automatizada (ao
+                            contrario do vendor manual).
+NOTA: 7.5 / 10 (a MELHOR opcao entre as que exigem hub-sdk como repo
+      remoto, pela combinacao de velocidade + automacao + pin real quando
+      configurada com `ref` fixo).
+
+================================================================================
+ALTERNATIVA 7 — DOCKERFILE MULTI-CONTEXT (Docker BuildKit
+                --build-context / COPY --from=<contexto-nomeado>)
+================================================================================
+Descricao: usar o recurso do Docker BuildKit (18.09+) de contextos de
+build nomeados (`docker buildx build --build-context hubsdk=../hub-sdk .`
+e, no Dockerfile, `COPY --from=hubsdk ...`), permitindo que o Dockerfile
+"enxergue" dois diretorios de origem diferentes sem precisar copiar
+manualmente um para dentro do outro antes do build.
+
+Complexidade:              ALTA, com uma incerteza tecnica real que nao
+                            foi possivel validar nesta analise (sem acesso
+                            de rede/execucao ao builder remoto do Fly.io):
+                            NAO ESTA CONFIRMADO se `flyctl deploy
+                            --remote-only` (que invoca seu proprio
+                            mecanismo de build remoto, nao
+                            necessariamente um `docker buildx build`
+                            direto) aceita ou repassa a flag
+                            `--build-context` para multiplos contextos
+                            nomeados. Isso e um ACHADO DE INCERTEZA
+                            EXPLICITO, nao uma afirmacao de
+                            incompatibilidade nem de compatibilidade —
+                            precisaria ser validado tecnicamente antes de
+                            ser considerada uma opcao real.
+Tempo estimado:             ALTO E INCERTO — inclui tempo de investigacao/
+                            validacao de uma capacidade de plataforma nao
+                            confirmada, com risco real de descobrir a meio
+                            caminho que o modelo de deploy inteiro
+                            precisaria mudar (de "flyctl builda
+                            remotamente" para "CI builda a imagem
+                            localmente com buildx e envia via `flyctl
+                            deploy --image <ja-construida>`") — uma
+                            mudanca bem mais profunda no pipeline do que
+                            qualquer outra alternativa desta lista.
+Impacto na manutencao:      Se funcionar, seria elegante (nenhuma
+                            duplicacao fisica de arquivos), mas exige que
+                            a equipe aprenda uma sintaxe de Dockerfile
+                            pouco comum (contextos nomeados), aumentando a
+                            barreira de manutencao para quem nao usa isso
+                            no dia a dia.
+Compatibilidade Fly.io:     INCERTA (ver Complexidade acima) — risco real
+                            de nao ser viavel sem sair do fluxo padrao
+                            `flyctl deploy --remote-only`.
+Compatibilidade Docker:     Requer BuildKit habilitado (padrao em versoes
+                            recentes do Docker, mas precisa ser confirmado
+                            especificamente no builder remoto que o
+                            Fly.io usa por baixo dos panos).
+Compatibilidade GitHub
+Actions:                    Ainda exigiria checkout do hub-sdk de alguma
+                            forma (mesma dependencia da Alternativa 6) —
+                            nao elimina esse pre-requisito, so muda como o
+                            Dockerfile consome o segundo contexto.
+Compatibilidade ADR-011:    Mesma consideracao de pin da Alternativa 6
+                            (depende de fixar uma referencia explicita do
+                            hub-sdk usado).
+Facilidade de rollback:      MEDIA — mudanca de Dockerfile mais
+                            possivelmente de estrategia de deploy inteira.
+Risco operacional:          ALTO, por causa da incerteza de suporte da
+                            plataforma nao validada — nao recomendavel
+                            para um prazo de "esta semana" com esse nivel
+                            de incerteza tecnica em aberto.
+Escalabilidade futura:      Boa em teoria, SE validada tecnicamente.
+NOTA: 4.5 / 10 (para AGORA, dada a incerteza; poderia subir
+      significativamente se a compatibilidade com `flyctl deploy
+      --remote-only` for confirmada em um teste isolado, de baixo risco,
+      antes de qualquer decisao final).
+
+================================================================================
+5. QUADRO COMPARATIVO FINAL (notas de 0 a 10)
+================================================================================
+
+  1  Vendor de codigo-fonte solto ......................  6.5
+  1b Vendor de tarball versionado (npm pack) ............  7.5
+  2  Git Submodule ..........................................  7.0
+  3  Git Subtree .............................................  5.5
+  4  GitHub Packages .........................................  8.0
+  5  npm privado (Verdaccio/SaaS) .......................  3.0
+  6  Checkout duplo no GitHub Actions (com ref fixo) ...  7.5
+  7  Dockerfile multi-context (BuildKit) ................  4.5
+
+  Nota mais alta em VALOR ARQUITETURAL DE LONGO PRAZO: Alternativa 4
+  (GitHub Packages) — mas com o maior tempo/risco de setup imediato.
+
+  Nota mais alta em VELOCIDADE SEGURA PARA "ESTA SEMANA": empate tecnico
+  entre Alternativa 1b (vendor de tarball) e Alternativa 6 (checkout duplo
+  com ref fixo) — ver Sprint5B-DistribuicaoSDK-Recomendacao.txt para a
+  escolha objetiva e a justificativa de desempate.
+
+================================================================================
+FIM DO DOCUMENTO — Sprint5B-DistribuicaoSDK-Analise.txt
+================================================================================
