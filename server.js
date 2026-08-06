@@ -1594,7 +1594,7 @@ app.delete('/api/admin/site-permissions', requireAdmin, (req, res) => {
 // administradores que vem do Hub. Bearer SSO_SECRET.
 // Item: { email, nome, ativo, ultimo_login, tipo }
 // 'ativo' = email ja logou no Hub alguma vez (existe em data.users).
-app.get('/api/hub/site-admins', (req, res) => {
+app.get('/api/hub/site-admins', async (req, res) => {
   const auth = req.headers.authorization || '';
   const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
   if (!token || token !== SSO_SECRET) return res.status(403).json({ ok: false, erro: 'Acesso negado' });
@@ -1618,11 +1618,23 @@ app.get('/api/hub/site-admins', (req, res) => {
       .filter(r => r.sistema_id === sistema_id)
       .map(r => [String(r.email || '').toLowerCase(), r.papel])
   );
+  // Dados de RH vivem no banco do sistema-chamados (a tela Contas edita lá),
+  // não em data.users. Enriquecimento best-effort: chamados fora do ar → null.
+  let rhMap = {};
+  try {
+    const r = await proxyChamados('/portal-usuarios');
+    if (r.status === 200 && r.data && r.data.ok) {
+      rhMap = Object.fromEntries(
+        (r.data.usuarios || []).map(u => [String(u.email || '').toLowerCase(), u])
+      );
+    }
+  } catch { /* segue sem RH */ }
   const items = adminEmails.map(email => {
     const u = usersMap[email];
+    const rh = rhMap[email];
     return {
       email,
-      nome: u && u.nome ? u.nome : null,
+      nome: (u && u.nome) || (rh && rh.nome) || null,
       ativo: !!u,
       ultimo_login: u && u.ultimo_login ? u.ultimo_login : null,
       tipo: u && u.tipo ? u.tipo : null, // 'admin'|'usuario' do Hub
@@ -1630,10 +1642,10 @@ app.get('/api/hub/site-admins', (req, res) => {
       papel: papeisMap[email] || 'admin', // master|admin|spa|satisfacao|usuario
       // Dados de RH (podem ser null) — consumidos pelo SPA para montar a ficha
       // do profissional (tela Profissionais). Aditivo: satelites antigos ignoram.
-      matricula: u && u.matricula ? u.matricula : null,
-      cargo: u && u.cargo ? u.cargo : null,
-      vinculo: u && u.vinculo ? u.vinculo : null,
-      bilingue: u ? !!u.bilingue : false,
+      matricula: rh && rh.matricula ? rh.matricula : null,
+      cargo: rh && rh.cargo ? rh.cargo : null,
+      vinculo: rh && rh.vinculo ? rh.vinculo : null,
+      bilingue: !!(rh && rh.bilingue),
     };
   });
   res.json({ ok: true, items });
