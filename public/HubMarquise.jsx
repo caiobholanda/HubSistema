@@ -916,7 +916,9 @@ function LinkCreateModal({ form, setForm, onSave, onCancel, linkErro, linkSaving
 function LiberacaoPanel({ sistemaId, sistemaNome, isMobile, users, acessoPadrao, setoresAcesso }) {
   const [items, setItems] = useState(null); // null=loading, []=vazio
   const [novoEmail, setNovoEmail] = useState('');
-  const [novoPapel, setNovoPapel] = useState('admin');
+  // No Gestão de SPA 'admin'/'satisfacao' saíram do seletor (vão migrar de
+  // lugar), então o default precisa ser um papel que ainda existe lá.
+  const [novoPapel, setNovoPapel] = useState(sistemaId === 'pesquisa-satisfacao' ? 'spa' : 'admin');
   const [erro, setErro] = useState('');
   const [busy, setBusy] = useState(false);
   const [confirmRemover, setConfirmRemover] = useState(null); // null | { email }
@@ -1118,11 +1120,9 @@ function LiberacaoPanel({ sistemaId, sistemaNome, isMobile, users, acessoPadrao,
           <select value={novoPapel} onChange={e => setNovoPapel(e.target.value)} disabled={busy}
             aria-label="Papel do usuário no sistema"
             style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim, border: `1px solid ${HUB_PALETTE.champanhe}`, padding: '10px 12px', fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 13 }}
-            title="Papel: master vê e edita tudo · admin só vê · recepcionista edita Spa · satisfação edita Relatórios · massoterapeuta acessa ficha de anamnese">
+            title="Papel: master vê e edita tudo · recepcionista edita Spa · massoterapeuta acessa ficha de anamnese">
             <option value="master"          style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim }}>Master</option>
-            <option value="admin"           style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim }}>Admin (só ver)</option>
             <option value="spa"             style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim }}>Recepcionista</option>
-            <option value="satisfacao"      style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim }}>Satisfação</option>
             <option value="massoterapeuta"  style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim }}>Massoterapeuta</option>
           </select>
         )}
@@ -1191,10 +1191,15 @@ function LiberacaoPanel({ sistemaId, sistemaNome, isMobile, users, acessoPadrao,
                       style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim, border: `1px solid ${HUB_PALETTE.champanhe}`, padding: '4px 8px', fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 12 }}
                       title="Mudar papel">
                       <option value="master"         style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim }}>Master</option>
-                      <option value="admin"          style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim }}>Admin</option>
                       <option value="spa"            style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim }}>Recepcionista</option>
-                      <option value="satisfacao"     style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim }}>Satisfação</option>
                       <option value="massoterapeuta" style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim }}>Massoterapeuta</option>
+                      {/* Papel legado: só aparece para quem já o tem, senão o
+                          select ficaria em branco e a troca gravaria errado. */}
+                      {(x.papel === 'admin' || x.papel === 'satisfacao') && (
+                        <option value={x.papel} style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim }}>
+                          {x.papel === 'admin' ? 'Admin (só ver)' : 'Satisfação'}
+                        </option>
+                      )}
                     </select>
                   ) : null}
                   <button onClick={() => remover(x.email)} disabled={busy} style={{ ...btn, color: '#E07A5F', borderColor: '#E07A5F44' }} title="Remover acesso de admin">× Remover</button>
