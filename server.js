@@ -1145,6 +1145,15 @@ app.patch('/api/admin/massagistas/:id/ativo', requireAdmin, async (req, res) => 
 
 // ─── Proxy de CRUD de admins/usuarios para o sistema-chamados ──────────────
 // Hub valida JWT do admin do Hub; proxia com Bearer SSO_SECRET para /api/hub/*
+// Avisa o Gestão de SPA que a aba Liberação mudou, para a tela Profissionais
+// refletir na hora em vez de esperar o cache de 60s do satélite expirar.
+// Fire-and-forget: o satélite fora do ar não pode derrubar a operação no Hub.
+function notificarPesquisaLiberacao(sistema_id) {
+  if (sistema_id !== 'pesquisa-satisfacao') return;
+  proxyPesquisa('/sync-profissionais', { method: 'POST' })
+    .catch(err => console.error('[notificarPesquisaLiberacao]', err && err.message));
+}
+
 async function proxyChamados(path, { method = 'GET', body = null } = {}) {
   try {
     const r = await fetch(`${CHAMADOS_URL}/api/hub${path}`, {
@@ -1558,6 +1567,7 @@ app.post('/api/admin/site-permissions', requireAdmin, (req, res) => {
       target_nome: emailNorm,
       campos: { email: emailNorm, link: sistemasMap[sistema_id] || sistema_id, papel, papel_anterior: r.anterior || null },
     });
+    notificarPesquisaLiberacao(sistema_id);
   }
   res.json({ ok: true });
 });
@@ -1582,6 +1592,7 @@ app.delete('/api/admin/site-permissions', requireAdmin, (req, res) => {
       target_nome: emailNorm,
       campos: { email: emailNorm, link: sistemasMap[sistema_id] || sistema_id },
     });
+    notificarPesquisaLiberacao(sistema_id);
   }
   res.json({ ok: true });
 });
@@ -1680,6 +1691,7 @@ app.post('/api/hub/site-permissions', (req, res) => {
     const emailNorm = sitePerm._norm(email);
     const tu = (dados.users || []).find(u => sitePerm._norm(u.email) === emailNorm) || {};
     notifyUser(emailNorm, getUserSistemas(emailNorm, tu.tipo || 'usuario', !!tu.is_master));
+    notificarPesquisaLiberacao(sistema_id);
   }
   res.json({ ok: true, ...r });
 });
@@ -1699,6 +1711,7 @@ app.delete('/api/hub/site-permissions', (req, res) => {
     const emailNorm = sitePerm._norm(email);
     const tu = (dados.users || []).find(u => sitePerm._norm(u.email) === emailNorm) || {};
     notifyUser(emailNorm, getUserSistemas(emailNorm, tu.tipo || 'usuario', !!tu.is_master));
+    notificarPesquisaLiberacao(sistema_id);
   }
   res.json({ ok: true, ...r });
 });
