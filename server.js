@@ -1628,6 +1628,12 @@ app.get('/api/hub/site-admins', (req, res) => {
       tipo: u && u.tipo ? u.tipo : null, // 'admin'|'usuario' do Hub
       is_master: u ? !!u.is_master : false,
       papel: papeisMap[email] || 'admin', // master|admin|spa|satisfacao|usuario
+      // Dados de RH (podem ser null) — consumidos pelo SPA para montar a ficha
+      // do profissional (tela Profissionais). Aditivo: satelites antigos ignoram.
+      matricula: u && u.matricula ? u.matricula : null,
+      cargo: u && u.cargo ? u.cargo : null,
+      vinculo: u && u.vinculo ? u.vinculo : null,
+      bilingue: u ? !!u.bilingue : false,
     };
   });
   res.json({ ok: true, items });

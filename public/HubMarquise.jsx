@@ -924,7 +924,7 @@ function LiberacaoPanel({ sistemaId, sistemaNome, isMobile, users, acessoPadrao,
   const [sugHighlight, setSugHighlight] = useState(0);
   // pesquisa-satisfacao tem 4 papeis granulares; demais sistemas so 'admin'.
   const ehPesquisa = sistemaId === 'pesquisa-satisfacao';
-  const PAPEIS_LABEL = { master: 'Master (tudo)', admin: 'Admin (só ver)', spa: 'Spa', satisfacao: 'Satisfação' };
+  const PAPEIS_LABEL = { master: 'Master (tudo)', admin: 'Admin (só ver)', spa: 'Recepcionista', satisfacao: 'Satisfação' };
   // Lista de usuarios sempre fresca (recarregada ao montar e a cada
   // adicao/remocao). Garante que conta recem-criada apareca em tempo real.
   const [usersFresh, setUsersFresh] = useState(users || []);
@@ -1118,10 +1118,10 @@ function LiberacaoPanel({ sistemaId, sistemaNome, isMobile, users, acessoPadrao,
           <select value={novoPapel} onChange={e => setNovoPapel(e.target.value)} disabled={busy}
             aria-label="Papel do usuário no sistema"
             style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim, border: `1px solid ${HUB_PALETTE.champanhe}`, padding: '10px 12px', fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 13 }}
-            title="Papel: master vê e edita tudo · admin só vê · spa edita Spa · satisfação edita Relatórios · massoterapeuta acessa ficha de anamnese">
+            title="Papel: master vê e edita tudo · admin só vê · recepcionista edita Spa · satisfação edita Relatórios · massoterapeuta acessa ficha de anamnese">
             <option value="master"          style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim }}>Master</option>
             <option value="admin"           style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim }}>Admin (só ver)</option>
-            <option value="spa"             style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim }}>Spa</option>
+            <option value="spa"             style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim }}>Recepcionista</option>
             <option value="satisfacao"      style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim }}>Satisfação</option>
             <option value="massoterapeuta"  style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim }}>Massoterapeuta</option>
           </select>
@@ -1166,7 +1166,7 @@ function LiberacaoPanel({ sistemaId, sistemaNome, isMobile, users, acessoPadrao,
         {items !== null && admins.length === 0 && <div style={{ ...item, color: HUB_PALETTE.areiaDim, fontStyle: 'italic' }}>Nenhum admin definido. Adicione contas acima.</div>}
         {items !== null && admins.length > 0 && (() => {
           const PAPEL_ORDEM = ['master', 'spa', 'satisfacao', 'admin', 'massoterapeuta'];
-          const PAPEL_LABEL = { master: 'Master', spa: 'Spa', satisfacao: 'Satisfação', admin: 'Admin', massoterapeuta: 'Massoterapeuta' };
+          const PAPEL_LABEL = { master: 'Master', spa: 'Recepcionista', satisfacao: 'Satisfação', admin: 'Admin', massoterapeuta: 'Massoterapeuta' };
           const grupos = PAPEL_ORDEM
             .map(papel => ({
               papel,
@@ -1192,7 +1192,7 @@ function LiberacaoPanel({ sistemaId, sistemaNome, isMobile, users, acessoPadrao,
                       title="Mudar papel">
                       <option value="master"         style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim }}>Master</option>
                       <option value="admin"          style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim }}>Admin</option>
-                      <option value="spa"            style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim }}>Spa</option>
+                      <option value="spa"            style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim }}>Recepcionista</option>
                       <option value="satisfacao"     style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim }}>Satisfação</option>
                       <option value="massoterapeuta" style={{ background: HUB_PALETTE.noiteAlt || HUB_PALETTE.noite, color: HUB_PALETTE.marfim }}>Massoterapeuta</option>
                     </select>
