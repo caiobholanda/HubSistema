@@ -229,6 +229,21 @@ test('bloco novo do admin vence a intencao interna; bloco igual ao padrao nao', 
   assert.strictEqual(perguntar('ligaram pedindo minha senha', CTX, cfg2).intencao, 'seguranca');
 });
 
+// A 02 tambem manda: a resposta rapida vale por ASSUNTO, nao so pela
+// palavra-chave exata — e ramais escritos nela vencem o cadastro.
+test('resposta rapida dispara por assunto mesmo sem casar a keyword', () => {
+  const config = { quick_replies: [{ id: 1, keywords: 'wifi eventos', reply: 'A rede do salão de eventos é GM-EV; a senha fica com o coordenador do evento.' }] };
+  const r = perguntar('qual a rede do salao de eventos?', CTX, config);
+  assert.match(r.reply, /GM-EV/);
+});
+
+test('ramal escrito numa resposta rapida vence o cadastro', () => {
+  const config = { quick_replies: [{ id: 1, keywords: 'suporte urgente', reply: 'Para urgências, liga no ramal do plantão de TI: Richard ( 5051 ).' }] };
+  const r = perguntar('quero falar com alguem do ti', CTX, config);
+  assert.match(r.reply, /Richard — ramal 5051/);
+  assert.doesNotMatch(r.reply, /Ana Souza/);
+});
+
 // O admin de produção escreve o contexto adicional em forma de instrução
 // ("quando perguntarem X, responde com esse texto (Y)"). O usuário final não
 // pode receber o recado interno, e a dica genérica não pode passar na frente

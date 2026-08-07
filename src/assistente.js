@@ -401,12 +401,28 @@ function blocosProprios(config) {
   return _blocos(texto).filter(b => !padrao.has(normalizar(b)));
 }
 
+// Tudo que o admin escreveu, pesquisavel por assunto: blocos proprios da 01/03
+// e as respostas rapidas da 02 (que sem isso so disparavam pela palavra-chave
+// exata — mudanca na 02 tambem tem que mandar). `resposta` preenchida = texto
+// pronto para devolver; null = extrair do proprio bloco.
+function _documentosDoAdmin(config) {
+  const docs = blocosProprios(config).map(b => ({ busca: b, resposta: null }));
+  for (const qr of ((config && config.quick_replies) || [])) {
+    if (!qr || !qr.reply || !String(qr.reply).trim()) continue;
+    docs.push({ busca: `${qr.keywords || ''}\n${qr.reply}`, resposta: String(qr.reply) });
+  }
+  return docs;
+}
+
 // Pessoas que o admin escreveu no texto da IA: "Ramais da TI: Richard ( 5051 ),
 // Marcio ( 5061 )" ou "Fernanda: 5102". O cadastro de usuarios do Hub costuma
-// estar desatualizado — o que esta escrito aqui vence.
+// estar desatualizado — o que esta escrito aqui vence. Vale para 01/03 E para
+// as respostas rapidas da 02.
 function pessoasDoTexto(config) {
   const out = [];
-  for (const b of blocosProprios(config)) {
+  const fontes = blocosProprios(config)
+    .concat(((config && config.quick_replies) || []).filter(q => q && q.reply).map(q => String(q.reply)));
+  for (const b of fontes) {
     if (!/ramal|ramais|telefone|contato/i.test(_semAcento(b))) continue;
     const setor = detectarSetor(analisar(b)) || (/\bti\b/i.test(_semAcento(b)) ? 'TI' : '');
     const re = /([A-ZÀ-Ú][\wÀ-ÿ]+(?:\s+(?:d[aeo]s?\s+)?[A-ZÀ-Ú][\wÀ-ÿ]+)*)\s*[(:—–-]\s*(\d{3,5})\s*\)?/g;
@@ -1444,7 +1460,16 @@ function responder(entrada) {
   // era isso que faltava para "mudo o texto e a resposta nao muda". So os
   // alertas graves (golpe/manipulacao) continuam acima.
   if (an.tokens.length >= 2 && !alertaGrave) {
-    const proprio = _melhorBloco(an, blocosProprios(config));
+    let proprio = null, melhorScore = 0;
+    for (const doc of _documentosDoAdmin(config)) {
+      const s = _similaridade(an, doc.busca);
+      if (s > melhorScore) {
+        melhorScore = s;
+        // Resposta rapida ja traz o texto pronto; bloco da 01/03 passa pela
+        // extracao de instrucao e pelo resumo.
+        proprio = { score: s, texto: doc.resposta || _resumirBloco(_soARespostaCadastrada(doc.busca)) };
+      }
+    }
     if (proprio && proprio.score >= 0.55) {
       return {
         reply: _juntar(proprio.texto, _chamado('a que combina com o assunto',
