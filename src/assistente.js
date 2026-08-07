@@ -377,6 +377,7 @@ const INTENCOES = [
   // ── Acesso / conta ──
   {
     id: 'senha_esqueci',
+    familia: 'acesso',
     chaves: ['esqueci senha', 'recuperar senha', 'resetar senha', 'redefinir senha', 'nao lembro senha', 'perdi senha'],
     apoio: ['senha', 'login', 'entrar', 'acessar'],
     veto: ['wifi', 'internet'],
@@ -385,6 +386,7 @@ const INTENCOES = [
   },
   {
     id: 'senha_trocar',
+    familia: 'acesso',
     chaves: ['trocar senha', 'mudar senha', 'alterar senha', 'nova senha', 'senha forte', 'requisito de senha'],
     apoio: ['senha', 'segura'],
     veto: ['wifi'],
@@ -393,6 +395,7 @@ const INTENCOES = [
   },
   {
     id: 'conta_bloqueada',
+    familia: 'acesso',
     prioridade: 5,
     chaves: ['conta bloqueada', 'usuario bloqueado', 'bloqueou', 'travou login', 'acesso negado',
       'nao consigo entrar', 'nao consigo logar', 'nao consigo login', 'nao loga', 'nao entra'],
@@ -402,11 +405,14 @@ const INTENCOES = [
   },
   {
     id: 'primeiro_acesso',
-    // "nao tenho login" saiu: colapsava para [login] e roubava "nao consigo
-    // logar", que e conta existente travada, nao funcionario novo.
-    chaves: ['primeiro acesso', 'ativar conta', 'criar conta', 'nao tenho cadastro', 'sou novo aqui',
-      'funcionario novo', 'link de ativacao', 'nunca acessei'],
-    apoio: ['cadastro', 'ativacao', 'conta', 'novo'],
+    familia: 'acesso',
+    // "nao tenho login" volta como chave (a intencao praticamente parou de
+    // disparar sem ela); quem decide contra "nao consigo logar" e a prioridade
+    // maior de conta_bloqueada, que e conta existente travada.
+    chaves: ['primeiro acesso', 'ativar conta', 'criar conta', 'nao tenho cadastro', 'nao tenho login',
+      'sem login', 'nunca entrei', 'nunca acessei', 'sou novo aqui', 'sou nova aqui',
+      'funcionario novo', 'funcionaria nova', 'link de ativacao', 'fui contratado', 'fui contratada'],
+    apoio: ['cadastro', 'ativacao', 'conta', 'novo', 'nova', 'login'],
     resposta: () => 'Conta nova é a TI que cria: você recebe um link de ativação no e-mail @granmarquise.com.br e define a senha por lá (o link expira, então usa no mesmo dia).\n\nNão recebeu? Pede pro seu gestor abrir um chamado em "Acesso / Login" com seu nome completo, setor e e-mail.',
     sugestoes: ['Requisitos da senha', 'Como abrir um chamado?'],
   },
@@ -425,6 +431,7 @@ const INTENCOES = [
   // ── Sistemas / permissoes ──
   {
     id: 'meus_sistemas',
+    familia: 'sistema',
     // Exige uma pista de ENUMERACAO ("quais", "meus", "lista"): sem isso,
     // "como acesso o sistema X" cairia aqui em vez de falar do sistema X.
     chaves: ['quais sistemas', 'meus sistemas', 'sistemas disponiveis', 'sistemas liberados', 'que sistemas existem', 'lista de sistemas', 'todos os sistemas'],
@@ -448,6 +455,7 @@ const INTENCOES = [
   },
   {
     id: 'pedir_acesso',
+    familia: 'sistema',
     chaves: ['pedir acesso', 'solicitar acesso', 'liberar acesso', 'permissao de acesso', 'nao tenho permissao', 'liberar sistema'],
     apoio: ['acesso', 'permissao', 'liberar', 'autorizar'],
     resposta: () => 'Acesso a sistema sai por chamado na categoria "Permissão de Acesso": diz qual sistema, pra quê você precisa e quem é seu gestor (a TI confirma com ele antes de liberar).\n\nAssim que liberar, o sistema aparece sozinho no seu Hub — não precisa nem sair e entrar de novo.',
@@ -455,6 +463,7 @@ const INTENCOES = [
   },
   {
     id: 'sistema_especifico',
+    familia: 'sistema',
     chaves: [],
     apoio: ['sistema', 'acessar', 'entrar', 'link', 'endereco', 'url', 'onde fica', 'como uso', 'para que serve'],
     exigeSistema: true,
@@ -486,6 +495,7 @@ const INTENCOES = [
   },
   {
     id: 'status_sistemas',
+    familia: 'sistema',
     // Intencao que AFIRMA um fato ("o sistema X esta em manutencao") — a mais
     // perigosa do catalogo quando erra. Por isso o vocabulario generico ("nao
     // abre", "manutencao") virou apoio e so responde se a pessoa citou um
@@ -501,10 +511,16 @@ const INTENCOES = [
       const generico = ['sistema', 'site', 'hub', 'portal', 'plataforma'].some(t => casaTermo(t, an) >= 0.9);
       return generico ? 0 : -2.5;
     },
-    resposta: (ctx) => {
+    resposta: (ctx, an) => {
       const fora = _listaSistemas(ctx).filter(s => s.status && s.status !== 'no-ar');
+      const citado = detectarSistema(an, ctx.sistemas);
       if (fora.length) {
-        return `Fora do normal agora: ${fora.map(s => `${s.nome} (${s.status === 'manutencao' ? 'em manutenção' : s.status})`).join(', ')}.\n\nOs demais estão no ar. Se o seu problema é em outro sistema, abre um chamado descrevendo a tela e o horário que aconteceu.`;
+        // Sem sistema citado, deixar claro que o painel cobre só os sistemas do
+        // Hub — senão vira "afirmação de fato" sobre o PMS, o PDV ou a fechadura.
+        const ressalva = citado
+          ? 'Se ainda assim não abrir pra você, abre um chamado com print da tela e o horário.'
+          : 'Isso é o painel dos sistemas do Hub. Se o que você usa é outro (PMS, PDV, ponto, fechadura), abre um chamado dizendo o nome do sistema e o que aparece na tela.';
+        return `Fora do normal agora: ${fora.map(s => `${s.nome} (${s.status === 'manutencao' ? 'em manutenção' : s.status})`).join(', ')}. Os demais estão no ar.\n\n${ressalva}`;
       }
       return 'Pelo painel do Hub está tudo no ar agora. Se mesmo assim não abre pra você, tenta atualizar a página (Ctrl+F5) e conferir a internet — persistindo, abre um chamado com print da tela e o horário.';
     },
@@ -526,6 +542,7 @@ const INTENCOES = [
   // ── Chamados ──
   {
     id: 'abrir_chamado',
+    familia: 'chamado',
     chaves: ['abrir chamado', 'novo chamado', 'como abro chamado', 'solicitar suporte', 'chamar ti', 'registrar problema'],
     apoio: ['chamado', 'suporte', 'ajuda', 'problema', 'ti'],
     resposta: () => 'No Hub abre o card "Chamados TI" → botão "Novo Chamado" → escolhe a categoria, descreve o problema e manda. Prazo de resposta: até 2h úteis.\n\nDica que acelera: diz onde você está (andar/setor), o que aparece na tela e desde quando acontece. Com print resolve mais rápido ainda.',
@@ -533,6 +550,7 @@ const INTENCOES = [
   },
   {
     id: 'acompanhar_chamado',
+    familia: 'chamado',
     chaves: ['acompanhar chamado', 'status do chamado', 'meu chamado', 'ja abri chamado', 'chamado sem resposta', 'demorando'],
     apoio: ['chamado', 'aberto', 'resposta', 'andamento', 'prazo'],
     resposta: () => 'Entra em "Chamados TI" no Hub — seus chamados ficam listados com o status (aberto, em andamento, resolvido) e o histórico de respostas.\n\nSe passou de 2h úteis sem retorno e é urgente, responde dentro do próprio chamado marcando como urgente ou liga pro ramal da TI.',
@@ -540,6 +558,7 @@ const INTENCOES = [
   },
   {
     id: 'categorias_chamado',
+    familia: 'chamado',
     chaves: ['categoria de chamado', 'quais categorias', 'que categoria escolho', 'tipo de chamado'],
     apoio: ['categoria', 'chamado', 'classificar'],
     resposta: () => 'As categorias que a TI usa: Impressora/Periférico, Acesso/Login, Permissão de Acesso, Rede/Internet, Hardware e Software.\n\nNa dúvida escolhe a mais próxima e explica direito na descrição — a TI reclassifica se precisar.',
@@ -547,6 +566,7 @@ const INTENCOES = [
   },
   {
     id: 'falar_humano',
+    familia: 'contato',
     prioridade: 6,
     chaves: ['falar com alguem', 'falar com humano', 'falar com pessoa', 'falar ti', 'falar tecnico', 'atendente', 'pessoa de verdade', 'suporte humano', 'ramal da ti', 'telefone da ti'],
     apoio: ['ti', 'tecnico', 'analista', 'suporte', 'pessoa'],
@@ -563,6 +583,7 @@ const INTENCOES = [
   // ── Ramais / pessoas ──
   {
     id: 'ramal',
+    familia: 'contato',
     prioridade: 6,
     chaves: ['ramal', 'telefone', 'contato', 'numero de', 'como ligo', 'falar com setor', 'diretorio de ramais'],
     apoio: ['ligar', 'discar', 'numero', 'setor', 'pessoa'],
@@ -589,6 +610,7 @@ const INTENCOES = [
   },
   {
     id: 'meus_dados',
+    familia: 'contato',
     chaves: ['meu ramal', 'meu setor', 'meus dados', 'meu perfil', 'meu cadastro', 'meu usuario'],
     apoio: ['perfil', 'cadastro', 'dados'],
     resposta: (ctx) => {
@@ -606,6 +628,7 @@ const INTENCOES = [
   // ── Problemas de TI ──
   {
     id: 'impressora',
+    familia: 'equipamento',
     prioridade: 5,
     chaves: ['impressora', 'imprimir', 'toner', 'cartucho', 'papel atolado', 'nao imprime', 'scanner', 'digitalizar'],
     apoio: ['fila de impressao', 'copia', 'multifuncional'],
@@ -628,6 +651,7 @@ const INTENCOES = [
   },
   {
     id: 'computador_lento',
+    familia: 'equipamento',
     prioridade: 4,
     chaves: ['computador lento', 'pc travando', 'maquina travando', 'lentidao', 'travou', 'congelou', 'nao liga', 'tela azul', 'lento'],
     apoio: ['computador', 'notebook', 'travando', 'reiniciar', 'desligou'],
@@ -636,6 +660,7 @@ const INTENCOES = [
   },
   {
     id: 'hardware',
+    familia: 'equipamento',
     prioridade: 4,
     chaves: ['mouse', 'teclado', 'monitor', 'headset', 'cabo', 'equipamento novo', 'computador novo',
       'periferico', 'camera', 'webcam', 'microfone', 'carregador', 'fonte', 'bateria'],
@@ -649,7 +674,15 @@ const INTENCOES = [
     chaves: ['instalar programa', 'instalar software', 'instalar', 'licenca', 'excel', 'word', 'office',
       'programa novo', 'atualizar programa', 'pdf', 'navegador', 'chrome', 'planilha', 'adobe', 'whatsapp web'],
     apoio: ['software', 'programa', 'aplicativo', 'sistema', 'abrir arquivo'],
-    resposta: () => 'Instalação de programa é chamado em "Software": diz qual programa, a versão (se souber) e pra que vai usar — algumas licenças são pagas e precisam do ok do gestor.\n\nO computador do hotel é bloqueado pra instalação por conta própria, então nem tenta baixar direto: é a TI que instala remotamente.',
+    // Duas situacoes bem diferentes caem aqui: pedir programa novo e programa
+    // que travou/perdeu arquivo. Responder instalacao para quem perdeu planilha
+    // e' resposta errada com categoria certa.
+    resposta: (ctx, an) => {
+      if (/trav|fech|perdi|perdeu|sumiu|corromp|nao salva|congel/.test(an.limpo)) {
+        return 'Antes de tudo: reabre o programa — Office e navegador costumam oferecer a recuperação automática do arquivo (o Excel abre um painel "Documentos recuperados" à esquerda). Vale olhar também em Arquivo → Informações → Gerenciar Pasta de Trabalho.\n\nSe o arquivo não voltar ou o programa travar sempre, abre chamado em "Software" dizendo o programa, o nome do arquivo e onde ele estava salvo — se estiver em rede, dá pra buscar versão anterior.';
+      }
+      return 'Instalação de programa é chamado em "Software": diz qual programa, a versão (se souber) e pra que vai usar — algumas licenças são pagas e precisam do ok do gestor.\n\nO computador do hotel é bloqueado pra instalação por conta própria, então nem tenta baixar direto: é a TI que instala remotamente.';
+    },
     sugestoes: ['Como abrir um chamado?'],
   },
   {
@@ -669,10 +702,17 @@ const INTENCOES = [
     id: 'ambiguo',
     soCurta: true,
     prioridade: 3,
+    // As chaves aqui sao quase-sinonimas ("nao funciona" / "nao esta
+    // funcionando" / "nao ta indo"): somar todas empilhava 8 pontos e vencia
+    // ate intencao especifica. Vale a melhor, nao a soma.
+    somaMax: true,
     // Se a pessoa nomeou a coisa, nao ha o que perguntar — quem responde e a
-    // intencao especifica ("meu mouse parou de funcionar").
+    // intencao especifica ("meu mouse parou de funcionar", "nao ta indo o outlook").
     veto: ['computador', 'notebook', 'impressora', 'mouse', 'teclado', 'monitor', 'camera',
-      'internet', 'wifi', 'rede', 'sistema', 'email', 'senha', 'telefone', 'ramal', 'site'],
+      'internet', 'wifi', 'rede', 'sistema', 'email', 'senha', 'telefone', 'ramal', 'site',
+      'outlook', 'excel', 'word', 'office', 'chrome', 'navegador', 'hub', 'pdf', 'tablet',
+      'leitor', 'aplicativo', 'programa', 'portal', 'planilha'],
+    bonus: (an, ctx) => (detectarSistema(an, ctx && ctx.sistemas) ? -5 : 0),
     chaves: ['nao funciona', 'nao esta funcionando', 'nao abre', 'nao vai', 'nao carrega',
       'deu erro', 'travou tudo', 'parou de funcionar', 'nao ta indo', 'deu problema'],
     resposta: () => 'O que exatamente não está funcionando? Me diz o equipamento ou o sistema que eu já te falo o caminho certo.',
@@ -685,14 +725,23 @@ const INTENCOES = [
   // explicita e ainda diz para quem a pessoa deve falar.
   {
     id: 'fora_escopo',
-    prioridade: 7,
-    chaves: ['ferias', 'folga', 'escala', 'holerite', 'contracheque', 'salario', 'ponto', 'banco de horas',
+    // Prioridade BAIXA: so responde quando ninguem mais pontuou. Com prioridade
+    // alta ela vencia empates e mandava embora chamado legitimo ("o pc do
+    // quarto da governanca travou") — recusar atendimento e mais caro que
+    // responder a coisa errada.
+    prioridade: 2,
+    // Palavra de TI na frase mata a intencao: num hotel, "quarto", "hospede" e
+    // "check in" sao o LOCAL do problema de TI, nao o assunto.
+    veto: ['computador', 'pc', 'notebook', 'tablet', 'impressora', 'sistema', 'senha', 'login',
+      'acesso', 'internet', 'wifi', 'rede', 'telefone', 'ramal', 'email', 'leitor', 'monitor',
+      'teclado', 'mouse', 'tela', 'aplicativo', 'chamado', 'usuario', 'maquina', 'camera'],
+    chaves: ['ferias', 'folga', 'holerite', 'contracheque', 'salario', 'banco de horas',
       'uniforme', 'vale transporte', 'vale refeicao', 'atestado', 'demissao', 'admissao', 'beneficio',
-      'refeitorio', 'buffet', 'cardapio', 'refeicao', 'treinamento', 'brigada', 'incendio',
-      'restaurante', 'desconto', 'comida',
-      'hospede', 'quarto', 'apartamento', 'check in', 'check out', 'enxoval', 'amenities',
-      'ar condicionado', 'lampada', 'vazamento', 'chuveiro', 'elevador', 'obra'],
-    apoio: ['rh', 'recursos humanos', 'governanca', 'desconto', 'beneficios'],
+      'refeitorio', 'buffet', 'cardapio', 'brigada', 'incendio', 'enxoval', 'amenities', 'desconto',
+      'ar condicionado', 'lampada', 'vazamento', 'chuveiro', 'elevador'],
+    apoio: ['rh', 'recursos humanos', 'governanca', 'beneficios', 'ponto', 'escala',
+      'treinamento', 'restaurante', 'comida', 'refeicao', 'hospede', 'quarto', 'apartamento',
+      'check in', 'check out', 'obra'],
     resposta: (ctx, an) => {
       const rh = /ferias|folga|escala|holerite|contracheque|salario|ponto|horas|uniforme|vale|atestado|demiss|admiss|benefic|trein|brigada|incendio/.test(an.limpo)
         ? 'RH' : (/ar condicionado|lampada|vazamento|chuveiro|elevador|obra/.test(an.limpo) ? 'Manutenção' : null);
@@ -724,7 +773,10 @@ const INTENCOES = [
     id: 'nao_resolveu',
     // So faz sentido depois de uma dica dada: quem chega dizendo "nao funciona"
     // na primeira mensagem esta relatando um problema, nao rejeitando a solucao.
-    bonus: (an, ctx) => (ctx && ctx._temHistorico ? 1.5 : -3),
+    // Com historico o bonus e alto de proposito — ai a rejeicao da dica e a
+    // leitura certa e precisa ganhar do "me diz o que nao funciona".
+    prioridade: 5,
+    bonus: (an, ctx) => (ctx && ctx._temHistorico ? 4 : -3),
     chaves: ['nao funcionou', 'nao deu certo', 'nao resolveu', 'continua igual', 'ja tentei isso', 'nao adiantou'],
     apoio: ['ainda', 'mesmo assim', 'continua'],
     resposta: () => 'Então isso já é caso de gente: abre um chamado contando o que você já tentou (isso poupa a TI de repetir os mesmos passos) e, se der, anexa um print do erro. Prazo de resposta é até 2h úteis.',
@@ -805,7 +857,8 @@ function pontuar(an, ctx) {
       const id = _tokens(c).map(radical).join('§');
       if (jaContou.has(id)) continue;
       jaContou.add(id);
-      score += _pesoTermo(c, true) * w;
+      const p = _pesoTermo(c, true) * w;
+      score = it.somaMax ? Math.max(score, p) : score + p;
     }
     for (const a of (it.apoio || [])) {
       const w = casaTermo(a, an);
@@ -958,7 +1011,15 @@ function responder(entrada) {
       };
     }
     // Mensagem com dois assuntos ("a impressora nao imprime E esqueci a senha").
-    const outro = ranking.find(c => c !== cand && c.score >= Math.max(LIMIAR, limiar));
+    // Intencao da MESMA familia nao conta como segundo assunto: "ramal da
+    // governanca e como abro chamado" perdia o ramal porque
+    // "acompanhar chamado" (irma de "abrir chamado") ocupava a vaga.
+    const candidatos = ranking.filter(c => c !== cand
+      && c.score >= Math.max(LIMIAR, limiar)
+      && !(cand.intencao.familia && c.intencao.familia === cand.intencao.familia));
+    // Entre os assuntos restantes, o mais grave/especifico primeiro.
+    const outro = candidatos.slice().sort((a, b) =>
+      ((b.intencao.prioridade || 0) - (a.intencao.prioridade || 0)) || (b.score - a.score))[0];
     // Assunto grave (phishing, urgencia com hospede) ou pedido direto de
     // contato nao pode virar chip de sugestao: se pontuou forte, entra ANTES
     // da resposta principal em vez de ser engolido.
