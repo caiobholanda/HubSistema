@@ -13,6 +13,7 @@ const PESQUISA_URL = process.env.PESQUISA_URL || 'https://pesquisa-satisfacao.fl
 const DIRETORIO_URL = process.env.DIRETORIO_URL || 'https://diretorio-ramais-granmarquise.fly.dev';
 const GESTAO_URL = process.env.GESTAO_URL || 'https://gestao-qualidade-granmarquise.fly.dev';
 const HUB_URL = process.env.HUB_URL || 'https://hub-granmarquise.fly.dev';
+const GROQ_API_KEY = process.env.GROQ_API_KEY || '';
 const DATA_DIR = path.join(__dirname, 'data');
 const HUB_DATA_FILE = path.join(DATA_DIR, 'hub_data.json');
 const AVATARES_DIR = path.join(DATA_DIR, 'avatares');
@@ -2636,6 +2637,74 @@ app.delete('/api/admin/updates/:id', requireAdmin, (req, res) => {
   writeData(data);
   broadcastToAll('update_delete', { id });
   res.json({ ok: true });
+});
+
+// ─── Assistente de TI (IA via Groq, chave no Fly secret) ────────────────────
+const AI_SYSTEM_PROMPT = `Você é o assistente de TI do Hotel Gran Marquise (Fortaleza, CE). Responda APENAS sobre os sistemas de TI internos do hotel. Seja direto, didático e específico. Português brasileiro. Máximo 3 parágrafos curtos. Se não souber, oriente a abrir um chamado de TI.
+
+## Hub Gran Marquise
+Central de acesso: https://hub-granmarquise.fly.dev
+Login: e-mail @granmarquise.com.br + senha forte (mín. 8 chars: maiúscula, minúscula, número, símbolo).
+Esqueceu a senha: botão "Esqueci minha senha" → checar spam → se persistir: chamado TI.
+
+## Sistemas disponíveis no Hub
+
+### 01 · Chamados TI
+URL: https://sistema-chamados-granmarquise.fly.dev
+Quem usa: TODOS os setores do hotel.
+Função: abrir chamados de TI, anexar fotos/prints, acompanhar atendimento, ver histórico.
+Como abrir: Login → "Novo Chamado" → preencher setor, descrição e prioridade → enviar. Resposta em até 2 horas úteis.
+App mobile para técnicos: https://sistema-chamados-granmarquise.fly.dev/mobile
+Categorias comuns: Impressora/Periférico, Acesso/Login, Rede/Internet, Hardware, Software.
+
+### 02 · Lista de Ramais
+URL: https://diretorio-ramais-granmarquise.fly.dev
+Quem usa: todos os colaboradores.
+Função: consultar ramal ou contato de qualquer setor sem precisar ligar para a recepção. Busca por nome ou setor.
+
+### 03 · Pesquisa de Satisfação — Gran SPA
+URL: https://pesquisa-satisfacao.fly.dev
+Quem usa: equipe do SPA e TI (acesso restrito).
+Função: gestão de atendimentos, escalas de massoterapeutas, anamnese digital, auditoria de satisfação de hóspedes.
+Painel admin: https://pesquisa-satisfacao.fly.dev/admin | Acesso terapeuta: https://pesquisa-satisfacao.fly.dev/terapeuta
+
+## Regras gerais
+- Solicitar acesso a um sistema: chamado TI → categoria "Permissão de Acesso".
+- Conta bloqueada ou sem acesso: chamado TI.
+- Problema com hardware/periférico: chamado TI → categoria "Impressora / Periférico" → informar modelo e localização.
+- Qualquer dúvida não coberta acima: oriente a abrir um chamado de TI.`;
+
+app.post('/api/ai-chat', async (req, res) => {
+  if (!GROQ_API_KEY) return res.json({ ok: false, erro: 'Assistente não configurado. Contate o TI.' });
+
+  const { messages } = req.body || {};
+  if (!Array.isArray(messages) || messages.length === 0) {
+    return res.status(400).json({ ok: false, erro: 'messages inválido.' });
+  }
+
+  const safeMessages = messages.slice(-10).map(m => ({
+    role: m.role === 'user' ? 'user' : 'assistant',
+    content: String(m.content || '').slice(0, 800)
+  }));
+
+  try {
+    const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_API_KEY}` },
+      body: JSON.stringify({
+        model: 'llama-3.1-8b-instant',
+        messages: [{ role: 'system', content: AI_SYSTEM_PROMPT }, ...safeMessages],
+        max_tokens: 400,
+        temperature: 0.4
+      })
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error?.message || `Erro ${resp.status}`);
+    const reply = data.choices?.[0]?.message?.content?.trim() || 'Não consegui gerar uma resposta.';
+    res.json({ ok: true, reply });
+  } catch (e) {
+    res.status(500).json({ ok: false, erro: e.message });
+  }
 });
 
 // ─── Webhook de deploy (chamado pelo CI de cada satélite) ────────────────────

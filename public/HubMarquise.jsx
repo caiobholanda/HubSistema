@@ -7239,36 +7239,39 @@ function AIChatWidget({ isMobile }) {
 
   const SUGGESTIONS = ['Como abrir um chamado?', 'Esqueci minha senha', 'Quais sistemas tenho acesso?'];
 
-  function reply(text) {
-    const t = text.toLowerCase();
-    if (/chamado|suporte|ticket|problema/.test(t))
-      return 'Para abrir um chamado: acesse o Sistema de Chamados TI, clique em "Novo Chamado" e descreva o problema. A equipe responde em até 2 horas úteis.';
-    if (/senha|login|acesso|entrar|bloqueado/.test(t))
-      return 'Use "Esqueci minha senha" na tela de login. Verifique a caixa de spam. Se não funcionar, abra um chamado com a categoria "Acesso / Login".';
-    if (/sistema|permissão|liberar/.test(t))
-      return 'Seus sistemas liberados aparecem aqui no Hub. Para solicitar acesso a um novo sistema, abra um chamado com a categoria "Permissão de Acesso".';
-    if (/pesquisa|satisfação|spa|massagem/.test(t))
-      return 'A Pesquisa de Satisfação do SPA coleta feedback de clientes após os atendimentos. Acesse pelo Hub ou fale com o TI para treinamento.';
-    if (/ramal|telefone|contato|setor|departamento/.test(t))
-      return 'O Diretório de Ramais reúne todos os contatos internos do hotel. Busque por nome ou setor na listagem.';
-    if (/impressora|toner|periférico|mouse|teclado/.test(t))
-      return 'Para periféricos ou toneres, abra um chamado com a categoria "Impressora / Periférico" e informe o modelo e a localização.';
-    if (/obrigad|valeu|ótimo|perfeito|entendi/.test(t))
-      return 'Disponha! Qualquer coisa, pode chamar. 👋';
-    return 'Para questões específicas, abra um chamado no Sistema de Chamados TI — a equipe responde em até 2 horas úteis.';
-  }
-
-  function send(text) {
+  async function send(text) {
     const txt = text.trim();
     if (!txt || typing) return;
+
+    // Captura histórico atual antes do setState (que é assíncrono)
+    const history = msgs
+      .filter(m => m.from === 'user' || m.from === 'bot')
+      .map(m => ({ role: m.from === 'user' ? 'user' : 'assistant', content: m.text }))
+      .concat({ role: 'user', content: txt })
+      .slice(-10);
+
     setMsgs(prev => [...prev, { id: ++idRef.current, from: 'user', text: txt }]);
     setInput('');
     if (inputRef.current) { inputRef.current.style.height = 'auto'; }
     setTyping(true);
-    setTimeout(() => {
+
+    try {
+      const r = await fetch('/api/ai-chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: history })
+      });
+      const d = await r.json();
       setTyping(false);
-      setMsgs(prev => [...prev, { id: ++idRef.current, from: 'bot', text: reply(txt) }]);
-    }, 900 + Math.random() * 600);
+      setMsgs(prev => [...prev, {
+        id: ++idRef.current,
+        from: 'bot',
+        text: d.ok ? d.reply : (d.erro || 'Não consegui responder agora. Tente novamente.')
+      }]);
+    } catch {
+      setTyping(false);
+      setMsgs(prev => [...prev, { id: ++idRef.current, from: 'bot', text: 'Erro de conexão. Verifique sua internet e tente novamente.' }]);
+    }
   }
 
   const C = HUB_PALETTE;
