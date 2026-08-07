@@ -1472,7 +1472,7 @@ function AssistenteIAPanel({ isMobile }) {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 7, alignItems: 'center' }}>
                     {qr.keywords.split(',').map(k => k.trim()).filter(Boolean).map((k, ki) => (
-                      <span key={ki} style={{ background: `${C.champanhe}28`, border: `1px solid ${C.champanhe}55`, color: C.champanhe, fontFamily: MONO, fontSize: 11, padding: '2px 9px', letterSpacing: '0.08em' }}>{k}</span>
+                      <span key={ki} title={k} style={{ background: `${C.champanhe}28`, border: `1px solid ${C.champanhe}55`, color: C.champanhe, fontFamily: MONO, fontSize: 11, padding: '2px 9px', letterSpacing: '0.08em', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'inline-block' }}>{k}</span>
                     ))}
                     {editingQR !== qr.id && (
                       addingKwToId === qr.id ? (
@@ -7643,7 +7643,10 @@ function AIChatWidget({ isMobile }) {
   useEffect(() => { if (open && inputRef.current) setTimeout(() => inputRef.current && inputRef.current.focus(), 220); }, [open]);
   useEffect(() => { if (msgsEnd.current) msgsEnd.current.scrollIntoView({ behavior: 'smooth' }); }, [msgs, typing]);
 
-  const SUGGESTIONS = ['Como abrir um chamado?', 'Esqueci minha senha', 'Quais sistemas tenho acesso?'];
+  const SUGGESTIONS_INICIAIS = ['Como abrir um chamado?', 'Esqueci minha senha', 'Quais sistemas tenho acesso?'];
+  // O motor devolve os proximos passos de cada resposta; enquanto nao houver,
+  // ficam as sugestoes de abertura.
+  const [suggestions, setSuggestions] = useState(SUGGESTIONS_INICIAIS);
 
   async function send(text) {
     const txt = text.trim();
@@ -7662,9 +7665,15 @@ function AIChatWidget({ isMobile }) {
     setTyping(true);
 
     try {
+      // Com o token, o assistente responde com o dado real do usuário (sistemas
+      // liberados, ramais, cadastro). Sem token ele responde só o genérico.
+      const token = localStorage.getItem('hub_sso_token');
       const r = await fetch('/api/ai-chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ messages: history })
       });
       const d = await r.json();
@@ -7674,6 +7683,7 @@ function AIChatWidget({ isMobile }) {
         from: 'bot',
         text: d.ok ? d.reply : (d.erro || 'Não consegui responder agora. Tente novamente.')
       }]);
+      setSuggestions(Array.isArray(d.sugestoes) && d.sugestoes.length ? d.sugestoes : []);
     } catch {
       setTyping(false);
       setMsgs(prev => [...prev, { id: ++idRef.current, from: 'bot', text: 'Erro de conexão. Verifique sua internet e tente novamente.' }]);
