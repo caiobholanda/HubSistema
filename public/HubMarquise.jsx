@@ -1275,6 +1275,8 @@ function AssistenteIAPanel({ isMobile }) {
   const [qrForm, setQrForm] = useState({ keywords: '', reply: '' });
   const [qrError, setQrError] = useState('');
   const [deletingId, setDeletingId] = useState(null);
+  const [addingKwToId, setAddingKwToId] = useState(null);
+  const [newKwText, setNewKwText] = useState('');
   const [showPreview, setShowPreview] = useState(false);
   const [previewText, setPreviewText] = useState('');
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -1334,6 +1336,18 @@ function AssistenteIAPanel({ isMobile }) {
   }
 
   function removeQR(id) { setQuickReplies(prev => prev.filter(q => q.id !== id)); setDeletingId(null); }
+
+  function addKeyword(qrId) {
+    const kw = newKwText.trim();
+    setAddingKwToId(null); setNewKwText('');
+    if (!kw) return;
+    setQuickReplies(prev => prev.map(q => {
+      if (q.id !== qrId) return q;
+      const existing = q.keywords.split(',').map(k => k.trim()).filter(Boolean);
+      if (existing.includes(kw)) return q;
+      return { ...q, keywords: [...existing, kw].join(', ') };
+    }));
+  }
 
   const C = HUB_PALETTE;
   const MONO = "'JetBrains Mono', monospace";
@@ -1456,10 +1470,29 @@ function AssistenteIAPanel({ isMobile }) {
               <div style={{ background: editingQR === qr.id ? `${C.champanhe}14` : `${C.champanhe}0a`, border: `1px solid ${editingQR === qr.id ? C.champanhe + '66' : C.champanhe + '30'}`, padding: '13px 14px', display: 'flex', gap: 12, alignItems: 'flex-start', transition: 'all 200ms' }}>
                 <span style={{ fontFamily: MONO, fontSize: 12, color: C.champanhe, letterSpacing: '0.12em', flexShrink: 0, paddingTop: 2 }}>{String(idx + 1).padStart(2, '0')}</span>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 7 }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 7, alignItems: 'center' }}>
                     {qr.keywords.split(',').map(k => k.trim()).filter(Boolean).map((k, ki) => (
                       <span key={ki} style={{ background: `${C.champanhe}28`, border: `1px solid ${C.champanhe}55`, color: C.champanhe, fontFamily: MONO, fontSize: 11, padding: '2px 9px', letterSpacing: '0.08em' }}>{k}</span>
                     ))}
+                    {editingQR !== qr.id && (
+                      addingKwToId === qr.id ? (
+                        <input
+                          autoFocus
+                          value={newKwText}
+                          onChange={e => setNewKwText(e.target.value)}
+                          onKeyDown={e => { if (e.key === 'Enter') addKeyword(qr.id); if (e.key === 'Escape') { setAddingKwToId(null); setNewKwText(''); } }}
+                          onBlur={() => addKeyword(qr.id)}
+                          placeholder="nova palavra..."
+                          style={{ background: `${C.champanhe}18`, border: `1px solid ${C.champanhe}77`, color: C.marfim, fontFamily: MONO, fontSize: 11, padding: '2px 9px', outline: 'none', width: 120, letterSpacing: '0.04em' }}
+                        />
+                      ) : (
+                        <button
+                          onClick={() => { setAddingKwToId(qr.id); setNewKwText(''); }}
+                          style={{ background: 'none', border: `1px dashed ${C.champanhe}44`, color: C.champanhe, fontFamily: MONO, fontSize: 10, padding: '2px 8px', cursor: 'pointer', letterSpacing: '0.12em', lineHeight: 1 }}
+                          title="Adicionar palavra-chave"
+                        >+ kw</button>
+                      )
+                    )}
                   </div>
                   <div style={{ fontFamily: BODY, fontSize: 14, color: C.marfim, lineHeight: 1.55 }}>{qr.reply}</div>
                 </div>
