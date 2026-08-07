@@ -1280,6 +1280,8 @@ function AssistenteIAPanel({ isMobile }) {
   const [addingKwToId, setAddingKwToId] = useState(null);
   const [newKwText, setNewKwText] = useState('');
   const [localBaseEdit, setLocalBaseEdit] = useState('');
+  const [editingBase, setEditingBase] = useState(false);
+  const [defaultPromptText, setDefaultPromptText] = useState('');
   const [confirmSavePrompt, setConfirmSavePrompt] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [previewText, setPreviewText] = useState('');
@@ -1302,7 +1304,17 @@ function AssistenteIAPanel({ isMobile }) {
       .finally(() => { setLoading(false); setTimeout(() => { readyRef.current = true; }, 0); });
   }
 
-  useEffect(() => { carregarConfig(); }, []);
+  useEffect(() => {
+    carregarConfig();
+    const token = localStorage.getItem('hub_sso_token');
+    if (isMaster) {
+      fetch('/api/admin/ai-default-prompt', { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.json()).then(d => { if (d.ok) setDefaultPromptText(d.prompt); }).catch(() => {});
+    } else {
+      fetch('/api/admin/ai-preview', { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.json()).then(d => { if (d.ok) setPreviewText(d.prompt); }).catch(() => {});
+    }
+  }, []);
 
   async function save(ci, qr, bp) {
     setSaving(true); setSaveErr(''); setSavedAt(null);
@@ -1344,6 +1356,7 @@ function AssistenteIAPanel({ isMobile }) {
 
   async function confirmarSalvarBase() {
     setConfirmSavePrompt(false);
+    setEditingBase(false);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     basePromptRef.current = localBaseEdit;
     setBasePrompt(localBaseEdit);
@@ -1442,20 +1455,11 @@ function AssistenteIAPanel({ isMobile }) {
           <div style={{ fontFamily: MONO, fontSize: 12, color: C.areia, letterSpacing: '0.08em', lineHeight: 1.5 }}>
             Use marcadores (·) para listar itens. Limpe este campo quando não for mais necessário.
           </div>
-          <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-            <button
-              onClick={() => setCustomInfo('· Impressora do 3º andar em manutenção até sexta (11/08)\n· Novo ramal da Recepção: 5001\n· Rede nos quartos 301–320 instável esta semana\n· Para urgências fora do horário: (85) 9xxxx-xxxx')}
-              style={{ background: 'none', border: `1px solid ${C.champanhe}33`, color: C.champanhe, fontFamily: MONO, fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', padding: '6px 12px', cursor: 'pointer', transition: 'background 150ms' }}
-              onMouseEnter={e => { e.currentTarget.style.background = `${C.champanhe}12`; }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'none'; }}
-              title="Inserir textos de exemplo para editar"
-            >↓ Usar exemplos</button>
-            <button
-              onClick={() => { if (debounceRef.current) clearTimeout(debounceRef.current); save(customInfo, quickReplies, basePrompt); }}
-              disabled={saving}
-              style={{ background: saving ? `${C.champanhe}55` : C.champanhe, color: C.noite, fontFamily: MONO, fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', padding: '6px 16px', border: 'none', cursor: saving ? 'not-allowed' : 'pointer', transition: 'background 200ms' }}
-            >{saving ? 'Salvando...' : '✓ Salvar'}</button>
-          </div>
+          <button
+            onClick={() => { if (debounceRef.current) clearTimeout(debounceRef.current); save(customInfo, quickReplies, basePromptRef.current); }}
+            disabled={saving}
+            style={{ background: saving ? `${C.champanhe}55` : C.champanhe, color: C.noite, fontFamily: MONO, fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', padding: '6px 16px', border: 'none', cursor: saving ? 'not-allowed' : 'pointer', transition: 'background 200ms', flexShrink: 0 }}
+          >{saving ? 'Salvando...' : '✓ Salvar'}</button>
         </div>
       </div>
 
@@ -1555,50 +1559,39 @@ function AssistenteIAPanel({ isMobile }) {
 
       {/* 03 · Contexto Completo */}
       <div style={{ marginBottom: 40, paddingTop: 32, borderTop: `1px solid ${C.champanhe}30` }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: showPreview ? 16 : 0 }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-              <div style={{ fontFamily: MONO, fontSize: 11, letterSpacing: '0.3em', textTransform: 'uppercase', color: C.champanhe }}>03 · Contexto Completo da IA</div>
-              {isMaster && <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', background: `${C.champanhe}18`, border: `1px solid ${C.champanhe}44`, color: C.champanhe, padding: '1px 7px' }}>editável</span>}
-            </div>
-            <div style={{ fontFamily: BODY, fontSize: 14, color: C.areia, lineHeight: 1.5 }}>
-              {isMaster ? 'Prompt base enviado à IA. Edite e salve para personalizar o comportamento.' : 'Exatamente o que a IA recebe antes de cada resposta — base + configurações salvas'}
-            </div>
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+            <div style={{ fontFamily: MONO, fontSize: 11, letterSpacing: '0.3em', textTransform: 'uppercase', color: C.champanhe }}>03 · Contexto Completo da IA</div>
+            {isMaster && <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', background: `${C.champanhe}18`, border: `1px solid ${C.champanhe}44`, color: C.champanhe, padding: '1px 7px' }}>editável</span>}
           </div>
-          <button
-            onClick={async () => {
-              if (!showPreview && !isMaster) {
-                setPreviewLoading(true);
-                try {
-                  const token = localStorage.getItem('hub_sso_token');
-                  const r = await fetch('/api/admin/ai-preview', { headers: { Authorization: `Bearer ${token}` } });
-                  const d = await r.json();
-                  if (d.ok) setPreviewText(d.prompt);
-                } catch {}
-                setPreviewLoading(false);
-              }
-              if (!showPreview && isMaster) setLocalBaseEdit(basePrompt);
-              setShowPreview(v => !v);
-            }}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: `1px solid ${C.champanhe}33`, color: C.champanhe, fontFamily: MONO, fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', padding: '8px 14px', cursor: 'pointer', flexShrink: 0, marginLeft: 20, transition: 'background 150ms' }}
-            onMouseEnter={e => { e.currentTarget.style.background = `${C.champanhe}12`; }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'none'; }}
-          >
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              {showPreview ? <><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></> : <><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></>}
-            </svg>
-            {previewLoading ? 'Carregando...' : showPreview ? 'Fechar' : isMaster ? 'Editar base' : 'Visualizar'}
-          </button>
+          <div style={{ fontFamily: BODY, fontSize: 14, color: C.areia, lineHeight: 1.5 }}>
+            {isMaster ? 'Prompt base enviado à IA. Clique no texto para editar.' : 'Exatamente o que a IA recebe antes de cada resposta — base + configurações salvas'}
+          </div>
         </div>
 
-        {showPreview && isMaster && (
+        {isMaster && !editingBase && (
+          <div
+            onClick={() => setEditingBase(true)}
+            title="Clique para editar"
+            style={{ display: 'flex', cursor: 'text', position: 'relative', userSelect: 'none' }}
+          >
+            <div style={{ width: 3, flexShrink: 0, background: `linear-gradient(180deg, ${C.champanhe}cc 0%, ${C.champanhe}22 100%)` }} />
+            <pre style={{ flex: 1, margin: 0, background: `${C.champanhe}0a`, border: `1px solid ${C.champanhe}35`, borderLeft: 'none', color: C.areia, fontFamily: MONO, fontSize: 12, lineHeight: 1.8, padding: '16px 18px', paddingBottom: 36, whiteSpace: 'pre-wrap', wordBreak: 'break-word', overflowX: 'auto' }}>
+              {localBaseEdit || defaultPromptText || '(prompt padrão do sistema)'}
+            </pre>
+            <div style={{ position: 'absolute', bottom: 10, right: 12, fontFamily: MONO, fontSize: 10, color: `${C.areia}55`, letterSpacing: '0.15em', textTransform: 'uppercase', pointerEvents: 'none' }}>clique para editar</div>
+          </div>
+        )}
+
+        {isMaster && editingBase && (
           <div>
             <div style={{ display: 'flex' }}>
               <div style={{ width: 3, flexShrink: 0, background: `linear-gradient(180deg, ${C.champanhe}cc 0%, ${C.champanhe}22 100%)` }} />
               <textarea
+                autoFocus
                 value={localBaseEdit}
                 onChange={e => setLocalBaseEdit(e.target.value.slice(0, 10000))}
-                placeholder={'Deixe vazio para usar o prompt padrão do sistema.\n\nUse o botão "↓ Carregar padrão" abaixo para editar a partir do texto padrão.'}
+                placeholder="Deixe vazio para usar o prompt padrão do sistema."
                 style={{ flex: 1, minHeight: 300, background: `${C.champanhe}0e`, border: `1px solid ${C.champanhe}35`, borderLeft: 'none', color: C.marfim, fontFamily: MONO, fontSize: 12, lineHeight: 1.8, padding: '16px 18px', resize: 'vertical', outline: 'none', letterSpacing: '0.025em', boxSizing: 'border-box' }}
               />
             </div>
@@ -1606,16 +1599,14 @@ function AssistenteIAPanel({ isMobile }) {
               <span style={{ fontFamily: MONO, fontSize: 11, color: localBaseEdit.length > 9000 ? '#E07A5F' : C.areia, letterSpacing: '0.08em' }}>
                 {localBaseEdit.length}/10000{localBaseEdit.length === 0 && ' · usando prompt padrão'}
               </span>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                {localBaseEdit.length === 0 && (
-                  <button onClick={async () => { try { const token = localStorage.getItem('hub_sso_token'); const r = await fetch('/api/admin/ai-default-prompt', { headers: { Authorization: `Bearer ${token}` } }); const d = await r.json(); if (d.ok) setLocalBaseEdit(d.prompt); } catch {} }} style={{ background: 'none', border: 'none', color: C.areia, fontFamily: MONO, fontSize: 10, cursor: 'pointer', letterSpacing: '0.12em', textTransform: 'uppercase', padding: '4px 0', transition: 'color 150ms' }} onMouseEnter={e => e.currentTarget.style.color = C.marfim} onMouseLeave={e => e.currentTarget.style.color = C.areia}>↓ Carregar padrão</button>
-                )}
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                 {localBaseEdit !== basePrompt && localBaseEdit.length > 0 && (
                   <button onClick={() => setLocalBaseEdit(basePrompt)} style={{ background: 'none', border: 'none', color: C.areia, fontFamily: MONO, fontSize: 10, cursor: 'pointer', letterSpacing: '0.12em', textTransform: 'uppercase', padding: '4px 0', transition: 'color 150ms' }} onMouseEnter={e => e.currentTarget.style.color = C.marfim} onMouseLeave={e => e.currentTarget.style.color = C.areia}>↺ Desfazer</button>
                 )}
                 {localBaseEdit.length > 0 && localBaseEdit === basePrompt && (
                   <button onClick={() => setLocalBaseEdit('')} style={{ background: 'none', border: 'none', color: '#E07A5F88', fontFamily: MONO, fontSize: 10, cursor: 'pointer', letterSpacing: '0.12em', textTransform: 'uppercase', padding: '4px 0', transition: 'color 150ms' }} onMouseEnter={e => e.currentTarget.style.color = '#E07A5F'} onMouseLeave={e => e.currentTarget.style.color = '#E07A5F88'}>✕ Voltar ao padrão</button>
                 )}
+                <button onClick={() => { setEditingBase(false); setLocalBaseEdit(basePrompt); }} style={{ background: 'none', border: `1px solid ${C.areia}55`, color: C.areia, fontFamily: MONO, fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', padding: '9px 16px', cursor: 'pointer', transition: 'all 150ms' }} onMouseEnter={e => { e.currentTarget.style.borderColor = C.areia; e.currentTarget.style.color = C.marfim; }} onMouseLeave={e => { e.currentTarget.style.borderColor = `${C.areia}55`; e.currentTarget.style.color = C.areia; }}>Cancelar</button>
                 <button
                   onClick={() => setConfirmSavePrompt(true)}
                   disabled={localBaseEdit === basePrompt}
@@ -1628,13 +1619,16 @@ function AssistenteIAPanel({ isMobile }) {
           </div>
         )}
 
-        {showPreview && !isMaster && previewText && (
+        {!isMaster && previewText && (
           <div style={{ position: 'relative' }}>
             <div style={{ position: 'absolute', top: 10, right: 10, fontFamily: MONO, fontSize: 10, color: C.areia, letterSpacing: '0.2em', textTransform: 'uppercase' }}>somente leitura</div>
             <pre style={{ margin: 0, background: `${C.champanhe}0a`, border: `1px solid ${C.champanhe}30`, color: C.areia, fontFamily: MONO, fontSize: 12, lineHeight: 1.75, padding: '18px 16px', paddingRight: 80, overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 420, overflowY: 'auto' }}>
               {previewText}
             </pre>
           </div>
+        )}
+        {!isMaster && !previewText && (
+          <div style={{ fontFamily: MONO, fontSize: 12, color: `${C.areia}55`, letterSpacing: '0.15em' }}>Carregando...</div>
         )}
       </div>
 
@@ -1680,7 +1674,7 @@ function AssistenteIAPanel({ isMobile }) {
       {/* Modal confirmar salvar prompt base */}
       {confirmSavePrompt && ReactDOM.createPortal(
         <div
-          style={{ position: 'fixed', inset: 0, zIndex: 400, background: 'rgba(8,5,3,0.92)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+          style={{ position: 'fixed', inset: 0, zIndex: 400, background: 'rgba(8,5,3,0.52)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
           onClick={e => { if (e.target === e.currentTarget) setConfirmSavePrompt(false); }}
         >
           <div style={{ background: '#110c08', border: `1px solid ${C.champanhe}55`, maxWidth: 500, width: '100%', boxShadow: `0 0 0 1px ${C.champanhe}14, 0 40px 100px rgba(0,0,0,0.85)`, overflow: 'hidden' }}>
