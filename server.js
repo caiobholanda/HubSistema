@@ -2640,39 +2640,19 @@ app.delete('/api/admin/updates/:id', requireAdmin, (req, res) => {
 });
 
 // ─── Assistente de TI (IA via Groq, chave no Fly secret) ────────────────────
-const AI_BASE_PROMPT = `Você é o assistente de TI do Hotel Gran Marquise (Fortaleza, CE). Responda APENAS sobre os sistemas de TI internos do hotel. Seja direto, didático e específico. Português brasileiro. Máximo 3 parágrafos curtos. Se não souber, oriente a abrir um chamado de TI.
+const AI_BASE_PROMPT = `Você é o assistente de TI do Gran Marquise. Responda de forma direta, curta e humana — como um colega de TI que sabe a resposta. Sem introduções, sem "Olá!", sem enrolação. Português brasileiro informal. Máximo 2 parágrafos curtos. Se não souber, diga e mande abrir chamado.
 
-## Hub Gran Marquise
-Central de acesso: https://hub-granmarquise.fly.dev
-Login: e-mail @granmarquise.com.br + senha forte (mín. 8 chars: maiúscula, minúscula, número, símbolo).
-Esqueceu a senha: botão "Esqueci minha senha" → checar spam → se persistir: chamado TI.
+Sistemas disponíveis no Hub (hub-granmarquise.fly.dev):
 
-## Sistemas disponíveis no Hub
+1. Chamados TI (sistema-chamados-granmarquise.fly.dev) — todos os setores usam. Abrir: login → "Novo Chamado" → setor + descrição + prioridade. Resposta em até 2h úteis. Categorias: Impressora/Periférico, Acesso/Login, Rede/Internet, Hardware, Software.
 
-### 01 · Chamados TI
-URL: https://sistema-chamados-granmarquise.fly.dev
-Quem usa: TODOS os setores do hotel.
-Função: abrir chamados de TI, anexar fotos/prints, acompanhar atendimento, ver histórico.
-Como abrir: Login → "Novo Chamado" → preencher setor, descrição e prioridade → enviar. Resposta em até 2 horas úteis.
-App mobile para técnicos: https://sistema-chamados-granmarquise.fly.dev/mobile
-Categorias comuns: Impressora/Periférico, Acesso/Login, Rede/Internet, Hardware, Software.
+2. Diretório de Ramais (diretorio-ramais-granmarquise.fly.dev) — ramal de qualquer setor ou colaborador, busca por nome.
 
-### 02 · Lista de Ramais
-URL: https://diretorio-ramais-granmarquise.fly.dev
-Quem usa: todos os colaboradores.
-Função: consultar ramal ou contato de qualquer setor sem precisar ligar para a recepção. Busca por nome ou setor.
+3. Pesquisa de Satisfação SPA (pesquisa-satisfacao.fly.dev) — acesso restrito à equipe do SPA e TI. Gestão de atendimentos, escalas, anamnese.
 
-### 03 · Pesquisa de Satisfação — Gran SPA
-URL: https://pesquisa-satisfacao.fly.dev
-Quem usa: equipe do SPA e TI (acesso restrito).
-Função: gestão de atendimentos, escalas de massoterapeutas, anamnese digital, auditoria de satisfação de hóspedes.
-Painel admin: https://pesquisa-satisfacao.fly.dev/admin | Acesso terapeuta: https://pesquisa-satisfacao.fly.dev/terapeuta
+Acesso ao Hub: e-mail @granmarquise.com.br + senha (mín. 8 chars com maiúscula, número e símbolo). Esqueceu a senha → "Esqueci minha senha" na tela de login → checar spam. Se não funcionar → chamado TI "Acesso/Login".
 
-## Regras gerais
-- Solicitar acesso a um sistema: chamado TI → categoria "Permissão de Acesso".
-- Conta bloqueada ou sem acesso: chamado TI.
-- Problema com hardware/periférico: chamado TI → categoria "Impressora / Periférico" → informar modelo e localização.
-- Qualquer dúvida não coberta acima: oriente a abrir um chamado de TI.`;
+Solicitar acesso a sistema → chamado TI categoria "Permissão de Acesso". Para qualquer problema que não conseguir resolver → chamado TI.`;
 
 function buildSystemPrompt(customInfo, quickReplies) {
   let prompt = AI_BASE_PROMPT;
@@ -2717,29 +2697,29 @@ function smartReply(userMessage, customInfo, quickReplies) {
     if (kws.some(k => k && msg.includes(k))) return qr.reply;
   }
 
-  if (/chamado|suporte|ticket|problema|abrir|ajuda/.test(msg))
-    return 'Para abrir um chamado, acesse o Sistema de Chamados TI no Hub, clique em "Novo Chamado" e descreva o problema. Você pode anexar fotos e acompanhar o atendimento. Prazo de resposta: até 2 horas úteis.';
-  if (/senha|login|entrar|bloqueado|esqueci/.test(msg))
-    return 'Para redefinir sua senha, clique em "Esqueci minha senha" na tela de login e informe seu e-mail @granmarquise.com.br. Verifique também a caixa de spam. Problema persistindo? Abra um chamado com a categoria "Acesso / Login".';
-  if (/ramal|telefone|contato|ligar|falar/.test(msg))
-    return 'O Diretório de Ramais está disponível no Hub. Encontre o ramal de qualquer colaborador ou setor com busca por nome ou departamento — sem precisar ligar para a recepção.';
-  if (/impressora|toner|periférico|mouse|teclado|monitor/.test(msg))
-    return 'Abra um chamado de TI com a categoria "Impressora / Periférico". Informe o modelo e a localização (andar e setor) para agilizar o atendimento.';
-  if (/rede|internet|wifi|wi-fi|conexão|lento|sem acesso/.test(msg))
-    return 'Abra um chamado com a categoria "Rede / Internet". Descreva o setor afetado e se o problema ocorre em todos os dispositivos ou apenas em um.';
+  if (/chamado|suporte|ticket|abrir chamado/.test(msg))
+    return 'No Hub, entra no "Chamados TI" → "Novo Chamado" → preenche setor, descreve o problema e manda. A gente responde em até 2h úteis.';
+  if (/senha|login|entrar|bloqueado|esqueci|acesso negado/.test(msg))
+    return 'Clica em "Esqueci minha senha" na tela de login e usa o e-mail @granmarquise.com.br. Checa o spam também. Se ainda não funcionar, abre um chamado em "Acesso / Login".';
+  if (/ramal|telefone|contato|ligar|falar com/.test(msg))
+    return 'Acessa o Diretório de Ramais no Hub — busca por nome ou setor e já aparece o ramal. Mais rápido do que ligar pra recepção perguntar.';
+  if (/impressora|toner|periférico|mouse|teclado|monitor|scanner/.test(msg))
+    return 'Abre um chamado em "Impressora / Periférico". Coloca o modelo do equipamento e onde ele fica (andar e setor) — assim a gente vai direto lá.';
+  if (/rede|internet|wifi|wi-fi|conexão|lento|sem internet/.test(msg))
+    return 'Abre um chamado em "Rede / Internet". Descreve o setor afetado e se tá acontecendo em todos os computadores ou só em um.';
   if (/spa|pesquisa|satisfação|massagem|terapeuta|anamnese/.test(msg))
-    return 'A Pesquisa de Satisfação do SPA está no Hub com acesso restrito à equipe do SPA e TI. Para solicitar acesso, abra um chamado com a categoria "Permissão de Acesso".';
-  if (/acesso|permissão|liberar|sistema|instalar|software/.test(msg))
-    return 'Para solicitar acesso a um sistema ou instalação de software, abra um chamado com a categoria "Permissão de Acesso" ou "Software", descrevendo o que precisa e o motivo.';
+    return 'A Pesquisa do SPA tem acesso restrito à equipe do SPA e TI. Pra pedir acesso, abre um chamado em "Permissão de Acesso".';
+  if (/acesso|permissão|liberar|instalar|software/.test(msg))
+    return 'Abre um chamado em "Permissão de Acesso" ou "Software" explicando o que precisa e por quê. A gente analisa e libera.';
   if (/hub|central|sistemas|portal/.test(msg))
-    return 'O Hub Gran Marquise (hub-granmarquise.fly.dev) é a central de acesso a todos os sistemas internos. Faça login com seu e-mail @granmarquise.com.br para ver os sistemas disponíveis para você.';
-  if (/obrigad|valeu|ótimo|perfeito|entendi/.test(msg))
-    return 'Disponha! Se precisar de mais alguma coisa, estou por aqui. 😊';
+    return 'O Hub (hub-granmarquise.fly.dev) centraliza tudo. Entra com seu @granmarquise.com.br e aparece só o que você tem acesso.';
+  if (/obrigad|valeu|ótimo|perfeito|entendi|blz|ok/.test(msg))
+    return 'Boa! Qualquer outra coisa é só chamar.';
 
   if (customInfo && customInfo.trim())
-    return `Com base nas informações atuais do TI:\n\n${customInfo.trim()}\n\nPara dúvidas adicionais, abra um chamado de TI.`;
+    return `${customInfo.trim()}\n\nQualquer outra dúvida, abre um chamado de TI.`;
 
-  return 'Para essa questão, abra um chamado no Sistema de Chamados TI — a equipe atende em até 2 horas úteis. Posso ajudar com: senhas, ramais, impressoras, rede, acesso a sistemas ou abertura de chamados.';
+  return 'Não tenho essa informação aqui. Abre um chamado no Sistema de Chamados — a equipe responde em até 2h úteis.';
 }
 
 app.post('/api/ai-chat', async (req, res) => {
