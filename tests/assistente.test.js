@@ -195,6 +195,36 @@ test('contexto adicional responde por bloco relevante, nao despeja tudo', () => 
   assert.doesNotMatch(r.reply, /estacionamento/i);
 });
 
+// O admin de produção escreve o contexto adicional em forma de instrução
+// ("quando perguntarem X, responde com esse texto (Y)"). O usuário final não
+// pode receber o recado interno, e a dica genérica não pode passar na frente
+// de um procedimento cadastrado que casa com a pergunta.
+test('procedimento cadastrado pelo admin ganha da resposta generica', () => {
+  const config = {
+    custom_info: 'Quando aparecer alguma palavra parecida ou igual a essas ( cortando o valor no extrato, extrato desconfigurado, minha comanda cortando impressão ) responde com esse texto ( Para que isso não ocorra, mude o formato do papel no app antes de imprimir, altere para o tamanho 72,0 x 3276,0mm )',
+  };
+  const r = perguntar('minha comanda esta cortando a impressao', CTX, config);
+  assert.strictEqual(r.intencao, 'contexto_admin');
+  assert.match(r.reply, /mude o formato do papel/);
+  assert.doesNotMatch(r.reply, /responde com esse texto/i);
+  assert.match(r.reply, /Novo Chamado/); // continua oferecendo o chamado
+});
+
+// REGRESSAO: "ja tentei isso" batia com esse mesmo bloco só pela palavra
+// "isso" e devolvia procedimento de impressora.
+test('bloco do admin nao responde por casamento de palavra fraca', () => {
+  const config = { custom_info: 'Para que isso não ocorra, mude o formato do papel no app antes de imprimir.' };
+  for (const f of ['ja tentei isso', 'isso mesmo', 'e isso ai']) {
+    assert.notStrictEqual(perguntar(f, CTX, config).intencao, 'contexto_admin', f);
+  }
+});
+
+test('respostas que fecham a porta exigem evidencia cheia', () => {
+  // "extrato" parecia com "atestado" e uma frase de 2 palavras virava "foge da TI".
+  assert.notStrictEqual(perguntar('o extrato esta desconfigurado').intencao, 'fora_escopo');
+  assert.strictEqual(perguntar('quando sai meu holerite').intencao, 'fora_escopo');
+});
+
 test('pergunta fora de escopo cai no chamado, sem inventar', () => {
   const r = perguntar('qual a taxa de ocupacao do hotel no trimestre passado?');
   assert.strictEqual(r.intencao, 'desconhecido');

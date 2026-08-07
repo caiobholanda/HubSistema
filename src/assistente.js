@@ -275,12 +275,19 @@ function _blocos(customInfo) {
 function _similaridade(an, texto) {
   const alvo = new Set(_tokens(texto).map(radical));
   if (alvo.size === 0 || an.conjunto.size === 0) return 0;
-  let casado = 0, total = 0;
+  let casado = 0, total = 0, temTermoForte = false;
   for (const r of an.radicais) {
     total += r.length;
-    if (alvo.has(r)) casado += r.length;
-    else { for (const a of alvo) if (_pareceIgual(a, r)) { casado += r.length * 0.6; break; } }
+    let bateu = 0;
+    if (alvo.has(r)) bateu = r.length;
+    else { for (const a of alvo) if (_pareceIgual(a, r)) { bateu = r.length * 0.6; break; } }
+    casado += bateu;
+    if (bateu && r.length >= 5) temTermoForte = true;
   }
+  // Sem nenhuma palavra discriminante (5+ letras) o casamento e' coincidencia:
+  // "ja tentei isso" batia com um bloco do admin so pelo "isso" e devolvia um
+  // procedimento de impressora sem qualquer relacao com a pergunta.
+  if (!temTermoForte) return 0;
   return total === 0 ? 0 : casado / total;
 }
 
@@ -317,13 +324,26 @@ function buscarQuickReply(an, quickReplies) {
   return score >= 0.85 ? { reply: melhor.reply, score } : null;
 }
 
+// O admin escreve o texto de duas formas: conteudo direto ("O Mangostin abre as
+// 12h") ou no estilo de instrucao ("Quando perguntarem X, responde com esse
+// texto (Y)"). No segundo caso, devolver o bloco inteiro entrega o recado
+// interno para o usuario final — aqui so o Y sai.
+function _soARespostaCadastrada(bloco) {
+  const m = String(bloco).match(/respond(?:e|er|a)\s+(?:com\s+)?(?:esse|este|o seguinte)?\s*texto\s*[:(]\s*([\s\S]+?)\s*\)?\s*$/i);
+  const extraido = m && m[1] && m[1].trim();
+  return extraido && extraido.length >= 15 ? extraido : bloco;
+}
+
 function buscarContexto(an, customInfo) {
+  // Pergunta de uma palavra so nao tem contexto suficiente para escolher um
+  // bloco com seguranca — melhor cair na intencao ou no chamado.
+  if (an.tokens.length < 2) return null;
   let melhor = null, score = 0;
   for (const b of _blocos(customInfo)) {
     const s = _similaridade(an, b);
     if (s > score) { score = s; melhor = b; }
   }
-  return score >= 0.4 ? { texto: melhor, score } : null;
+  return score >= 0.45 ? { texto: _soARespostaCadastrada(melhor), score } : null;
 }
 
 // ─── 5. Catalogo de intencoes ────────────────────────────────────────────────
@@ -1039,6 +1059,7 @@ const INTENCOES = [
   // explicita e ainda diz para quem a pessoa deve falar.
   {
     id: 'fora_escopo',
+    exigeLimiarCheio: true,
     // Prioridade BAIXA: so responde quando ninguem mais pontuou. Com prioridade
     // alta ela vencia empates e mandava embora chamado legitimo ("o pc do
     // quarto da governanca travou") — recusar atendimento e mais caro que
@@ -1077,6 +1098,7 @@ const INTENCOES = [
   // frase hostil passa a impressao errada de que a manipulacao funcionou.
   {
     id: 'injecao',
+    exigeLimiarCheio: true,
     prioridade: 10,
     // Toda chave precisa de 2+ palavras com peso: "todas as senhas" encolhia
     // para [senhas] e dava 1.2 pontos a QUALQUER frase com a palavra senha —
@@ -1315,6 +1337,22 @@ function responder(entrada) {
     return { reply: qr.reply, intencao: 'quick_reply', confianca: Math.min(0.99, 0.7 + qr.score * 0.3), sugestoes: [] };
   }
 
+  // 1.5) Texto do admin que casa MUITO bem com a pergunta responde antes das
+  // intencoes internas. Se a TI cadastrou o procedimento exato ("comanda
+  // cortando impressao" -> mudar o formato do papel), a dica generica de
+  // impressora nao pode passar na frente.
+  const textoAdmin = [config.custom_info, config.base_prompt].filter(Boolean).join('\n\n');
+  const blocoForte = buscarContexto(an, textoAdmin);
+  if (blocoForte && blocoForte.score >= 0.7) {
+    return {
+      reply: _juntar(blocoForte.texto, _chamado('a que combina com o problema',
+        'o que aconteceu e o seu setor', 'Se não for isso ou não resolver, abre um chamado:')),
+      intencao: 'contexto_admin',
+      confianca: Math.min(0.95, 0.5 + blocoForte.score * 0.4),
+      sugestoes: ['Como abrir um chamado?'],
+    };
+  }
+
   // 2) Intencoes.
   const ranking = pontuar(an, ctx);
 
@@ -1338,6 +1376,10 @@ function responder(entrada) {
 
   for (const cand of ranking) {
     if (cand.score < limiar) break;
+    // "Isso foge da TI" e a recusa de manipulacao sao respostas que fecham a
+    // porta: nunca podem sair pelo limiar reduzido de mensagem curta, so com
+    // evidencia cheia.
+    if (cand.intencao.exigeLimiarCheio && cand.score < LIMIAR) continue;
     const txt = cand.intencao.resposta(ctx, an);
     if (!txt) continue;
     // Pergunta repetida quase sempre quer dizer "não entendi", NAO "me fala de
