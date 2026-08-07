@@ -1275,6 +1275,9 @@ function AssistenteIAPanel({ isMobile }) {
   const [qrForm, setQrForm] = useState({ keywords: '', reply: '' });
   const [qrError, setQrError] = useState('');
   const [deletingId, setDeletingId] = useState(null);
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewText, setPreviewText] = useState('');
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('hub_sso_token');
@@ -1451,6 +1454,49 @@ function AssistenteIAPanel({ isMobile }) {
             <AssistenteQRForm form={qrForm} setForm={setQrForm} error={qrError} isEdit={false}
               onSave={commitAddQR}
               onCancel={() => { setAddingQR(false); setQrForm({ keywords: '', reply: '' }); setQrError(''); }} />
+          </div>
+        )}
+      </div>
+
+      {/* 03 · Contexto Completo */}
+      <div style={{ marginBottom: 40, paddingTop: 32, borderTop: `1px solid ${C.champanhe}14` }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: showPreview ? 16 : 0 }}>
+          <div>
+            <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: C.champanhe, marginBottom: 4 }}>03 · Contexto Completo da IA</div>
+            <div style={{ fontFamily: BODY, fontSize: 13, color: C.areiaDim, lineHeight: 1.5 }}>
+              Exatamente o que a IA recebe antes de cada resposta — base + configurações salvas
+            </div>
+          </div>
+          <button
+            onClick={async () => {
+              if (!showPreview) {
+                setPreviewLoading(true);
+                try {
+                  const token = localStorage.getItem('hub_sso_token');
+                  const r = await fetch('/api/admin/ai-preview', { headers: { Authorization: `Bearer ${token}` } });
+                  const d = await r.json();
+                  if (d.ok) setPreviewText(d.prompt);
+                } catch {}
+                setPreviewLoading(false);
+              }
+              setShowPreview(v => !v);
+            }}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: `1px solid ${C.champanhe}33`, color: C.champanhe, fontFamily: MONO, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', padding: '8px 14px', cursor: 'pointer', flexShrink: 0, marginLeft: 20, transition: 'background 150ms' }}
+            onMouseEnter={e => { e.currentTarget.style.background = `${C.champanhe}12`; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'none'; }}
+          >
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              {showPreview ? <><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></> : <><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></>}
+            </svg>
+            {previewLoading ? 'Carregando...' : showPreview ? 'Ocultar' : 'Visualizar'}
+          </button>
+        </div>
+        {showPreview && previewText && (
+          <div style={{ position: 'relative' }}>
+            <div style={{ position: 'absolute', top: 10, right: 10, fontFamily: MONO, fontSize: 8, color: C.areiaDim, letterSpacing: '0.2em', textTransform: 'uppercase', opacity: 0.6 }}>somente leitura</div>
+            <pre style={{ margin: 0, background: `${C.champanhe}05`, border: `1px solid ${C.champanhe}18`, color: C.areia, fontFamily: MONO, fontSize: 11, lineHeight: 1.75, padding: '18px 16px', paddingRight: 80, overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 420, overflowY: 'auto' }}>
+              {previewText}
+            </pre>
           </div>
         )}
       </div>

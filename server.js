@@ -2247,6 +2247,11 @@ app.get('/api/admin/ai-config', requireAdmin, (req, res) => {
   res.json({ ok: true, config: data.ai_config || { custom_info: '', quick_replies: [] } });
 });
 
+app.get('/api/admin/ai-preview', requireAdmin, (req, res) => {
+  const aiCfg = readData().ai_config || {};
+  res.json({ ok: true, prompt: buildSystemPrompt(aiCfg.custom_info || '', aiCfg.quick_replies || []) });
+});
+
 // Atualizações — GET deve ficar antes do catch-all SPA.
 app.get('/api/updates', (req, res) => {
   const token = (req.headers.authorization || '').replace('Bearer ', '');
