@@ -5,3 +5,4 @@ data/
 .git
 .gitignore
 *.md
+node_modules/

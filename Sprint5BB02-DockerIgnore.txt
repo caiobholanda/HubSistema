@@ -1,0 +1,120 @@
+================================================================================
+Sprint 5B-B0.2 — CORRECAO DA FRAGILIDADE DO .dockerignore
+================================================================================
+
+Data:   2026-08-04
+Objetivo exclusivo: eliminar o envio do `node_modules/` local para o
+builder remoto, fragilidade identificada na Sprint 5B-B0.1
+(Sprint5BB01-FlyBuild.txt).
+
+--------------------------------------------------------------------------------
+ATIVIDADE 1 — ANALISE TECNICA
+--------------------------------------------------------------------------------
+
+  1.1 — Por que o node_modules ainda estava sendo enviado
+
+    O Dockerfile (inalterado nesta Sprint, exceto pela leitura) segue
+    esta ordem:
+
+      COPY package*.json ./
+      COPY vendor/ ./vendor/
+      RUN npm ci --production      <- instala node_modules DENTRO da imagem
+      COPY . .                      <- copia TODO o resto do contexto
+
+    O `.dockerignore`, antes desta Sprint, continha apenas:
+      .env / .env.* / data/ / !data/hub_data.json / .git / .gitignore / *.md
+
+    Nao havia nenhuma entrada para `node_modules/`. O `.dockerignore` e' o
+    UNICO mecanismo que controla o que e' enviado ao daemon/builder do
+    Docker como "contexto de build" — ele e' INDEPENDENTE do
+    `.gitignore` (que ja continha `node_modules/`, mas isso so' afeta o
+    que o GIT rastreia, nunca o que o DOCKER envia). Sao dois mecanismos
+    de exclusao separados, com escopos diferentes, e so' um deles estava
+    configurado corretamente.
+
+    Consequencia pratica: quando `COPY . .` (linha 6) executa, ele copia
+    o `node_modules/` LOCAL da maquina de desenvolvimento (se presente)
+    para dentro da imagem, SOBRESCREVENDO o `node_modules/` que o
+    `npm ci --production` (linha 5) tinha acabado de instalar
+    corretamente dentro do container.
+
+  1.2 — Por que isso NAO causou falha ate agora
+
+    Nas execucoes reais desta Sprint e da Sprint 5B-B0.1, o
+    `node_modules/` local havia sido gerado (via `npm install`, Sprint
+    5B-B0) a partir EXATAMENTE do mesmo `package.json`/
+    `package-lock.json` que o `npm ci` dentro da imagem tambem usou,
+    na MESMA janela de tempo. Alem disso, TODAS as dependencias
+    envolvidas (`express`, `jsonwebtoken`, `dotenv`, `aws4fetch`,
+    `@aws-sdk/*`, `@smithy/*`) sao pacotes 100% JavaScript puro, sem
+    nenhum binding nativo compilado especificamente por sistema
+    operacional. Por coincidencia de contexto (mesma fonte, mesmo
+    momento, nenhuma dependencia nativa), o `node_modules/` local e o
+    gerado pelo `npm ci` eram FUNCIONALMENTE EQUIVALENTES — a
+    sobrescrita ocorreu, mas sem efeito observavel.
+
+  1.3 — Riscos futuros caso continuasse assim
+
+    a) Binarios nativos incompativeis: se qualquer dependencia futura
+       tiver bindings nativos (ex.: driver de banco de dados, biblioteca
+       de compressao com codigo C), o binario compilado no Windows da
+       maquina de desenvolvimento SOBRESCREVERIA silenciosamente o
+       binario Linux/Alpine correto instalado pelo `npm ci` — falha que
+       so' se manifestaria em RUNTIME dentro do container (tipicamente
+       `ERR_DLOPEN_FAILED` ou similar), nunca no build, e potencialmente
+       so' em producao.
+    b) Deriva silenciosa: se o `node_modules/` local ficar dessincronizado
+       do `package-lock.json` (ex.: um pacote instalado localmente para
+       teste e nunca commitado), essa divergencia vazaria para dentro da
+       imagem de producao sem nenhum aviso.
+    c) Custo de build: envio desnecessario de contexto — medido
+       diretamente nesta auditoria (ver Sprint5BB02-BuildComparison.txt):
+       13,04 MB / 37,3s do build anterior eram, em grande parte, esse
+       `node_modules/` sendo transferido sem necessidade nenhuma.
+
+--------------------------------------------------------------------------------
+ATIVIDADE 2 — ALTERACAO REALIZADA
+--------------------------------------------------------------------------------
+
+  Entradas candidatas avaliadas ANTES de qualquer edicao (conforme
+  instruido — listar e justificar antes de adicionar):
+
+    Candidato          | Existe hoje no repositorio? | Decisao
+    --------------------|------------------------------|---------------------------
+    node_modules/        | SIM (20 MB, gerado por npm)  | ADICIONAR — e' a fragilidade
+                        |                              | especifica desta Sprint
+    coverage/             | NAO encontrado                | NAO adicionar — nenhuma
+                        |                              | ferramenta de coverage
+                        |                              | configurada no package.json
+    .nyc_output/           | NAO encontrado                | NAO adicionar — mesmo motivo
+    logs/ / *.log           | NAO encontrado                | NAO adicionar — nenhum log
+                        |                              | de arquivo gerado pelo app
+    tmp/                     | NAO encontrado                | NAO adicionar — nao existe
+    .vscode/ / .idea/          | NAO encontrado                | NAO adicionar — nao existe
+    .DS_Store / Thumbs.db        | NAO encontrado                | NAO adicionar — nao existe
+    *.tgz (fora de vendor/)        | NAO encontrado (so' os 2       | NAO adicionar — os unicos
+                                  | .tgz legitimos dentro de       | .tgz existentes SAO os
+                                  | vendor/)                       | artefatos necessarios ao
+                                  |                                | build; excluir por padrao
+                                  |                                | *.tgz quebraria o `npm ci`
+
+  CONCLUSAO: nenhum outro candidato tem justificativa tecnica presente
+  hoje neste repositorio. Esta Sprint NAO foi transformada numa limpeza
+  geral — apenas `node_modules/` foi adicionado, exatamente como
+  instruido.
+
+  Diff completo (unica linha adicionada, arquivo `.dockerignore`):
+
+    --- a/.dockerignore
+    +++ b/.dockerignore
+    @@ -5,3 +5,4 @@ data/
+     .git
+     .gitignore
+     *.md
+    +node_modules/
+
+  Nenhum outro arquivo foi tocado por esta Sprint.
+
+================================================================================
+FIM DO DOCUMENTO — Sprint5BB02-DockerIgnore.txt
+================================================================================

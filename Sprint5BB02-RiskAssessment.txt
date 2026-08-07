@@ -1,0 +1,87 @@
+================================================================================
+Sprint 5B-B0.2 — VALIDACAO FINAL E REAVALIACAO DE RISCO
+================================================================================
+
+Data:   2026-08-04
+
+--------------------------------------------------------------------------------
+ATIVIDADE 4 — npm test
+--------------------------------------------------------------------------------
+
+  Comando: `npm test` (raiz do hub-portal, apos a correcao do
+  `.dockerignore`)
+  Resultado: 60/60 testes aprovados, 0 falhas, 0 cancelados.
+  Identico ao resultado das Sprints 5B-B0 e 5B-B0.1 — nenhuma regressao.
+  (Nota: `.dockerignore` nao afeta `npm test` de forma alguma — o teste
+  roda localmente, fora de qualquer contexto Docker. Executado mesmo
+  assim, conforme solicitado, como confirmacao formal adicional.)
+
+--------------------------------------------------------------------------------
+ATIVIDADE 5 — git diff: ARQUIVOS ALTERADOS
+--------------------------------------------------------------------------------
+
+  Arquivos alterados POR ESTA SPRINT: exatamente 1 —` .dockerignore`
+  (1 linha adicionada, `node_modules/`).
+
+  Arquivos que aparecem no `git diff --stat` cumulativo mas NAO foram
+  tocados por esta Sprint (diffs PRE-EXISTENTES, de Sprints anteriores —
+  5B-B0 e a integracao shadow-mode anterior a este engajamento):
+
+    Dockerfile         — alterado na Sprint 5B-B0 (COPY vendor/), nao
+                          tocado nesta Sprint.
+    package.json         — alterado na Sprint 5B-B0 (file:vendor/*.tgz),
+                          nao tocado nesta Sprint.
+    package-lock.json      — regenerado na Sprint 5B-B0, nao tocado nesta
+                          Sprint.
+    server.js                — diff PRE-EXISTENTE a todo este engajamento
+                          (integracao shadow-mode), nao tocado em
+                          NENHUMA das Sprints deste bloco (5B-B0,
+                          5B-B0.1, 5B-B0.2).
+
+  Confirmado via `git diff --cached --stat` no momento do commit: SOMENTE
+  `.dockerignore` estava staged (1 arquivo alterado, 1 insercao) — os
+  demais arquivos permaneceram deliberadamente FORA do commit desta
+  Sprint (nao commitados ainda, aguardando uma etapa de consolidacao
+  futura fora do escopo definido aqui).
+
+  RESULTADO ESPERADO ("apenas .dockerignore") CONFIRMADO — para o que
+  esta Sprint efetivamente alterou e commitou.
+
+--------------------------------------------------------------------------------
+ATIVIDADE 6 — REAVALIACAO DE RISCO PARA A SPRINT 5B-B1
+--------------------------------------------------------------------------------
+
+  ✓ Existe alguma fragilidade estrutural remanescente?
+    NAO relacionada ao escopo desta Sprint. A fragilidade identificada na
+    Sprint 5B-B0.1 (`node_modules/` nao ignorado) foi eliminada e
+    validada com um build remoto real (Sprint5BB02-BuildComparison.txt).
+    Nenhuma nova fragilidade foi introduzida ou identificada durante esta
+    correcao.
+
+  ✓ Existe algum risco de build?
+    NAO. O segundo `flyctl deploy --build-only` foi bem-sucedido (exit
+    code 0), com resultado funcional identico ao primeiro — mesma
+    contagem de pacotes instalados, mesmos warnings pre-existentes, zero
+    erros novos.
+
+  ✓ Existe algum risco de distribuição?
+    NAO. O mecanismo de distribuicao (`vendor/*.tgz`) nao foi tocado por
+    esta Sprint — apenas o CONTEXTO enviado ao builder foi reduzido. A
+    resolucao de `@hub/backup-core`/`@hub/storage-client` continua
+    identica, confirmada pelo cache reaproveitado no passo `RUN npm ci`
+    (mesmo resultado de instalacao, sem reinstalar do zero).
+
+  ✓ Existe algum risco para o Shadow Mode?
+    NAO. Nenhum arquivo relacionado a backup, restore, `BACKUP_ENGINE`
+    ou `backup-adapter.js` foi tocado nesta Sprint — confirmado por
+    `git diff` (Atividade 5 acima).
+
+  ✓ A arquitetura continua aderente aos ADRs?
+    SIM. Nenhum ADR (010/011/012) foi reaberto, reinterpretado ou
+    contrariado — esta Sprint tratou exclusivamente de uma otimizacao de
+    infraestrutura de build (contexto Docker), fora do escopo de
+    qualquer um dos tres ADRs.
+
+================================================================================
+FIM DO DOCUMENTO — Sprint5BB02-RiskAssessment.txt
+================================================================================

@@ -1,0 +1,76 @@
+================================================================================
+Sprint 5B-B0.1 — COMPATIBILIDADE DO GITHUB ACTIONS COM vendor/*.tgz
+================================================================================
+
+Data:   2026-08-04
+
+--------------------------------------------------------------------------------
+ATIVIDADE 4 — npm test (REPETIDO NESTA SPRINT)
+--------------------------------------------------------------------------------
+
+  Comando: `npm test` (raiz do hub-portal)
+  Resultado: 60/60 testes aprovados, 0 falhas — identico ao resultado
+  obtido na Sprint 5B-B0. Nenhuma regressao entre sessoes.
+
+--------------------------------------------------------------------------------
+ATIVIDADE 5 — git diff (REPETIDO NESTA SPRINT)
+--------------------------------------------------------------------------------
+
+  `git diff --stat` apos todas as atividades desta Sprint:
+
+    Dockerfile        |   1 +
+    package-lock.json | 561 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    package.json      |   2 +
+    server.js         |  60 +++++-
+    4 files changed, 622 insertions(+), 2 deletions(-)
+
+  IDENTICO ao diff registrado ao final da Sprint 5B-B0. Nenhuma alteracao
+  inesperada ocorreu durante esta Sprint de validacao — nem mesmo a
+  execucao do `flyctl deploy --build-only` alterou qualquer arquivo local
+  (ele apenas lê o repositorio e envia a imagem construida para o
+  registry remoto do Fly.io).
+
+--------------------------------------------------------------------------------
+ATIVIDADE 6 — COMPATIBILIDADE DO WORKFLOW ATUAL COM vendor/*.tgz
+--------------------------------------------------------------------------------
+
+  Conteudo integral de `.github/workflows/deploy.yml` (nao alterado
+  nesta nem em nenhuma Sprint anterior):
+
+    on: push a` branch main (ignora mudancas so' em data/** ou *.md)
+    steps:
+      1. actions/checkout@v4          (checkout PADRAO, so' do hub-portal)
+      2. superfly/flyctl-actions/setup-flyctl@master
+      3. flyctl deploy --remote-only  (usa o MESMO builder remoto do
+                                        Fly.io — Depot — validado nesta
+                                        Sprint via --build-only)
+
+  ANALISE DE COMPATIBILIDADE:
+
+  - O workflow faz um UNICO `actions/checkout@v4`, sem nenhum parametro
+    de `path`/`repository` adicional — ele so' baixa o CONTEUDO do
+    proprio hub-portal. Uma vez que `vendor/*.tgz` seja commitado dentro
+    do hub-portal (fora do escopo desta Sprint — nenhum commit foi
+    realizado), esse checkout padrao JA' TRARIA `vendor/` automaticamente,
+    por ser parte do repositorio — SEM NENHUMA MUDANCA DE WORKFLOW.
+  - `flyctl deploy --remote-only` usa exatamente o mesmo mecanismo de
+    builder remoto (Depot) que `flyctl deploy --build-only` usou nesta
+    Sprint — o build bem-sucedido validado em
+    Sprint5BB01-FlyBuild.txt e' uma prova direta de que o MESMO comando
+    (variando so' a flag `--build-only` vs `--remote-only`, que apenas
+    controla se o deploy e' publicado ou nao) funcionaria identicamente
+    dentro do GitHub Actions.
+  - Nenhum secret novo e' necessario: `FLY_API_TOKEN` (ja configurado)
+    continua sendo o unico secret usado — nao ha' segredo de acesso a um
+    segundo repositorio (hub-sdk), porque nao ha' segundo checkout.
+
+  CONCLUSAO: o pipeline `.github/workflows/deploy.yml` ATUAL, SEM
+  NENHUMA MODIFICACAO, e' compativel com o mecanismo `vendor/*.tgz`. Esta
+  e' uma confirmacao direta do achado favoravel ja antecipado em
+  Sprint5B-Distribution-PoC.txt (Alternativa A: vendor npm pack nao
+  exige nenhum passo novo de CI) — agora validado com um build remoto
+  REAL, nao apenas analise.
+
+================================================================================
+FIM DO DOCUMENTO — Sprint5BB01-GitHubActions.txt
+================================================================================

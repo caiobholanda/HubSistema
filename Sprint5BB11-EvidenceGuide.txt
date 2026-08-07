@@ -1,0 +1,115 @@
+================================================================================
+Sprint 5B-B1.1 — GUIA DE EVIDENCIAS PARA COMPROVAR A HOMOLOGACAO
+================================================================================
+
+Data:   2026-08-04
+
+--------------------------------------------------------------------------------
+ATIVIDADE 4 — O QUE COLETAR PARA COMPROVAR SUCESSO
+--------------------------------------------------------------------------------
+
+  1. LOGS (flyctl logs -a hub-granmarquise)
+
+     Capturar (copiar/colar em texto, com timestamp) o trecho contendo
+     o ciclo COMPLETO de UM backup provocado durante a homologacao:
+
+       [LEGACY BACKUP] iniciado
+       [LEGACY BACKUP] concluído
+       [SHADOW BACKUP] iniciado
+       [SHADOW BACKUP] upload realizado
+       [backup-shadow] objectKey=... sizeBytes=... uploadMs=...  (log
+           pre-existente, detalhado — nao removido pela Sprint 5B-B1)
+       [SHADOW BACKUP] checksum validado
+       [SHADOW BACKUP] concluído
+
+     Se houver falha, capturar tambem a linha completa de erro:
+       [SHADOW BACKUP] falhou: <mensagem> (+ stack, se presente)
+
+  2. ARQUIVOS
+
+     Nenhum arquivo LOCAL novo e' esperado como evidencia — por design,
+     `dryRunRestoreProbe()` grava e remove seu arquivo temporario dentro
+     do proprio ciclo (os.tmpdir(), removido no finally). NAO existe um
+     artefato em disco para inspecionar depois do fato; a evidencia de
+     que o restore ocorreu e' exclusivamente o log
+     "[SHADOW BACKUP] concluído" (Passo 5 do checklist).
+
+     Evidencia indireta relevante: `data/hub_data.json` no volume do
+     Fly deve permanecer BYTE-A-BYTE identico antes/depois da
+     homologacao (nenhum mecanismo de escrita de restore foi executado
+     sobre ele). Se quiser uma evidencia formal, calcular o SHA256 do
+     arquivo ANTES de ativar o Shadow Mode (Passo 1 do checklist) e
+     novamente APOS desativa-lo (Passo 7) — devem ser identicos, salvo
+     por escritas legitimas feitas pelos proprios usuarios do Portal
+     durante a janela.
+
+  3. OBJETOS NO BUCKET
+
+     O objeto criado pelo hub-sdk (via `FileSnapshotStrategy` +
+     `S3CompatibleProvider`) tera' a chave (`objectKey`) reportada
+     diretamente no log detalhado `[backup-shadow] objectKey=...`
+     (item 1 acima) — copiar esse valor exato como evidencia. Para
+     confirmar a existencia do objeto no bucket em si (fora do log da
+     aplicacao), sera' necessario acesso direto ao console/CLI da
+     Tigris com as credenciais do bucket (`S3_BUCKET`/`S3_ACCESS_KEY_ID`)
+     — fora do escopo de ferramentas usadas nesta Sprint de
+     planejamento; documentar aqui como pendencia de quem executar a
+     homologacao, se desejar essa confirmacao extra.
+
+  4. CHECKSUMS
+
+     Dois checksums sao logados no objeto de retorno de
+     `runShadowBackup()` (nao impresso diretamente no console hoje,
+     apenas usado internamente para decidir "checksum validado" vs.
+     "DIVERGENCIA"):
+       - `localChecksum` — SHA256 calculado localmente sobre
+         hub_data.json no momento do backup.
+       - `hubSdkChecksum` — checksum retornado pelo proprio hub-sdk
+         apos o upload.
+     A COMPARACAO dos dois (`checksumMatchesLocal`) e' o que determina
+     se "[backup-shadow] DIVERGENCIA..." aparece ou nao no log. Ausencia
+     dessa linha de divergencia, combinada com a presenca de
+     "[SHADOW BACKUP] checksum validado", e' a evidencia funcional de
+     que os dois checksums bateram.
+     Adicionalmente, `dryRunRestoreProbe()` compara o checksum do
+     restore de leitura com o `localChecksum` original
+     (`checksumMatchesUpload`) — essa comparacao NAO tem uma linha de
+     log dedicada hoje; sua unica evidencia observavel externamente e' a
+     ausencia de erro e a presenca de "[SHADOW BACKUP] concluído"
+     (que so' e' alcancada se `dryRunRestoreProbe()` nao lancar).
+
+  5. EVIDENCIA DE ISOLAMENTO (recomendado, especifico desta
+     homologacao)
+
+     Comparar o conteudo de `data/hub_data.json` (ou, na ausencia de
+     acesso direto ao volume, os dados visiveis via a UI/API do Portal)
+     ANTES e DEPOIS da janela de homologacao, para confirmar que nenhum
+     dado de producao foi alterado pelo proprio ato de homologar — este
+     e' o criterio mais direto de "o legado nao foi modificado" exigido
+     pela Atividade 3 do escopo desta Sprint.
+
+--------------------------------------------------------------------------------
+RESUMO — CRITERIO DE SUCESSO MINIMO
+--------------------------------------------------------------------------------
+
+  A homologacao e' considerada bem-sucedida se, para PELO MENOS um
+  ciclo de backup provocado:
+    (a) a sequencia completa de 4 logs bracket do shadow aparecer sem
+        erro, na ordem correta, apos "[LEGACY BACKUP] concluído";
+    (b) nenhuma linha "[SHADOW BACKUP] falhou" ou
+        "[backup-shadow] DIVERGENCIA" aparecer;
+    (c) `data/hub_data.json` permanecer inalterado pela propria
+        homologacao (fora de escritas legitimas de usuarios).
+
+  NOTA IMPORTANTE (ver Sprint5BB11-HomologationPlan.txt, Atividade 1.2):
+  dado que o backup LEGADO esta' hoje DESATIVADO (Secrets
+  BUCKET_NAME/AWS_* ausentes), este criterio valida o Shadow Mode
+  ISOLADAMENTE — nao uma comparacao lado a lado com um upload legado
+  real. Se uma comparacao "shadow vs. legado, ambos ativos" for
+  desejada, a divergencia de nomenclatura de Secrets identificada na
+  Atividade 1.2 precisaria ser resolvida primeiro — fora do escopo desta
+  Sprint.
+
+================================================================================
+FIM DO DOCUMENTO — Sprint5BB11-EvidenceGuide.txt
+================================================================================

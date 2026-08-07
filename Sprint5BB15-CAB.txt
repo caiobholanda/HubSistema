@@ -1,0 +1,303 @@
+================================================================================
+Sprint 5B-B1.5 — PACOTE DE MUDANCA (CAB) — MIGRACAO DE BUCKET TIGRIS
+================================================================================
+
+Data de emissao:  2026-08-04
+RFC (identificador da mudanca):  Sprint 5B-B1.5 / hub-granmarquise / Tigris
+Status:  AGUARDANDO APROVACAO — nenhuma alteracao de producao foi feita.
+
+Este documento consolida, num unico pacote, tudo que ja' foi produzido e
+validado nas Sprints 5B-B1.2 a 5B-B1.5 desta serie. Nenhuma decisao
+tecnica nova foi tomada aqui — este documento organiza decisoes JA'
+tomadas e evidencias JA' coletadas em formato de solicitacao de mudanca.
+
+--------------------------------------------------------------------------------
+RESUMO EXECUTIVO
+--------------------------------------------------------------------------------
+
+  O Portal HUB (`hub-granmarquise`) tem, hoje, os Secrets de storage
+  (`S3_BUCKET`/`S3_ACCESS_KEY_ID`/`S3_SECRET_ACCESS_KEY`) apontando para
+  `hub-prod-backups` — um bucket que, com evidencia direta do proprio
+  README do pacote `@hub/storage-client`, e' o bucket de
+  DESENVOLVIMENTO/VALIDACAO do hub-sdk, nao um bucket dedicado ao Portal
+  HUB (achado da Sprint 5B-B1.3). Isso viola o principio de isolamento
+  por aplicacao do ADR-010. Um bucket dedicado (`hub-portal-prod`) e uma
+  Access Key propria (`hub-portal-prod-runtime`) ja' foram criados e
+  validados funcionalmente (Sprint 5B-B1.4) fora do ambiente de
+  producao. Esta mudanca consiste em apontar os 3 Secrets do app para
+  essa nova infraestrutura. Nenhum mecanismo de backup esta' ativo em
+  producao hoje (legado desativado desde antes deste engajamento;
+  Shadow Mode nunca ativado) — logo, esta mudanca nao afeta nenhum dado
+  real, apenas prepara a infraestrutura para uma futura homologacao do
+  Shadow Mode (Sprint 5B-B1.1, ainda pendente, fora do escopo desta
+  mudanca).
+
+--------------------------------------------------------------------------------
+OBJETIVO DA MUDANCA
+--------------------------------------------------------------------------------
+
+  Atualizar `S3_BUCKET`, `S3_ACCESS_KEY_ID` e `S3_SECRET_ACCESS_KEY`
+  (Secrets do Fly.io, app `hub-granmarquise`) para que apontem
+  exclusivamente para o bucket `hub-portal-prod` e a Access Key
+  `hub-portal-prod-runtime`, eliminando a dependencia do bucket
+  compartilhado `hub-prod-backups`.
+
+--------------------------------------------------------------------------------
+ESCOPO
+--------------------------------------------------------------------------------
+
+  ITENS AFETADOS:
+    - 3 Secrets do Fly.io (`S3_BUCKET`, `S3_ACCESS_KEY_ID`,
+      `S3_SECRET_ACCESS_KEY`) do app `hub-granmarquise`
+    - Opcionalmente `S3_ENDPOINT`/`S3_REGION`, somente se o bucket novo
+      exigir valores diferentes dos atuais (`https://t3.storage.dev`/
+      `auto`) — a confirmar no momento da execucao
+    - 1 restart de maquina (efeito colateral automatico e inevitavel de
+      qualquer `flyctl secrets set`)
+
+  ITENS NAO AFETADOS:
+    - Codigo-fonte: `server.js`, `src/backup-adapter.js`,
+      `Dockerfile`, `package.json`, `package-lock.json` — nenhuma linha
+      alterada.
+    - hub-sdk: nenhum arquivo, tag ou release tocado.
+    - GitHub / GitHub Actions: nenhum workflow, commit ou push.
+    - ADR-010/011/012: nenhuma alteracao.
+    - Mecanismo de backup LEGADO (`BUCKET_NAME`/`AWS_*`): continua
+      ausente/desativado, sem mudanca — nao e' afetado nem corrigido por
+      esta mudanca.
+    - `BACKUP_ENGINE`: continua indefinido — Shadow Mode permanece
+      dormente antes, durante e depois desta mudanca.
+    - Bucket antigo (`hub-prod-backups`) e sua Access Key: permanecem
+      intocados, nao removidos (preservados como base do rollback).
+    - Dado de producao (`data/hub_data.json`, volume do Fly): nao lido
+      nem escrito por esta mudanca.
+
+--------------------------------------------------------------------------------
+RISCOS CONHECIDOS
+--------------------------------------------------------------------------------
+
+  1. [MEDIO] Deploy concorrente por outro operador durante a janela.
+     Evidencia real (nao hipotetica): `flyctl releases -a
+     hub-granmarquise` mostra releases de codigo recentes por
+     `caiobholanda2007@gmail.com`, intercaladas no tempo com atividades
+     desta serie de Sprints — inclusive a release ATUALMENTE em producao
+     (v357) e' dele. Nenhuma coordenacao de janela exclusiva foi
+     estabelecida ate' o momento da emissao deste documento. Ver
+     Sprint5BB15-ArchitectReview.txt, Atividade 3.
+
+  2. [BAIXO] Ausencia de estrategia de deploy/health check customizado
+     no Fly (`flyctl config show` confirma nenhuma secao `[deploy]`).
+     O restart provocado pelos Secrets nao e' gated por uma verificacao
+     de saude alem do basico (porta responde) — a validacao funcional
+     pos-migracao (Passo 5 do plano de execucao) e' o unico gate real de
+     correcao.
+
+  3. [BAIXO, ACEITO] A nova Access Key (`hub-portal-prod-runtime`,
+     papel "Editor") permite `DeleteObject` — o console da Tigris nao
+     oferece hoje um papel mais restrito. Nenhum caminho de codigo do
+     hub-portal chama delete (confirmado por leitura de codigo, Sprint
+     5B-B1.3). Risco teorico, ja' formalmente aceito pelo usuario
+     (Sprint 5B-B1.5).
+
+  4. [BAIXO] Duracao do restart nao medida em nenhuma execucao anterior
+     — nenhum `flyctl secrets set` real foi executado neste app durante
+     esta serie de Sprints ate' agora.
+
+  5. [INFORMATIVO] A sessao tecnica usada para executar comandos
+     `flyctl` (inclusive por mim, quando aplicavel) tem privilegios de
+     conta completa, nao um token escopado — nao e' um risco especifico
+     DESTA mudanca, mas um fator de contexto relevante para quem aprova.
+     Ver Sprint5BB15-ArchitectReview.txt, Atividade 5.
+
+--------------------------------------------------------------------------------
+MITIGACOES
+--------------------------------------------------------------------------------
+
+  Para o risco 1: confirmar explicitamente, ANTES de iniciar a
+  execucao, que nenhum deploy de codigo esta' planejado pelo(s) outro(s)
+  operador(es) com acesso a este app durante a janela escolhida
+  (registrar essa confirmacao no campo "Observacoes" da secao
+  "APROVACAO DA MUDANCA" de Sprint5BB15-GoNoGo.txt).
+
+  Para o risco 2: a validacao funcional pos-migracao (Sprint5BB15-
+  ExecutionPlan.txt, Passos 5-7) e' obrigatoria e bloqueante antes de
+  declarar a mudanca bem-sucedida — nao depender apenas do restart "ter
+  subido".
+
+  Para o risco 3: aceito formalmente; mitigacoes de software (wrapper de
+  superficie reduzida, versionamento de bucket) documentadas como
+  melhoria futura — ver secao LICOES APRENDIDAS abaixo, prioridade Alta.
+
+  Para o risco 4: medir e registrar o tempo real nesta propria execucao
+  (Sprint5BB15-PostImplementationReview.txt), eliminando a incerteza
+  para futuras mudancas semelhantes.
+
+  Para o risco 5: fora do escopo de mitigacao imediata desta mudanca
+  especifica (nao bloqueante); registrado como melhoria futura de
+  prioridade Alta na secao LICOES APRENDIDAS.
+
+--------------------------------------------------------------------------------
+PLANO DE ROLLBACK
+--------------------------------------------------------------------------------
+
+  Resumo (detalhamento completo em Sprint5BB15-RollbackPlan.txt): a
+  reversao e' o MESMO comando `flyctl secrets set`, com os 3 valores
+  ANTIGOS (bucket `hub-prod-backups`, credencial original — fingerprint
+  `tid_...KCeW`, ainda ativa e nao removida). Nao ha' dado a recuperar
+  ou migrar de volta, porque nenhum dado real e' escrito durante esta
+  mudanca (Shadow Mode continua dormente). O rollback e' tao seguro e
+  barato quanto a propria migracao.
+
+--------------------------------------------------------------------------------
+PLANO DE VALIDACAO
+--------------------------------------------------------------------------------
+
+  Detalhamento completo e executavel em Sprint5BB15-ExecutionPlan.txt
+  (Passos 3-8). Resumo: confirmar restart concluido, confirmar digest
+  dos 3 Secrets alterado, validar autenticacao/list/put/get contra o
+  bucket novo via SSH na propria maquina de producao, confirmar ausencia
+  de qualquer referencia residual (por fingerprint) ao bucket/credencial
+  antigos em todo `process.env`, revisar `flyctl logs` por excecoes de
+  storage, e confirmar que `BACKUP_ENGINE` continua indefinido.
+
+--------------------------------------------------------------------------------
+CRITERIOS DE GO
+--------------------------------------------------------------------------------
+
+  Identicos aos 12 Criterios Formais de Aprovacao ja' definidos em
+  Sprint5BB15-GoNoGo.txt (secao "CRITERIOS FORMAIS DE APROVACAO") — nao
+  duplicados aqui para evitar divergencia entre os dois documentos;
+  aquele documento e' a fonte da verdade para esses 12 itens. TODOS os
+  12 devem ser verdadeiros.
+
+--------------------------------------------------------------------------------
+CRITERIOS DE NO-GO
+--------------------------------------------------------------------------------
+
+  Qualquer um dos 12 criterios de GO nao verificado ou falho (AND
+  logico estrito — ja' definido em Sprint5BB15-GoNoGo.txt). Adicionalmente,
+  NO-GO automatico e imediato se, a qualquer momento durante a execucao:
+    - o restart nao concluir dentro de um tempo razoavel (sem STATE=
+      started apos repetidas checagens);
+    - o teste de autenticacao pos-migracao falhar;
+    - qualquer excecao relacionada a storage aparecer em `flyctl logs`
+      apos o restart;
+    - qualquer referencia residual ao bucket/credencial antigos for
+      encontrada em `process.env` da maquina.
+
+--------------------------------------------------------------------------------
+JANELA DA MUDANCA
+--------------------------------------------------------------------------------
+
+  Ver Sprint5BB15-PreMigrationChecklist.txt, secao "JANELA DA MUDANCA"
+  (campos preenchiveis — horario de inicio/termino, duracao estimada,
+  indisponibilidade esperada) — nao duplicado aqui para nao divergir.
+
+--------------------------------------------------------------------------------
+RESPONSAVEIS
+--------------------------------------------------------------------------------
+
+  Ver Sprint5BB15-PreMigrationChecklist.txt, secao "IDENTIFICACAO"
+  (Responsavel pela Aprovacao / Execucao / Validacao — campos
+  preenchiveis, papeis explicitamente segregados).
+
+--------------------------------------------------------------------------------
+CHECKLIST FINAL (antes de iniciar a execucao)
+--------------------------------------------------------------------------------
+
+  [ ] Sprint5BB15-PreMigrationChecklist.txt totalmente preenchido e
+      assinado
+  [ ] Sprint5BB15-GoNoGo.txt, secao "APROVACAO DA MUDANCA", preenchida
+      com Resultado = GO
+  [ ] Coordenacao com outros operadores de deploy confirmada (Risco 1)
+  [ ] Nova Access Key (`hub-portal-prod-runtime`) em maos de quem vai
+      executar
+  [ ] Sprint5BB15-ExecutionPlan.txt aberto e pronto para seguir passo a
+      passo
+  [ ] Sprint5BB15-RollbackPlan.txt aberto em aba/janela separada, pronto
+      para uso imediato se necessario
+  [ ] Sprint5BB15-PostImplementationReview.txt aberto para preenchimento
+      em tempo real durante/apos a execucao
+
+--------------------------------------------------------------------------------
+RESULTADO DA CAB
+--------------------------------------------------------------------------------
+
+  Avaliacao tecnica independente (Sprint5BB15-ArchitectReview.txt,
+  Atividade 8): NAO APROVARIA na forma em que a documentacao se
+  encontrava ANTES desta Sprint 5B-B1.5 de encerramento — pelos motivos
+  1 e 2 listados em RISCOS CONHECIDOS acima (coordenacao de janela e
+  ausencia de sign-off formal), ambos agora enderecados
+  ESTRUTURALMENTE por este proprio pacote (campos de coordenacao e de
+  aprovacao formal passam a existir e a serem obrigatorios antes do GO).
+  O risco 5 (privilegios da sessao tecnica) permanece como divida
+  tecnica registrada, nao bloqueante para esta mudanca especifica.
+
+  Resultado desta CAB:  [ ] GO   [ ] NO-GO
+  (a marcar pelo aprovador, apos preencher o checklist final acima —
+  nao preenchido por mim)
+
+--------------------------------------------------------------------------------
+APROVACAO
+--------------------------------------------------------------------------------
+
+  Ver Sprint5BB15-GoNoGo.txt, secao "APROVACAO DA MUDANCA", para o
+  registro formal de assinatura (nome, cargo, data, hora, resultado,
+  observacoes) — fonte unica da verdade para a aprovacao; nao duplicada
+  aqui para nao correr o risco de duas assinaturas divergentes em dois
+  documentos.
+
+--------------------------------------------------------------------------------
+LICOES APRENDIDAS (BACKLOG — NAO IMPLEMENTAR AGORA)
+--------------------------------------------------------------------------------
+
+  Itens identificados ao longo desta serie de Sprints (principalmente
+  Sprint5BB15-ArchitectReview.txt) que melhoram a solucao, mas NAO
+  bloqueiam esta mudanca especifica. Registrados aqui para entrarem no
+  backlog de infraestrutura do hub-portal — nenhum deles implementado.
+
+  PRIORIDADE ALTA:
+    - Versionamento do bucket Tigris (`hub-portal-prod`) — mitigacao de
+      mais baixo esforco para o risco de DeleteObject (config, nao
+      codigo); da' janela de recuperacao mesmo com a policy "Editor".
+    - Wrapper/fachada de superficie reduzida em `backup-adapter.js`,
+      nunca expondo `.delete()`/`.deleteMany()` do `S3CompatibleProvider`
+      a nenhum chamador — "least authority" por construcao de codigo.
+    - Escopo de credencial tecnica: investigar tokens Fly.io mais
+      restritos (`flyctl tokens create`) para futuras Sprints
+      operacionais, em vez de usar sessao de conta completa.
+    - Processo de coordenacao de janela de mudanca com outros
+      operadores com acesso de deploy ao app (achado concreto desta
+      Sprint — outro operador ativo, `caiobholanda2007@gmail.com`).
+
+  PRIORIDADE MEDIA:
+    - Health Check de storage customizado no Fly (`fly.toml`), para que
+      o proprio Fly recuse promover um restart com Secrets invalidos,
+      em vez de depender so' de validacao manual pos-hoc.
+    - Estrategia de deploy explicita (`[deploy]` em `fly.toml`) —
+      hoje ausente, confirmado via `flyctl config show`.
+    - Monitoramento da idade do ultimo backup bem-sucedido (item ja'
+      previsto no roadmap do proprio ADR-010, nao implementado para o
+      hub-portal).
+    - Feature flag defensiva (`ALLOW_DESTRUCTIVE_STORAGE_OPS`) como
+      camada adicional de protecao contra delete acidental futuro.
+    - Nomenclatura de variaveis de ambiente alinhada ao ADR-010
+      (`BACKUP_WRITE_*`/`BACKUP_PRUNE_*`) — exige mudanca de codigo em
+      `resolveStorageConfig()`, fora do escopo de qualquer Sprint ate'
+      aqui.
+
+  PRIORIDADE BAIXA:
+    - Infra Changelog consolidado (`INFRA-CHANGELOG.md`) — indice unico
+      amarrando as ~20 Sprints/relatorios `.txt` ja' produzidos nesta
+      serie.
+    - Canario/autoteste periodico de permissao (deteccao de drift na
+      policy da Access Key).
+    - Reconciliacao periodica de objetos no bucket vs. manifesto
+      esperado (deteccao de delecao inesperada por qualquer via).
+    - Logging/alerta de severidade distinta para qualquer chamada de
+      delete real, caso um job de retencao venha a ser implementado no
+      futuro.
+
+================================================================================
+FIM DO DOCUMENTO — Sprint5BB15-CAB.txt
+================================================================================

@@ -1,0 +1,155 @@
+================================================================================
+Sprint 5B-B1.3 — PLANO DE MIGRACAO DO BUCKET (ADERENCIA AO ADR-010)
+================================================================================
+
+Data:   2026-08-04
+Metodo: releitura integral do ADR-010 (secoes "Modelo IAM" e "Padroes de
+Nomenclatura"), comparacao com o achado real da Sprint 5B-B1.2, e
+inspecao do CODIGO-FONTE REAL vendorizado (`vendor/hub-backup-core-1.1.0
+.tgz`, `vendor/hub-storage-client-1.0.0.tgz` — extraidos localmente e
+apagados apos a analise; nenhuma alteracao feita nos arquivos originais)
+para confirmar, com evidencia de codigo e nao suposicao, quais operacoes
+S3 sao realmente usadas.
+
+--------------------------------------------------------------------------------
+ATIVIDADE 1 — DIVERGENCIAS ENTRE A INFRAESTRUTURA ATUAL E O ADR-010
+--------------------------------------------------------------------------------
+
+  ACHADO PRINCIPAL — CAUSA-RAIZ CONFIRMADA DO BUCKET ERRADO:
+
+    O README do proprio pacote `@hub/storage-client` (dentro do tarball
+    vendorizado, `package/README.md`) contem a seguinte frase, escrita
+    durante o desenvolvimento do hub-sdk:
+
+      "Sprint 2 adicionou loadS3ConfigFromEnv(), lendo os Secrets
+      S3_ENDPOINT/S3_REGION/S3_BUCKET/S3_ACCESS_KEY_ID/
+      S3_SECRET_ACCESS_KEY do ambiente (Fly.io em producao, .env local
+      para validacao manual) — conectado e validado contra o bucket
+      Tigris real (hub-prod-backups)."
+
+    Isso PROVA, com uma fonte primaria (nao inferencia), que
+    `hub-prod-backups` e' o BUCKET DE DESENVOLVIMENTO/VALIDACAO DO
+    PROPRIO HUB-SDK — usado pela equipe do hub-sdk para testar
+    `S3CompatibleProvider` isoladamente durante o Sprint 2 do hub-sdk.
+    NAO e' um bucket dedicado ao hub-portal, e nunca foi.
+
+    Isso explica por completo o objeto encontrado na Sprint 5B-B1.2
+    (`backup/snapshots/manual/sample-data/2026-08-04T14-48-53-252Z
+    .snapshot.gz`) — "sample-data" e' exatamente o tipo de nome de fonte
+    generico que se usaria num teste manual de validacao do SDK, nao um
+    nome real de fonte do hub-portal (que usa `hub-data`, ver
+    `SOURCE_NAME` em src/backup-adapter.js).
+
+    CONCLUSAO: em algum momento entre a Sprint 5B-A/5B-B0 e agora, os
+    Secrets `S3_*` do app `hub-granmarquise` foram apontados para o
+    bucket de validacao do hub-sdk (provavelmente por conveniencia,
+    reaproveitando uma credencial ja' existente e testada, sem criar um
+    bucket dedicado ao hub-portal como o ADR-010 exige).
+
+  TABELA DE DIVERGENCIAS:
+
+  | # | Item                          | ADR-010 exige                                                   | Estado real (confirmado)                                                        | Severidade |
+  |---|-------------------------------|------------------------------------------------------------------|-----------------------------------------------------------------------------------|------------|
+  | 1 | Bucket dedicado por app        | Um bucket exclusivo, nomeado com o nome do app (ex. `hub-portal`) | `hub-prod-backups` — bucket de VALIDACAO do proprio hub-sdk, compartilhado          | CRITICA    |
+  | 2 | Segregacao de credencial        | Credencial de runtime SEM DeleteObject; DeleteObject so' numa credencial de prune separada, usada por job externo | Uma unica credencial (`S3_ACCESS_KEY_ID`/`S3_SECRET_ACCESS_KEY`) com PutObject+GetObject+ListBucket+DeleteObject, comprovado na Sprint 5B-B1.2 | ALTA       |
+  | 3 | Nomenclatura de variaveis        | `BACKUP_WRITE_ACCESS_KEY_ID`/`BACKUP_WRITE_SECRET_ACCESS_KEY` (runtime) + `BACKUP_PRUNE_*` (job de retencao) | Codigo real (`resolveStorageConfig()`) le `S3_*`/`AWS_*`/`BUCKET_NAME` — nenhuma das 3 convivencias hoje usa o prefixo `BACKUP_WRITE_*`/`BACKUP_PRUNE_*` do ADR | MEDIA (ver nota abaixo) |
+  | 4 | Retencao via lifecycle nativo     | Regras "avo-pai-filho" (horario x24, diario x30, mensal x12) via lifecycle do provider | `?lifecycle` retornou configuracao vazia (Sprint 5B-B1.2) — nenhuma regra          | MEDIA      |
+  | 5 | Rotacao de credencial (90 dias)  | Runbook de rotacao a cada 90 dias                                | Nao ha' como determinar a idade da credencial atual com as ferramentas disponiveis | BAIXA (desconhecido) |
+  | 6 | Versionamento do bucket           | Nao mandatado explicitamente pelo ADR-010 (Object Lock e' item de Backlog Tecnico, nao requisito V2) | Desabilitado (`?versioning` vazio, Sprint 5B-B1.2)                                 | INFORMATIVO (nao e' divergencia real) |
+
+  NOTA SOBRE O ITEM 3 (nomenclatura): esta e' uma divergencia real do
+  ADR-010, mas NAO PODE ser corrigida nesta Sprint nem na proxima
+  execucao do plano abaixo, porque a regra desta Sprint proibe alterar
+  `backup-adapter.js` — e o codigo atual (`resolveStorageConfig()`)
+  simplesmente NAO sabe ler `BACKUP_WRITE_*`/`BACKUP_PRUNE_*`. Migrar os
+  Secrets para esses nomes SEM alterar o codigo quebraria o Shadow Mode
+  por completo (nenhuma credencial seria encontrada). Por isso, o plano
+  desta Sprint (Atividade 2 abaixo) mantem a convencao `S3_*` — que E'
+  funcional e lida pelo codigo real hoje — e registra a nomenclatura
+  `BACKUP_WRITE_*`/`BACKUP_PRUNE_*` como uma aderencia PENDENTE, que
+  exigiria uma mudanca de codigo futura, fora do escopo aqui (ver
+  Atividade 6 do Sprint5BB13-GoNoGo.txt).
+
+--------------------------------------------------------------------------------
+ATIVIDADE 2 — PLANO DE MIGRACAO PARA BUCKET EXCLUSIVO DO PORTAL HUB
+--------------------------------------------------------------------------------
+
+  NOME RECOMENDADO DO BUCKET:
+
+      hub-portal
+
+    Justificativa: corresponde EXATAMENTE ao exemplo citado no proprio
+    ADR-010 (secao "Padroes de Nomenclatura": "um bucket por aplicacao
+    (ex. hub-qualidade, hub-portal)" e no diagrama de arquitetura,
+    "Bucket hub-portal (Tigris)"). Segue tambem o padrao ja' usado pelos
+    demais 4 apps da Plataforma HUB (`hub-qualidade`, `hub-helpdesk`,
+    `hub-spa`, `hub-contatos`), garantindo consistencia organizacional e
+    facilitando auditoria futura (nome do bucket = nome do app, sem
+    ambiguidade).
+
+  JUSTIFICATIVA GERAL DA MIGRACAO:
+    - Elimina o compartilhamento acidental com o bucket de
+      desenvolvimento do hub-sdk (achado da Atividade 1) — hoje, escrever
+      no bucket errado tambem significa que qualquer expurgo/retencao
+      futura aplicada ao bucket de VALIDACAO do hub-sdk (que nao segue
+      nenhuma politica de retencao pensada para dados de producao)
+      poderia apagar backups reais do hub-portal sem aviso.
+    - Restaura o isolamento de "blast radius" que o ADR-010 exige: uma
+      credencial comprometida do hub-portal, apos a migracao, so' da'
+      acesso ao bucket `hub-portal`, nunca a dados de validacao do
+      hub-sdk ou de qualquer outro contexto.
+    - Pre-requisito necessario antes de qualquer regra de retencao/
+      lifecycle real poder ser aplicada com seguranca (nao faz sentido
+      configurar retencao de producao num bucket de teste do SDK).
+
+  IMPACTO:
+    - Runtime do hub-portal: NENHUM impacto imediato. O backup LEGADO ja'
+      esta' desativado (Secrets BUCKET_NAME/AWS_* ausentes desde antes
+      deste engajamento) e o Shadow Mode nunca foi ativado em producao
+      (BACKUP_ENGINE indefinido) — ou seja, NADA em producao depende
+      hoje do bucket `hub-prod-backups`. A migracao pode ser feita sem
+      qualquer janela de indisponibilidade do Portal.
+    - Dados existentes: o unico objeto identificado no bucket antigo
+      (`backup/snapshots/manual/sample-data/...`) NAO pertence ao
+      hub-portal — nao ha' nada a migrar/copiar do bucket antigo para o
+      novo. O novo bucket comeca vazio.
+    - hub-sdk: nenhum impacto — o bucket de validacao do hub-sdk
+      (`hub-prod-backups`) continua existindo e disponivel para uso
+      futuro da propria equipe do hub-sdk, sem qualquer interferencia
+      desta migracao (nada sera' apagado nele por este plano).
+
+  RISCOS:
+    - Baixo, dado o Impacto acima (nada em producao depende do bucket
+      atual hoje). Riscos residuais:
+        (a) Erro humano ao copiar o novo valor de `S3_BUCKET`/
+            `S3_ACCESS_KEY_ID`/`S3_SECRET_ACCESS_KEY` para os Secrets do
+            Fly (mitigado pelo teste de conectividade da Atividade 5,
+            passo 4, ANTES de considerar a migracao concluida).
+        (b) Bucket novo criado com nome ja' em uso por outro
+            recurso/organizacao Tigris (nomes de bucket sao globais no
+            S3-compatible; mitigado validando a criacao antes de seguir
+            adiante — se `hub-portal` estiver indisponivel, usar
+            `hub-granmarquise-portal` como alternativa, ainda alinhado
+            ao espirito do padrao).
+        (c) `flyctl secrets set` reinicia a maquina (efeito colateral
+            inerente ao Fly, ja documentado nas Sprints anteriores) —
+            sem impacto pratico hoje porque nao ha' mecanismo ativo
+            dependendo do bucket.
+
+  ROLLBACK:
+    - Se qualquer etapa falhar: os Secrets `S3_*` sao os UNICOS artefatos
+      alterados por este plano. Reverter = `flyctl secrets set` com os
+      5 valores ANTIGOS (bucket `hub-prod-backups`, mesma Access
+      Key/Secret Key/endpoint/region ja' documentados como funcionais na
+      Sprint 5B-B1.2). Como nenhum dado de producao real chega a ser
+      escrito no bucket novo antes da validacao completa (Atividade 5,
+      passos 4-5), o rollback e' 100% seguro e sem perda de dado em
+      qualquer direcao.
+    - O bucket novo (`hub-portal`), se criado e depois abandonado por um
+      rollback, pode ser mantido vazio sem custo relevante (providers
+      S3-compatíveis nao cobram por bucket ocioso, conforme o proprio
+      ADR-010 observa) ou removido manualmente depois, sem pressa.
+
+================================================================================
+FIM DO DOCUMENTO — Sprint5BB13-BucketMigrationPlan.txt
+================================================================================

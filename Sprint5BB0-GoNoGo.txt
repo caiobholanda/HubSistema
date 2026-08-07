@@ -1,0 +1,102 @@
+================================================================================
+Sprint 5B-B0 — CLASSIFICACAO DO DIFF E DECISAO GO / NO-GO
+================================================================================
+
+Data:   2026-08-04
+
+--------------------------------------------------------------------------------
+ATIVIDADE 10 — git diff CLASSIFICADO
+--------------------------------------------------------------------------------
+
+  Arquivo               | Linhas          | Classificacao    | Justificativa
+  -----------------------|-----------------|-------------------|--------------------------------------------------------
+  Dockerfile              | +1              | INFRAESTRUTURA    | Adiciona `COPY vendor/ ./vendor/` — instrucao de build de imagem, zero logica de aplicacao
+  package.json            | +0/-0 (2 valores trocados) | CONFIGURACAO | Declaracao de ONDE resolver 2 dependencias (mecanismo), nao O QUE elas fazem
+  package-lock.json        | +561            | INFRAESTRUTURA    | Artefato 100% auto-gerado pelo `npm install`, nunca editado a mao
+  vendor/*.tgz + .sha256 + | (novos, nao      | INFRAESTRUTURA    | Artefatos binarios de distribuicao, identicos aos publicados e verificados na Sprint 5B-A
+  manifest.json             | rastreados)     |                   |
+  .dockerignore            | (sem diff)      | N/A               | Revisado, nenhuma alteracao necessaria
+  server.js                 | (diff PRE-      | N/A — FORA DO     | Diff pre-existente A ESTA SPRINT (integracao shadow-mode
+                              | EXISTENTE,      | ESCOPO desta      | de sessao anterior a este engajamento). NAO tocado nesta
+                              | inalterado)     | classificacao     | Sprint — confirmado byte a byte identico ao inicio da sessao
+  src/backup-adapter.js     | (nao tocado)    | N/A               | Nao aberto para edicao nesta Sprint (so leitura)
+
+  NENHUMA ALTERACAO FUNCIONAL IDENTIFICADA em nenhum arquivo tocado por
+  esta Sprint. Toda mudanca cai integralmente em INFRAESTRUTURA ou
+  CONFIGURACAO. A condicao de parada da Atividade 10 ("caso exista
+  qualquer alteracao funcional: PARAR imediatamente") NAO FOI ACIONADA.
+
+--------------------------------------------------------------------------------
+RESPOSTAS OBJETIVAS — GO / NO-GO
+--------------------------------------------------------------------------------
+
+  1. O Portal HUB continua exatamente com o mesmo comportamento?
+     SIM. Nenhuma linha de logica de negocio, rota HTTP, backup ou
+     restore foi alterada. Confirmado pelos 11 invariantes da Atividade 9
+     (Sprint5BB0-RiskAssessment.txt) e por 60/60 testes aprovados sem
+     nenhuma mudanca de resultado.
+
+  2. O modo legacy permanece 100% preservado?
+     SIM. `BACKUP_ENGINE` continua sem definicao em qualquer lugar do
+     repositorio; `getBackupEngineMode()` retorna "legacy" e
+     `isShadowModeActive()` retorna `false`, confirmado por execucao real
+     apos a migracao — identico ao comportamento anterior.
+
+  3. O build esta totalmente desacoplado do diretorio ../hub-sdk?
+     SIM. Busca textual por `../hub-sdk` em `package.json` e
+     `package-lock.json` pos-migracao: vazia. A resolucao de
+     `@hub/backup-core` e `@hub/storage-client` agora depende
+     exclusivamente de `vendor/*.tgz`, dentro do proprio repositorio do
+     hub-portal.
+
+  4. O Docker build esta apto para producao?
+     CONDICIONALMENTE SIM. A simulacao manual fiel (arquivos reais,
+     sequencia identica ao Dockerfile, cache vazio) teve sucesso completo
+     — instalacao, resolucao de imports ESM/CommonJS, zero referencia
+     residual ao caminho antigo. A ressalva explicita: nenhum `docker
+     build` REAL foi executado (binario indisponivel neste ambiente) —
+     recomendado como validacao final antes de qualquer push (Risco 1,
+     Sprint5BB0-RiskAssessment.txt).
+
+  5. O Fly.io podera executar exatamente como antes?
+     SIM, do ponto de vista desta migracao — `fly.toml` nao foi tocado,
+     nenhum Secret foi alterado, o comando de deploy
+     (`flyctl deploy --remote-only`) permanece o mesmo, e o
+     `.github/workflows/deploy.yml` nao precisou de nenhuma mudanca
+     (achado favoravel ja antecipado na PoC: vendor via npm pack nao
+     exige novo passo de CI). Validacao final em ambiente real com
+     Docker/Fly ainda recomendada antes do push (ver item 4).
+
+  6. Existe algum risco antes da Sprint 5B-B1?
+     Riscos identificados sao BAIXOS a BAIXO-MEDIOS, nenhum relacionado a`
+     perda de dado ou mudanca de comportamento: (a) ausencia de validacao
+     com Docker real neste ambiente; (b) leve aumento do tamanho do
+     repositorio pelos tarballs vendorizados (trade-off ja aceito na
+     decisao arquitetural); (c) 1 vulnerabilidade de severidade baixa em
+     `body-parser`, PRE-EXISTENTE (dependencia transitiva do `express`,
+     nao introduzida por esta migracao). Nenhum risco classificado como
+     ALTO ou CRITICO. Ver Sprint5BB0-RiskAssessment.txt para o
+     detalhamento completo.
+
+  7. Estamos aptos para iniciar a validacao do Shadow Mode?
+     SIM, do ponto de vista desta Sprint — o pre-requisito (dependencia
+     do hub-sdk resolvivel de forma autocontida, sem depender de um
+     checkout irmao) esta' satisfeito. A ativacao do Shadow Mode em si
+     (`BACKUP_ENGINE=shadow`) e' escopo da Sprint 5B-B1 (ou etapa
+     equivalente), nao desta Sprint 5B-B0 — nao antecipada aqui.
+
+  8. Em uma escala de 0 a 10, qual o risco desta migracao?
+     2/10. Justificativa: mudanca estritamente de mecanismo de resolucao
+     de dependencia, sem tocar em nenhuma logica de aplicacao; todos os
+     11 invariantes funcionais confirmados preservados; 60/60 testes
+     aprovados; checksums e integrity verificados em multiplas camadas
+     (SHA256 proprio, sha512 do npm, comparacao byte-a-byte contra a
+     Sprint 5B-A). Os 2 pontos de risco remanescentes refletem
+     unicamente a impossibilidade de rodar um `docker build` real neste
+     ambiente local (mitigado por simulacao fiel, mas nao 100%
+     equivalente) — nao qualquer incerteza sobre a correcao logica da
+     mudanca em si.
+
+================================================================================
+FIM DO DOCUMENTO — Sprint5BB0-GoNoGo.txt
+================================================================================

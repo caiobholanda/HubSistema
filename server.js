@@ -44,6 +44,10 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const { migrarSlugs, migrarSsoSistemas, ssoPadrao, migrarAusenciasAtivo, migrarAusenciasSpa } = require('./src/migrations');
 const sitePerm = require('./src/site-permissions');
+// Sprint 5B, Estagio 1 (modo sombra) — ver src/backup-adapter.js. Dormante
+// por padrao (BACKUP_ENGINE=legacy); nao altera nenhum comportamento
+// existente enquanto a flag nao for setada.
+const backupAdapter = require('./src/backup-adapter');
 
 const HUB_DATA_TMP = HUB_DATA_FILE + '.tmp';
 
@@ -127,9 +131,20 @@ let backupsHabilitados = false;
 let _backupTimer = null;
 function agendarBackup() {
   if (!backupConfigurado || !backupsHabilitados || _backupTimer) return;
-  _backupTimer = setTimeout(() => {
+  _backupTimer = setTimeout(async () => {
     _backupTimer = null;
-    _uploadBackupS3().catch(e => console.error('[BACKUP] upload agendado falhou:', e && e.message));
+    // Sprint 5B-B1: shadow so' dispara APOS o legado concluir (nunca em
+    // paralelo) — legado permanece a unica fonte de restore real; o shadow
+    // nunca compete por I/O/rede com ele nem corre risco de "vencer a
+    // corrida" e mascarar uma falha do legado.
+    console.log('[LEGACY BACKUP] iniciado');
+    try {
+      await _uploadBackupS3();
+      console.log('[LEGACY BACKUP] concluído');
+    } catch (e) {
+      console.error('[BACKUP] upload agendado falhou:', e && e.message);
+    }
+    _shadowBackupSeHabilitado();
   }, 5000);
   if (_backupTimer.unref) _backupTimer.unref();
 }
@@ -187,6 +202,41 @@ function _agendarBackupDiario() {
   if (t.unref) t.unref();
   const horas = (espera / 3600000).toFixed(1);
   console.log(`[BACKUP] copia diaria agendada para daqui a ${horas}h (03:00 de Fortaleza)`);
+}
+
+// Sprint 5B, Estagio 1 — dispara em PARALELO ao _uploadBackupS3() acima,
+// na MESMA janela de debounce (nao introduz um segundo timer). Nunca usado
+// para restore real nesta fase; so grava via hub-sdk e compara com o
+// checksum local, registrando qualquer divergencia. Best-effort: erro aqui
+// nunca afeta o mecanismo legado nem a aplicacao.
+function _shadowBackupSeHabilitado() {
+  if (!backupAdapter.isShadowModeActive()) return;
+  backupAdapter.runShadowBackup(HUB_DATA_FILE)
+    .then((resultado) => {
+      if (resultado.skipped) return;
+      if (!resultado.ok) {
+        console.error('[backup-shadow] falhou:', resultado.error);
+        return;
+      }
+      if (!resultado.checksumMatchesLocal) {
+        console.error('[backup-shadow] DIVERGENCIA de checksum — hub-sdk:', resultado.hubSdkChecksum, 'local:', resultado.localChecksum);
+      }
+      if (resultado.restore && !resultado.restore.ok) {
+        console.error('[backup-shadow] restore de teste falhou:', resultado.restore.error);
+      } else if (resultado.restore && !resultado.restore.checksumMatchesUpload) {
+        console.error('[backup-shadow] DIVERGENCIA no restore de teste — checksum nao bate com o upload');
+      }
+      console.log(
+        '[backup-shadow] objectKey=%s sizeBytes=%d uploadMs=%d restoreMs=%s checksumOk=%s restoreChecksumOk=%s',
+        resultado.objectKey,
+        resultado.sizeBytes,
+        resultado.uploadMs,
+        resultado.restore ? resultado.restore.restoreMs : 'n/a',
+        resultado.checksumMatchesLocal,
+        resultado.restore ? resultado.restore.checksumMatchesUpload : 'n/a'
+      );
+    })
+    .catch((e) => console.error('[backup-shadow] erro inesperado:', e && e.message));
 }
 
 function _parseDataFile(filePath) {
@@ -2700,14 +2750,30 @@ app.use((err, req, res, next) => {
   if (!backupConfigurado) {
     console.warn('[BACKUP] DESATIVADO: sem BUCKET_NAME/AWS_* no ambiente. Os dados existem em UMA copia so (volume do Fly). Ative com: fly storage create -a hub-granmarquise');
   }
+  // Sprint 5B, Estagio 1 — so informativo: modo sombra nao participa da
+  // decisao de backupInseguro/restore acima (o hub-sdk nunca restaura de
+  // verdade nesta fase).
+  if (backupAdapter.isShadowModeActive()) {
+    console.log(
+      '[backup-shadow] modo=%s configurado=%s (grava em paralelo ao legado; restore real continua 100%% aws4fetch nesta fase)',
+      backupAdapter.getBackupEngineMode(),
+      backupAdapter.isHubSdkConfigured()
+    );
+  }
   app.listen(PORT, () => console.log(`Hub rodando em http://localhost:${PORT}`));
 })();
 
 // Flush final: numa parada/deploy (SIGTERM), tenta subir a ultima versao antes de sair.
+// Sprint 5B: o flush do modo sombra roda EM PARALELO (nao em sequencia) ao
+// flush legado, dentro do mesmo orcamento de tempo — nunca estende o
+// shutdown alem do que ja era esperado.
 for (const sig of ['SIGTERM', 'SIGINT']) {
   process.on(sig, () => {
     const fim = () => process.exit(0);
-    if (!backupConfigurado) return fim();
-    Promise.race([_uploadBackupS3().catch(() => {}), new Promise(r => setTimeout(r, 4000))]).then(fim);
+    const tarefas = [new Promise(r => setTimeout(r, 4000))];
+    if (backupConfigurado) tarefas.push(_uploadBackupS3().catch(() => {}));
+    if (backupAdapter.isShadowModeActive()) tarefas.push(backupAdapter.flushShadowBackup(HUB_DATA_FILE, 4000));
+    if (tarefas.length === 1) return fim();
+    Promise.race([Promise.all(tarefas.slice(1)), tarefas[0]]).then(fim);
   });
 }

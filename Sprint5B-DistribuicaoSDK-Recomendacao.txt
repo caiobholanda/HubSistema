@@ -1,0 +1,168 @@
+================================================================================
+SPRINT 5B — DISTRIBUICAO DO hub-sdk PARA O FLY.IO — RECOMENDACAO
+Plataforma HUB Gran Marquise
+================================================================================
+
+Data:                  2026-08-04
+Companion de:          Sprint5B-DistribuicaoSDK-Analise.txt (ler antes
+                        deste documento — contem a analise completa das
+                        8 alternativas e o achado de que hub-sdk nao e
+                        hoje um repositorio git inicializado)
+Natureza deste documento: RECOMENDACAO APENAS. Nenhum arquivo de codigo
+                        foi alterado. Nenhum commit, push ou deploy foi
+                        realizado.
+
+--------------------------------------------------------------------------------
+PERGUNTA RESPONDIDA
+--------------------------------------------------------------------------------
+
+"Se voce fosse o Arquiteto Principal da Plataforma HUB e tivesse como
+prioridade colocar o backup em producao ainda esta semana, qual
+alternativa escolheria?"
+
+--------------------------------------------------------------------------------
+RESPOSTA OBJETIVA
+--------------------------------------------------------------------------------
+
+Escolheria a ALTERNATIVA 1b — VENDOR DE TARBALL VERSIONADO (npm pack) —
+como solucao TEMPORARIA para destravar o deploy desta semana, combinada
+com o inicio IMEDIATO e EM PARALELO (sem bloquear o deploy) do bootstrap
+do hub-sdk como repositorio git real, para que a migracao para a solucao
+definitiva (ALTERNATIVA 4 — GitHub Packages) possa comecar assim que o
+Estagio 1 estiver em producao e estavel.
+
+Nao escolheria GitHub Packages (Alternativa 4) para esta semana, apesar de
+ser a alternativa com a nota mais alta na analise (8/10) e o destino
+arquitetural correto — pelos motivos detalhados abaixo.
+
+--------------------------------------------------------------------------------
+MOTIVO DETALHADO
+--------------------------------------------------------------------------------
+
+1. A prioridade declarada e velocidade SEGURA, nao a solucao mais elegante.
+
+   O proprio enunciado desta analise e explicito: "A prioridade maxima NAO
+   e criar agora um ecossistema completo de publicacao de pacotes. A
+   prioridade maxima e colocar o novo mecanismo de backup em producao com
+   seguranca o mais rapido possivel." Isso elimina, por definicao,
+   qualquer alternativa cujo tempo estimado ultrapasse a janela de "esta
+   semana" ou que dependa de pre-requisitos fora do controle direto da
+   equipe no curto prazo.
+
+2. hub-sdk hoje NAO E um repositorio git — este e o fator decisivo.
+
+   A Alternativa 6 (checkout duplo no GitHub Actions) teve nota quase
+   identica a 1b na analise (7.5 ambas) e e arquiteturalmente mais
+   proxima do estado final desejado. Mas ela — assim como Submodule,
+   Subtree e GitHub Packages — depende de um pre-requisito que NAO esta
+   sob controle direto deste processo: transformar hub-sdk num
+   repositorio remoto real dentro da organizacao Hotel-Gran-Marquise no
+   GitHub (git init, primeiro commit, criacao do repositorio, decisao de
+   visibilidade, push). Isso envolve acesso administrativo a organizacao
+   e uma decisao (publico vs. privado, branch protection, quem tem
+   permissao de push) que idealmente deveria ser tomada com calma, nao
+   sob pressao do prazo desta semana. Amarrar o deploy desta semana a essa
+   decisao introduz um risco de cronograma desnecessario.
+
+   A Alternativa 1b nao tem essa dependencia: tudo acontece inteiramente
+   dentro do repositorio hub-portal, que ja existe, ja e git, ja tem
+   pipeline de CI funcionando. Zero coordenacao externa necessaria.
+
+3. Reversibilidade e simplicidade de auditoria.
+
+   Um tarball gerado por `npm pack` e um artefato IMUTAVEL, versionado por
+   nome de arquivo (ex.: hub-backup-core-1.1.0.tgz). Isso da rastreabilidade
+   de versao real (ao contrario de copiar arquivos-fonte soltos, onde nao
+   ha nenhum registro do "de onde veio" essa copia) sem exigir nenhuma
+   infraestrutura nova. Se algo der errado, o rollback e reverter um
+   commit — nao ha estado externo (registry, submodule ponteiro, segredo
+   de build) para desfazer.
+
+4. Caminho de migracao sem retrabalho — este e o motivo pelo qual 1b
+   vence 6 no desempate.
+
+   O mesmo artefato .tgz que a Alternativa 1b gera e commita HOJE e
+   EXATAMENTE o artefato que um `npm publish` real geraria amanha, quando
+   o GitHub Packages (Alternativa 4) for implementado. Ou seja: o trabalho
+   de empacotar os pacotes (`npm pack`, validar que o tarball instala
+   corretamente via `npm ci`) NAO E DESCARTADO na migracao — e reaproveitado
+   integralmente. A Alternativa 6, em contraste, resolve o problema de
+   outra forma (copia via CI a partir de um checkout), que precisaria ser
+   inteiramente substituida (nao apenas estendida) quando GitHub Packages
+   entrar em cena. 1b e, na pratica, "GitHub Packages sem o registry
+   ainda" — o mesmo formato de artefato, a mesma disciplina de
+   versionamento por nome, faltando so o mecanismo de distribuicao
+   automatizado.
+
+5. Excecao ao ADR-011 e formalmente reconhecida, nao contornada.
+
+   Tanto 1b quanto 6 (e qualquer variante de vendor/copia) tecnicamente
+   colidem com a secao "Por que nao copiar codigo entre aplicacoes" do
+   ADR-011. A diferenca e que 1b torna essa excecao EXPLICITA e FACIL DE
+   AUDITAR: o diretorio hub-portal/vendor/*.tgz e, por si so, um sinal
+   visual claro de "isto e uma excecao temporaria", com o numero de versao
+   no nome do arquivo funcionando como registro implicito de quando foi
+   gerado. Isso e tratado formalmente na secao de governanca do roadmap
+   (ver Sprint5B-DistribuicaoSDK-Roadmap.txt) como uma excecao com prazo,
+   nao uma violacao silenciosa.
+
+--------------------------------------------------------------------------------
+POR QUE NAO AS OUTRAS
+--------------------------------------------------------------------------------
+
+  - Vendor de codigo-fonte solto (1): estritamente inferior a 1b pelo
+    mesmo custo de implementacao, sem a rastreabilidade de versao do
+    tarball. Sem motivo para preferi-la a 1b.
+  - Git Submodule (2) / Git Subtree (3): dependem do mesmo bootstrap de
+    hub-sdk como repo remoto que torna a Alternativa 6 mais lenta que 1b
+    para esta semana, com UX operacional pior (submodule) ou risco de
+    sincronizacao manual mais alto (subtree) — nenhuma vantagem sobre 6
+    que justifique escolhe-las no lugar dele, quando o hub-sdk virar repo.
+  - GitHub Packages (4): destino correto, mas o achado tecnico sobre
+    possivel necessidade de renomear o escopo `@hub/*` para
+    `@hotel-gran-marquise/*` (ver Analise.txt, Alternativa 4) por si so ja
+    e um breaking change formal pelo ADR-011, que nao deveria ser decidido
+    e executado sob pressao de "esta semana". Fica reservado para a Fase 2
+    do roadmap, com tempo adequado para validar esse detalhe e para
+    formalizar a mudanca de escopo corretamente, se de fato for exigida.
+  - npm privado (5): nota mais baixa da analise (3/10) — introduz
+    exatamente o tipo de ponto unico de falha novo que o proprio ADR-010
+    rejeitou explicitamente para o BackupService, agora aplicado a TODO o
+    pipeline de build da plataforma. Sem justificativa para esta escala de
+    equipe/necessidade.
+  - Dockerfile multi-context (7): nota mais baixa entre as opcoes viaveis
+    (4.5/10) por causa da incerteza tecnica real e nao validada sobre
+    suporte do `flyctl deploy --remote-only` a contextos multiplos do
+    BuildKit — inadequada para uma decisao sob prazo apertado, pelo risco
+    de descobrir a meio caminho que o modelo de deploy inteiro precisaria
+    mudar.
+
+--------------------------------------------------------------------------------
+COMO MIGRAR PARA A SOLUCAO DEFINITIVA SEM RETRABALHO
+--------------------------------------------------------------------------------
+
+Resumo (detalhamento completo, com fases e gatilhos, em
+Sprint5B-DistribuicaoSDK-Roadmap.txt):
+
+  Fase 0 (esta semana): Alternativa 1b. Deploy do Estagio 1 destravado.
+  Fase 1 (em paralelo, nao bloqueante): bootstrap do hub-sdk como
+    repositorio git real no GitHub, sob Hotel-Gran-Marquise — decisao de
+    visibilidade, primeiro commit, push. Nenhum impacto no hub-portal
+    nesta fase.
+  Fase 2 (quando o Estagio 1 estiver estavel em producao E hub-sdk ja for
+    um repo real): implementar Alternativa 4 (GitHub Packages) —
+    resolvendo primeiro, com calma, o achado de possivel renomeacao de
+    escopo. O `npm pack`/validacao ja feitos na Fase 0 sao reaproveitados
+    diretamente no processo de publish real.
+  Fase 3: apos validar que hub-portal consome corretamente via GitHub
+    Packages em producao por pelo menos um ciclo de deploy completo,
+    remover hub-portal/vendor/*.tgz e a excecao registrada ao ADR-011.
+
+Nenhuma etapa da Fase 0 precisa ser desfeita nas fases seguintes — o
+tarball e o mesmo artefato, a disciplina de versionamento por nome e a
+mesma, e a unica coisa que muda e ONDE o artefato e resolvido (arquivo
+local -> registry remoto).
+
+================================================================================
+FIM DO DOCUMENTO — Sprint5B-DistribuicaoSDK-Recomendacao.txt
+================================================================================

@@ -1,0 +1,127 @@
+================================================================================
+Sprint 5B-B1 — AVALIACAO DE RISCO E ANALISE CRITICA
+================================================================================
+
+Data:   2026-08-04
+
+--------------------------------------------------------------------------------
+CONFORMIDADE COM AS REGRAS OBRIGATORIAS
+--------------------------------------------------------------------------------
+
+  [OK] Nenhum codigo existente foi removido — apenas adicionado (logs,
+       try/catch, comentarios) ou reordenado (2 chamadas passaram a ser
+       sequenciais em vez de paralelas, sem remover nenhuma das duas).
+  [OK] Comportamento do backup legado inalterado — mesmas guardas,
+       mesmo debounce, mesma logica de upload/retry por chave, mesma
+       mensagem de erro.
+  [OK] Nenhuma API publica alterada — `runShadowBackup`,
+       `flushShadowBackup`, `getBackupEngineMode`, `isShadowModeActive`,
+       `isHubSdkConfigured`, `resolveStorageConfig` mantem exatamente a
+       mesma assinatura e o mesmo formato de retorno.
+  [OK] Nenhum contrato alterado — confirmado pelos 12 testes existentes
+       de backup-adapter.test.js passando sem nenhuma modificacao.
+  [OK] ADR-010/011/012 nao tocados — nenhum arquivo de ADR foi lido para
+       alteracao nesta Sprint (mudanca e' de implementacao interna, nao
+       de arquitetura decidida).
+  [OK] Nenhuma configuracao removida — `.dockerignore`, `fly.toml`,
+       `.github/workflows/*` inalterados.
+  [OK] Nenhum push realizado — branch local 2 commits a` frente de
+       origin/main.
+  [OK] Nenhuma Release criada.
+  [OK] GitHub Actions nao alterado.
+  [OK] hub-sdk nao alterado.
+  [OK] vendor/ nao alterado (conteudo dos tarballs identico ao publicado
+       na Sprint 5B-A — apenas COMMITADO nesta Sprint, nao modificado).
+
+--------------------------------------------------------------------------------
+REVERSIBILIDADE
+--------------------------------------------------------------------------------
+
+  Toda alteracao desta Sprint e' revertivel por `git revert` do commit
+  `28e5f9beaa3883e5bdc3a2fa42f37ebe46e20abd` isoladamente (ou por
+  `BACKUP_ENGINE` nunca ter sido setado em nenhum Secret de producao —
+  o modo sombra permanece DORMENTE por padrao mesmo com o commit
+  aplicado; ativa-lo e desativa-lo e' uma mudanca de VARIAVEL DE
+  AMBIENTE, nao de codigo).
+
+--------------------------------------------------------------------------------
+ANALISE CRITICA ADICIONAL (solicitada ao final da Sprint)
+--------------------------------------------------------------------------------
+
+  1. O Shadow Mode está realmente isolado do backup legado?
+     SIM, em tres niveis independentes: (a) `_uploadBackupS3()` nunca
+     depende de nada que o shadow produz — nenhuma leitura cruzada; (b)
+     o shadow so' e' invocado DEPOIS que a Promise do legado se resolve
+     (Atividade 2), nunca compete por I/O/rede simultaneamente; (c)
+     qualquer excecao do shadow e' contida por DOIS niveis de
+     `try/catch` (o novo, interno ao adapter, e o `.catch()` original em
+     server.js) antes de poder alcançar qualquer codigo do legado ou do
+     restante da aplicacao. Confirmado empiricamente na Atividade 4.
+
+  2. Existe algum ponto único de falha?
+     SIM, um — DELIBERADO e ja existente antes desta Sprint, nao
+     introduzido agora: `agendarBackup()` so' e' chamado quando
+     `backupConfigurado` (credenciais do LEGADO) e' verdadeiro. Ou seja,
+     hoje, o shadow mode SO' TEM CHANCE de rodar no fluxo de escrita
+     regular se o legado tambem estiver configurado. Isso significa que
+     nao e' possivel testar o shadow mode isoladamente (sem o legado
+     configurado) atraves deste caminho especifico — embora seja
+     tecnicamente possivel via boot/outros caminhos que consultam
+     `BACKUP_ENGINE` independentemente. Nao corrigido nesta Sprint (fora
+     do escopo explicito — alterar essa guarda seria alterar
+     comportamento do legado/sua condicao de disparo). Registrado aqui
+     como observacao arquitetural para consideracao futura.
+
+  3. Existe algum risco de perda de backup?
+     NAO, para o LEGADO — nenhuma mudanca em sua logica de upload/PUT.
+     Para o SHADOW — nao ha' "backup" a perder no sentido critico: o
+     modo sombra nunca e' a fonte de restore real nesta fase (Estagio
+     1), e seu proprio design best-effort ja aceita que uma falha do
+     shadow simplesmente nao produz um backup shadow naquele ciclo,
+     sem consequencia para a integridade do dado real (que continua
+     protegido pelo legado).
+
+  4. Existe alguma oportunidade de simplificação futura?
+     SIM, duas, ja identificadas em auditorias anteriores
+     (Sprint5BB1-AuditoriaHubPortal.txt) e reforcadas por esta Sprint:
+     (a) `agendarBackup()`'s debounce manual poderia ser substituido
+     pelo `BackupScheduler` ja disponivel no hub-sdk v1.1.0 — mesma
+     logica, ja testada e versionada centralmente; (b) o calculo de
+     `backupInseguro` no boot poderia usar
+     `BackupService.isSafeToEnableContinuousBackup()` do hub-sdk, pelo
+     mesmo motivo. Nenhuma das duas foi feita nesta Sprint (fora do
+     escopo — envolveria alterar comportamento/logica do legado, nao
+     apenas conectar o shadow).
+
+  5. O mecanismo atual já permite, no futuro, desligar o backup legado
+     apenas alterando configuração?
+     PARCIALMENTE, NAO AINDA POR COMPLETO. `BACKUP_ENGINE` ja controla
+     se o SHADOW roda — mas nao existe hoje uma flag equivalente que
+     DESLIGUE o legado (`backupConfigurado` depende so' da presenca das
+     credenciais AWS_*/BUCKET_NAME, nao de uma escolha explicita de
+     motor). Para desligar o legado por configuracao (sem remover
+     credenciais, que tambem alimentam o shadow via
+     `resolveStorageConfig()`), seria necessario um novo controle
+     explicito — isso e' exatamente o escopo do Estagio 2 (corte de
+     restore), ainda nao iniciado, mencionado desde a criacao do
+     `backup-adapter.js` ("hub-sdk — reservado para o Estagio 2"). Nao
+     e' uma lacuna desta Sprint — e' o proximo estagio, por design.
+
+  6. Qual sua nota (0 a 10) para esta implementação?
+     8/10. Justificativa: isolamento e reversibilidade fortes,
+     confirmados empiricamente (nao apenas por leitura de codigo);
+     logging exatamente conforme especificado; zero regressao em 60/60
+     testes e no build remoto real; mudanca cirurgica (12
+     insercoes/2 remocoes em server.js, adicoes puramente aditivas em
+     backup-adapter.js). Os 2 pontos que faltam: (a) a validacao do
+     caminho de sucesso real (upload/checksum contra um bucket de
+     verdade) permanece pendente de um teste manual com credenciais
+     reais, fora do alcance desta Sprint; (b) o acoplamento entre
+     "legado configurado" e "shadow pode rodar" (pergunta 2) e' uma
+     aspereza arquitetural pre-existente que uma implementacao ideal
+     end-to-end eventualmente precisaria resolver, ainda que nao seja
+     culpa desta Sprint especificamente.
+
+================================================================================
+FIM DO DOCUMENTO — Sprint5BB1-RiskAssessment.txt
+================================================================================

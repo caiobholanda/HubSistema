@@ -1,0 +1,78 @@
+{
+  "release": {
+    "repository": "Hotel-Gran-Marquise/hub-sdk",
+    "tag": "v1.1.0",
+    "commit": "61961386471fd61b0ceb2c215653d1ac68b556b5",
+    "date": "2026-08-04",
+    "releaseUrl": "https://github.com/Hotel-Gran-Marquise/hub-sdk/releases/tag/v1.1.0",
+    "distributionMechanism": "vendor-npm-pack",
+    "adrs": [
+      "ADR-010-V2-BACKUPSERVICE-COMPARTILHADO-PARA-A-PLATAFORMA-HUB",
+      "ADR-011-ARQUITETURA-DO-REPOSITORIO-COMPARTILHADO-HUB-SDK",
+      "ADR-012-PROMOCAO-DE-PADROES-DE-APLICACAO-A-COMPONENTES-DO-HUB-SDK"
+    ]
+  },
+  "compatibility": {
+    "node": ">=20",
+    "moduleSystem": "esm",
+    "storageProviders": ["Tigris", "Cloudflare R2", "AWS S3 (S3-compativel)"],
+    "homologatedAgainst": "bucket Tigris real (hub-prod-backups) - Sprints 3A, 4.1, 4.4",
+    "notHomologated": ["SqliteLitestreamAdapter (fonte SQLite via Litestream)"]
+  },
+  "packages": [
+    {
+      "name": "@hub/storage-client",
+      "version": "1.0.0",
+      "filename": "hub-storage-client-1.0.0.tgz",
+      "sizeBytes": 6976,
+      "unpackedSizeBytes": 20660,
+      "fileCount": 9,
+      "sha256": "4aa7e18b5d196b4404afc619c200924ea079bb0594a55fc628c50888aea27de2",
+      "npmShasum": "75a383080706e9b6f7889cac9e025b3d8911c185",
+      "npmIntegrity": "sha512-QJ52AJo/txvMsPUehsXhYJNG6eRBMnzpPIc6EiUK92G1kvHSsRxPHNmsjr8ltpxlfbAytLSXU6S79oPSX96BUg==",
+      "publicExports": [
+        "IStorageProvider",
+        "NotImplementedError",
+        "ObjectNotFoundError",
+        "PROVIDER_PRESETS",
+        "ProviderAuthError",
+        "ProviderTransientError",
+        "RawConnectionConfig",
+        "S3CompatibleProvider",
+        "loadS3ConfigFromEnv",
+        "resolveProviderConfig"
+      ]
+    },
+    {
+      "name": "@hub/backup-core",
+      "version": "1.1.0",
+      "filename": "hub-backup-core-1.1.0.tgz",
+      "sizeBytes": 18310,
+      "unpackedSizeBytes": 62557,
+      "fileCount": 19,
+      "sha256": "7db24d67556a8dff6d01dbed30ba8662ae3871aba79e613d3c82eab2ce7e46ee",
+      "npmShasum": "f7d6b85a3636969ea885338be1c0b87a450e17e8",
+      "npmIntegrity": "sha512-vmDE+RCXrNS8BPJzB6AJ5YN8/SL12ZTXt+OgfWhJB6hmpPWH9fo7a/o7sEr2kK0FBbipLkNGEmLlTcpEuvrP2A==",
+      "publicExports": [
+        "BackupResult",
+        "BackupScheduler",
+        "BackupService",
+        "FileSnapshotStrategy",
+        "GenerationManifest",
+        "HealthCheck",
+        "IContinuousBackupStrategy",
+        "ISnapshotBackupStrategy",
+        "RestoreManifest",
+        "RestoreResult",
+        "RetentionPolicy",
+        "SnapshotManifest",
+        "SqliteLitestreamAdapter",
+        "loadBackupConfig"
+      ]
+    }
+  ],
+  "howToVerify": [
+    "sha256sum -c hub-storage-client-1.0.0.tgz.sha256",
+    "sha256sum -c hub-backup-core-1.1.0.tgz.sha256"
+  ]
+}

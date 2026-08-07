@@ -1,0 +1,408 @@
+================================================================================
+Sprint 5B — PROVA DE CONCEITO TECNICA: DISTRIBUICAO DO hub-sdk
+Plataforma HUB Gran Marquise
+================================================================================
+
+Data:                  2026-08-04
+Autor:                 Revisao tecnica assistida (Claude Code)
+Escopo:                Comparacao empirica entre duas alternativas de
+                       distribuicao do hub-sdk para o hub-portal (e demais
+                       aplicacoes do HUB), SEM alterar hub-portal, hub-sdk,
+                       ADRs, Fly.io, Tigris, nem realizar push/deploy.
+Contexto de origem:    Sprint5B-DistribuicaoSDK-Analise.txt,
+                       Sprint5B-DistribuicaoSDK-Recomendacao.txt e
+                       Sprint5B-DistribuicaoSDK-Roadmap.txt (analise
+                       arquitetural anterior, 8 alternativas). Este
+                       documento aprofunda as DUAS alternativas mais
+                       viaveis identificadas la — Vendor por npm pack
+                       (Fase 0) e Checkout duplo — com evidencia tecnica
+                       real, nao apenas analitica.
+Pre-condicao alterada: hub-sdk agora e' um repositorio Git real, oficial,
+                       privado, em https://github.com/Hotel-Gran-Marquise/
+                       hub-sdk (ver HubSDK-Officialization.txt). Isso NAO
+                       resolve o bloqueio original — apenas remove uma
+                       precondicao que impedia qualquer uma das duas
+                       alternativas de ser sequer tentada.
+
+--------------------------------------------------------------------------------
+0. METODOLOGIA — O QUE FOI REALMENTE EXECUTADO NESTA PoC
+--------------------------------------------------------------------------------
+
+Diferente da analise anterior (puramente arquitetural/documental), esta PoC
+executou comandos reais, fora dos repositorios hub-portal e hub-sdk, em um
+diretorio de trabalho isolado (scratchpad da sessao). Nenhum comando alterou
+hub-portal, hub-sdk, ADRs, Fly.io ou Tigris. Confirmacao:
+
+  - `git status --short` no hub-sdk ANTES e DEPOIS de todos os comandos desta
+    PoC: identico (apenas os arquivos de sessao ja conhecidos, nao
+    rastreados). O `npm pack` executado contra o hub-sdk usou
+    `--pack-destination` apontando para fora do repositorio — nao escreveu
+    nada dentro dele.
+  - `git status --short` no hub-portal: nao foi tocado por nenhum comando
+    desta sessao (o hub-portal ja tinha alteracoes locais nao commitadas,
+    preexistentes a esta sessao — a integracao shadow-mode da Sprint 5B
+    Stage 1 revisada anteriormente — e permanecem exatamente como estavam).
+  - Ambiente local usado para os testes: Node v24.18.1, npm 11.16.0,
+    flyctl v0.4.77. Ressalva: o CI real do hub-sdk usa Node 20.x (conforme
+    `ci.yml`, validado em execucao real na Fase de Governanca). O mecanismo
+    testado aqui (resolucao de dependencias `file:` pelo npm) e' uma
+    caracteristica do npm (arborist), estavel desde o npm 7, e nao
+    Node-version-sensitive — mas a validacao final em pipeline real deve
+    confirmar com o Node/npm efetivamente usados no runner do hub-portal.
+
+Testes executados (evidencia bruta preservada no scratchpad da sessao,
+disponivel para inspecao mediante pedido):
+
+  T1. `npm pack` real dos dois pacotes do hub-sdk (`@hub/storage-client`,
+      `@hub/backup-core`), gerando tarballs `.tgz` reais.
+  T2. Instalacao dos tarballs (`npm install`) em uma app consumidora isolada
+      e import ESM real (`node verify.mjs`) — confirmando resolucao efetiva
+      dos exports publicos de cada pacote.
+  T3. Simulacao da ordem de camadas do Dockerfile real do hub-portal
+      (`COPY package*.json ./` -> `RUN npm ci` -> `COPY . .`), com cache do
+      npm limpo/isolado, para verificar se o build falha ou passa quando o
+      `vendor/` ainda nao foi copiado no momento do `npm ci`.
+  T4. Repeticao de T3 com o `vendor/` presente antes do `npm ci` (simulando
+      um Dockerfile ajustado), confirmando sucesso.
+  T5. Simulacao de "checkout duplo": copia real da arvore `packages/` do
+      hub-sdk para dentro de um `vendor/hub-sdk/` aninhado, reproduzindo o
+      que um segundo `actions/checkout` faria dentro do workspace do
+      hub-portal.
+  T6. Repeticao de T3/T4 para o layout de checkout duplo (diretorio bruto,
+      nao tarball) — com achado critico divergente, ver secao 2.4.
+  T7. Validacao de sintaxe de um workflow YAML de exemplo para checkout
+      duplo (`npx js-yaml`), incluindo o segundo `actions/checkout` cross-
+      repo.
+  T8. Consulta real a `flyctl deploy --help` para confirmar (nao supor)
+      quais flags existem para lidar com contexto de build customizado.
+  T9. Consulta real a `git tag -l` e `gh release list` no hub-sdk para
+      confirmar o estado atual de versionamento.
+
+--------------------------------------------------------------------------------
+1. ALTERNATIVA A — VENDOR POR npm pack (TARBALL VERSIONADO)
+--------------------------------------------------------------------------------
+
+1.1 Arquitetura
+
+  Cada pacote do hub-sdk (`@hub/storage-client`, `@hub/backup-core`) e'
+  empacotado via `npm pack` a partir de um commit/tag conhecido do hub-sdk,
+  gerando um `.tgz` imutavel. Esse tarball e' commitado dentro do proprio
+  repositorio consumidor (ex.: `hub-portal/vendor/hub-sdk/*.tgz`), e o
+  `package.json` do consumidor referencia-o via
+  `"file:vendor/hub-sdk/hub-backup-core-1.1.0.tgz"`. O hub-sdk deixa de ser
+  uma dependencia de build-time externa — passa a ser um artefato binario
+  versionado dentro do proprio repositorio que o consome.
+
+1.2 Fluxo de build (evidencia real — T1, T2)
+
+  `npm pack --workspace packages/storage-client --workspace
+  packages/backup-core --pack-destination <fora do repo>` executado contra o
+  hub-sdk real produziu, sem alterar o hub-sdk:
+
+    @hub/storage-client@1.0.0 -> hub-storage-client-1.0.0.tgz
+      6.976 bytes empacotados / 20.660 bytes descompactados / 9 arquivos
+      (respeita o campo "files": ["src"] do package.json — so' entra src/ +
+      README.md + package.json; test/ e devDependencies ficam de fora)
+
+    @hub/backup-core@1.1.0 -> hub-backup-core-1.1.0.tgz
+      18.310 bytes empacotados / 62.557 bytes descompactados / 19 arquivos
+      (mesmo comportamento — so' src/, sem test/)
+
+    Total empacotado: ~25,3 KB.
+
+  Instalado o tarball em uma app consumidora isolada (`npm install`), o
+  npm gera um `package-lock.json` com
+  `"resolved": "file:vendor/hub-backup-core-1.1.0.tgz"` — uma referencia
+  EXATA e imutavel (o hash do tarball, nao um branch/commit movel). O
+  import ESM real (`node verify.mjs`) resolveu corretamente os 14 exports
+  publicos de `@hub/backup-core` e os 10 de `@hub/storage-client` —
+  confirmando que o pacote empacotado funciona identicamente ao pacote
+  fonte.
+
+1.3 Integracao com Docker/GitHub Actions (evidencia real — T3, T4)
+
+  ACHADO CONCRETO: o Dockerfile atual do hub-portal faz
+  `COPY package*.json ./` seguido de `RUN npm ci --production` ANTES de
+  `COPY . .` (otimizacao de cache de camadas). Simulando essa ordem
+  exatamente, com cache do npm isolado/vazio (para eliminar falsos
+  positivos de cache local), o resultado foi:
+
+    - SEM o `vendor/` presente no momento do `npm ci` (ordem atual,
+      inalterada): FALHA IMEDIATA e explicita —
+      `npm error enoent ENOENT: no such file or directory, open
+      '.../vendor/hub-backup-core-1.1.0.tgz'`. O build para' na hora, com
+      mensagem clara.
+    - COM o `vendor/` copiado junto aos manifests ANTES do `npm ci`
+      (Dockerfile ajustado para `COPY package*.json vendor/ ./`): SUCESSO
+      limpo, pacotes resolvidos em `node_modules/@hub/`.
+
+  Conclusao: Alternativa A exige UMA mudanca pequena, previsivel e local no
+  Dockerfile (incluir `vendor/` na copia que precede o `npm ci`). O modo de
+  falha, se a mudanca for esquecida, e' um erro de BUILD, alto e imediato —
+  facil de diagnosticar em CI, impossivel de passar despercebido.
+
+  No GitHub Actions, nenhum passo novo e' necessario alem do `checkout`
+  padrao do proprio hub-portal — o `vendor/*.tgz` ja' esta' dentro do
+  repositorio. Nenhum secret novo, nenhum checkout cross-repo.
+
+1.4 Integracao com Fly.io
+
+  Nenhuma mudanca em `fly.toml` ou na invocacao `flyctl deploy
+  --remote-only` e' necessaria. O contexto de build permanece o diretorio
+  do hub-portal (comportamento padrao do flyctl, confirmado via `flyctl
+  deploy --help` — ver secao 2.3). Apenas o Dockerfile muda.
+
+1.5 Impacto na manutencao
+
+  Atualizar a versao do hub-sdk consumida exige um passo manual/scriptavel
+  explicito: rodar `npm pack` contra a tag/commit desejada do hub-sdk e
+  commitar o novo `.tgz` no lugar do antigo. Isso gera um diff visivel no
+  historico do hub-portal (arquivo binario substituido) — nao legivel linha
+  a linha, mas o EVENTO da atualizacao fica registrado e auditavel (quem,
+  quando, associado a qual commit/PR). Nenhuma automacao continua existe por
+  padrao; a atualizacao e' deliberada.
+
+1.6 Impacto na escalabilidade
+
+  O tamanho do artefato distribuido e' limitado pelo campo `"files"` do
+  `package.json` de cada pacote do hub-sdk (ja' configurado para conter
+  apenas `src/`). Crescimento e' previsivel e proporcional ao codigo fonte
+  real, sem arrastar testes, scripts ou documentacao de desenvolvimento.
+
+1.7 Impacto em futuras aplicacoes (SPA, Help Desk, Diretorio de Ramais,
+    Qualidade)
+
+  O padrao e' auto-contido e replicavel por copia: cada aplicacao ganha seu
+  proprio `vendor/hub-sdk/*.tgz` e ajusta seu proprio Dockerfile. Nao exige
+  nenhum secret novo de CI, nenhuma permissao cross-repo. E' o padrao mais
+  simples de ensinar/documentar para times futuros.
+
+1.8 Facilidade de rollback
+
+  Rollback = reverter o commit que trocou o `.tgz` (ou fazer checkout de
+  uma versao anterior do arquivo binario) + `git revert`/`git checkout`
+  padrao. Nao depende de nenhum sistema externo (registry, GitHub Release)
+  estar disponivel no momento do rollback — o artefato ja' esta' dentro do
+  proprio repositorio, em qualquer commit historico.
+
+1.9 Compatibilidade com ADR-011
+
+  ADR-011 exige politica de "pin-exact" para dependencias do hub-sdk. A
+  Alternativa A IMPOE isso estruturalmente: um tarball e' um snapshot
+  imutavel por construcao — nao existe "range" ou "branch movel" possivel
+  neste mecanismo. A conformidade com "pin-exact" e' garantida pelo proprio
+  formato, nao por disciplina operacional.
+
+1.10 Riscos tecnicos
+
+  - Pre-requisito ainda em aberto (compartilhado com a Alternativa B):
+    hub-sdk nao tem NENHUMA tag/release ainda (`git tag -l` e `gh release
+    list` retornaram vazio — evidencia real, T9). Sem uma convencao de tag,
+    nao ha' forma reprodutivel de saber "de qual commit este .tgz foi
+    gerado" alem do commit message manual.
+  - Arquivo binario dentro do Git aumenta o tamanho do repositorio ao longo
+    do tempo (cada bump mantem uma copia no historico) — impacto pequeno na
+    escala atual (~25 KB por bump), mas deve ser monitorado se o hub-sdk
+    crescer significativamente.
+  - Falha requer que alguem lembre de rodar `npm pack` e commitar — nao ha'
+    enforcement automatico de que o `vendor/` esta' atualizado em relacao a`
+    ultima versao do hub-sdk (mitigavel com um workflow de CI que valida
+    isso, nao construido nesta PoC).
+
+1.11 Vantagens
+
+  - Falha rapida e ruidosa quando mal configurado (erro de build, nao de
+    runtime).
+  - Zero secrets novos, zero acesso cross-repo em tempo de CI.
+  - Rollback trivial via Git puro.
+  - Conformidade estrutural com "pin-exact" do ADR-011.
+  - Artefato minimo e previsivel (respeita "files").
+  - Replicavel sem fricção para as demais aplicacoes do HUB.
+
+1.12 Desvantagens
+
+  - Atualizacao manual (sem automacao continua "pronta" — ainda que
+    scriptavel).
+  - Arquivo binario no historico do Git (diff nao legivel).
+  - Depende de disciplina para nao esquecer de re-empacotar apos mudancas
+    no hub-sdk.
+
+--------------------------------------------------------------------------------
+2. ALTERNATIVA B — CHECKOUT DUPLO NO GITHUB ACTIONS
+--------------------------------------------------------------------------------
+
+2.1 Arquitetura
+
+  Um segundo passo `actions/checkout` clona o hub-sdk (pinado a uma tag ou
+  SHA) para dentro do workspace do runner, aninhado dentro da propria arvore
+  do hub-portal (ex.: `hub-portal/vendor/hub-sdk/`, via o parametro `path:`
+  do `actions/checkout`). O `package.json` do hub-portal referencia os
+  pacotes por caminho de DIRETORIO (nao tarball):
+  `"file:vendor/hub-sdk/packages/backup-core"`. O codigo-fonte do hub-sdk
+  nunca e' commitado dentro do hub-portal — e' buscado em tempo de CI, a
+  cada execucao.
+
+2.2 Fluxo de build (evidencia real — T5, T6)
+
+  Copiando a arvore real `packages/` do hub-sdk (simulando o que o segundo
+  `actions/checkout` faria) para dentro de um `vendor/hub-sdk/` aninhado:
+  236 KB copiados — cerca de 9,3x MAIOR que o total empacotado pela
+  Alternativa A (25,3 KB) — porque a copia bruta traz `test/` de cada
+  pacote junto (o campo `"files"` do package.json so' e' respeitado pelo
+  `npm pack`/`npm publish`, nunca por uma copia de diretorio/checkout
+  simples).
+
+  ACHADO CRITICO (o resultado mais importante desta PoC): repetindo a
+  mesma simulacao de ordem de camadas do Dockerfile (T3/T4) para este
+  layout — mas agora com dependencia `file:` apontando para um DIRETORIO,
+  nao um `.tgz` — o comportamento do npm e' estruturalmente DIFERENTE do
+  observado na Alternativa A:
+
+    - SEM o `vendor/hub-sdk/` presente no momento do `npm ci`
+      (exatamente a mesma ordem de camadas problematica de A): o `npm ci`
+      TERMINOU COM SUCESSO (exit code 0, "found 0 vulnerabilities", nenhum
+      erro, nenhum aviso). Inspecionando `node_modules/@hub/backup-core`
+      apos esse "sucesso": e' um SYMLINK QUEBRADO, apontando para um
+      caminho que nao existe.
+    - Tentando USAR o pacote nesse estado (`node verify.mjs`, um `import`
+      ESM real): falha em RUNTIME, nao em build —
+      `Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@hub/backup-core'`.
+
+  Ou seja: quando a dependencia `file:` aponta para um DIRETORIO, o npm
+  cria um symlink e NAO valida se o alvo existe no momento da instalacao.
+  O build (imagem Docker) e' construido com SUCESSO aparente, o deploy no
+  Fly.io e' aceito, e a aplicacao SO' QUEBRA quando o processo tenta
+  importar o modulo — no boot ou na primeira chamada que o exercite. Este
+  e' um modo de falha estritamente pior que o da Alternativa A: silencioso
+  no build, ruidoso apenas em producao.
+
+  Quando o `vendor/hub-sdk/` E' copiado antes do `npm ci` (Dockerfile
+  ajustado corretamente), o symlink resultante e' valido e o `import` ESM
+  funciona normalmente (14 e 10 exports, identico a` Alternativa A) — ou
+  seja, a alternativa FUNCIONA quando configurada corretamente; o risco
+  esta' inteiramente na FORMA como ela falha quando mal configurada.
+
+2.3 Integracao com GitHub Actions e Fly.io
+
+  Foi redigido e validado sintaticamente (via `npx js-yaml`, T7) um
+  workflow de exemplo com dois `actions/checkout`: um para o hub-portal
+  (`path: hub-portal`) e um segundo para o hub-sdk, pinado por tag
+  (`ref: v1.1.0`), aninhado em `path: hub-portal/vendor/hub-sdk`. Esse
+  segundo checkout, por se tratar de um repositorio PRIVADO
+  (Hotel-Gran-Marquise/hub-sdk), NAO pode usar o `GITHUB_TOKEN` padrao do
+  workflow do hub-portal (que so' tem escopo sobre o proprio hub-portal) —
+  exige um secret adicional (PAT ou GitHub App token com leitura sobre
+  hub-sdk), que precisa ser provisionado, rotacionado e auditado
+  separadamente. A Alternativa A nao requer nenhum secret novo.
+
+  Quanto ao Fly.io: `flyctl deploy --help`, consultado localmente (versao
+  real instalada: v0.4.77 — T8), confirma que `flyctl deploy
+  [WORKING_DIRECTORY]` aceita um diretorio de trabalho posicional e
+  `--dockerfile <path>` aceita um Dockerfile customizado. Isso significa
+  que uma variante "B1" (elevar o contexto de build para o diretorio-pai,
+  contendo hub-portal e hub-sdk como irmaos, sem aninhar um dentro do
+  outro) e' tecnicamente viavel — mas exige mudar tambem o COMANDO de
+  deploy (working directory + `--dockerfile`), nao so' o Dockerfile,
+  aumentando o raio de mudanca. A variante testada nesta PoC ("B2",
+  aninhada dentro do proprio hub-portal) mantem `fly.toml` e o comando
+  `flyctl deploy --remote-only` inalterados — e' a variante de menor
+  blast radius e a usada como base de comparacao neste documento.
+
+2.4 (ver achado critico na secao 2.2 — reforcado aqui por ser tambem um
+    ponto de integracao):
+
+  O comportamento de symlink-nao-validado do npm para dependencias `file:`
+  em diretorio significa que a integracao com Docker/Fly.io da Alternativa
+  B tem uma janela de falha silenciosa que a Alternativa A estruturalmente
+  nao tem (tarball ausente = erro de build; diretorio ausente = build OK,
+  crash em producao).
+
+2.5 Impacto na manutencao
+
+  Atualizar a versao consumida do hub-sdk e' uma mudanca de UMA linha no
+  YAML do workflow (`ref: v1.1.0` -> `ref: v1.2.0`) — um diff de texto
+  legivel e revisavel via PR, mais limpo que o diff binario da Alternativa
+  A. Em contrapartida, se o `ref:` for deixado apontando para um branch
+  movel (`main`) em vez de uma tag, cada execucao do workflow pode buscar
+  um commit diferente do hub-sdk sem nenhuma mudanca visivel no hub-portal
+  — quebra silenciosa de reprodutibilidade, dependente inteiramente de
+  disciplina de quem escreve o workflow (o mecanismo em si NAO impede isso,
+  diferente da Alternativa A onde a imutabilidade e' estrutural).
+
+2.6 Impacto na escalabilidade
+
+  Sem mitigacao adicional, o checkout traz a arvore `packages/` inteira do
+  hub-sdk (incluindo `test/` de cada pacote — 9,3x mais peso do que o
+  necessario, medido nesta PoC). O `actions/checkout` suporta
+  `sparse-checkout` para buscar apenas subdiretorios especificos (ex.:
+  `packages/*/src`) — capacidade real da action, mas NAO testada
+  empiricamente nesta PoC; seria uma configuracao adicional que cada app
+  consumidora precisaria manter e manter sincronizada conforme a estrutura
+  do hub-sdk evolui.
+
+2.7 Impacto em futuras aplicacoes (SPA, Help Desk, Diretorio de Ramais,
+    Qualidade)
+
+  O padrao de checkout duplo (incluindo o secret de leitura cross-repo)
+  precisa ser replicado em CADA workflow de CADA aplicacao consumidora.
+  Cada app nova = um novo ponto de configuracao do secret de acesso ao
+  hub-sdk (compartilhado entre apps, ou um por app — de qualquer forma,
+  superficie de secrets maior que a Alternativa A, que nao usa nenhum).
+
+2.8 Facilidade de rollback
+
+  Rollback = reverter a linha `ref:` no YAML do workflow (PR + merge) e
+  disparar novo deploy. Requer que a tag/release antiga do hub-sdk
+  continue existindo e acessivel no GitHub — dependencia de um sistema
+  externo (o proprio GitHub) estar disponivel no momento do rollback,
+  diferente da Alternativa A onde o artefato ja' esta' local no repositorio
+  consumidor em qualquer commit historico.
+
+2.9 Compatibilidade com ADR-011
+
+  ADR-011 exige "pin-exact". A Alternativa B PODE cumprir isso (pinando
+  `ref:` a uma tag SemVer), mas nao o faz estruturalmente — a conformidade
+  depende inteiramente de disciplina de quem escreve/revisa o workflow.
+  Usar `ref: main` (branch movel) e' uma configuracao igualmente valida do
+  ponto de vista sintatico da action, e violaria "pin-exact" silenciosamente.
+  Isso e' uma conformidade mais fraca com o ADR-011 que a Alternativa A.
+
+2.10 Riscos tecnicos
+
+  - CRITICO: falha silenciosa em build, visivel apenas em runtime/producao
+    (evidencia real, secao 2.2) — o risco mais serio identificado em toda
+    esta PoC.
+  - Pre-requisito em aberto (compartilhado com A): ausencia de tags/releases
+    no hub-sdk (T9).
+  - Exige secret adicional de leitura cross-repo (PAT/GitHub App token) —
+    nova superficie de gestao de credenciais, com necessidade de rotacao e
+    auditoria.
+  - Build context inflado (~9,3x, sem sparse-checkout) com codigo de teste
+    e artefatos de desenvolvimento do hub-sdk entrando no contexto de build
+    da aplicacao de producao.
+  - Acoplamento a disponibilidade do GitHub em tempo de CI para TODA
+    execucao de build (nao apenas no momento de atualizar a dependencia,
+    como em A, mas em TODO deploy).
+
+2.11 Vantagens
+
+  - Diff de atualizacao de versao e' texto legivel (uma linha de YAML), nao
+    binario.
+  - Sempre busca o codigo-fonte real do hub-sdk (nao um artefato
+    intermediario) — nenhuma etapa manual de empacotamento.
+  - Elimina a necessidade de armazenar um binario `.tgz` no historico do
+    Git do hub-portal.
+
+2.12 Desvantagens
+
+  - Modo de falha silenciosa em build / ruidosa em producao (achado
+    critico desta PoC).
+  - Exige secret de acesso cross-repo por aplicacao consumidora.
+  - Build context maior sem configuracao adicional (sparse-checkout).
+  - Pinagem exata depende de disciplina, nao e' estrutural.
+  - Acopla todo deploy a` disponibilidade do GitHub para o segundo checkout.
+
+================================================================================
+FIM DO DOCUMENTO — Sprint5B-Distribution-PoC.txt
+Ver tambem: Sprint5B-Decision-Matrix.txt, Sprint5B-Recommendation.txt
+================================================================================

@@ -1,0 +1,184 @@
+================================================================================
+Sprint 5B-B0 — MIGRACAO DE MECANISMO DE DISTRIBUICAO DO hub-sdk
+(file:../hub-sdk/... -> vendor/*.tgz)
+================================================================================
+
+Data:   2026-08-04
+Escopo: exclusivamente infraestrutura de dependencia. Nenhuma mudanca de
+        comportamento funcional, de logica de backup/restore, ou de fluxo
+        de producao. Nenhum commit, push, deploy ou alteracao de
+        Secrets/Fly.io/Tigris/GitHub Actions alem do estritamente
+        necessario para vendor/.
+
+--------------------------------------------------------------------------------
+ATIVIDADE 1 — DIRETORIO vendor/
+--------------------------------------------------------------------------------
+
+  Nao existia antes desta Sprint (confirmado por `ls` antes de criar).
+  Criado em `hub-portal/vendor/`. Estrutura final apos as Atividades 2-3:
+
+    vendor/
+      hub-backup-core-1.1.0.tgz
+      hub-backup-core-1.1.0.tgz.sha256
+      hub-storage-client-1.0.0.tgz
+      hub-storage-client-1.0.0.tgz.sha256
+      manifest.json
+
+--------------------------------------------------------------------------------
+ATIVIDADE 2 — DOWNLOAD E VALIDACAO DOS ARTEFATOS OFICIAIS
+--------------------------------------------------------------------------------
+
+  Comando: `gh release download v1.1.0 --repo Hotel-Gran-Marquise/hub-sdk`
+  Baixados exclusivamente os 5 assets publicados no Release oficial (nenhum
+  arquivo adicional, nenhuma fonte alternativa).
+
+  Validacao de nome, versao, tamanho e checksum SHA256 — TODOS conferem
+  exatamente com Sprint5BA-Checksums.txt (documento de referencia gerado
+  na Sprint 5B-A):
+
+    Artefato                          | Tamanho | SHA256 (10 primeiros/ultimos chars)      | Status
+    -----------------------------------|---------|-------------------------------------------|--------
+    hub-storage-client-1.0.0.tgz       | 6.976 B | 4aa7e18b5d...aea27de2                     | OK
+    hub-backup-core-1.1.0.tgz          | 18.310 B| 7db24d6755...ce7e46ee                      | OK
+
+  Verificacao dupla realizada:
+    1. `sha256sum -c *.sha256` contra os proprios arquivos .sha256 baixados
+       do Release -> "OK" para os dois.
+    2. Recalculo independente do SHA256 e comparacao manual, char a char,
+       contra os valores publicados em Sprint5BA-Checksums.txt -> IDENTICO.
+    3. Extracao do `package.json` de dentro de cada tarball (`tar -xzOf`) e
+       leitura de `name`/`version` -> `@hub/storage-client` 1.0.0 e
+       `@hub/backup-core` 1.1.0 — conferem.
+
+  NENHUMA DIVERGENCIA ENCONTRADA. Condicao de parada da Atividade 2 nao
+  foi acionada.
+
+--------------------------------------------------------------------------------
+ATIVIDADE 3 — COPIA PARA vendor/
+--------------------------------------------------------------------------------
+
+  Os 5 arquivos (2 tarballs + 2 .sha256 + manifest.json) foram copiados
+  sem qualquer transformacao de `hub-sdk-v1.1.0-release-download/` (staging
+  fora do repositorio) para `hub-portal/vendor/`.
+
+  Integridade reconfirmada POS-copia: `sha256sum -c` novamente "OK" para
+  os dois tarballs, no destino final dentro do hub-portal — garante que a
+  copia em si nao corrompeu nenhum byte.
+
+--------------------------------------------------------------------------------
+ATIVIDADE 4 — package.json
+--------------------------------------------------------------------------------
+
+  Alteracao (diff completo):
+
+    -    "@hub/backup-core": "file:../hub-sdk/packages/backup-core",
+    -    "@hub/storage-client": "file:../hub-sdk/packages/storage-client",
+    +    "@hub/backup-core": "file:vendor/hub-backup-core-1.1.0.tgz",
+    +    "@hub/storage-client": "file:vendor/hub-storage-client-1.0.0.tgz",
+
+  Nenhuma outra linha do package.json foi tocada — `aws4fetch`, `dotenv`,
+  `express`, `jsonwebtoken`, `scripts`, `name`, `version` permanecem
+  byte-a-byte identicos.
+
+--------------------------------------------------------------------------------
+ATIVIDADE 5 — package-lock.json
+--------------------------------------------------------------------------------
+
+  Ver Sprint5BB0-PackageValidation.txt para o detalhamento completo desta
+  atividade (comparacao antes/depois, prova de que nenhuma biblioteca
+  nao-relacionada mudou de versao).
+
+  Resumo: `npm install` executado, lockfile regenerado. As 4 dependencias
+  nao-hub-sdk (`aws4fetch` 1.0.20, `dotenv` 16.6.1, `express` 4.22.2,
+  `jsonwebtoken` 9.0.3) permaneceram EXATAMENTE nas mesmas versoes e
+  mesma origem (`resolved` identico). 36 pacotes novos adicionados,
+  todos identificados como dependencias transitivas legitimas de
+  `@hub/storage-client` (`@aws-sdk/client-s3`, `@aws-sdk/lib-storage`,
+  `@aws-sdk/s3-request-presigner` + seus proprios transitivos `@smithy/*`)
+  — confirmado por leitura direta do `package.json` empacotado dentro do
+  tarball. Nenhuma atualizacao inesperada. Condicao de parada da
+  Atividade 5 nao foi acionada.
+
+  ACHADO ADICIONAL POSITIVO (nao solicitado, descoberto durante a
+  validacao): antes desta migracao, `node_modules/@hub/*` eram SYMLINKS
+  para o codigo-fonte do hub-sdk no disco local — o que significa que a
+  resolucao de `@aws-sdk/*` por `@hub/storage-client` dependia
+  implicitamente do PROPRIO `node_modules` do hub-sdk (resolucao Node
+  sobe o filesystem real a partir do alvo do symlink). A migracao para
+  tarball elimina esse acoplamento oculto: agora o hub-portal instala
+  suas PROPRIAS copias de todas as dependencias transitivas, tornando-se
+  completamente autocontido — um beneficio de desacoplamento alem do que
+  a Sprint pedia, mas consistente com o objetivo geral.
+
+--------------------------------------------------------------------------------
+ATIVIDADE 6 — Dockerfile
+--------------------------------------------------------------------------------
+
+  Alteracao (diff completo, 1 linha adicionada):
+
+     FROM node:20-alpine
+     WORKDIR /app
+     COPY package*.json ./
+    +COPY vendor/ ./vendor/
+     RUN npm ci --production
+     COPY . .
+     (resto do arquivo inalterado)
+
+  Exatamente o ajuste identificado em Sprint5B-Distribution-PoC.txt
+  (secao 1.3): o `vendor/` precisa estar presente ANTES do `npm ci`,
+  porque a dependencia `file:` aponta para um dos `.tgz` dentro dele. A
+  estrategia de cache de camadas foi preservada — `COPY package*.json ./`
+  continua sendo uma camada separada de `COPY . .`; apenas `vendor/`
+  passou a fazer parte da camada de manifestos (que muda com a mesma
+  frequencia que package.json, nao a cada commit de codigo). Nenhuma
+  otimizacao adicional foi realizada, conforme instruido.
+
+--------------------------------------------------------------------------------
+ATIVIDADE 7 — .dockerignore
+--------------------------------------------------------------------------------
+
+  Revisado. Conteudo (inalterado):
+    .env / .env.* / data/ / !data/hub_data.json / .git / .gitignore / *.md
+
+  Nenhuma regra exclui `vendor/` (nenhum padrao `vendor` presente em
+  nenhuma linha). NENHUM AJUSTE FOI NECESSARIO — `.dockerignore`
+  permanece byte-a-byte identico ao estado anterior a esta Sprint.
+
+--------------------------------------------------------------------------------
+ATIVIDADE 8 — VALIDACAO DE BUILD
+--------------------------------------------------------------------------------
+
+  Ver Sprint5BB0-DockerValidation.txt para o detalhamento completo
+  (docker build nao disponivel neste ambiente local; simulacao manual
+  fiel do Dockerfile executada com os arquivos REAIS do repositorio,
+  incluindo `npm ci --production` com cache vazio e resolucao real dos
+  imports ESM/CommonJS).
+
+  Resumo: `npm install` (regeneracao do lockfile) — sucesso.
+  `npm test` — 60/60 testes aprovados, 0 falhas. Simulacao da sequencia
+  exata do Dockerfile (`COPY package*.json` -> `COPY vendor/` -> `npm ci
+  --production` com cache limpo -> `COPY .`) — sucesso, zero referencia
+  residual a `../hub-sdk`, imports ESM (`@hub/storage-client`,
+  `@hub/backup-core`) e CommonJS (`src/backup-adapter.js`) resolvidos
+  corretamente na copia simulada.
+
+--------------------------------------------------------------------------------
+RESUMO DO QUE MUDOU (visao consolidada)
+--------------------------------------------------------------------------------
+
+  Arquivos modificados (rastreados):  Dockerfile, package.json,
+                                       package-lock.json
+  Arquivos novos (nao rastreados):    vendor/ (5 arquivos)
+  Arquivos NAO tocados nesta Sprint:  server.js, src/backup-adapter.js,
+                                       tests/backup-adapter.test.js,
+                                       .dockerignore, fly.toml,
+                                       .github/workflows/*, qualquer
+                                       Secret ou variavel de ambiente
+
+  Ver Sprint5BB0-GoNoGo.txt para a classificacao formal de cada mudanca
+  (Infraestrutura/Documentacao/Configuracao/Funcional) e as respostas
+  objetivas de GO/NO-GO.
+
+================================================================================
+FIM DO DOCUMENTO — Sprint5BB0-VendorMigration.txt
+================================================================================

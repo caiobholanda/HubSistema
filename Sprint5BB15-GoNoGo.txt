@@ -1,0 +1,165 @@
+================================================================================
+Sprint 5B-B1.5 — DECISAO (PARCIAL — AGUARDANDO EXECUCAO)
+================================================================================
+
+Data:   2026-08-04
+STATUS: PARCIAL — a atualizacao real dos Secrets do Fly ainda nao foi
+confirmada como executada (ver Sprint5BB15-ProductionValidation.txt).
+As respostas abaixo refletem o estado ATUAL (pre-atualizacao) e serao
+reemitidas apos a confirmacao.
+
+--------------------------------------------------------------------------------
+RESPOSTAS OBJETIVAS (ESTADO ATUAL)
+--------------------------------------------------------------------------------
+
+  1. O Portal HUB ja podera' utilizar somente o bucket novo?
+
+     AINDA NAO. Os Secrets do Fly (`S3_BUCKET`/`S3_ACCESS_KEY_ID`/
+     `S3_SECRET_ACCESS_KEY`) continuam, no momento deste documento,
+     apontando para o bucket antigo (`hub-prod-backups`) — o comando de
+     atualizacao (Sprint5BB15-SecretsMigration.txt) ainda nao foi
+     executado/confirmado. Assim que for, o Portal passara' a usar
+     exclusivamente `hub-portal-prod`/`hub-portal-prod-runtime` — nao
+     ha' nenhum outro lugar no codigo (fora dos Secrets) onde um nome de
+     bucket ou credencial esteja hardcoded.
+
+  2. Existe algum impacto esperado?
+
+     NENHUM impacto funcional imediato, independentemente de quando a
+     troca for feita: o backup LEGADO continua desativado
+     (BUCKET_NAME/AWS_* ausentes, achado da Sprint 5B-B1.1) e o Shadow
+     Mode continua dormente (BACKUP_ENGINE indefinido) — ou seja, nada
+     em producao le' ou escreve nesses Secrets hoje, no runtime normal.
+     O UNICO efeito colateral observavel e' o restart da maquina que o
+     proprio `flyctl secrets set` sempre causa (documentado desde
+     Sprints anteriores).
+
+  3. Existe algum risco remanescente?
+
+     SIM, um, ja' identificado e CONSCIENTEMENTE ACEITO pelo usuario
+     nesta Sprint: a nova Access Key (`hub-portal-prod-runtime`), com o
+     papel "Editor" (unica opcao disponivel hoje no console da Tigris),
+     permite `DeleteObject` — o principio de menor privilegio do
+     ADR-010 (Modelo IAM: credencial de runtime SEM delete) NAO e'
+     totalmente atingido. Mitigacao ja' em vigor: nenhum caminho de
+     codigo do Shadow Mode chama delete (confirmado por leitura do
+     codigo-fonte na Sprint 5B-B1.3); o risco e' teorico (dependeria de
+     um bug futuro ou comprometimento do processo), nao um problema
+     ativo hoje. Fica registrado como divida tecnica aceita, nao como
+     bloqueio.
+
+     Risco secundario, menor: ate' a confirmacao da Atividade 4
+     (validacao pos-migracao), nao ha' evidencia REAL, apenas planejada,
+     de que a nova credencial funciona quando injetada via Fly Secrets
+     especificamente (a validacao da Sprint 5B-B1.4 rodou LOCALMENTE,
+     fora do Fly) — pequena diferenca de ambiente que a validacao
+     pos-migracao (proximo passo) elimina.
+
+  4. Estamos aptos a iniciar a homologacao do Shadow Mode (Sprint
+     5B-B1.1)?
+
+     AINDA NAO. Falta, nesta ordem:
+       (a) confirmar a execucao do `flyctl secrets set` (Sprint5BB15-
+           SecretsMigration.txt);
+       (b) eu completar a validacao pos-migracao real (Sprint5BB15-
+           ProductionValidation.txt, hoje em status BLOQUEADO);
+       (c) so' entao reavaliar o GO/NO-GO da homologacao do Shadow Mode
+           em si (Sprint 5B-B1.1), agora contra o bucket correto.
+
+--------------------------------------------------------------------------------
+NENHUMA ACAO DE PRODUCAO FOI TOMADA POR MIM NESTA SPRINT
+--------------------------------------------------------------------------------
+
+  Nenhum Secret, codigo, Fly.io, bucket ou Access Key foi alterado por
+  mim. O bucket antigo e a Access Key antiga permanecem intactos, per
+  instrucao explicita. Aguardando voce executar o comando de
+  Sprint5BB15-SecretsMigration.txt e confirmar para eu prosseguir.
+
+--------------------------------------------------------------------------------
+CRITERIOS FORMAIS DE APROVACAO (incorporado 2026-08-04, pedido de
+governanca) — GATE PARA O GO DA SPRINT 5B-B1.1 (HOMOLOGACAO SHADOW MODE)
+--------------------------------------------------------------------------------
+
+  O GO para iniciar a Sprint 5B-B1.1 (homologacao real do Shadow Mode)
+  SOMENTE podera' ser emitido se TODOS os 12 itens abaixo forem
+  verdadeiros. Qualquer item nao verdadeiro (falho, nao verificado, ou
+  ainda nao aplicavel) torna o resultado AUTOMATICAMENTE NO-GO — sem
+  excecao e sem ponderacao entre itens (nao e' uma media, e' AND logico
+  estrito sobre os 12).
+
+    [ ] Secrets atualizados
+        (S3_BUCKET/S3_ACCESS_KEY_ID/S3_SECRET_ACCESS_KEY apontando para
+        hub-portal-prod/hub-portal-prod-runtime)
+    [ ] Restart concluido
+        (flyctl status = 1 maquina, STATE=started, pos-secrets set)
+    [ ] Digests alterados
+        (os 3 digests pos-migracao diferem da baseline registrada em
+        Sprint5BB15-ProductionValidation.txt, Atividade 2.3)
+    [ ] Bucket correto confirmado
+        (process.env.S3_BUCKET dentro da maquina = "hub-portal-prod",
+        confirmado via SSH)
+    [ ] Autenticacao OK
+        (chamada assinada SigV4 contra o Tigris aceita, sem
+        InvalidAccessKeyId/SignatureDoesNotMatch)
+    [ ] ListBucket OK
+    [ ] PutObject OK
+    [ ] GetObject OK
+    [ ] Logs sem erros
+        (flyctl logs, periodo pos-restart, sem excecao relacionada a
+        storage/S3/Tigris)
+    [ ] Nenhuma referencia ao bucket antigo
+        (resultado PASS no item especifico da Atividade 3 de
+        Sprint5BB15-ProductionValidation.txt)
+    [ ] Rollback validado
+        (Sprint5BB15-RollbackPlan.txt confirmado como aplicavel — nao
+        exige ser EXECUTADO para este gate, apenas que o plano continue
+        valido e os artefatos que ele depende — bucket e credencial
+        antigos — continuem existindo e intocados, conforme instrucao
+        desta Sprint de nao remove-los ainda)
+    [ ] Shadow Mode ainda desativado
+        (BACKUP_ENGINE continua ausente de `flyctl secrets list` apos
+        toda a migracao — a migracao de bucket NAO deve, em nenhum
+        momento, ter ativado o Shadow Mode)
+
+  STATUS ATUAL DESTE GATE (2026-08-04): NO-GO.
+  Motivo: NENHUM dos 12 itens foi verificado ainda, porque a Atividade 1
+  desta cadeia (execucao do `flyctl secrets set`) ainda nao foi
+  confirmada como realizada. Um checklist com 0 de 12 itens marcados e'
+  NO-GO por definicao da propria regra acima ("qualquer item falho =
+  NO-GO automatico") — nao ha' ambiguidade a resolver aqui.
+
+  Este gate sera' reavaliado, item a item, com evidencia real de cada
+  um, assim que a validacao pos-migracao (Sprint5BB15-
+  ProductionValidation.txt) for concluida.
+
+--------------------------------------------------------------------------------
+APROVACAO DA MUDANCA (incorporado 2026-08-04, pedido de governanca)
+--------------------------------------------------------------------------------
+
+  Esta secao registra a decisao de NEGOCIO/RISCO de seguir em frente —
+  distinta e adicional aos 12 Criterios Formais de Aprovacao acima (que
+  respondem apenas se a mudanca esta' tecnicamente pronta). Ver
+  Sprint5BB15-ArchitectReview.txt, Atividade 2, para a justificativa
+  completa desta distincao. Campo preenchivel — NAO assinado por mim
+  (a decisao de aprovar e' do usuario/responsavel, nunca de quem apenas
+  prepara a documentacao).
+
+    Mudanca aprovada por:  ____________________
+    Cargo:                  ____________________
+    Data:                    ____________________
+    Hora:                    ____________________
+    Resultado:               [ ] GO      [ ] NO-GO
+    Observacoes:             ____________________________________________
+                             ____________________________________________
+                             (registrar aqui, no minimo: confirmacao de
+                             coordenacao com outros operadores com acesso
+                             de deploy a este app — ver Sprint5BB15-
+                             ArchitectReview.txt, Atividade 3, achado de
+                             deploys concorrentes por
+                             caiobholanda2007@gmail.com — e qualquer
+                             ressalva sobre o risco aceito de DeleteObject
+                             na Access Key, Atividade 4 da mesma revisao)
+
+================================================================================
+FIM DO DOCUMENTO (PARCIAL) — Sprint5BB15-GoNoGo.txt
+================================================================================

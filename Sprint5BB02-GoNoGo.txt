@@ -1,0 +1,70 @@
+================================================================================
+Sprint 5B-B0.2 — DECISAO FINAL
+================================================================================
+
+Data:   2026-08-04
+
+--------------------------------------------------------------------------------
+COMMIT REALIZADO
+--------------------------------------------------------------------------------
+
+  Hash:     6880b6ff1b7806d527c9c4f943671523fd4b83af
+  Autor:    Richard Anderson <ti@granmarquise.com.br>
+  Mensagem: "chore(docker): ignore local node_modules during remote builds"
+  Arquivos: exatamente 1 — `.dockerignore` (1 insercao)
+  Push:     NAO REALIZADO (branch local `main` a` frente de
+            `origin/main` em 1 commit — conforme instruido)
+
+--------------------------------------------------------------------------------
+RESUMO DA SPRINT
+--------------------------------------------------------------------------------
+
+  Fragilidade corrigida: `node_modules/` local sendo enviado ao builder
+  remoto do Fly.io por ausencia de entrada correspondente no
+  `.dockerignore`.
+  Correcao: 1 linha adicionada (`node_modules/`).
+  Validacao: build remoto real re-executado, contexto reduzido de
+  13,04 MB para 25,06 kB (-99,8%), passos de instalacao passaram a
+  reaproveitar cache, imagem final 2 MB menor, ZERO diferenca de
+  resultado funcional. 60/60 testes locais aprovados. `git diff`
+  confirmou que somente `.dockerignore` foi alterado por esta Sprint.
+
+--------------------------------------------------------------------------------
+RESPOSTAS FINAIS
+--------------------------------------------------------------------------------
+
+  1. Esta Sprint está aprovada?
+     SIM, tecnicamente aprovada por evidencia: objetivo unico cumprido
+     (fragilidade eliminada), escopo respeitado (nenhum outro arquivo
+     tocado), build real re-validado com sucesso, testes aprovados,
+     commit unico criado exatamente como especificado. Aprovacao formal
+     de prosseguimento e' decisao do usuario.
+
+  2. Podemos iniciar imediatamente a Sprint 5B-B1?
+     SIM, do ponto de vista tecnico — nenhum bloqueio remanescente
+     identificado (ver Sprint5BB02-RiskAssessment.txt, Atividade 6:
+     todas as 5 perguntas respondidas "NAO ha' risco/bloqueio" ou
+     "SIM, aderente").
+
+  3. Existe mais alguma melhoria estrutural antes do Shadow Mode?
+     Nenhuma IDENTIFICADA COMO NECESSARIA. Os itens acessorios
+     mencionados em Sprints anteriores (ex.: investigar a vulnerabilidade
+     baixa em `body-parser`, revisao geral de higiene documental como
+     `MAPEAMENTO.md`/CLAUDE.md) sao de baixa prioridade, nao relacionados
+     a` infraestrutura de build/distribuicao do hub-sdk, e nao bloqueiam
+     o Shadow Mode — permanecem como recomendacoes de fundo, ja
+     registradas em relatorios anteriores (Sprint5BB1-
+     AuditoriaHubPortal.txt, Sprint5BB0-RiskAssessment.txt).
+
+  4. Qual sua recomendação técnica final?
+     Prosseguir para a Sprint 5B-B1. A infraestrutura de distribuicao do
+     hub-sdk esta' validada em quatro camadas convergentes e sem nenhuma
+     divergencia entre elas: analise arquitetural (PoC), simulacao local
+     (Sprint 5B-B0), build remoto real de producao (Sprint 5B-B0.1), e
+     agora build remoto real OTIMIZADO e livre da fragilidade encontrada
+     (Sprint 5B-B0.2). Nao ha' nenhum bloqueio tecnico, arquitetural ou
+     operacional pendente para iniciar a validacao do Shadow Mode.
+
+================================================================================
+FIM DO DOCUMENTO — Sprint5BB02-GoNoGo.txt
+================================================================================

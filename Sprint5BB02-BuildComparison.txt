@@ -1,0 +1,61 @@
+================================================================================
+Sprint 5B-B0.2 — COMPARACAO DE BUILD: ANTES x DEPOIS DO .dockerignore
+================================================================================
+
+Data:   2026-08-04
+Ambos os builds: `flyctl deploy --build-only`, mesmo app
+(hub-granmarquise), mesmo builder remoto (Depot/Fly.io), Dockerfile
+identico nos dois casos — unica variavel e' a presenca da linha
+`node_modules/` no `.dockerignore`.
+
+--------------------------------------------------------------------------------
+ATIVIDADE 3 — COMPARACAO DIRETA
+--------------------------------------------------------------------------------
+
+  Metrica                     | ANTES (Sprint 5B-B0.1)        | DEPOIS (Sprint 5B-B0.2)      | Delta
+  ------------------------------|----------------------------------|----------------------------------|------------------------
+  Tamanho do contexto enviado    | 13,04 MB                          | 25,06 kB                          | -99,8% (~520x menor)
+  Tempo do passo "load build
+  context"                       | 37,3 s                            | 0,8 s                              | -97,9%
+  Passo COPY package*.json        | DONE 0,2s (executado do zero)     | CACHED                              | reaproveitado
+  Passo COPY vendor/               | DONE 0,0s (executado do zero)     | CACHED                              | reaproveitado
+  Passo RUN npm ci --production     | DONE 4,4s (executado do zero)     | CACHED                              | reaproveitado — nao
+                                  |                                    |                                    | precisou reinstalar nada
+  Passo COPY . .                     | DONE 1,6s                          | DONE 0,0s                          | mais rapido (menos dado
+                                  |                                    |                                    | para copiar)
+  Tamanho da imagem final              | 49 MB                                | 47 MB                                | -2 MB
+  Build ID (deployment)                  | deployment-01KZ7MJEQS06V3DK100WBY6AAR| deployment-01KZ7N0RFA6CTABHEWPE4K0XT0 | (builds distintos, ambos
+                                        |                                       |                                        | bem-sucedidos)
+  Resultado                              | SUCESSO (exit code 0)                | SUCESSO (exit code 0)                | identico — build
+                                        |                                       |                                        | continua funcional
+  Erros                                    | nenhum                                 | nenhum                                 | identico
+  Warnings                                  | npm (deprecacao --production,          | identicos (mesmos avisos                | identico — nao
+                                          | nova versao disponivel, 1              | de npm, mesma vulnerabilidade           | relacionados a esta
+                                          | vulnerabilidade baixa pre-existente)   | baixa pre-existente)                    | mudanca
+
+--------------------------------------------------------------------------------
+DIFERENCAS ENCONTRADAS
+--------------------------------------------------------------------------------
+
+  A UNICA diferenca funcional real e' a REDUCAO DRASTICA do contexto
+  enviado (13,04 MB -> 25,06 kB) e a consequente possibilidade de
+  reaproveitar cache em TODOS os passos de instalacao (WORKDIR, COPY
+  package*.json, COPY vendor/, RUN npm ci) — que antes rodavam do zero a
+  cada build porque a mudanca de conteudo do `node_modules/` local
+  (mesmo nao sendo usado de fato) invalidava o cache de camada do
+  Docker/Depot.
+
+  NENHUMA diferenca de RESULTADO: o build passou nas duas execucoes, com
+  o mesmo numero de pacotes instalados pelo `npm ci` (122), mesmos
+  warnings, zero erros nos dois casos. A correcao nao alterou o
+  comportamento funcional do build — apenas eliminou trabalho e dado
+  desnecessarios sendo transferidos.
+
+  Imagem 2 MB menor no segundo build — consistente com a hipotese de que
+  o `node_modules/` local (mesmo depois sobrescrito de forma
+  funcionalmente equivalente) ainda deixava alguma pegada residual
+  (metadados de camada) na imagem anterior.
+
+================================================================================
+FIM DO DOCUMENTO — Sprint5BB02-BuildComparison.txt
+================================================================================

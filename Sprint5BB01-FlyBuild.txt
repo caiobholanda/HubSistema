@@ -1,0 +1,136 @@
+================================================================================
+Sprint 5B-B0.1 — VALIDACAO REAL DO BUILDER REMOTO DO FLY.IO
+================================================================================
+
+Data:   2026-08-04
+Comando executado: `flyctl deploy --build-only` (raiz do hub-portal,
+Dockerfile atual, SEM modificar nenhum parametro)
+
+--------------------------------------------------------------------------------
+ATIVIDADE 2 — RESULTADO DO BUILD REAL
+--------------------------------------------------------------------------------
+
+  Confirmacao pre-execucao:
+    - `flyctl deploy --help` confirma a existencia da flag `--build-only`
+      ("Build but do not deploy") — nenhuma alternativa foi necessaria.
+    - `flyctl auth whoami` -> ti@granmarquise.com.br (autenticado).
+    - `flyctl apps list` confirma acesso ao app `hub-granmarquise`.
+
+  Execucao: `flyctl deploy --build-only`, a partir da raiz do hub-portal,
+  usando `fly.toml` e `Dockerfile` reais, sem nenhum parametro
+  customizado.
+
+  RESULTADO: SUCESSO — EXIT CODE 0.
+
+  Log real, passo a passo (builder Depot, gerenciado pelo Fly.io):
+
+    ==> Verifying app config
+    ✓ Configuration is valid
+
+    ==> Building image with Depot
+    #1 [internal] load build definition from Dockerfile          -> DONE 0.5s
+    #2 [internal] load metadata node:20-alpine                    -> DONE 0.3s
+    #3 [internal] load .dockerignore                              -> DONE 0.5s
+    #4 [1/7] FROM node:20-alpine@sha256:fb4cd12c...                -> DONE 0.0s (imagem base resolvida por digest)
+    #5 [internal] load build context                              -> DONE 37.3s (13,04 MB transferidos — ver achado abaixo)
+    #6 [2/7] WORKDIR /app                                          -> CACHED
+    #7 [3/7] COPY package*.json ./                                 -> DONE 0.2s
+    #8 [4/7] COPY vendor/ ./vendor/                                -> DONE 0.0s
+    #9 [5/7] RUN npm ci --production                               -> DONE 4.4s
+         "added 122 packages, and audited 123 packages in 4s"
+         "1 low severity vulnerability" (mesma ja identificada e
+          documentada como pre-existente em Sprint5BB0-RiskAssessment.txt)
+    #10 [6/7] COPY . .                                             -> DONE 1.6s
+    #11 [7/7] RUN mkdir -p /app/seed && cp ... hub_data.seed.json   -> DONE 0.2s
+    #12 exporting to image                                         -> DONE 0.8s
+         manifest sha256:364696b8f8227250b3fac31d238014b687e37fb09b8fdb62daa23050b263d80c
+         config   sha256:a19d4a9e6cfded5e87c7feb4f57846208cdca6aaf87d7a9b1d0d9493c9d0bd81
+
+    --> Building image done
+    image: registry.fly.io/hub-granmarquise:deployment-01KZ7MJEQS06V3DK100WBY6AAR
+    image size: 49 MB
+
+  Tempo total do build: ~45 segundos (dominado pela transferencia de
+  contexto, 37,3s — ver achado abaixo; os passos de build em si somam
+  ~7s).
+  Cache utilizado: `WORKDIR /app` reaproveitado de cache (`CACHED`); os
+  demais passos rodaram do zero (builder remoto novo, sem cache previo
+  deste app com `vendor/`).
+  Tamanho da imagem final: 49 MB.
+  Warnings: apenas avisos informativos do npm (uso de `--production`
+  deprecado em favor de `--omit=dev`; nova versao do npm disponivel) e a
+  mesma vulnerabilidade de severidade baixa ja identificada e
+  documentada na Sprint 5B-B0 (nao nova, nao relacionada ao hub-sdk).
+  Erros: NENHUM.
+
+--------------------------------------------------------------------------------
+ATIVIDADE 3 — VALIDACAO DOS COMPONENTES DO BUILD REMOTO
+--------------------------------------------------------------------------------
+
+  Dockerfile:              usado exatamente como esta' no repositorio,
+                            sem nenhuma modificacao de parametro.
+  vendor/:                  copiado com sucesso no passo #8 ("COPY
+                            vendor/ ./vendor/" -> DONE 0.0s), ANTES do
+                            `npm ci` (passo #9) — confirma que o ajuste
+                            de ordem de camadas feito na Sprint 5B-B0
+                            funciona no ambiente real de producao, nao
+                            so' na simulacao manual anterior.
+  npm ci:                   executado com sucesso dentro do builder
+                            remoto (passo #9) — "added 122 packages,
+                            and audited 123 packages" — identico ao
+                            resultado obtido localmente (Sprint5BB0-
+                            PackageValidation.txt).
+  package-lock.json:        usado tal como esta' (nao modificado nesta
+                            Sprint) — resolveu corretamente dentro de um
+                            ambiente Linux/Alpine genuinamente isolado
+                            (o builder Depot NAO tem nenhum diretorio
+                            irmao `hub-sdk` — diferente da maquina de
+                            desenvolvimento local).
+  Resolucao dos pacotes:    bem-sucedida — o proprio sucesso de `npm ci`
+                            neste ambiente ISOLADO e' a prova mais forte
+                            possivel de que `@hub/backup-core` e
+                            `@hub/storage-client` resolvem exclusivamente
+                            via `vendor/*.tgz`, sem qualquer dependencia
+                            de um diretorio externo ao repositorio.
+  Build remoto:              validado de ponta a ponta, imagem exportada
+                            com sucesso para `registry.fly.io/
+                            hub-granmarquise`.
+
+  ACHADO (nao bloqueante, registrado por completude — nao corrigido
+  nesta Sprint, por instrucao explicita de nao alterar arquivos):
+  o passo #5 ("load build context") consumiu 37,3s dos ~45s totais do
+  build, transferindo 13,04 MB de contexto. Correlacionado com o fato de
+  que `node_modules/` local (20 MB, gerado durante a Sprint 5B-B0) NAO
+  esta' listado em `.dockerignore` — o contexto enviado ao builder remoto
+  provavelmente incluiu o `node_modules/` local inteiro, mesmo ele nunca
+  sendo necessario (o Dockerfile gera seu PROPRIO `node_modules/` dentro
+  da imagem via `npm ci`, e `COPY . .` no passo #10 ocorre DEPOIS do
+  `npm ci` — ou seja, se o `node_modules/` local fosse copiado por cima
+  no passo #10, ele substituiria o `node_modules/` corretamente instalado
+  pelo `npm ci` dentro da imagem). Neste build especifico isso NAO causou
+  nenhum problema observável (o `node_modules/` local foi gerado pelo
+  mesmo `package-lock.json` momentos antes, entao o conteudo e'
+  efetivamente identico), mas e' uma fragilidade estrutural: se o
+  `node_modules/` local algum dia divergir (ex.: instalado em outro
+  sistema operacional, com binarios nativos incompativeis com
+  Linux/Alpine), essa mesma ordem de camadas poderia introduzir um
+  `node_modules/` incorreto na imagem final, silenciosamente. RECOMENDADO
+  (nao executado nesta Sprint): adicionar `node_modules/` ao
+  `.dockerignore`, tanto por correcao estrutural quanto por reduzir o
+  tempo de build (37s de transferencia de contexto poderiam cair para
+  poucos segundos).
+
+--------------------------------------------------------------------------------
+NAO EXECUTADO (por decisao explicita do escopo)
+--------------------------------------------------------------------------------
+
+  - Nenhum deploy real foi realizado (`--build-only` nunca publica,
+    nunca cria Machine, nunca libera trafego — comportamento confirmado
+    pelo proprio texto de ajuda do flyctl e pelo log, que termina em
+    "Building image done" sem nenhuma etapa de deploy/release).
+  - Nenhum Secret foi lido, criado ou alterado.
+  - Nenhuma Machine foi criada ou modificada.
+
+================================================================================
+FIM DO DOCUMENTO — Sprint5BB01-FlyBuild.txt
+================================================================================

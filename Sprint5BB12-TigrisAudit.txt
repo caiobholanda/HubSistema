@@ -1,0 +1,161 @@
+================================================================================
+Sprint 5B-B1.2 — AUDITORIA DA INFRAESTRUTURA TIGRIS
+================================================================================
+
+Data:   2026-08-04
+Metodo: leitura de Secrets (flyctl secrets list), ADR-010, e um teste REAL
+autenticado contra o Tigris (ver Sprint5BB12-ConnectivityTest.txt para a
+evidencia bruta completa) — executado via `flyctl ssh console` na maquina
+de producao ja existente, usando `aws4fetch` (dependencia ja presente na
+imagem, usada pelo proprio mecanismo legado) para assinar requisicoes
+SigV4 com as credenciais REAIS ja injetadas pelo Fly. Nenhuma credencial
+foi extraida, copiada ou exibida em texto puro em nenhum momento — apenas
+fingerprints (4 primeiros + 4 ultimos caracteres) e comprimento.
+
+--------------------------------------------------------------------------------
+ATIVIDADE 1 — AUDITORIA DA CONFIGURACAO ATUAL DO TIGRIS
+--------------------------------------------------------------------------------
+
+  1. Bucket realmente existe?
+     SIM. `GET /?list-type=2` retornou HTTP 200 com um `ListBucketResult`
+     valido (nao um erro `NoSuchBucket`).
+
+  2. Bucket esta ativo?
+     SIM. Aceitou list, put, get e delete sem nenhum erro de
+     disponibilidade/suspensao.
+
+  3. Bucket possui Object Lock?
+     INDETERMINADO pela configuracao — com uma evidencia operacional
+     forte. A chamada `GET /?object-lock` (subresource padrao S3 para
+     `GetObjectLockConfiguration`) NAO retornou nem uma configuracao de
+     lock nem o erro padrao esperado quando o Object Lock nunca foi
+     habilitado (`ObjectLockConfigurationNotFoundError`) — em vez disso,
+     devolveu o MESMO corpo de uma listagem de bucket comum (200,
+     `ListBucketResult`), identico ao da pergunta 1. Isso indica que o
+     Tigris nao implementa esse subresource especifico da API S3 (ou o
+     ignora silenciosamente e cai no comportamento padrao de GET
+     Bucket) — a resposta NAO e' conclusiva sobre a configuracao.
+     EVIDENCIA OPERACIONAL INDIRETA: o DELETE do objeto de teste
+     (Atividade 2) foi aceito imediatamente (204), sem nenhum erro de
+     "objeto retido"/"locked" — na pratica, nao ha' Object Lock
+     bloqueando operacoes normais de escrita/remocao hoje, seja porque
+     nao esta' habilitado, seja porque nao se aplica a objetos comuns
+     sem retencao explicita definida no PUT.
+
+  4. Bucket possui retencao configurada?
+     NAO. `GET /?lifecycle` retornou HTTP 200 com
+     `<LifecycleConfiguration></LifecycleConfiguration>` vazio — sem
+     nenhuma regra de expiracao/transicao/retencao definida.
+
+  5. Bucket possui versionamento?
+     NAO. `GET /?versioning` retornou HTTP 200 com
+     `<VersioningConfiguration></VersioningConfiguration>` vazio (sem
+     elemento `<Status>`) — resposta padrao S3 para "versionamento nunca
+     foi habilitado".
+
+  6. Access Key utilizada continua valida?
+     SIM. Usada com sucesso em 6 chamadas assinadas (SigV4) distintas —
+     list, versioning, object-lock, lifecycle, put, get, delete — todas
+     autenticadas sem erro `InvalidAccessKeyId`/`SignatureDoesNotMatch`.
+     Fingerprint: `tid_...KCeW` (54 caracteres — prefixo `tid_` e'
+     caracteristico de token de acesso nativo da Tigris, nao uma
+     `AWS_ACCESS_KEY_ID` no formato classico `AKIA...`).
+
+  7. Secret Key continua valida?
+     SIM — mesma evidencia do item 6 (a assinatura SigV4 depende de
+     ambas as chaves; qualquer uma invalida teria causado
+     `SignatureDoesNotMatch` em toda chamada). Comprimento: 75
+     caracteres, presente.
+
+--------------------------------------------------------------------------------
+ATIVIDADE 3 — S3_BUCKET CORRESPONDE AO BUCKET DA SPRINT DE PROVISIONAMENTO?
+--------------------------------------------------------------------------------
+
+  ACHADO CRITICO — NAO CORRESPONDE AO PADRAO ESPERADO.
+
+  Nome real do bucket configurado (lido diretamente do ambiente de
+  producao via S3_BUCKET, confirmado pelo `<Name>` retornado pelo
+  proprio Tigris na listagem — nao e' informacao sensivel, apenas um
+  identificador):
+
+      hub-prod-backups
+
+  Convencao documentada no ADR-010 ("BackupService compartilhado para a
+  Plataforma HUB"), secao "Estrutura do Bucket" e diagrama de
+  arquitetura: **um bucket por aplicacao, nomeado com o nome do proprio
+  app**, provisionado via `fly storage create` — exemplos explicitos no
+  proprio ADR: `hub-qualidade`, `hub-helpdesk`, `hub-spa`, `hub-contatos`,
+  e (no diagrama) `hub-portal`. Citação literal do ADR-010:
+
+    "Bucket por aplicação (via fly storage create, nativo do Fly.io/
+    Tigris), não bucket único compartilhado por prefixo."
+
+  O nome real (`hub-prod-backups`) NAO segue esse padrao — e' um nome
+  generico, sem referencia ao app `hub-portal`, e seu formato ("-backups"
+  no plural, sem sufixo de app) e' mais tipico de um bucket PENSADO PARA
+  SER COMPARTILHADO entre multiplas fontes de backup do que de um bucket
+  dedicado e exclusivo de uma unica aplicacao.
+
+  REFORCO DO ACHADO — DADO PRE-EXISTENTE ENCONTRADO NO BUCKET: a
+  listagem real (Atividade 2) revelou que o bucket JA CONTEM pelo menos
+  um objeto, criado HOJE mesmo, que NAO tem origem identificavel no
+  hub-portal:
+
+      backup/snapshots/manual/sample-data/2026-08-04T14-48-53-252Z.snapshot.gz
+      (264 bytes, criado em 2026-08-04T14:49:31Z)
+
+  A chave usa o padrao `{fonte}/{granularidade}/{timestamp}.ext` do
+  proprio hub-sdk (ADR-010, secao de estrutura de chaves), com
+  fonte="sample-data" e granularidade="manual" — nem o mecanismo legado
+  do hub-portal (que grava em `hub_data/latest.json` e
+  `hub_data/hourly/...`, chaves totalmente diferentes) nem o Shadow Mode
+  do hub-portal (fonte configurada como `hub-data`, nao `sample-data` —
+  ver `SOURCE_NAME` em src/backup-adapter.js) produziriam essa chave.
+  BACKUP_ENGINE tambem permanece indefinido em producao desde a Sprint
+  5B-B1.1 — o hub-portal nao poderia ter gravado isso.
+
+  CONCLUSAO DA ATIVIDADE 3: o bucket configurado em S3_BUCKET NAO
+  corresponde ao padrao de nomenclatura por aplicacao exigido pelo
+  ADR-010, e ha' evidencia concreta (um objeto de outra origem, gravado
+  no mesmo dia) de que este bucket pode estar sendo usado por mais de
+  uma fonte — o que, se confirmado, violaria diretamente o principio de
+  isolamento por bucket do ADR-010 ("blast radius de uma credencial
+  comprometida limitado a uma unica aplicacao"). NAO E' POSSIVEL, com as
+  ferramentas desta Sprint, confirmar OU descartar que outras aplicacoes
+  da Plataforma HUB tambem escrevem neste mesmo bucket.
+
+--------------------------------------------------------------------------------
+ATIVIDADE 4 — SECRETS FLY.IO vs. SECRETS ESPERADOS PELO HUB-SDK
+--------------------------------------------------------------------------------
+
+  hub-sdk (`resolveStorageConfig()`, src/backup-adapter.js) espera, em
+  ordem de prioridade:
+
+    S3_BUCKET             -> PRESENTE, funcional (Atividade 1/2)
+    S3_ACCESS_KEY_ID       -> PRESENTE, funcional
+    S3_SECRET_ACCESS_KEY   -> PRESENTE, funcional
+    S3_ENDPOINT (opcional)  -> PRESENTE — valor real:
+                              https://t3.storage.dev (DIFERENTE do
+                              default embutido no codigo,
+                              https://fly.storage.tigris.dev — ambos sao
+                              dominios validos da Tigris; t3.storage.dev
+                              e' um endpoint alternativo/mais novo da
+                              propria Tigris, nao um erro de dominio.
+                              Confirmado funcional pelas 6 chamadas
+                              autenticadas com sucesso.)
+    S3_REGION (opcional)   -> PRESENTE — 'auto'
+
+  CONCLUSAO: do ponto de vista ESTRITO do que o hub-sdk/Shadow Mode
+  precisa para autenticar e operar, NAO HA' NENHUMA INCONSISTENCIA — os
+  5 Secrets estao presentes e comprovadamente funcionais.
+
+  A INCONSISTENCIA que existe (ja' documentada na Sprint 5B-B1.1,
+  Atividade 1.2) e' EXCLUSIVA do mecanismo LEGADO: `server.js` exige
+  `BUCKET_NAME`/`AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`, que
+  continuam ausentes dos Secrets — reconfirmado nesta Sprint
+  (`BUCKET_NAME_present: false` no teste desta Sprint). Nao e' um
+  problema NOVO, apenas reconfirmado.
+
+================================================================================
+FIM DO DOCUMENTO — Sprint5BB12-TigrisAudit.txt
+================================================================================

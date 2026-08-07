@@ -1,0 +1,107 @@
+================================================================================
+Sprint 5B-B1.2 — DECISAO GO/NO-GO
+================================================================================
+
+Data:   2026-08-04
+
+--------------------------------------------------------------------------------
+ATIVIDADE 5 — RESPOSTAS OBJETIVAS
+--------------------------------------------------------------------------------
+
+  1. O Tigris esta pronto para receber backups reais?
+     TECNICAMENTE SIM, operacionalmente NAO SEM RESSALVA. Autenticacao,
+     listagem, escrita, leitura e remocao foram todas comprovadas com um
+     teste real (Sprint5BB12-ConnectivityTest.txt). Porem o bucket em si
+     nao esta' configurado da forma que o ADR-010 exige (ver pergunta 5)
+     — "pronto" no sentido tecnico, mas nao "em conformidade" no sentido
+     arquitetural.
+
+  2. Existe algum risco operacional?
+     SIM, um risco NOVO, descoberto nesta Sprint: o bucket
+     `hub-prod-backups` ja' contem um objeto pre-existente
+     (`backup/snapshots/manual/sample-data/...`) que NAO tem origem
+     identificavel no hub-portal, criado no mesmo dia. Isso levanta a
+     possibilidade concreta de que este bucket seja compartilhado entre
+     mais de uma fonte/aplicacao — o que, se confirmado, contraria
+     diretamente o principio de isolamento por bucket do ADR-010. Ativar
+     o Shadow Mode do hub-portal contra um bucket potencialmente
+     compartilhado, antes de esclarecer essa questao, expande o risco em
+     vez de reduzi-lo.
+
+  3. Existe algum problema de permissao?
+     NAO para as operacoes minimas necessarias (list/put/get/delete,
+     todas confirmadas). HA', porem, um achado de seguranca: a credencial
+     testada consegue fazer `DeleteObject`, o que o ADR-010
+     explicitamente recomenda NAO estar disponivel na credencial de
+     runtime da aplicacao (deveria ser uma credencial separada, usada
+     so' pelo job de pruning). Nao e' um bloqueio tecnico para a
+     homologacao, mas e' uma nao-conformidade de seguranca a registrar.
+
+  4. Existe algum problema de autenticacao?
+     NAO. Access Key e Secret Key validas e funcionais, confirmado em 6
+     chamadas assinadas com sucesso.
+
+  5. Existe algum problema de bucket?
+     SIM — o achado central desta Sprint. `S3_BUCKET` aponta para
+     `hub-prod-backups`, um nome que NAO segue a convencao "bucket por
+     aplicacao, nomeado com o nome do app" exigida pelo ADR-010 (que
+     lista `hub-portal` como exemplo explicito no proprio diagrama de
+     arquitetura). Combinado com o objeto pre-existente de origem
+     desconhecida (pergunta 2), isso e' motivo suficiente para NAO
+     prosseguir sem esclarecimento humano.
+
+  6. Existe algum problema de configuracao?
+     SIM, dois, um ja' conhecido e um novo:
+       (a) JA CONHECIDO (Sprint 5B-B1.1): Secrets do mecanismo LEGADO
+           (`BUCKET_NAME`/`AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`)
+           continuam ausentes — legado permanece desativado em producao,
+           reconfirmado nesta Sprint.
+       (b) NOVO (esta Sprint): nome do bucket fora do padrao
+           institucional (pergunta 5) + ausencia de segregacao de
+           credencial de delecao (pergunta 3).
+
+--------------------------------------------------------------------------------
+DECISAO FINAL
+--------------------------------------------------------------------------------
+
+  A Sprint 5B-B1.2 foi explicita: "Caso tudo esteja aprovado, AUTORIZAR
+  explicitamente a execucao da homologacao real do Shadow Mode. Caso
+  exista qualquer inconsistencia, PARAR imediatamente."
+
+  DECISAO: NO-GO. NAO estou autorizando a execucao da homologacao real
+  do Shadow Mode (Sprint 5B-B1.1) neste momento.
+
+  Motivo: a Atividade 3 encontrou uma inconsistencia real e nao-trivial
+  entre o bucket efetivamente configurado (`hub-prod-backups`) e a
+  convencao de nomenclatura por aplicacao exigida pelo ADR-010, reforcada
+  por evidencia concreta (um objeto pre-existente de origem nao
+  identificada no mesmo bucket). Isso nao e' um bloqueio TECNICO — a
+  conectividade, autenticacao e permissoes estao todas comprovadamente
+  funcionais (Atividade 2) — mas e' uma inconsistencia ARQUITETURAL que
+  a propria Sprint definiu como criterio de parada.
+
+  NENHUMA alteracao de codigo, Secret, Fly.io ou deploy foi realizada.
+  BACKUP_ENGINE permanece indefinido em producao.
+
+  O QUE PRECISA SER ESCLARECIDO ANTES DE UM NOVO GO:
+    1. Confirmar se `hub-prod-backups` e' de fato o bucket dedicado do
+       hub-portal (talvez nomeado deliberadamente fora do padrao do
+       ADR-010 por decisao consciente nao documentada) ou se e' um
+       bucket compartilhado/generico usado por engano.
+    2. Identificar a origem do objeto
+       `backup/snapshots/manual/sample-data/2026-08-04T14-48-53-252Z.snapshot.gz`
+       — se pertence a outra aplicacao da Plataforma HUB, a outro
+       ambiente, ou a um teste manual do proprio hub-sdk durante seu
+       desenvolvimento.
+    3. Decidir se a credencial atual (com permissao de DeleteObject)
+       deve ser mantida como esta' ou se vale abrir, em uma Sprint
+       futura e separada, a segregacao de credenciais recomendada pelo
+       ADR-010 (fora do escopo de qualquer Sprint ja' realizada).
+
+  Nenhuma dessas tres pendencias pode ser resolvida por mim sem acesso a
+  informacao que so' o usuario ou quem provisionou o bucket possui — por
+  isso a Sprint para aqui, aguardando decisao.
+
+================================================================================
+FIM DO DOCUMENTO — Sprint5BB12-GoNoGo.txt
+================================================================================

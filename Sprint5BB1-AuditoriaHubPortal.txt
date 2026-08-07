@@ -1,0 +1,688 @@
+================================================================================
+Sprint 5B-B.1 — AUDITORIA TECNICA COMPLETA DO hub-portal
+(Backup, Restore, Storage, Shadow Mode, Persistencia)
+================================================================================
+
+Data:   2026-08-04
+Escopo: EXCLUSIVAMENTE auditoria e documentacao. Nenhum arquivo alterado,
+        nenhum commit, push, deploy, execucao de Fly/Docker, nem alteracao
+        de GitHub/Tigris/Secrets/hub-sdk. Todos os achados abaixo vem de
+        leitura direta do codigo-fonte real, nao de suposicao.
+
+--------------------------------------------------------------------------------
+ATIVIDADE 1 — INVENTARIO COMPLETO DOS ARQUIVOS
+--------------------------------------------------------------------------------
+
+Busca por: backup, restore, snapshot, storage, s3, aws, tigris, hub-sdk,
+shadow mode, file upload, json, persistencia, compressao, checksum — em
+todo o repositorio hub-portal (exceto node_modules/.git/data).
+
+ARQUIVOS ARQUITETURALMENTE RELEVANTES (13):
+
+  1. server.js
+  2. src/backup-adapter.js
+  3. tests/backup-adapter.test.js
+  4. package.json
+  5. package-lock.json
+  6. data/hub_data.json
+  7. data/avatares/ (diretorio de imagens, sem arquivo individual rastreado)
+  8. Dockerfile
+  9. fly.toml
+  10. .dockerignore
+  11. .github/workflows/deploy.yml
+  12. CLAUDE.md
+  13. src/migrations.js (tangencial — migracao de schema, nao de engine de backup)
+
+ARQUIVOS ENCONTRADOS PELA BUSCA MAS CONFIRMADOS COMO FALSO-POSITIVO (nao
+arquiteturalmente relacionados a backup/storage — verificado por leitura
+direta do trecho, nao apenas pelo match da palavra):
+
+  - public/HubMarquise.jsx — "upload"/"s3.amazonaws.com" referem-se a
+    upload de FOTO DE AVATAR do usuario (feature de perfil) e a uma URL de
+    imagem estatica de rodape hospedada num bucket de terceiro
+    (letsimage.s3.amazonaws.com) — nada a ver com o mecanismo de backup do
+    hub_data.json.
+  - public/index.html, public/ativar.html — mesmos falsos-positivos de
+    "upload" (avatar).
+  - server.js:476 `snapshotPermissoesSeNaoTiver()` — "snapshot" aqui
+    significa "capturar o conjunto padrao de permissoes de um usuario novo
+    no primeiro login", sem nenhuma relacao com backup/snapshot de dados.
+  - tests/migrations.test.js:62 — variavel local chamada `snapshot` num
+    teste de idempotencia, sem relacao com o mecanismo de backup.
+  - tests/permissions.test.js:6 — comentario usando "persistam" no sentido
+    de "os registros de audit devem ser gravados", nao relacionado ao
+    subsistema de backup/storage.
+  - MAPEAMENTO.md — os 3 matches sao sobre `sessionStorage`/`localStorage`
+    do NAVEGADOR (estado de frontend), sem nenhuma relacao com o S3/Tigris
+    do backend. CONFIRMADO: este documento (mapeamento arquitetural de
+    sessao anterior) NAO cobre o subsistema de backup/Sprint 5B em nenhum
+    ponto — e' anterior a essa iniciativa.
+  - nginx.conf — nao contem nenhuma das palavras-chave; incluido apenas
+    por adjacencia tematica (candidato a REMOVER, ver Atividade 5) — o
+    proprio CLAUDE.md do hub-portal ja documenta que este arquivo "NAO e
+    usado pelo Dockerfile atual".
+
+ACHADO ADICIONAL (fora da busca por palavra-chave, encontrado por leitura
+do codigo): `src/backup-adapter.js` (linhas 10-12) referencia em comentario
+dois documentos — `Sprint5-Revisao-Arquitetural-Final.txt` e
+`Sprint5B-Release-Checklist.txt` — que NAO EXISTEM em nenhum lugar do
+repositorio hub-portal (confirmado via busca de arquivo por nome).
+Referencia documental morta — ver Atividade 2 e Recomendacoes.
+
+ANOMALIA DE NOMENCLATURA (nao relacionada a backup, registrada por
+completude): existe um arquivo `./C:Usersestagio.tiDesktopuhs_data.json`
+na raiz do hub-portal — nome resultante de um caminho absoluto do Windows
+mal-interpretado como caminho relativo em algum momento anterior a esta
+auditoria (provavelmente `C:\Users\estagio.ti\Desktop\...hub_data.json`
+colado sem escape). Nao alterado nesta auditoria (fora de escopo,
+read-only). Recomendado limpar em sessao futura.
+
+--------------------------------------------------------------------------------
+ATIVIDADE 2 — ANALISE DETALHADA POR ARQUIVO
+--------------------------------------------------------------------------------
+
+--- 1. server.js (2.527 linhas) ---
+  Finalidade:        backend Express completo (auth, CRUD, SSO, permissoes,
+                      audit); as linhas 1-230 e 2465-2527 contem TODO o
+                      subsistema de persistencia/backup.
+  Responsavel:        camada unica — nao ha separacao Controller/Service
+                      neste repositorio (ver Atividade 3). Concentra rotas
+                      HTTP + logica de persistencia + logica de backup no
+                      mesmo arquivo.
+  Dependencias:       express, jsonwebtoken, aws4fetch (dinamico via
+                      _aws()), fs/path/crypto (nativos), ./src/migrations,
+                      ./src/site-permissions, ./src/backup-adapter.
+  Ativo ou morto:     ATIVO — e' o processo principal em producao
+                      (`node server.js`, CMD do Dockerfile).
+  Referenciado:       sim — package.json `"start": "node server.js"`,
+                      Dockerfile `CMD ["node", "server.js"]`.
+  Possui testes:      PARCIALMENTE. `npm test` roda `node --test
+                      tests/*.test.js`, mas NENHUM arquivo de teste importa
+                      ou exercita server.js diretamente (todos os testes
+                      existentes cobrem apenas modulos puros de src/). O
+                      subsistema de backup DENTRO de server.js (linhas
+                      75-217, 2474-2527) nao tem nenhuma cobertura
+                      automatizada.
+  Risco de alteracao: ALTO. Arquivo monolitico, 80+ call sites chamando
+                      `writeData()`, zero teste automatizado da camada
+                      HTTP/boot/shutdown. Qualquer mudanca no bloco de
+                      backup (linhas 75-217 e 2474-2527) e' validada hoje
+                      apenas manualmente/em producao.
+
+--- 2. src/backup-adapter.js (199 linhas) ---
+  Finalidade:        UNICO arquivo do repositorio que fala com
+                      `@hub/storage-client` e `@hub/backup-core`. Adapter
+                      entre o hub-portal (CommonJS) e o hub-sdk (ESM puro).
+                      Implementa o "Modo Sombra" da Sprint 5B Estagio 1:
+                      grava em paralelo ao mecanismo legado, nunca usado
+                      para restore real nesta fase.
+  Responsavel:        fronteira arquitetural (Ports & Adapters, conforme
+                      ADR-011) entre a aplicacao e o SDK compartilhado.
+  Dependencias:       @hub/storage-client, @hub/backup-core (via `import()`
+                      dinamico — `require()` de ESM lancaria
+                      ERR_REQUIRE_ESM), path/os/fs/crypto (nativos).
+  Ativo ou morto:     TECNICAMENTE ATIVO (chamado por server.js a cada
+                      escrita e no shutdown) mas FUNCIONALMENTE DORMANTE
+                      por padrao — `BACKUP_ENGINE` nao esta definido em
+                      nenhum lugar do repositorio (nenhum Secret do Fly
+                      documentado o define), entao `isShadowModeActive()`
+                      retorna `false` e todo o modulo vira no-op
+                      (fail-safe by design).
+  Referenciado:       sim, por server.js (linhas 50, 148, 2504, 2523).
+                      Comentarios internos referenciam 2 documentos
+                      inexistentes (ver Atividade 1 — achado adicional).
+  Possui testes:      SIM — tests/backup-adapter.test.js, 12 testes, mas
+                      cobrindo apenas logica pura (parsing de flag,
+                      resolucao de config, caminhos de skip). O caminho
+                      real que fala com hub-sdk/Tigris e' explicitamente
+                      NAO coberto por teste automatizado (decisao
+                      documentada no proprio arquivo de teste, linha 3-7 —
+                      validado manualmente contra bucket de homologacao).
+  Risco de alteracao: MEDIO. Modulo pequeno, coeso, bem isolado (unico
+                      ponto de contato com o hub-sdk) — superficie de
+                      risco menor que server.js. Risco concentra-se na
+                      integracao real com hub-sdk/Tigris, que nao tem rede
+                      de seguranca automatizada.
+
+--- 3. tests/backup-adapter.test.js (140 linhas, 12 testes) ---
+  Finalidade:        cobertura unitaria do backup-adapter.js (flag
+                      parsing, resolucao de credenciais, skip paths).
+  Responsavel:        garantir que o fail-safe (default legacy) nunca
+                      quebra e que a resolucao de credenciais (S3_* vs
+                      AWS_*/BUCKET_NAME legado) funciona corretamente.
+  Dependencias:       node:test, node:assert/strict, ../src/backup-adapter.
+  Ativo ou morto:     ATIVO — parte de `npm test`.
+  Referenciado:       sim, implicitamente via `tests/*.test.js` no script
+                      `test` do package.json.
+  Possui testes:      e' o proprio arquivo de teste (N/A).
+  Risco de alteracao: BAIXO — escopo pequeno e bem definido.
+
+--- 4. package.json ---
+  Finalidade:        manifesto do projeto; declara as duas dependencias do
+                      hub-sdk.
+  Trecho relevante:
+    "@hub/backup-core": "file:../hub-sdk/packages/backup-core",
+    "@hub/storage-client": "file:../hub-sdk/packages/storage-client",
+  Responsavel:        resolucao de dependencias em tempo de
+                      instalacao/build.
+  Dependencias:       N/A (e' o proprio manifesto).
+  Ativo ou morto:     ATIVO.
+  Referenciado:       sim — usado por `npm ci`/`npm install` local e no
+                      Dockerfile.
+  Possui testes:      N/A.
+  Risco de alteracao: CRITICO — ESTE E' O BLOQUEIO JA DOCUMENTADO
+                      (Sprint5B-PreDeploy-Review.txt, achado 6.1;
+                      confirmado empiricamente em Sprint5B-Distribution-
+                      PoC.txt): a referencia `file:../hub-sdk/...` E' UM
+                      CAMINHO RELATIVO QUE SAI DO REPOSITORIO hub-portal.
+                      Funciona hoje SOMENTE porque, na maquina de
+                      desenvolvimento atual, os dois repositorios
+                      (hub-portal e hub-sdk) estao lado a lado no mesmo
+                      disco (confirmado nesta auditoria —
+                      `node_modules/@hub/backup-core` e
+                      `node_modules/@hub/storage-client` sao SYMLINKS reais
+                      apontando para
+                      `.../hub-sdk/packages/backup-core` e
+                      `.../packages/storage-client` no disco local). Em
+                      qualquer pipeline de CI/Docker que faca checkout
+                      SOMENTE do hub-portal (exatamente o caso do
+                      `.github/workflows/deploy.yml` atual), esse caminho
+                      nao existe e o build falha.
+
+--- 5. package-lock.json ---
+  Finalidade:        lockfile — resolve as mesmas duas dependencias acima
+                      para os mesmos caminhos `file:../hub-sdk/...`.
+  Responsavel:        reprodutibilidade de instalacao.
+  Dependencias:       espelha package.json.
+  Ativo ou morto:     ATIVO.
+  Referenciado:       sim, por `npm ci`.
+  Possui testes:      N/A.
+  Risco de alteracao: ALTO (decorre diretamente do risco do package.json
+                      — qualquer correcao do mecanismo de distribuicao
+                      precisa regenerar este arquivo).
+
+--- 6. data/hub_data.json (76.861 bytes) ---
+  Finalidade:        UNICA fonte de verdade de dados vivos do Hub
+                      (sistemas, usuarios, permissoes, audit log,
+                      referencias a avatares).
+  Responsavel:        e' o "dado" em si — o objeto que todo o subsistema
+                      de backup existe para proteger.
+  Dependencias:       N/A.
+  Ativo ou morto:     ATIVO — read/write a cada request relevante.
+  Referenciado:       sim — `HUB_DATA_FILE` em server.js;
+                      `hubDataFilePath`/`source.path` em backup-adapter.js.
+  Possui testes:      N/A (e' dado, nao codigo).
+  Risco de alteracao: N/A para esta auditoria (arquivo nao tocado); risco
+                      RELEVANTE para qualquer migracao futura e' perda ou
+                      corrupcao deste arquivo especifico — ver Atividade 6.
+
+--- 7. data/avatares/ (diretorio de imagens JPEG, dinamico) ---
+  Finalidade:        armazena as fotos de perfil dos usuarios
+                      (`_definirAvatar`/`_removerAvatarDe`, server.js
+                      linhas 824-851), no MESMO volume Fly que
+                      hub_data.json.
+  Responsavel:        feature de perfil de usuario (nao e' o mesmo dominio
+                      do backup de dados estruturados).
+  Dependencias:       fs nativo; referenciado por `data.avatares[email]`
+                      dentro do proprio hub_data.json.
+  Ativo ou morto:     ATIVO.
+  Referenciado:       sim, por server.js.
+  Possui testes:      NENHUM encontrado especifico para upload/remocao de
+                      avatar.
+  Risco de alteracao: ACHADO DE RISCO (nao e' sobre "alterar este
+                      diretorio", e' sobre uma LACUNA ja existente): nem
+                      `_uploadBackupS3()` (legado) nem
+                      `runShadowBackup()`/`flushShadowBackup()` (hub-sdk)
+                      leem ou fazem upload de nada dentro de
+                      `data/avatares/` — SOMENTE `HUB_DATA_FILE`
+                      (hub_data.json) e' backupeado. Se o volume do Fly for
+                      perdido, os REGISTROS de quem tem avatar (o campo
+                      `data.avatares` dentro do JSON) sao recuperados pelo
+                      backup, mas os ARQUIVOS DE IMAGEM em si NAO SAO —
+                      gap real, existente hoje, independente de qualquer
+                      migracao (ver Atividade 6).
+
+--- 8. Dockerfile ---
+  Finalidade:        build da imagem de producao (`node:20-alpine`).
+  Responsavel:        empacotamento; gera o seed embutido
+                      (`/app/seed/hub_data.seed.json`) a partir do
+                      `data/hub_data.json` versionado.
+  Dependencias:       `package*.json` (COPY antes do `npm ci --production`,
+                      DEPOIS `COPY . .`).
+  Ativo ou morto:     ATIVO.
+  Referenciado:       sim — `fly.toml` `[build]` (sem `dockerfile`
+                      explicito, usa o padrao) e o workflow `deploy.yml`
+                      via `flyctl deploy`.
+  Possui testes:      N/A (nao ha teste de build de imagem no repositorio).
+  Risco de alteracao: ALTO — e' exatamente aqui que a Sprint5B-
+                      Distribution-PoC.txt identificou o achado critico:
+                      a ORDEM ATUAL das camadas (`COPY package*.json ./` →
+                      `RUN npm ci` → `COPY . .`) e' incompativel com
+                      qualquer mecanismo de dependencia do hub-sdk que
+                      exija arquivos alem do manifesto presentes ANTES do
+                      `npm ci` (tarball vendorizado ou checkout duplo,
+                      ambos precisam do ajuste identificado na PoC).
+
+--- 9. fly.toml ---
+  Finalidade:        configuracao do app Fly.io (`hub-granmarquise`).
+  Responsavel:        runtime/infra — define o volume `hub_data` montado
+                      em `/app/data` (onde `hub_data.json` E `avatares/`
+                      vivem), `auto_stop_machines=false`,
+                      `min_machines_running=1` (medida anti-churn
+                      documentada no CLAUDE.md como resposta a um
+                      incidente real de perda de dados).
+  Dependencias:       N/A.
+  Ativo ou morto:     ATIVO.
+  Referenciado:       sim — usado por `flyctl deploy`.
+  Possui testes:      N/A.
+  Risco de alteracao: ALTO se mexido sem entender o historico — o proprio
+                      CLAUDE.md do hub-portal ja alerta para nao reverter
+                      essas configs.
+
+--- 10. .dockerignore ---
+  Finalidade:        exclui `.env`, `data/` (exceto `hub_data.json`),
+                      `.git`, `*.md` do contexto de build.
+  Responsavel:        controle do que entra na imagem/contexto Docker.
+  Dependencias:       N/A.
+  Ativo ou morto:     ATIVO.
+  Referenciado:       sim, usado implicitamente por `docker build`
+                      (via flyctl).
+  Possui testes:      N/A.
+  Risco de alteracao: MEDIO — qualquer estrategia de distribuicao futura
+                      que introduza um diretorio `vendor/` precisa
+                      confirmar que este arquivo NAO o exclui
+                      acidentalmente (hoje nao exclui, mas nao ha
+                      allowlist explicita tambem — comportamento por
+                      omissao).
+
+--- 11. .github/workflows/deploy.yml ---
+  Finalidade:        CI/CD — push em `main` (exceto mudancas so em
+                      `data/**` ou `*.md`) → `flyctl deploy --remote-only`.
+  Responsavel:        pipeline de deploy.
+  Dependencias:       `actions/checkout@v4` (SOMENTE do hub-portal —
+                      nenhum segundo checkout, nenhuma referencia ao
+                      hub-sdk), `superfly/flyctl-actions/setup-flyctl`,
+                      secret `FLY_API_TOKEN`.
+  Ativo ou morto:     ATIVO.
+  Referenciado:       sim, gatilho automatico do GitHub Actions.
+  Possui testes:      N/A.
+  Risco de alteracao: E' A CONFIRMACAO DIRETA DO BLOQUEIO: como este
+                      workflow faz checkout SOMENTE do hub-portal, QUALQUER
+                      dependencia `file:../hub-sdk/...` e' irresolvivel
+                      neste pipeline hoje. Achado ja documentado desde a
+                      Sprint5B-PreDeploy-Review.txt (sessao 1 deste
+                      engajamento), reconfirmado nesta auditoria sem
+                      nenhuma mudanca de estado.
+
+--- 12. CLAUDE.md ---
+  Finalidade:        documentacao de orientacao do hub-portal para
+                      sessoes futuras (deste proprio agente).
+  Responsavel:        contexto/governanca de projeto.
+  Dependencias:       N/A.
+  Ativo ou morto:     ATIVO (lido automaticamente a cada sessao).
+  Referenciado:       sim, pelo sistema.
+  Possui testes:      N/A.
+  Risco de alteracao: BAIXO, mas ACHADO DE INCONSISTENCIA MENOR: o
+                      documento afirma que `tests/` contem "um arquivo por
+                      modulo de src/ + server.test.js" — `server.test.js`
+                      NAO EXISTE no repositorio (confirmado por listagem
+                      completa de `tests/`). Documentacao levemente
+                      desatualizada nesse ponto especifico.
+
+--- 13. src/migrations.js (38 linhas) ---
+  Finalidade:        migracoes idempotentes de SCHEMA de dados (ex.:
+                      renomear slug `spa` → `pesquisa-satisfacao`) — NAO e'
+                      migracao de mecanismo de armazenamento/backup.
+  Responsavel:        evolucao do formato de `hub_data.json` ao longo do
+                      tempo.
+  Dependencias:       nenhuma externa.
+  Ativo ou morto:     ATIVO — chamado em toda leitura via
+                      `_parseDataFile()`.
+  Referenciado:       sim, server.js linha 45/180.
+  Possui testes:      SIM — tests/migrations.test.js.
+  Risco de alteracao: BAIXO para o escopo desta auditoria — e' logica de
+                      negocio especifica do hub-portal (corretamente FORA
+                      do hub-sdk, conforme ADR-011 — "nao tem regra de
+                      negocio de nenhuma aplicacao").
+
+--------------------------------------------------------------------------------
+ATIVIDADE 3 — MAPA DO FLUXO ATUAL (DIAGRAMA TEXTUAL)
+--------------------------------------------------------------------------------
+
+ACHADO PRELIMINAR IMPORTANTE: o hub-portal NAO possui uma arquitetura em
+camadas Controllers → Services → Storage. `server.js` e' um arquivo
+monolitico onde rotas HTTP, logica de persistencia e logica de backup
+convivem diretamente, sem separacao formal. O diagrama abaixo reflete o
+fluxo REAL, nao o template de camadas sugerido — divergencia relatada com
+transparencia, nao forcada a caber no template.
+
+Existem TRES fluxos distintos e paralelos, nao um unico fluxo linear:
+
+FLUXO 1 — ESCRITA (caminho ativo, todo request que muda dado)
+--------------------------------------------------------------
+  Requisicao HTTP (rota Express, ~80+ pontos em server.js)
+    │
+    ▼
+  writeData(data)                                    [server.js:204]
+    │  escrita atomica: .tmp -> rename sobre hub_data.json
+    ▼
+  agendarBackup()                                     [server.js:132]
+    │  debounce 5s, so roda apos boot concluido (backupsHabilitados)
+    ├──────────────────────────────┬─────────────────────────────────┐
+    ▼                              ▼
+  _uploadBackupS3()          _shadowBackupSeHabilitado()
+  [server.js:99]              [server.js:147]
+  MECANISMO LEGADO — ATIVO    MECANISMO NOVO — DORMANTE POR PADRAO
+  se BUCKET_NAME/AWS_* setados
+    │                              │  so roda se BACKUP_ENGINE=shadow|hub-sdk
+    ▼                              ▼
+  aws4fetch (PUT direto)      backupAdapter.runShadowBackup()
+    │                          [src/backup-adapter.js:115]
+    ▼                              │  import() dinamico ESM
+  Tigris (S3-compat)               ▼
+  hub_data/latest.json         @hub/backup-core (BackupService)
+  hub_data/history/*.json          │  usa @hub/storage-client
+                                    ▼
+                              Tigris (S3-compat)
+                              namespace proprio do hub-sdk
+                                    │
+                                    ▼
+                              dryRunRestoreProbe() — LEITURA para
+                              arquivo TEMPORARIO, so compara checksum,
+                              NUNCA sobrescreve hub_data.json real.
+
+FLUXO 2 — BOOT / RESTORE (caminho ativo, uma vez por subida do processo)
+--------------------------------------------------------------
+  Processo inicia (require de server.js)
+    │
+    ▼
+  seedSeVolumeVazio() IIFE                            [server.js:62]
+    │  se hub_data.json AUSENTE no volume: copia do seed embutido na
+    │  imagem (data/hub_data.json versionado, copiado no build)
+    ▼
+  IIFE assincrona de boot                              [server.js:2478]
+    │
+    ├─ SE volume estava vazio E backupConfigurado (legado):
+    │     _restaurarBackupS3()                         [server.js:113]
+    │       GET hub_data/latest.json no Tigris (aws4fetch)
+    │       se achou: SOBRESCREVE hub_data.json (mais fresco que o seed)
+    │       se S3 inacessivel (throw): backupInseguro=true,
+    │         backups DESLIGADOS nesta sessao (nao arrisca sobrescrever
+    │         um backup bom com dado transitorio do seed)
+    │
+    ├─ Modo sombra: SO LOGA status (getBackupEngineMode/isHubSdkConfigured)
+    │   NAO participa da decisao de restore real nesta fase — hub-sdk
+    │   NUNCA restaura de verdade ainda (Estagio 1).
+    │
+    ▼
+  app.listen(PORT) — comeca a aceitar requests
+
+FLUXO 3 — SHUTDOWN (SIGTERM/SIGINT, ex.: deploy/restart do Fly)
+--------------------------------------------------------------
+  Sinal recebido                                       [server.js:2518]
+    │
+    ▼
+  Promise.race([
+    timeout 4000ms,
+    Promise.all([
+      _uploadBackupS3()              (se backupConfigurado — legado)
+      backupAdapter.flushShadowBackup()  (se modo sombra ativo — hub-sdk)
+    ])
+  ])
+    │  as duas tentativas rodam EM PARALELO, best-effort, dentro do
+    │  mesmo orcamento de 4s — shadow nunca estende o shutdown.
+    ▼
+  process.exit(0)
+
+ONDE O FLUXO COMECA E TERMINA:
+  Inicio real:  qualquer chamada a `writeData()` (escrita) OU o boot do
+                processo (`node server.js`, restore).
+  Fim do lado LEGADO (ativo, real, usado para restore de producao hoje):
+                objeto `hub_data/latest.json` no bucket Tigris.
+  Fim do lado NOVO (hub-sdk, Estagio 1 — dormente/comparativo apenas):
+                objeto no namespace do hub-sdk dentro do MESMO bucket
+                Tigris (via `@hub/storage-client`
+                `S3CompatibleProvider`) — nunca lido de volta para
+                restaurar dado real nesta fase, so' para o
+                `dryRunRestoreProbe` de comparacao.
+  O que NUNCA e' backupeado por nenhum dos dois: `data/avatares/*.jpg`
+  (ver Atividade 2, item 7).
+
+--------------------------------------------------------------------------------
+ATIVIDADE 4 — ADERENCIA A ADR-010, ADR-011, ADR-012 E HubSDK-Architecture.md
+--------------------------------------------------------------------------------
+
+ADERENCIAS CONFIRMADAS:
+
+  - ADR-010 V2 (bucket por aplicacao, nao compartilhado): hub-portal usa
+    suas proprias credenciais (`BUCKET_NAME`/`AWS_*`, providas via
+    `fly storage create -a hub-granmarquise`) — aderente.
+  - ADR-011 (Ports & Adapters): `src/backup-adapter.js` e' exatamente o
+    padrao esperado — UNICO ponto de contato com o hub-sdk, isola o
+    CommonJS do ESM, nao vaza detalhes do hub-sdk para o resto de
+    server.js alem de um resultado estruturado. Aderente, bem
+    implementado.
+  - ADR-011 (DAG / hub-sdk nunca depende de aplicacao): confirmado em
+    sessoes anteriores deste engajamento que o hub-sdk nao tem nenhuma
+    referencia ao hub-portal — aderente, sem necessidade de reverificar
+    nesta auditoria (fora do escopo hub-portal).
+  - ADR-011 (Modo Sombra como estrategia de rollout gradual/nao-
+    destrutivo): a implementacao do Estagio 1 (grava em paralelo, nunca
+    restaura de verdade, fail-safe default legacy) e' exatamente o padrao
+    de rollout incremental preconizado. Aderente.
+  - HubSDK-Architecture.md §8 (precedente de promocao Sprint 4.6): os TRES
+    padroes citados como precedente (`BackupService.
+    isSafeToEnableContinuousBackup()`, `BackupScheduler`,
+    `FileSnapshotStrategy.validateContent`) foram promovidos do PROPRIO
+    padrao usado no Portal HUB — a genealogia esta correta e documentada
+    dos dois lados.
+
+DIVERGENCIAS ENCONTRADAS:
+
+  1. [CRITICA, ja documentada em sessoes anteriores, reconfirmada aqui]
+     `package.json`/`package-lock.json` usam `file:../hub-sdk/...` —
+     nao e' SemVer, nao e' pin-exato (ADR-011, Politica de
+     Versionamento/Compatibilidade), e' uma referencia de CAMINHO DE
+     DISCO que so funciona quando os dois repositorios estao clonados
+     lado a lado. Diverge tanto do principio de pin-exato do ADR-011
+     quanto da decisao oficial da Plataforma (Sprint5B-Recommendation.txt:
+     vendor por npm pack).
+
+  2. [NOVA, encontrada nesta auditoria] Duplicacao de logica entre
+     server.js e componentes ja promovidos ao hub-sdk:
+       - `agendarBackup()` (server.js:132, debounce manual via
+         `setTimeout`) duplica o que `BackupScheduler` (`@hub/backup-
+         core`, ja disponivel desde hub-sdk v1.1.0) foi desenhado para
+         fazer — e foi PROMOVIDO exatamente a partir deste padrao do
+         Portal HUB (HubSDK-Architecture.md §8), mas o Portal HUB ainda
+         nao voltou a consumir a versao promovida.
+       - O calculo de `backupInseguro` (server.js:2494, decide desligar
+         replicacao apos falha de restore em volume vazio) duplica
+         exatamente o proposito de
+         `BackupService.isSafeToEnableContinuousBackup()` — tambem
+         promovido a partir do MESMO padrao do Portal HUB, tambem ainda
+         nao consumido de volta.
+     Isso significa: a "materia-prima" logica ja foi extraida, testada e
+     versionada no hub-sdk — falta o Portal HUB consumi-la de volta,
+     eliminando a copia local.
+
+  3. [NOVA] Cobertura de backup incompleta: `data/avatares/*` nunca e'
+     incluido em nenhum dos dois mecanismos de backup — nem legado, nem
+     hub-sdk. Nao e' uma violacao de ADR especifico (nenhum ADR menciona
+     avatares), mas diverge do espirito do ADR-010 ("nenhuma aplicacao
+     sem backup") aplicado de forma incompleta dentro da propria
+     aplicacao.
+
+  4. [NOVA, baixo risco] Referencias documentais mortas em
+     `src/backup-adapter.js` (comentario cita 2 arquivos inexistentes) —
+     nao e' uma divergencia de ADR, e' uma inconsistencia de
+     rastreabilidade interna.
+
+  5. [INFORMATIVA] Ausencia de arquitetura em camadas
+     (Controllers/Services) diverge do template de diagrama pedido nesta
+     Sprint — mas NAO diverge de nenhum ADR (nenhum dos tres regula a
+     estrutura INTERNA do hub-portal, apenas a fronteira com o hub-sdk).
+     Registrado por transparencia, nao como violacao.
+
+DUPLICACOES: cobertas no item 2 acima (BackupScheduler /
+isSafeToEnableContinuousBackup).
+
+VIOLACOES ARQUITETURAIS: nenhuma violacao de ADR em sentido estrito
+(nenhum ADR e' contrariado tecnicamente pelo codigo hoje) — a divergencia
+mais grave (item 1) viola uma DECISAO DE PLATAFORMA ja aprovada
+(Sprint5B-Recommendation.txt), nao um ADR per se, distincao importante
+para nao superestimar o achado como "quebra de arquitetura formal" quando
+e' na verdade "pendencia de migracao ja planejada".
+
+--------------------------------------------------------------------------------
+ATIVIDADE 5 — CLASSIFICACAO DOS COMPONENTES
+--------------------------------------------------------------------------------
+
+  Componente                                    | Classificacao | Justificativa
+  -----------------------------------------------|----------------|------------------------------------------
+  readData()/writeData()/_parseDataFile()         | MANTER         | Escrita atomica correta, migrations pipeline e' logica de negocio legitima do hub-portal (ADR-011: nao pertence ao hub-sdk)
+  seedSeVolumeVazio() (seed embutido na imagem)   | MANTER         | Rede de seguranca ortogonal ao S3/hub-sdk, barata, sem conflito com a migracao
+  _uploadBackupS3()/_restaurarBackupS3() (legado) | SUBSTITUIR     | E' o mecanismo que a Sprint 5B existe para aposentar — mas e' o UNICO restore real hoje; nao remover ate o Estagio 2 (cutover) estar validado
+  agendarBackup() — debounce manual               | SUBSTITUIR     | Duplica BackupScheduler ja promovido e disponivel no hub-sdk v1.1.0
+  backupInseguro (guarda de seguranca no boot)    | SUBSTITUIR     | Duplica BackupService.isSafeToEnableContinuousBackup() ja promovido — PRESERVAR o comportamento exato ao substituir (ver Riscos)
+  src/backup-adapter.js (estrutura do adapter)    | MANTER         | Ports & Adapters bem implementado, unico ponto de contato com hub-sdk, nao precisa mudar de forma
+  Mecanismo de dependencia (file:../hub-sdk/...)  | SUBSTITUIR     | Bloqueio critico ja documentado; substituir por vendor via npm pack (v1.1.0, ja publicado e verificado)
+  Dockerfile (ordem de camadas)                   | AJUSTAR        | Ajuste pontual e ja identificado na PoC: incluir vendor/ na copia que precede `npm ci`
+  .dockerignore                                   | AJUSTAR        | Revisar para garantir que vendor/ nao seja excluido, uma vez introduzido
+  .github/workflows/deploy.yml                    | MANTER         | Achado favoravel da PoC: vendor via npm pack NAO exige nenhum passo novo de CI
+  data/avatares/ (cobertura de backup)            | AJUSTAR        | Decisao de escopo pendente: incluir avatares no backup ou documentar formalmente a exclusao como aceita
+  tests/backup-adapter.test.js                    | MANTER         | Cobertura solida do que se propoe a cobrir (logica pura); nao remover
+  Cobertura de teste do server.js (backup/boot)   | AJUSTAR        | Lacuna real — nenhum teste automatizado do fluxo HTTP/boot/shutdown do backup
+  Comentarios com refs a docs inexistentes         | AJUSTAR        | Correcao de baixo risco, so' documentacao interna
+  nginx.conf                                       | REMOVER        | Confirmado morto pelo proprio CLAUDE.md do repositorio; nao usado pelo Dockerfile atual
+  CLAUDE.md (mencao a server.test.js inexistente)  | AJUSTAR        | Correcao de baixo risco, documentacao levemente desatualizada
+  MAPEAMENTO.md (nao cobre Sprint 5B)              | AJUSTAR        | Baixa prioridade — o proprio CLAUDE.md ja avisa para nao confiar cegamente nele
+  Arquivo com nome corrompido na raiz              | REMOVER        | Artefato acidental, nao referenciado por nenhum codigo
+
+--------------------------------------------------------------------------------
+ATIVIDADE 6 — RISCOS DA MIGRACAO
+--------------------------------------------------------------------------------
+
+  Existe codigo duplicado?
+    SIM — confirmado (Atividade 4, item 2): `agendarBackup()` duplica
+    `BackupScheduler`; o calculo de `backupInseguro` duplica
+    `isSafeToEnableContinuousBackup()`. Ambos os equivalentes do hub-sdk
+    ja estao publicados (v1.1.0) e testados (73/73), prontos para
+    consumo.
+
+  Existe logica reaproveitavel?
+    SIM — o padrao `dryRunRestoreProbe()` (restore de teste para arquivo
+    temporario, comparando checksum) e' diretamente reaproveitavel como
+    SCRIPT DE VALIDACAO PRE-CUTOVER, independente do modo sombra em si.
+    Os logs estruturados que `_shadowBackupSeHabilitado()` ja produz
+    (`checksumOk`, `restoreChecksumOk`, tempos) sao a evidencia natural
+    para decidir quando o Estagio 2 e' seguro.
+
+  Existe risco de perda de dados?
+    SIM, dois riscos concretos e distintos:
+      (a) JA EXISTENTE, independente de qualquer migracao:
+          `data/avatares/*` nunca e' backupeado — perda de volume perde
+          as imagens fisicas (os registros no JSON sao recuperados, os
+          arquivos nao).
+      (b) POTENCIAL, se a migracao for malfeita: a PoC
+          (Sprint5B-Distribution-PoC.txt) demonstrou que uma dependencia
+          `file:` apontando para DIRETORIO (nao tarball) falha de forma
+          SILENCIOSA em build (symlink quebrado, sem erro) e so' quebra em
+          runtime. A decisao oficial (vendor tarball) ja evita esse modo
+          de falha por construcao — mas so' se a implementacao seguir
+          exatamente o padrao decidido (tarball, nao pasta).
+
+  Existe risco de regressao?
+    SIM, moderado-alto: `server.js` nao tem nenhum teste automatizado da
+    camada HTTP/boot/shutdown (so' os modulos puros de `src/` sao
+    testados). Qualquer refatoracao do bloco de backup (linhas 75-217,
+    2474-2527) depende de validacao manual — igual ao que ja acontece
+    hoje com o mecanismo legado, mas um lembrete de que a rede de
+    seguranca automatizada e' menor do que o tamanho do arquivo sugere.
+
+  Existe risco para producao?
+    Para ESTA auditoria: NENHUM (nada foi alterado, execucao read-only
+    confirmada). Para a MIGRACAO FUTURA: SIM, inerente — hub-portal e' uma
+    aplicacao viva (`min_machines_running=1`, dado real de producao) com
+    HISTORICO DOCUMENTADO de incidente real de perda de dados por
+    reprovisionamento de volume (CLAUDE.md cita isso explicitamente como
+    motivacao das configs atuais de `fly.toml`). Qualquer alteracao no
+    bloco de backup deve preservar EXATAMENTE o comportamento de
+    `backupInseguro` (nao sobrescrever um backup bom desconhecido com dado
+    transitorio) — e' a salvaguarda mais critica do sistema atual.
+
+--------------------------------------------------------------------------------
+ATIVIDADE 7 — PLANO DE MIGRACAO EM FASES (PLANEJAMENTO APENAS — NAO EXECUTAR)
+--------------------------------------------------------------------------------
+
+  FASE 0 — Pre-requisito (CONCLUIDA em sessoes anteriores)
+    hub-sdk oficializado, tag v1.1.0, GitHub Release publicado com
+    artefatos verificados (Sprint 5B-A / 5B-A.1). Nenhuma acao pendente
+    aqui.
+
+  FASE 1 — Adotar vendor por npm pack no hub-portal
+    Substituir `file:../hub-sdk/...` por `file:vendor/hub-sdk/*.tgz`
+    (baixando os `.tgz` do Release v1.1.0, validando contra
+    Sprint5BA-Checksums.txt), commitar os tarballs dentro do proprio
+    hub-portal, ajustar o Dockerfile (COPY do `vendor/` ANTES do
+    `npm ci`, conforme achado da PoC). `BACKUP_ENGINE` permanece
+    `legacy` (nenhuma mudanca de comportamento). Criterio de sucesso: CI
+    verde, imagem builda, deploy sem nenhuma mudanca observavel.
+
+  FASE 2 — Validacao em modo sombra (observacional, sem risco)
+    Habilitar `BACKUP_ENGINE=shadow` via Secret do Fly, observar por uma
+    janela real de dias os logs `checksumOk`/`restoreChecksumOk` que o
+    adapter ja produz. Nenhuma mudanca de comportamento de restore real
+    nesta fase — puramente coleta de evidencia de confianca.
+
+  FASE 3 — Eliminar duplicacao de logica
+    Substituir `agendarBackup()` por `BackupScheduler` e o calculo de
+    `backupInseguro` por `isSafeToEnableContinuousBackup()`
+    (`@hub/backup-core`, ja disponivel), preservando EXATAMENTE a mesma
+    semantica de seguranca hoje implementada a mao. Pode ocorrer em
+    paralelo/antes da Fase 4, independente do cutover de restore.
+
+  FASE 4 — Cutover real (Estagio 2 — o passo de maior risco)
+    Trocar o restore-no-boot de `_restaurarBackupS3()` (aws4fetch) para o
+    caminho real do hub-sdk (`BackupService`/`FileSnapshotStrategy`),
+    condicionado a Fase 2 ter mostrado divergencia de checksum ZERO por
+    um periodo consistente. Manter `BACKUP_ENGINE=legacy` disponivel como
+    rollback instantaneo por, no minimo, um ciclo de release apos o
+    cutover.
+
+  FASE 5 — Descomissionar o mecanismo legado
+    Remover `_uploadBackupS3()`/`_restaurarBackupS3()`/`aws4fetch` do
+    `package.json`, somente apos a Fase 4 ter rodado em producao por um
+    periodo de "bake-in" acordado, sem incidentes.
+
+  FASE 6 — Itens de higiene (baixa prioridade, sem risco de dado)
+    Decidir e implementar (ou documentar formalmente a exclusao de)
+    backup de `data/avatares/`; corrigir referencias documentais mortas
+    em `backup-adapter.js`; atualizar CLAUDE.md (`server.test.js`
+    inexistente); avaliar remocao de `nginx.conf` e do arquivo de nome
+    corrompido na raiz; revisar/atualizar `MAPEAMENTO.md`.
+
+  Nenhuma fase acima foi executada nesta Sprint — plano apresentado
+  exclusivamente para aprovacao futura.
+
+--------------------------------------------------------------------------------
+RECOMENDACOES
+--------------------------------------------------------------------------------
+
+  1. Aprovar a Fase 1 como proximo passo natural — e' a unica fase com
+     zero mudanca de comportamento em producao e resolve o bloqueio
+     critico ja documentado desde a primeira sessao deste engajamento.
+  2. Tratar a Fase 3 (eliminar duplicacao) como INDEPENDENTE da Fase 4
+     (cutover de restore) — pode e deve acontecer mais cedo, reduz
+     superficie de manutencao sem tocar no caminho de restore real.
+  3. Decidir explicitamente sobre backup de avatares antes da Fase 4 —
+     nao e' bloqueante, mas e' o momento natural de revisar escopo antes
+     de qualquer corte definitivo do mecanismo legado.
+  4. Antes de qualquer implementacao, considerar adicionar cobertura de
+     teste para o boot/shutdown de server.js (ao menos o calculo de
+     `backupInseguro`), dado que hoje e' zero e e' a salvaguarda mais
+     critica do sistema.
+
+================================================================================
+FIM DO DOCUMENTO — Sprint5BB1-AuditoriaHubPortal.txt
+================================================================================

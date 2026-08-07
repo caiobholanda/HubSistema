@@ -1,0 +1,113 @@
+================================================================================
+Sprint 5B — MATRIZ DE DECISAO: DISTRIBUICAO DO hub-sdk
+Plataforma HUB Gran Marquise
+================================================================================
+
+Data:              2026-08-04
+Companion de:      Sprint5B-Distribution-PoC.txt (evidencia tecnica
+                   detalhada que fundamenta cada pontuacao abaixo)
+Escala:            1 (fraco/alto risco) a 5 (forte/baixo risco), por
+                   dimensao. Nenhum peso artificial foi aplicado entre
+                   dimensoes — a leitura correta desta matriz e' dimensao
+                   a dimensao, nao apenas pela soma final (algumas
+                   dimensoes pesam mais que outras dependendo da
+                   prioridade do time; a soma e' um resumo, nao um
+                   veredito).
+
+--------------------------------------------------------------------------------
+1. MATRIZ COMPARATIVA
+--------------------------------------------------------------------------------
+
+  Dimensao                          | A) Vendor  | B) Checkout | Evidencia
+                                     |  npm pack  |  duplo      | (secao da PoC)
+  -----------------------------------|:----------:|:-----------:|------------------
+  Arquitetura (clareza/simplicidade) |     5      |      3      | 1.1 / 2.1
+  Fluxo de build                     |     5      |      2      | 1.2-1.3 / 2.2
+  Integracao c/ GitHub Actions       |     5      |      2      | 1.3 / 2.3
+  Integracao c/ Fly.io               |     5      |      4      | 1.4 / 2.3
+  Impacto na manutencao              |     3      |      4      | 1.5 / 2.5
+  Impacto na escalabilidade          |     4      |      2      | 1.6 / 2.6
+  Impacto em futuras aplicacoes      |     5      |      2      | 1.7 / 2.7
+  Facilidade de rollback             |     5      |      3      | 1.8 / 2.8
+  Compatibilidade com ADR-011        |     5      |      3      | 1.9 / 2.9
+  Riscos tecnicos (inverso do risco) |     4      |      1      | 1.10 / 2.10
+  -----------------------------------|:----------:|:-----------:|------------------
+  SOMA (0-50)                        |    46      |     26      |
+
+--------------------------------------------------------------------------------
+2. JUSTIFICATIVA RESUMIDA POR DIMENSAO (leitura obrigatoria antes de usar a
+   soma isoladamente)
+--------------------------------------------------------------------------------
+
+  Arquitetura: A e' mais simples (artefato imutavel dentro do proprio
+  repositorio). B introduz um segundo repositorio "vivo" dentro do contexto
+  de build, com mais partes moveis (checkout, path, ref, token).
+
+  Fluxo de build: A falha alto e explicito quando mal configurado (T3/T4,
+  evidencia real). B tem o achado critico desta PoC — falha SILENCIOSA em
+  build quando mal configurado, so' aparece em runtime (T5/T6). Essa
+  diferenca de comportamento e' o maior fator de distancia entre as duas
+  notas em toda a matriz.
+
+  Integracao c/ GitHub Actions: A nao precisa de nenhum passo/secret novo.
+  B precisa de um segundo `actions/checkout` cross-repo, com secret
+  dedicado para o hub-sdk (repositorio privado) — superficie de
+  configuracao e de credenciais maior.
+
+  Integracao c/ Fly.io: ambas funcionam sem alterar `fly.toml`/comando de
+  deploy na variante testada (B2, aninhada). A nota de B nao e' mais baixa
+  porque, tecnicamente, a integracao funciona igualmente bem quando
+  configurada corretamente (confirmado via `flyctl deploy --help`, T8) — a
+  diferenca real esta' capturada nas dimensoes de build/riscos, nao aqui.
+
+  Impacto na manutencao: unica dimensao onde B pontua melhor — atualizar a
+  versao e' um diff de texto (1 linha de YAML) contra um diff binario
+  (arquivo .tgz) em A. Isso e' uma vantagem real e reconhecida de B.
+
+  Impacto na escalabilidade: A e' inerentemente enxuto (respeita "files").
+  B trouxe 9,3x mais peso na copia bruta medida (236 KB vs 25,3 KB) e
+  exigiria configuracao adicional (sparse-checkout, nao testada) so' para
+  igualar o que A ja' faz por padrao.
+
+  Impacto em futuras aplicacoes: A e' copiavel sem custo adicional de
+  credenciais por app. B multiplica a superficie de secrets por numero de
+  aplicacoes consumidoras (SPA, Help Desk, Diretorio de Ramais, Qualidade).
+
+  Facilidade de rollback: A depende so' do Git local do proprio
+  repositorio. B depende da tag/release do hub-sdk continuar disponivel no
+  GitHub no momento do rollback — uma dependencia externa a mais.
+
+  Compatibilidade com ADR-011 ("pin-exact"): A cumpre estruturalmente
+  (tarball = imutavel por natureza). B cumpre apenas se disciplinado
+  (`ref:` fixo em tag) — o mecanismo em si permite violar a politica sem
+  aviso (`ref: main`).
+
+  Riscos tecnicos: nota mais baixa de toda a matriz e' a de B nesta
+  dimensao — reflete diretamente o achado critico da secao 2.2/2.10 do
+  Sprint5B-Distribution-PoC.txt (build verde, producao quebrada).
+
+--------------------------------------------------------------------------------
+3. CONTAGEM QUALITATIVA (cruzamento com vantagens/desvantagens do PoC)
+--------------------------------------------------------------------------------
+
+  Alternativa A — Vendor npm pack:  6 vantagens documentadas / 3 desvantagens
+  Alternativa B — Checkout duplo:   3 vantagens documentadas / 5 desvantagens
+
+  (ver secoes 1.11/1.12 e 2.11/2.12 de Sprint5B-Distribution-PoC.txt para o
+  detalhamento de cada item)
+
+--------------------------------------------------------------------------------
+4. PONTO EM COMUM — PRE-REQUISITO NAO RESOLVIDO POR NENHUMA DAS DUAS
+--------------------------------------------------------------------------------
+
+  Nenhuma alternativa resolve, por si so', a ausencia de tags/releases no
+  hub-sdk (`git tag -l` e `gh release list` vazios, evidencia real T9).
+  Qualquer que seja a alternativa escolhida, a adocao de uma convencao de
+  tag SemVer (ex.: `v1.1.0`) no hub-sdk e' um pre-requisito comum, fora do
+  escopo desta PoC (nenhuma tag foi criada nesta sessao, por instrucao
+  explicita de nao alterar o hub-sdk).
+
+================================================================================
+FIM DO DOCUMENTO — Sprint5B-Decision-Matrix.txt
+Ver tambem: Sprint5B-Distribution-PoC.txt, Sprint5B-Recommendation.txt
+================================================================================

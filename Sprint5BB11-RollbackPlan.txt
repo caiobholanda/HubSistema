@@ -1,0 +1,102 @@
+================================================================================
+Sprint 5B-B1.1 — PLANO DE ROLLBACK
+================================================================================
+
+Data:   2026-08-04
+
+Principio geral: a UNICA mudanca de estado que esta homologacao introduz
+e' a presenca/ausencia do Secret `BACKUP_ENGINE`. Nenhum codigo, imagem,
+volume ou dado e' alterado pelo ato de homologar em si. Por isso, TODO
+rollback desta Sprint se resume a remover esse unico Secret.
+
+--------------------------------------------------------------------------------
+ATIVIDADE 5 — CENARIOS DE FALHA E ACAO DE ROLLBACK
+--------------------------------------------------------------------------------
+
+  CENARIO A — "[SHADOW BACKUP] falhou" aparece no log (upload,
+  autenticacao, ou bucket invalido)
+
+    Qual configuracao reverter: `BACKUP_ENGINE`
+    Comando:      flyctl secrets unset BACKUP_ENGINE -a hub-granmarquise
+    Efeito:       getBackupEngineMode() volta a 'legacy'; nenhuma nova
+                  tentativa de shadow ocorre nas proximas escritas.
+    Confirmar:    flyctl secrets list -a hub-granmarquise (BACKUP_ENGINE
+                  ausente) + proxima escrita no Portal so' gera
+                  "[LEGACY BACKUP] iniciado/concluído" no log, sem
+                  nenhuma linha "[SHADOW BACKUP]".
+    Dado real:    NENHUM dado de producao foi tocado por uma falha de
+                  shadow — `runShadowBackup()` nunca escreve em
+                  hub_data.json (so' le-o para calcular checksum e fazer
+                  upload) e todo erro e' contido (Sprint 5B-B1,
+                  Atividade 4.2/4.5 do Validation.txt). Nao ha' o que
+                  "desfazer" no dado em si.
+
+  CENARIO B — "[backup-shadow] DIVERGENCIA..." aparece (checksum local
+  != checksum retornado pelo hub-sdk, ou restore de leitura com
+  checksum diferente)
+
+    Mesma acao do Cenario A (unset BACKUP_ENGINE). Adicionalmente:
+    NAO tratar o objeto ja' enviado ao bucket Tigris como confiavel —
+    ele fica orfao no bucket (nenhuma limpeza automatica existe nesta
+    fase), mas isso NAO afeta o Portal nem o volume do Fly. Se desejado,
+    a remocao manual do objeto no bucket e' uma acao de limpeza de
+    armazenamento, nao de rollback funcional — pode ser feita depois,
+    sem pressa, via console da Tigris.
+
+  CENARIO C — Maquina nao volta ao estado "started" apos
+  `flyctl secrets set/unset` (restart trava, timeout, etc.)
+
+    Qual configuracao reverter: nenhuma adicional — o `set`/`unset` do
+    Secret ja' e' a unica mudanca; o problema aqui seria de
+    infraestrutura Fly, nao do Shadow Mode em si.
+    Comandos de diagnostico (leitura apenas):
+      flyctl status -a hub-granmarquise
+      flyctl logs -a hub-granmarquise
+    Se a maquina realmente nao subir: este cenario foge do escopo desta
+    Sprint (que e' exclusivamente sobre o Shadow Mode) e deve ser tratado
+    como um incidente operacional Fly.io separado — nao prosseguir com
+    mais tentativas de set/unset sem entender a causa primeiro.
+
+  CENARIO D — Qualquer duvida sobre se o legado foi afetado
+
+    Comando de confirmacao: comparar o SHA256 de
+    `data/hub_data.json` (calculado ANTES do Passo 1 do checklist, per
+    recomendacao do Sprint5BB11-EvidenceGuide.txt item 2) com o SHA256
+    apos o unset do Passo 7 — devem ser identicos, exceto por escritas
+    legitimas de usuarios reais do Portal durante a janela.
+
+--------------------------------------------------------------------------------
+CONFIRMACAO FINAL — "O PORTAL VOLTOU AO ESTADO ANTERIOR"
+--------------------------------------------------------------------------------
+
+  Apos qualquer rollback (ou apos a conclusao normal do Passo 7 do
+  checklist), confirmar TODOS os itens abaixo:
+
+    [ ] flyctl secrets list -a hub-granmarquise NAO lista BACKUP_ENGINE
+    [ ] flyctl status -a hub-granmarquise mostra STATE=started numa
+        unica maquina, sem maquinas extras
+    [ ] flyctl volumes list -a hub-granmarquise mostra os mesmos 2
+        volumes ja existentes hoje (vol_rkgj7okkq839k6o4 em gru,
+        vol_vwndlmkkge5e519v em iad — nenhum volume novo criado)
+    [ ] Uma nova escrita minima no Portal gera SOMENTE
+        "[LEGACY BACKUP] iniciado/concluído" no log — nenhuma linha
+        "[SHADOW BACKUP]"
+    [ ] SHA256 de data/hub_data.json inalterado pela homologacao em si
+        (Cenario D acima)
+
+  Se todos os itens acima forem confirmados, o Portal esta' formalmente
+  de volta ao estado operacional anterior a' homologacao — Shadow Mode
+  dormente, exatamente como configurado desde a Sprint 5B-B1.
+
+  NOTA: como o backup legado ja' esta' DESATIVADO hoje (achado da
+  Atividade 1.2 do Plano, por Secrets BUCKET_NAME/AWS_* ausentes,
+  condicao PRE-EXISTENTE a esta Sprint), "estado anterior" significa
+  especificamente "Portal com uma unica copia dos dados no volume do
+  Fly, sem nenhum backup externo ativo (nem legado, nem shadow)" — o
+  mesmo estado de risco que ja existia antes desta Sprint comecar. Este
+  plano de rollback restaura esse estado; ele NAO resolve o risco
+  pre-existente, que segue fora do escopo aqui.
+
+================================================================================
+FIM DO DOCUMENTO — Sprint5BB11-RollbackPlan.txt
+================================================================================

@@ -1,0 +1,244 @@
+================================================================================
+SPRINT 5B — DISTRIBUICAO DO hub-sdk PARA O FLY.IO — ROADMAP DE EXECUCAO
+Plataforma HUB Gran Marquise
+================================================================================
+
+Data:                  2026-08-04
+Companion de:          Sprint5B-DistribuicaoSDK-Analise.txt e
+                        Sprint5B-DistribuicaoSDK-Recomendacao.txt
+Natureza deste documento: PLANEJAMENTO APENAS. Nenhum arquivo de codigo
+                        foi alterado. Nenhum commit, push ou deploy foi
+                        realizado. As acoes abaixo estao descritas em
+                        nivel arquitetural/sequencial — nenhuma foi
+                        executada nesta sessao. Requer autorizacao
+                        explicita antes de qualquer execucao.
+
+--------------------------------------------------------------------------------
+VISAO GERAL DAS FASES
+--------------------------------------------------------------------------------
+
+  Fase 0 — Esta semana: destravar o deploy (Alternativa 1b, vendor de
+           tarball versionado)
+  Fase 1 — Em paralelo, nao bloqueante: bootstrap do hub-sdk como
+           repositorio git real
+  Fase 2 — Curto/medio prazo: migracao para GitHub Packages (Alternativa
+           4, solucao definitiva)
+  Fase 3 — Apos estabilizacao: descomissionamento da solucao temporaria e
+           fechamento formal da excecao ao ADR-011
+
+--------------------------------------------------------------------------------
+FASE 0 — DESTRAVAR O DEPLOY DESTA SEMANA (Alternativa 1b)
+--------------------------------------------------------------------------------
+
+Objetivo: permitir que o Estagio 1 (modo sombra) do backup do Portal HUB
+va a producao com seguranca, sem alterar nenhum comportamento em tempo de
+execucao (BACKUP_ENGINE permanece indefinido em producao, exatamente como
+ja planejado antes deste bloqueio ser descoberto).
+
+Passos, em ordem (nivel arquitetural — nenhum comando executado nesta
+sessao):
+
+  1. Gerar os artefatos imutaveis dos dois pacotes hoje consumidos pelo
+     Portal HUB:
+       - @hub/storage-client (versao 1.0.0)
+       - @hub/backup-core (versao 1.1.0)
+     via `npm pack` na raiz de cada pacote dentro de hub-sdk, produzindo
+     dois arquivos .tgz nomeados por versao.
+
+  2. Adicionar esses dois arquivos a hub-portal/vendor/ (novo diretorio),
+     comitados junto com o restante do Estagio 1.
+
+  3. Ajustar hub-portal/package.json para referenciar os tarballs locais
+     em vez do caminho irmao:
+       "@hub/backup-core":    "file:./vendor/hub-backup-core-1.1.0.tgz"
+       "@hub/storage-client": "file:./vendor/hub-storage-client-1.0.0.tgz"
+
+  4. Regerar package-lock.json localmente (`npm install`) e validar que
+     `npm ci` — o MESMO comando que o Dockerfile usa — resolve os
+     tarballs corretamente a partir de um clone limpo do hub-portal (sem
+     o diretorio hub-sdk presente ao lado, simulando exatamente o
+     ambiente do builder remoto do Fly.io).
+
+  5. Rodar a suite de testes completa do hub-portal (60 testes, incluindo
+     os 13 do backup-adapter) apos a troca de dependencia — nenhuma
+     mudanca de comportamento e esperada, apenas confirmar que a
+     resolucao de modulo ESM via `await import('@hub/backup-core')`
+     continua funcionando identicamente a partir de um tarball instalado
+     (e nao de um symlink de workspace).
+
+  6. (Recomendado, nao obrigatorio para o deploy em si) Validar o build
+     Docker localmente antes do commit, se houver Docker disponivel no
+     ambiente de desenvolvimento — reproduz exatamente o passo que falha
+     hoje no builder remoto, confirmando a correcao antes de depender do
+     pipeline de CI para descobrir.
+
+  7. Registrar formalmente a excecao temporaria ao ADR-011 (ver secao
+     "Governanca da excecao" abaixo) — nao apenas tecnicamente resolver o
+     bloqueio, mas deixar escrito PORQUE existe um vendor/*.tgz no
+     repositorio, com prazo de revisao.
+
+  8. So entao: commit, push, deploy — cada um deles sujeito a aprovacao
+     explicita separada, como ja e a pratica desta sessao.
+
+Criterio de pronto da Fase 0: `flyctl deploy --remote-only` conclui com
+sucesso a partir de um commit que inclui a dependencia @hub/* via
+tarball, com BACKUP_ENGINE permanecendo indefinido em producao (nenhuma
+mudanca de comportamento observavel, apenas o build passando a funcionar).
+
+Tempo estimado: 1-2 horas de trabalho tecnico + tempo de revisao/aprovacao
+humana antes de cada acao irreversivel (commit/push/deploy).
+
+--------------------------------------------------------------------------------
+FASE 1 — BOOTSTRAP DO hub-sdk COMO REPOSITORIO GIT REAL (paralelo, nao
+         bloqueante da Fase 0)
+--------------------------------------------------------------------------------
+
+Objetivo: remover o pre-requisito que hoje impede qualquer uma das
+alternativas "definitivas" (GitHub Packages, Submodule, checkout duplo) de
+sequer comecar. Esta fase NAO precisa esperar a Fase 0 terminar — pode
+rodar em paralelo, pois nao toca em hub-portal nem em producao.
+
+Passos, em ordem:
+
+  1. Decisao humana (fora do escopo tecnico): hub-sdk sera um repositorio
+     PUBLICO ou PRIVADO na organizacao Hotel-Gran-Marquise? (Os demais
+     repos da plataforma — hub-portal, hub-docs, hub-contatos — ja
+     existem sob essa organizacao; confirmar o padrao de visibilidade
+     usado por eles antes de decidir.)
+
+  2. `git init` em hub-sdk (hoje sem `.git`), primeiro commit com o estado
+     atual (Sprint 1 + Sprint 4.6, 73/73 testes passando).
+
+  3. Criar o repositorio Hotel-Gran-Marquise/hub-sdk no GitHub e fazer o
+     push inicial.
+
+  4. Configurar protecao de branch minima em `main` (exigir PR, exigir
+     CI verde) — alinhado ao padrao de qualidade que o ADR-011 ja exige
+     (lint + testes bloqueantes em CI) mas que hoje nao tem onde rodar,
+     por falta de repositorio remoto.
+
+  5. Criar o workflow de CI do hub-sdk (`ci.yml`) rodando a suite de
+     testes (73 testes) a cada push/PR — a propria estrutura de
+     diretorios do ADR-010 V2 ja prevê este arquivo
+     (`.github/workflows/ci.yml`), so nao existe ainda porque nao havia
+     repositorio remoto para hospeda-lo.
+
+Criterio de pronto da Fase 1: hub-sdk existe como repositorio remoto real,
+com CI verde rodando a cada mudanca, pronto para servir de base as fases
+seguintes (Submodule, checkout duplo, ou GitHub Packages) sem nenhum
+retrabalho de codigo — apenas configuracao adicional por cima do que ja
+existir.
+
+Tempo estimado: 2-4 horas, majoritariamente dependente da decisao humana
+do passo 1 e da disponibilidade de acesso administrativo a organizacao.
+
+--------------------------------------------------------------------------------
+FASE 2 — MIGRACAO PARA GITHUB PACKAGES (solucao definitiva)
+--------------------------------------------------------------------------------
+
+Gatilho para iniciar esta fase (nao e automatico por tempo — e por
+condicao):
+  - Fase 0 em producao ha pelo menos um ciclo de deploy completo, sem
+    incidentes atribuiveis ao mecanismo de distribuicao via tarball;
+  - Fase 1 concluida (hub-sdk e um repositorio remoto real, com CI);
+  - Confirmacao tecnica definitiva (nao assumida, validada de fato) sobre
+    a necessidade ou nao de renomear o escopo `@hub/*` para
+    `@hotel-gran-marquise/*` no registry npm do GitHub (achado tecnico
+    registrado na Alternativa 4 da Analise.txt).
+
+Passos, em ordem:
+
+  1. Resolver o achado de escopo: confirmar contra a documentacao atual
+     do GitHub Packages se `@hub/*` pode ser publicado sob a organizacao
+     Hotel-Gran-Marquise sem renomeacao, ou se de fato exige
+     `@hotel-gran-marquise/*`. Se exigir renomeacao: tratar como MAJOR
+     breaking change formal, com Migration Guide e Release Notes, conforme
+     a Politica para Breaking Changes do ADR-011 — nao pular essa etapa
+     mesmo sob pressao de cronograma.
+
+  2. Implementar o workflow `.github/workflows/publish.yml` no hub-sdk
+     (ja previsto na estrutura de diretorios do ADR-010 V2), publicando
+     @hub/backup-core e @hub/storage-client (ou seus nomes renomeados, se
+     aplicavel) no registry npm do GitHub a cada release taggeada.
+
+  3. Configurar autenticacao de LEITURA no hub-portal: `.npmrc` apontando
+     o escopo do pacote para o registry do GitHub, com o token
+     armazenado como Secret do repositorio hub-portal (nunca hardcoded).
+
+  4. Ajustar o Dockerfile do hub-portal para repassar essa credencial
+     como BUILD SECRET (`RUN --mount=type=secret=npm_token npm ci`, nao
+     como ARG/ENV, para nao vazar o token em nenhuma layer da imagem
+     final), e ajustar o workflow de deploy (`deploy.yml`) para fornecer
+     esse segredo ao `flyctl deploy` (`--build-secret` ou equivalente em
+     `fly.toml`).
+
+  5. Trocar hub-portal/package.json de `file:./vendor/*.tgz` para a
+     versao semver EXATA publicada (ex.: "@hub/backup-core": "1.1.0",
+     sem `^`/`~`, conforme a Politica de Versionamento do ADR-011).
+
+  6. Validar o build Docker completo (local, se possivel, e depois via
+     pipeline real) ANTES de remover os tarballs da Fase 0 — manter as
+     duas opcoes funcionando em paralelo ate confirmar que a nova resolve
+     de fato, evitando um segundo incidente de build quebrado.
+
+  7. Deploy de validacao, com aprovacao explicita.
+
+Reaproveitamento da Fase 0 (sem retrabalho): os pacotes ja terao sido
+empacotados e validados via `npm pack`/`npm ci` na Fase 0 — o passo 2
+desta fase reaproveita esse mesmo processo de empacotamento, apenas
+automatizando-o via CI e apontando a saida para um registry em vez de um
+diretorio local.
+
+Tempo estimado: 1-2 dias uteis, a maior parte concentrada nos passos 1
+(resolucao do achado de escopo) e 4 (configuracao segura de segredo de
+build).
+
+--------------------------------------------------------------------------------
+FASE 3 — DESCOMISSIONAMENTO DA SOLUCAO TEMPORARIA
+--------------------------------------------------------------------------------
+
+Gatilho: Fase 2 em producao ha pelo menos um ciclo de deploy completo, sem
+incidentes.
+
+Passos:
+
+  1. Remover hub-portal/vendor/*.tgz do repositorio.
+  2. Remover a excecao registrada ao ADR-011 (ver "Governanca da excecao"
+     abaixo) — ou atualiza-la para "resolvida", conforme o padrao de
+     encerramento que a equipe already usa para riscos remanescentes
+     (Sprint5B-PreDeploy-Review.txt, secao 9, e um exemplo do mesmo
+     padrao de registro).
+  3. Repetir o mesmo processo (Fase 2) para as proximas aplicacoes que
+     forem integradas ao hub-sdk (Help Desk, Qualidade, SPA, Diretorio de
+     Ramais), conforme o roadmap ja existente do ADR-010 V2 — a partir
+     daqui, cada nova integracao usa GitHub Packages desde o inicio, sem
+     precisar repetir a Fase 0/1.
+
+--------------------------------------------------------------------------------
+GOVERNANCA DA EXCECAO TEMPORARIA (Fase 0) AO ADR-011
+--------------------------------------------------------------------------------
+
+Recomendacao: registrar explicitamente, como uma nota complementar ao
+ADR-011 (ou uma secao dedicada em um documento de acompanhamento da
+Sprint 5B — nao necessariamente um novo ADR numerado, dado o carater
+temporario e ja delimitado por gatilho de saida claro), o seguinte:
+
+  - O que: hub-portal consome @hub/backup-core e @hub/storage-client via
+    tarball vendorizado (`file:./vendor/*.tgz`), nao via dependencia de
+    registry.
+  - Por que: bloqueio de build Docker/Fly.io com a referencia original
+    `file:../hub-sdk/...` (ver Sprint5B-PreDeploy-Review.txt, achado
+    6.1), resolvido taticamente para nao atrasar a entrada em producao do
+    Estagio 1.
+  - Ate quando: ate a conclusao da Fase 2 deste roadmap (migracao para
+    GitHub Packages), sem data fixa arbitraria, mas com GATILHO DE
+    CONDICAO claro (nao "quando sobrar tempo") — isso e o que evita o
+    risco, ja nomeado na Analise.txt, de uma excecao temporaria virar
+    permanente por inercia.
+  - Quem revisita: a ser definido pelo dono do projeto (Richard Anderson)
+    — recomenda-se revisitar este item explicitamente na proxima retro/
+    planejamento de Sprint apos o Estagio 1 estabilizar em producao.
+
+================================================================================
+FIM DO DOCUMENTO — Sprint5B-DistribuicaoSDK-Roadmap.txt
+================================================================================

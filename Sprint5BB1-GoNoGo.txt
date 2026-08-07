@@ -1,0 +1,103 @@
+================================================================================
+Sprint 5B-B1 — GIT DIFF, COMMIT E DECISAO FINAL
+================================================================================
+
+Data:   2026-08-04
+
+--------------------------------------------------------------------------------
+ATIVIDADE 7 — git diff DETALHADO (antes do commit)
+--------------------------------------------------------------------------------
+
+  Arquivos rastreados modificados:
+
+    Dockerfile          — SEM MUDANCA nesta Sprint (diff pre-existente
+                           da Sprint 5B-B0: +1 linha, COPY vendor/).
+    package.json         — SEM MUDANCA nesta Sprint (diff pre-existente
+                           da Sprint 5B-B0: +2 linhas, deps @hub/*).
+    package-lock.json      — SEM MUDANCA nesta Sprint (diff pre-existente
+                           da Sprint 5B-B0: +561 linhas, lockfile
+                           regenerado).
+    server.js                — MODIFICADO NESTA SPRINT: +12/-2 linhas,
+                           isoladas na funcao `agendarBackup()` —
+                           sequenciamento legado->shadow + 2 novos logs
+                           bracket (ver Sprint5BB1-ShadowMode.txt,
+                           Atividade 2, para o diff completo).
+
+  Arquivos novos (untracked antes do commit desta Sprint):
+
+    src/backup-adapter.js       — MODIFICADO NESTA SPRINT (arquivo ja
+                                 existia, untracked, desde antes deste
+                                 engajamento; alteracoes desta Sprint:
+                                 logging bracket + try/catch externo —
+                                 ver Sprint5BB1-ShadowMode.txt,
+                                 Atividade 3). Arquivo passou de
+                                 untracked para rastreado NESTE commit.
+    tests/backup-adapter.test.js  — SEM MUDANCA nesta Sprint (arquivo
+                                 pre-existente, untracked ate' este
+                                 commit; conteudo identico ao de sessoes
+                                 anteriores).
+    vendor/*.tgz + *.sha256 +
+    manifest.json                  — SEM MUDANCA nesta Sprint (gerados na
+                                 Sprint 5B-A, copiados na Sprint 5B-B0;
+                                 conteudo binario identico, apenas
+                                 passaram de untracked para rastreados
+                                 neste commit).
+
+  RESUMO: esta Sprint alterou o CONTEUDO de exatamente 2 arquivos
+  (server.js, src/backup-adapter.js). Os demais arquivos incluidos no
+  commit (Dockerfile, package.json, package-lock.json, vendor/*,
+  tests/backup-adapter.test.js) ja existiam com o conteudo atual antes
+  desta Sprint — foram commitados AGORA, pela primeira vez, porque
+  formam, junto com as duas mudancas desta Sprint, a unidade coerente e
+  funcional "shadow mode habilitado via hub-sdk" (ver justificativa
+  completa abaixo).
+
+--------------------------------------------------------------------------------
+COMMIT REALIZADO
+--------------------------------------------------------------------------------
+
+  Hash:      28e5f9beaa3883e5bdc3a2fa42f37ebe46e20abd
+  Autor:     Richard Anderson <ti@granmarquise.com.br>
+  Mensagem:  "feat(backup): enable shadow mode using hub-sdk"
+  Arquivos:  11 arquivos alterados, 1073 insercoes(+), 4 remocoes(-)
+             Dockerfile, package.json, package-lock.json, server.js
+             (modificados) + src/backup-adapter.js,
+             tests/backup-adapter.test.js, vendor/hub-backup-core-1.1.0.tgz,
+             vendor/hub-backup-core-1.1.0.tgz.sha256,
+             vendor/hub-storage-client-1.0.0.tgz,
+             vendor/hub-storage-client-1.0.0.tgz.sha256,
+             vendor/manifest.json (novos)
+  Push:      NAO REALIZADO — branch local `main` 2 commits a` frente de
+             `origin/main` (este commit + o commit anterior do
+             `.dockerignore`, Sprint 5B-B0.2).
+
+  JUSTIFICATIVA DO ESCOPO DO COMMIT (por que incluir arquivos que esta
+  Sprint em si nao modificou):
+  `server.js` requer `./src/backup-adapter`, que por sua vez faz
+  `import('@hub/storage-client')`/`import('@hub/backup-core')` — essas
+  duas dependencias so' resolvem porque `package.json` as declara via
+  `file:vendor/*.tgz` e o `Dockerfile` copia `vendor/` antes do
+  `npm ci`. NENHUM desses arquivos havia sido commitado em nenhuma
+  Sprint anterior (5B-B0 preparou-os, 5B-B0.1/5B-B0.2 validaram sem
+  commitar, exceto `.dockerignore`). Commitar SOMENTE server.js e
+  backup-adapter.js, sem o mecanismo de distribuicao que os sustenta,
+  deixaria um commit "feat(backup): enable shadow mode" tecnicamente
+  incompleto e potencialmente confuso no historico. Por isso, esta
+  Sprint reune tudo o que e' necessario para a feature ser real e
+  coerente num UNICO commit, conforme solicitado.
+
+--------------------------------------------------------------------------------
+ESTADO DO SHADOW MODE APOS ESTE COMMIT
+--------------------------------------------------------------------------------
+
+  BACKUP_ENGINE: continua SEM DEFINICAO em qualquer Secret do Fly.io —
+  o shadow mode permanece 100% DORMENTE em producao apos este commit,
+  exatamente como antes. Este commit habilita a CAPACIDADE de ligar o
+  shadow mode (via uma futura mudanca de configuracao, nao de codigo) —
+  nao o ativa.
+
+  Nenhum deploy foi realizado. O commit existe apenas localmente.
+
+================================================================================
+FIM DO DOCUMENTO — Sprint5BB1-GoNoGo.txt
+================================================================================

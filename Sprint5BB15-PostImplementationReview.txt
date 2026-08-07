@@ -1,0 +1,116 @@
+================================================================================
+Sprint 5B-B1.5 — REVISAO POS-IMPLEMENTACAO (TEMPLATE — PREENCHER APOS A EXECUCAO)
+================================================================================
+
+Gerado em: 2026-08-04
+NOTA: este documento NAO deve ser preenchido antes da execucao real
+descrita em Sprint5BB15-ExecutionPlan.txt. Todos os campos abaixo estao
+em branco intencionalmente.
+
+--------------------------------------------------------------------------------
+IDENTIFICACAO DA EXECUCAO
+--------------------------------------------------------------------------------
+
+  Data da execucao:              ____________________
+  Responsavel pela Execucao:      ____________________
+  Responsavel pela Validacao:     ____________________
+  Referencia:                     Sprint5BB15-ExecutionPlan.txt
+
+--------------------------------------------------------------------------------
+HORARIO REAL
+--------------------------------------------------------------------------------
+
+  Horario real de inicio (Passo 1):        ____________________
+  Horario real de termino (Passo 8):        ____________________
+  Duracao total real da janela:              ____________________
+
+--------------------------------------------------------------------------------
+TEMPO DO RESTART
+--------------------------------------------------------------------------------
+
+  Horario do comando `secrets set` (Passo 2):           ____________________
+  Horario em que `flyctl status` mostrou STATE=started
+  pela primeira vez (Passo 3):                           ____________________
+  Duracao do restart (diferenca entre os dois acima):    ____________________
+  (Este e' o PRIMEIRO registro real desta metrica para este app — usar
+  como referencia para estimativas de janela em futuras mudancas de
+  Secrets.)
+
+--------------------------------------------------------------------------------
+RESULTADO DA VALIDACAO (Passos 1-7 do Sprint5BB15-ExecutionPlan.txt)
+--------------------------------------------------------------------------------
+
+  Passo 1 — Baseline de digests capturada:           [ ] PASS  [ ] FAIL
+  Passo 2 — flyctl secrets set executado:              [ ] PASS  [ ] FAIL
+  Passo 3 — Restart concluido (STATE=started):         [ ] PASS  [ ] FAIL
+  Passo 4 — Digests confirmados alterados:              [ ] PASS  [ ] FAIL
+  Passo 5 — Validacao funcional (auth/bucket/put/get/
+            old-reference-scan):                        [ ] PASS  [ ] FAIL
+  Passo 6 — Logs sem excecao de storage:                [ ] PASS  [ ] FAIL
+  Passo 7 — BACKUP_ENGINE continua indefinido:           [ ] PASS  [ ] FAIL
+
+  Resultado consolidado:                                 [ ] PASS  [ ] FAIL
+
+  Saida completa do Passo 5 (colar o JSON retornado, sem nenhuma
+  credencial em texto puro — o script ja' garante isso por design):
+
+    ____________________________________________________________________
+    ____________________________________________________________________
+    ____________________________________________________________________
+
+--------------------------------------------------------------------------------
+PROBLEMAS ENCONTRADOS
+--------------------------------------------------------------------------------
+
+  (Descrever qualquer divergencia em relacao ao resultado esperado de
+  qualquer passo, mesmo que nao tenha sido classificada como FAIL —
+  qualquer coisa fora do previsto merece registro.)
+
+    ____________________________________________________________________
+    ____________________________________________________________________
+    ____________________________________________________________________
+
+--------------------------------------------------------------------------------
+ROLLBACK NECESSARIO?
+--------------------------------------------------------------------------------
+
+  [ ] NAO — execucao concluida com sucesso, nenhum rollback necessario.
+  [ ] SIM — rollback acionado (Sprint5BB15-RollbackPlan.txt).
+
+  Se SIM:
+    Motivo do rollback:               ____________________________________
+    Horario do rollback:                ____________________________________
+    Confirmacao de que o rollback restaurou o estado anterior (ver
+    Sprint5BB15-RollbackPlan.txt, secao "Confirmacao de que o rollback
+    funcionou"):                        [ ] Sim, confirmado   [ ] Nao
+
+--------------------------------------------------------------------------------
+LICOES APRENDIDAS (DESTA EXECUCAO ESPECIFICA)
+--------------------------------------------------------------------------------
+
+  (Distinto do backlog de melhorias ja' identificado em
+  Sprint5BB15-CAB.txt, secao "LICOES APRENDIDAS" — aqui registrar
+  apenas o que foi aprendido DURANTE esta execucao real, que so' pode
+  ser conhecido depois do fato: surpresas, tempos reais medidos,
+  qualquer passo que precisou de ajuste na hora.)
+
+    ____________________________________________________________________
+    ____________________________________________________________________
+    ____________________________________________________________________
+
+--------------------------------------------------------------------------------
+APROVACAO FINAL
+--------------------------------------------------------------------------------
+
+  Validado por:      ____________________
+  Cargo:             ____________________
+  Data:              ____________________
+  Hora:               ____________________
+  Mudanca considerada:  [ ] CONCLUIDA COM SUCESSO
+                        [ ] CONCLUIDA COM RESSALVAS (ver "Problemas
+                            encontrados" acima)
+                        [ ] REVERTIDA (ver "Rollback necessario" acima)
+
+================================================================================
+FIM DO DOCUMENTO — Sprint5BB15-PostImplementationReview.txt
+================================================================================

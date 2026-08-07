@@ -1,0 +1,117 @@
+================================================================================
+Sprint 5B-B0 — VALIDACAO DE package.json / package-lock.json
+================================================================================
+
+Data:   2026-08-04
+Metodo: comparacao real, antes/depois, do lockfile efetivamente gerado
+        pelo `npm install` — nao suposicao.
+
+--------------------------------------------------------------------------------
+1. SNAPSHOT ANTES (lockfile pre-existente, com file:../hub-sdk/...)
+--------------------------------------------------------------------------------
+
+  Dependencia         | Range declarado                          | Versao resolvida | Origem (resolved)
+  ---------------------|-------------------------------------------|-------------------|--------------------------------------------
+  @hub/backup-core     | file:../hub-sdk/packages/backup-core       | (sem versao)      | ../hub-sdk/packages/backup-core
+  @hub/storage-client  | file:../hub-sdk/packages/storage-client    | (sem versao)      | ../hub-sdk/packages/storage-client
+  aws4fetch             | ^1.0.20                                    | 1.0.20            | registry.npmjs.org/aws4fetch/-/aws4fetch-1.0.20.tgz
+  dotenv                 | ^16.0.0                                    | 16.6.1            | registry.npmjs.org/dotenv/-/dotenv-16.6.1.tgz
+  express                 | ^4.18.0                                    | 4.22.2            | registry.npmjs.org/express/-/express-4.22.2.tgz
+  jsonwebtoken             | ^9.0.0                                     | 9.0.3             | registry.npmjs.org/jsonwebtoken/-/jsonwebtoken-9.0.3.tgz
+
+  Total de pacotes no lockfile (node_modules/*): 86
+
+--------------------------------------------------------------------------------
+2. COMANDO EXECUTADO
+--------------------------------------------------------------------------------
+
+  `npm install` (raiz do hub-portal, apos a Atividade 4 alterar
+  package.json). Saida real:
+
+    "added 36 packages, changed 2 packages, and audited 123 packages in 6s
+    18 packages are looking for funding
+    1 low severity vulnerability"
+
+--------------------------------------------------------------------------------
+3. SNAPSHOT DEPOIS
+--------------------------------------------------------------------------------
+
+  Dependencia         | Range declarado                              | Versao resolvida | Origem (resolved)
+  ---------------------|-------------------------------------------------|-------------------|----------------------------------------------
+  @hub/backup-core     | file:vendor/hub-backup-core-1.1.0.tgz            | 1.1.0             | file:vendor/hub-backup-core-1.1.0.tgz
+  @hub/storage-client  | file:vendor/hub-storage-client-1.0.0.tgz          | 1.0.0             | file:vendor/hub-storage-client-1.0.0.tgz
+  aws4fetch             | ^1.0.20                                          | 1.0.20 (IDENTICO) | registry.npmjs.org/aws4fetch/-/aws4fetch-1.0.20.tgz (IDENTICO)
+  dotenv                 | ^16.0.0                                          | 16.6.1 (IDENTICO) | registry.npmjs.org/dotenv/-/dotenv-16.6.1.tgz (IDENTICO)
+  express                 | ^4.18.0                                          | 4.22.2 (IDENTICO) | registry.npmjs.org/express/-/express-4.22.2.tgz (IDENTICO)
+  jsonwebtoken             | ^9.0.0                                           | 9.0.3 (IDENTICO)  | registry.npmjs.org/jsonwebtoken/-/jsonwebtoken-9.0.3.tgz (IDENTICO)
+
+  Total de pacotes no lockfile (node_modules/*): 123 (86 + 36 novos + 2
+  que trocaram de resolucao mas continuam sendo os mesmos 2 pacotes
+  @hub/*, contados nos "changed 2 packages" acima, nao em "added")
+
+  Integrity (sha512) das entradas @hub/* no novo lockfile:
+    @hub/backup-core:    sha512-vmDE+RCXrNS8BPJzB6AJ5YN8/SL12ZTXt+OgfWhJB6hmpPWH9fo7a/o7sEr2kK0FBbipLkNGEmLlTcpEuvrP2A==
+    @hub/storage-client: sha512-QJ52AJo/txvMsPUehsXhYJNG6eRBMnzpPIc6EiUK92G1kvHSsRxPHNmsjr8ltpxlfbAytLSXU6S79oPSX96BUg==
+
+  Ambos IDENTICOS aos valores "npmIntegrity" registrados em
+  Sprint5BA-Manifest.txt / manifest.json — confirma que o lockfile
+  resolveu exatamente o mesmo artefato que foi validado na Sprint 5B-A e
+  copiado para vendor/ nesta Sprint, sem nenhuma diferenca de bytes.
+
+--------------------------------------------------------------------------------
+4. ORIGEM DOS 36 PACOTES NOVOS
+--------------------------------------------------------------------------------
+
+  `package.json` extraido de dentro de `vendor/hub-storage-client-
+  1.0.0.tgz` declara:
+
+    "dependencies": {
+      "@aws-sdk/client-s3": "^3.600.0",
+      "@aws-sdk/lib-storage": "^3.600.0",
+      "@aws-sdk/s3-request-presigner": "^3.600.0"
+    }
+
+  Contagem de entradas `@aws-sdk/*` e `@smithy/*` (dependencias
+  transitivas do AWS SDK v3) no novo lockfile: 25. Somado a outras
+  dependencias transitivas menores dessas bibliotecas, totaliza os 36
+  pacotes "added" reportados pelo npm. TODOS rastreaveis a` arvore de
+  dependencias declarada de `@hub/storage-client` — nenhum pacote
+  estranho ou nao-explicavel foi introduzido.
+
+  Explicacao do PORQUE isso e' novo (nao e' regressao, e' correcao):
+  antes desta migracao, `node_modules/@hub/storage-client` era um SYMLINK
+  para o diretorio real do hub-sdk no disco (`file:../hub-sdk/
+  packages/storage-client` resolvido como referencia direta de pasta).
+  A resolucao de modulo do Node, ao seguir esse symlink, buscava
+  `@aws-sdk/*` subindo pelo filesystem REAL a partir do alvo do symlink —
+  ou seja, potencialmente reaproveitando (ou dependendo de) o
+  `node_modules` do PROPRIO hub-sdk, nao do hub-portal. Isso NUNCA foi
+  validado explicitamente nesta auditoria como funcionando ou nao em CI
+  (o proprio bloqueio documentado desde a Sprint5B-PreDeploy-Review.txt
+  e' que esse caminho nem existe em CI). Com o tarball, o hub-portal passa
+  a instalar suas PROPRIAS copias — mais correto, mais isolado, e a unica
+  forma que realmente funciona fora de uma maquina com os dois
+  repositorios lado a lado.
+
+--------------------------------------------------------------------------------
+5. VEREDITO DA ATIVIDADE 5
+--------------------------------------------------------------------------------
+
+  [OK] Somente as dependencias do hub-sdk foram modificadas em termos de
+       MECANISMO de resolucao (file:../hub-sdk -> file:vendor/*.tgz).
+  [OK] Nenhuma outra biblioteca mudou de versao — aws4fetch, dotenv,
+       express, jsonwebtoken permanecem EXATAMENTE nas mesmas versoes e
+       nas mesmas origens de resolucao.
+  [OK] Nenhuma atualizacao automatica/inesperada ocorreu — os 36 pacotes
+       novos sao 100% explicaveis como dependencias transitivas ja
+       declaradas por @hub/storage-client, nao uma atualizacao de nada
+       pre-existente.
+  [OK] Integrity (sha512) do lockfile confere exatamente com o manifest
+       oficial da release v1.1.0.
+
+  CONDICAO DE PARADA DA ATIVIDADE 5 ("caso ocorra atualizacao inesperada:
+  PARAR") NAO FOI ACIONADA — nenhuma atualizacao inesperada detectada.
+
+================================================================================
+FIM DO DOCUMENTO — Sprint5BB0-PackageValidation.txt
+================================================================================
