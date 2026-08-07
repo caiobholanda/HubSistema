@@ -1278,17 +1278,22 @@ function AssistenteIAPanel({ isMobile }) {
   const [showPreview, setShowPreview] = useState(false);
   const [previewText, setPreviewText] = useState('');
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [loadErr, setLoadErr] = useState(false);
 
-  useEffect(() => {
+  function carregarConfig() {
+    setLoading(true); setLoadErr(false);
     const token = localStorage.getItem('hub_sso_token');
     fetch('/api/admin/ai-config', { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
       .then(d => {
         if (d.ok) { setCustomInfo(d.config.custom_info || ''); setQuickReplies(d.config.quick_replies || []); }
+        else setLoadErr(true);
       })
-      .catch(() => {})
+      .catch(() => setLoadErr(true))
       .finally(() => setLoading(false));
-  }, []);
+  }
+
+  useEffect(() => { carregarConfig(); }, []);
 
   async function save() {
     setSaving(true); setSaveErr(''); setSavedAt(null);
@@ -1332,6 +1337,18 @@ function AssistenteIAPanel({ isMobile }) {
     </div>
   );
 
+  if (loadErr) return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 260, gap: 16, padding: 32 }}>
+      <div style={{ fontFamily: MONO, fontSize: 10, color: '#E07A5F', letterSpacing: '0.2em', textTransform: 'uppercase' }}>Erro ao carregar configurações</div>
+      <div style={{ fontFamily: BODY, fontSize: 13, color: C.areiaDim, textAlign: 'center', lineHeight: 1.6 }}>
+        Não foi possível buscar os dados salvos do servidor.<br/>Seus dados estão seguros — tente recarregar.
+      </div>
+      <button onClick={carregarConfig} style={{ background: 'none', border: `1px solid ${C.champanhe}55`, color: C.champanhe, fontFamily: MONO, fontSize: 9, letterSpacing: '0.25em', textTransform: 'uppercase', padding: '10px 20px', cursor: 'pointer' }}>
+        Tentar novamente
+      </button>
+    </div>
+  );
+
   return (
     <div style={{ padding: isMobile ? '24px 18px' : '32px 48px', maxWidth: 860 }}>
 
@@ -1360,9 +1377,20 @@ function AssistenteIAPanel({ isMobile }) {
               Informações temporárias ou procedimentos que a IA deve conhecer agora
             </div>
           </div>
-          <span style={{ fontFamily: MONO, fontSize: 10, color: customInfo.length > 2200 ? '#E07A5F' : C.areiaDim, letterSpacing: '0.08em', flexShrink: 0, marginLeft: 20, marginTop: 2 }}>
-            {customInfo.length}/2500
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, marginLeft: 20, marginTop: 2 }}>
+            {customInfo.length > 0 && (
+              <button
+                onClick={() => setCustomInfo('')}
+                style={{ background: 'none', border: 'none', color: C.areiaDim, fontFamily: MONO, fontSize: 9, letterSpacing: '0.15em', textTransform: 'uppercase', cursor: 'pointer', padding: '2px 6px', opacity: 0.7, transition: 'opacity 150ms' }}
+                onMouseEnter={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.color = '#E07A5F'; }}
+                onMouseLeave={e => { e.currentTarget.style.opacity = '0.7'; e.currentTarget.style.color = C.areiaDim; }}
+                title="Limpar campo"
+              >✕ Limpar</button>
+            )}
+            <span style={{ fontFamily: MONO, fontSize: 10, color: customInfo.length > 2200 ? '#E07A5F' : C.areiaDim, letterSpacing: '0.08em' }}>
+              {customInfo.length}/2500
+            </span>
+          </div>
         </div>
         <div style={{ display: 'flex' }}>
           <div style={{ width: 3, flexShrink: 0, background: `linear-gradient(180deg, ${C.champanhe}99 0%, ${C.champanhe}22 100%)` }} />
