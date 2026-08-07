@@ -2241,6 +2241,12 @@ app.delete('/api/admin/tipos-cortesia/:id', requireAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
+// Assistente IA — GET deve ficar antes do catch-all SPA.
+app.get('/api/admin/ai-config', requireAdmin, (req, res) => {
+  const data = readData();
+  res.json({ ok: true, config: data.ai_config || { custom_info: '', quick_replies: [] } });
+});
+
 // Atualizações — GET deve ficar antes do catch-all SPA.
 app.get('/api/updates', (req, res) => {
   const token = (req.headers.authorization || '').replace('Bearer ', '');
@@ -2667,11 +2673,6 @@ function buildSystemPrompt(customInfo, quickReplies) {
   }
   return prompt;
 }
-
-app.get('/api/admin/ai-config', requireAdmin, (req, res) => {
-  const data = readData();
-  res.json({ ok: true, config: data.ai_config || { custom_info: '', quick_replies: [] } });
-});
 
 app.put('/api/admin/ai-config', requireAdmin, (req, res) => {
   const { custom_info, quick_replies } = req.body || {};
