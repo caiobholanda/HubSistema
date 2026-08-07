@@ -2765,6 +2765,38 @@ app.put('/api/admin/ai-config', requireAdmin, (req, res) => {
   res.json({ ok: true, config: cfg });
 });
 
+// "Salvar" do Contexto Adicional: incorpora o texto ao texto base (secao 03)
+// e esvazia o campo — a caixa 01 e a porta de entrada, o conhecimento
+// confirmado mora no Contexto Completo. Feito no SERVIDOR e numa operacao so:
+// se o front apagasse o campo e gravasse o base em dois passos, uma falha no
+// meio perderia o texto; e admin comum pode INCORPORAR (aditivo) mesmo sem
+// poder reescrever o texto base inteiro (isso segue exclusivo do master).
+app.post('/api/admin/ai-config/incorporar', requireAdmin, (req, res) => {
+  const texto = String((req.body || {}).texto || '').trim().slice(0, 2500);
+  if (!texto) return res.status(400).json({ ok: false, erro: 'Nada para salvar.' });
+  const data = readData();
+  const prev = data.ai_config || {};
+  // Base vazio = padrao em vigor; materializa o padrao antes de apensar, senao
+  // a tela 03 mostraria SO o texto novo e o resto do conhecimento "sumiria".
+  const baseAtual = (prev.base_prompt && prev.base_prompt.trim()) ? prev.base_prompt.trim() : TEXTO_BASE_PADRAO;
+  const novoBase = `${baseAtual}\n\n${texto}`;
+  if (novoBase.length > 10000) {
+    return res.status(400).json({ ok: false, erro: `Texto base cheio (${novoBase.length}/10000). Enxugue a seção 03 antes de salvar.` });
+  }
+  // So esvazia o custom_info do servidor se ele ainda for O MESMO texto que
+  // esta sendo incorporado: se outro admin salvou um rascunho diferente entre
+  // o load e o clique, o rascunho dele nao pode ser destruido sem ter entrado
+  // no base.
+  const custom = String(prev.custom_info || '').trim() === texto ? '' : (prev.custom_info || '');
+  data.ai_config = {
+    custom_info: custom,
+    quick_replies: Array.isArray(prev.quick_replies) ? prev.quick_replies : [],
+    base_prompt: novoBase,
+  };
+  writeData(data);
+  res.json({ ok: true, base_prompt: novoBase });
+});
+
 // Contexto vivo entregue ao motor. Dado de PESSOA (nome, setor, ramal) so entra
 // com sessao valida: /api/ai-chat e publica de proposito (o widget aparece antes
 // do login) e sem esse corte o chat viraria um dump do diretorio interno.

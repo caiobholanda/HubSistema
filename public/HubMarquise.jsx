@@ -1396,9 +1396,14 @@ function AssistenteIAPanel({ isMobile }) {
   useEffect(() => {
     if (!readyRef.current) { prevValsRef.current = { ci: customInfo, qr: quickReplies }; return; }
     const prev = prevValsRef.current || { ci: customInfo, qr: quickReplies };
-    if (prev.ci !== customInfo) dirtyRef.current.add('custom_info');
-    if (prev.qr !== quickReplies) dirtyRef.current.add('quick_replies');
+    const mudouCi = prev.ci !== customInfo;
+    const mudouQr = prev.qr !== quickReplies;
     prevValsRef.current = { ci: customInfo, qr: quickReplies };
+    // Sem mudança real (ex.: o Salvar da seção 01 acabou de sincronizar o
+    // estado), não zera o "✓ Salvo" nem re-arma o debounce.
+    if (!mudouCi && !mudouQr) return;
+    if (mudouCi) dirtyRef.current.add('custom_info');
+    if (mudouQr) dirtyRef.current.add('quick_replies');
     if (debounceRef.current) clearTimeout(debounceRef.current);
     setSavedAt(null); setSaveErr('');
     debounceRef.current = setTimeout(save, 1200);
@@ -1467,6 +1472,57 @@ function AssistenteIAPanel({ isMobile }) {
     setBasePrompt(localBaseEdit);
     dirtyRef.current.add('base_prompt');
     await save();
+  }
+
+  // "Salvar" da seção 01: o texto vira conhecimento permanente na seção 03 e a
+  // caixa esvazia. Operação única no servidor — sem risco de apagar o campo e
+  // falhar a gravação do base no meio do caminho.
+  async function incorporarContexto() {
+    const texto = customInfo.trim();
+    if (!texto || saving) return;
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    const seq = ++saveSeqRef.current;
+    setSaving(true); setSaveErr(''); setSavedAt(null);
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 12000); // pendurada travava o botão em "Salvando..." pra sempre
+    try {
+      const token = localStorage.getItem('hub_sso_token');
+      const r = await fetch('/api/admin/ai-config/incorporar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ texto }),
+        signal: ctrl.signal,
+      });
+      const d = await r.json();
+      if (seq !== saveSeqRef.current) return;
+      if (d.ok) {
+        // Só esvazia se a caixa ainda contém exatamente o que foi incorporado:
+        // tecla digitada durante o voo NÃO pode sumir. Se mudou, o texto fica
+        // na tela (visível) e segue o fluxo normal de rascunho.
+        const atual = latestRef.current.ci;
+        if (atual.trim() === texto) {
+          dirtyRef.current.delete('custom_info');
+          // Sincroniza o comparador ANTES de esvaziar: senão o effect vê a
+          // troca para '', marca sujo de novo e apaga o "✓ Salvo".
+          if (prevValsRef.current) prevValsRef.current = { ...prevValsRef.current, ci: '' };
+          setCustomInfo('');
+        }
+        basePromptRef.current = d.base_prompt;
+        latestRef.current.bp = d.base_prompt;
+        setBasePrompt(d.base_prompt);
+        setLocalBaseEdit(d.base_prompt);
+        setSavedAt(new Date());
+        // Edição de resposta rápida feita na janela do incorporar ficava órfã
+        // (suja, sem debounce armado) até o unmount — flush imediato.
+        if (dirtyRef.current.size) { debounceRef.current = setTimeout(save, 300); }
+        // Não-master vê a 03 como preview montado pelo servidor — re-busca.
+        if (!isMaster) {
+          fetch('/api/admin/ai-preview', { headers: { Authorization: `Bearer ${token}` } })
+            .then(x => x.json()).then(p => { if (p.ok) setPreviewText(p.prompt); }).catch(() => {});
+        }
+      } else setSaveErr(d.erro || 'Erro ao salvar.');
+    } catch { if (seq === saveSeqRef.current) setSaveErr('Erro de conexão.'); }
+    finally { clearTimeout(timer); if (seq === saveSeqRef.current) setSaving(false); }
   }
 
   async function testarPergunta() {
@@ -1553,7 +1609,7 @@ function AssistenteIAPanel({ isMobile }) {
           <div>
             <div style={{ fontFamily: MONO, fontSize: 11, letterSpacing: '0.3em', textTransform: 'uppercase', color: C.champanhe, marginBottom: 4 }}>01 · Contexto Adicional</div>
             <div style={{ fontFamily: BODY, fontSize: 14, color: C.areia, lineHeight: 1.5 }}>
-              Informações temporárias ou procedimentos que a IA deve conhecer agora
+              Escreva aqui o que a IA deve passar a saber — ao salvar, o texto entra no Contexto Completo (03) e esta caixa esvazia
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, marginLeft: 20, marginTop: 2 }}>
@@ -1582,12 +1638,13 @@ function AssistenteIAPanel({ isMobile }) {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 7, flexWrap: 'wrap', gap: 8 }}>
           <div style={{ fontFamily: MONO, fontSize: 12, color: C.areia, letterSpacing: '0.08em', lineHeight: 1.5 }}>
-            Um assunto por linha, com a informação completa (linhas muito curtas são ignoradas). Limpe quando não for mais necessário.
+            Um assunto por linha, com a informação completa (linhas muito curtas são ignoradas). Enquanto não salvar, o rascunho também já vale nas respostas.
           </div>
           <button
-            onClick={() => { if (debounceRef.current) clearTimeout(debounceRef.current); dirtyRef.current.add('custom_info'); save(); }}
-            disabled={saving}
-            style={{ background: saving ? `${C.champanhe}55` : C.champanhe, color: C.noite, fontFamily: MONO, fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', padding: '6px 16px', border: 'none', cursor: saving ? 'not-allowed' : 'pointer', transition: 'background 200ms', flexShrink: 0 }}
+            onClick={incorporarContexto}
+            disabled={saving || !customInfo.trim()}
+            title="Move o texto para o Contexto Completo (seção 03) e esvazia esta caixa"
+            style={{ background: (saving || !customInfo.trim()) ? `${C.champanhe}55` : C.champanhe, color: C.noite, fontFamily: MONO, fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', padding: '6px 16px', border: 'none', cursor: (saving || !customInfo.trim()) ? 'not-allowed' : 'pointer', transition: 'background 200ms', flexShrink: 0 }}
           >{saving ? 'Salvando...' : '✓ Salvar'}</button>
         </div>
       </div>
