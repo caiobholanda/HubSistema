@@ -45,8 +45,9 @@ const _STOPWORDS = new Set([
   'ao', 'aos', 'numa', 'pelos', 'pelas', 'favor', 'ne',
 ]);
 
-// Lixo de teste — quem testa o chat digita "teste teste teste".
-const _RUIDO = /^(teste?s?|test|xxx+|asdf+|aaa+|zzz+|lorem|ipsum|abc|123+)$/;
+// Lixo de teste — quem testa o chat digita "teste teste teste". Digito NAO entra
+// aqui: "ramal 5001" e "andar 12" sao informacao.
+const _RUIDO = /^(test\w*|x{3,}|(asdf|qwer|zxcv)+|a{3,}|z{3,}|lorem|ipsum|abc|[.@]+)$/;
 
 function _semAcento(s) {
   return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -100,12 +101,13 @@ function _distancia(a, b, limite) {
   return prev[b.length];
 }
 
-// Tolerancia proporcional: 1 erro a partir de 5 letras, 2 a partir de 8.
+// Tolerancia proporcional: 1 erro a partir de 4 letras, 2 a partir de 6
+// ("esqeci"/"esqueci", "xamado"/"chamado", "sitemas"/"sistemas").
 function _pareceIgual(a, b) {
   if (a === b) return true;
   const n = Math.min(a.length, b.length);
   if (n < 4) return false;
-  const limite = n >= 8 ? 2 : 1;
+  const limite = n >= 6 ? 2 : 1;
   return _distancia(a, b, limite) <= limite;
 }
 
@@ -126,9 +128,14 @@ function analisar(texto) {
 }
 
 // 1 = casou exato, 0.6 = casou com erro de digitacao, 0 = nao casou.
-function _peso(rad, an) {
+// O fuzzy roda tambem sobre a palavra INTEIRA, nao so sobre o radical: o corte
+// em 6 chars destroi a distancia ("esqeci"→"esqeci" vs "esqueci"→"esquec" da 2,
+// mas as palavras inteiras dao 1).
+function _peso(palavra, an) {
+  const rad = radical(palavra);
   if (an.conjunto.has(rad)) return 1;
   for (const r of an.conjunto) if (_pareceIgual(r, rad)) return 0.6;
+  for (const t of an.tokens) if (_pareceIgual(t, palavra)) return 0.6;
   return 0;
 }
 
@@ -136,10 +143,10 @@ function _peso(rad, an) {
 function casaTermo(termo, an) {
   const partes = _tokens(termo);
   if (partes.length === 0) return 0;
-  if (partes.length === 1) return _peso(radical(partes[0]), an);
+  if (partes.length === 1) return _peso(partes[0], an);
   let soma = 0;
   for (const p of partes) {
-    const w = _peso(radical(p), an);
+    const w = _peso(p, an);
     if (w === 0) return 0;
     soma += w;
   }
