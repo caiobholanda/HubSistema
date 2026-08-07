@@ -2685,9 +2685,11 @@ app.delete('/api/admin/updates/:id', requireAdmin, (req, res) => {
 // tela mentia: mostrava o padrao como ativo e o motor nunca o recebia.
 function _configComPadrao(aiCfg) {
   const cfg = aiCfg || {};
-  return (cfg.base_prompt && cfg.base_prompt.trim())
-    ? cfg
-    : { ...cfg, base_prompt: TEXTO_BASE_PADRAO };
+  // base_padrao vai junto para o motor saber o que o admin ESCREVEU (bloco que
+  // nao existe no padrao tem precedencia sobre as respostas internas).
+  const base = { ...cfg, base_padrao: TEXTO_BASE_PADRAO };
+  if (!(cfg.base_prompt && cfg.base_prompt.trim())) base.base_prompt = TEXTO_BASE_PADRAO;
+  return base;
 }
 
 const TEXTO_BASE_PADRAO = `Hub Gran Marquise (hub-granmarquise.fly.dev) — porta de entrada dos sistemas do hotel. Login com e-mail @granmarquise.com.br; cada pessoa vê só o que está liberado pra ela.

@@ -195,6 +195,40 @@ test('contexto adicional responde por bloco relevante, nao despeja tudo', () => 
   assert.doesNotMatch(r.reply, /estacionamento/i);
 });
 
+// O que o admin ESCREVE no texto da IA e a palavra final — o cadastro de
+// usuarios do Hub fica desatualizado e a resposta listava ramais errados
+// mesmo depois de o admin corrigir na tela.
+test('ramais escritos no texto da IA vencem o cadastro do Hub', () => {
+  const PADRAO = 'Hub Gran Marquise — porta de entrada.\n\nSenha do Hub: mínimo 8 caracteres.';
+  const config = { base_padrao: PADRAO, base_prompt: `${PADRAO}\n\nRamais da TI: Richard ( 5051 ), Marcio ( 5061 )` };
+  for (const p of ['quero falar com alguem do ti', 'qual o ramal da ti']) {
+    const r = perguntar(p, CTX, config);
+    assert.match(r.reply, /Richard — ramal 5051/, p);
+    assert.match(r.reply, /Marcio — ramal 5061/, p);
+    assert.doesNotMatch(r.reply, /Ana Souza|5001/, p);
+  }
+  // Sem o texto do admin, o cadastro continua respondendo (sem regressao).
+  const semTexto = perguntar('quero falar com alguem do ti', CTX, {});
+  assert.match(semTexto.reply, /Ana Souza — ramal 5001/);
+});
+
+test('bloco novo do admin vence a intencao interna; bloco igual ao padrao nao', () => {
+  const PADRAO = 'Senha do Hub: mínimo 8 caracteres com maiúscula, minúscula, número e símbolo. Esqueceu a senha: "Esqueci minha senha" na tela de login.';
+  const config = {
+    base_padrao: PADRAO,
+    base_prompt: `${PADRAO}\n\nO estoque de toner fica no almoxarifado do subsolo, retirar com a Fernanda.`,
+  };
+  // Bloco NOVO vence a dica generica de impressora.
+  const r = perguntar('onde fica o estoque de toner?', CTX, config);
+  assert.strictEqual(r.intencao, 'contexto_admin');
+  assert.match(r.reply, /almoxarifado do subsolo/);
+  // Bloco identico ao padrao NAO rouba o passo a passo formatado.
+  assert.strictEqual(perguntar('esqueci minha senha', CTX, config).intencao, 'senha_esqueci');
+  // Alerta grave continua acima de qualquer texto do admin.
+  const cfg2 = { base_padrao: '', base_prompt: 'Quem pedir a senha por telefone deve ser orientado a ligar no ramal 5051.' };
+  assert.strictEqual(perguntar('ligaram pedindo minha senha', CTX, cfg2).intencao, 'seguranca');
+});
+
 // O admin de produção escreve o contexto adicional em forma de instrução
 // ("quando perguntarem X, responde com esse texto (Y)"). O usuário final não
 // pode receber o recado interno, e a dica genérica não pode passar na frente
@@ -210,16 +244,17 @@ test('procedimento cadastrado pelo admin ganha da resposta generica', () => {
   assert.match(r.reply, /Novo Chamado/); // continua oferecendo o chamado
 });
 
-// REGRESSAO (pega em produção): o texto base do painel repete o que as
-// intenções já cobrem. Sem piso, "esqueci minha senha" trocava o passo a passo
-// formatado por um parágrafo solto desse texto.
-test('texto base do admin nao engole a resposta formatada da intencao', () => {
-  const config = {
-    base_prompt: [
-      'Senha do Hub: mínimo 8 caracteres com maiúscula, minúscula, número e símbolo. Esqueceu a senha: "Esqueci minha senha" na tela de login e conferir o spam.',
-      'Chamados TI: todos os setores usam. Abrir em "Novo Chamado" — setor, descrição e prioridade.',
-    ].join('\n\n'),
-  };
+// REGRESSAO (pega em produção): o texto base PADRAO repete o que as intenções
+// já cobrem. Quando o admin NAO editou (texto igual ao padrão, que o server
+// injeta junto como base_padrao), "esqueci minha senha" não pode trocar o
+// passo a passo formatado por um parágrafo solto. Texto que o admin ESCREVEU
+// é outra história — aí ele vence (ver teste do bloco novo acima).
+test('texto base PADRAO nao engole a resposta formatada da intencao', () => {
+  const texto = [
+    'Senha do Hub: mínimo 8 caracteres com maiúscula, minúscula, número e símbolo. Esqueceu a senha: "Esqueci minha senha" na tela de login e conferir o spam.',
+    'Chamados TI: todos os setores usam. Abrir em "Novo Chamado" — setor, descrição e prioridade.',
+  ].join('\n\n');
+  const config = { base_prompt: texto, base_padrao: texto };
   for (const [esperado, f] of [['senha_esqueci', 'esqueci minha senha'], ['abrir_chamado', 'como abrir um chamado']]) {
     const r = perguntar(f, CTX, config);
     assert.strictEqual(r.intencao, esperado, f);

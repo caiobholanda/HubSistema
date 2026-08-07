@@ -30,6 +30,7 @@ const _EXPANSOES = {
   // 1a pessoa do presente: o radical truncado nao junta "troco" com "trocar"
   // (distancia 2), e "como troco minha senha" — a pergunta nº1 do helpdesk —
   // caia em "nao sei". Mapear a conjugacao e mais barato que afrouxar o fuzzy.
+  // "pego" NAO vira "pedir": e 1a pessoa de PEGAR ("onde pego toner").
   troco: 'trocar', mudo: 'mudar', altero: 'alterar', peco: 'pedir', pedi: 'pedir',
   instalo: 'instalar', abro: 'abrir', imprimo: 'imprimir', acesso_: 'acessar',
   reseto: 'resetar', recupero: 'recuperar', conecto: 'conectar', ligo: 'ligar',
@@ -374,16 +375,49 @@ function _soARespostaCadastrada(bloco) {
   return extraido.length >= 15 ? extraido : s;
 }
 
+function _melhorBloco(an, blocos) {
+  let melhor = null, score = 0;
+  for (const b of blocos) {
+    const s = _similaridade(an, b);
+    if (s > score) { score = s; melhor = b; }
+  }
+  return melhor ? { texto: _resumirBloco(_soARespostaCadastrada(melhor)), score } : null;
+}
+
 function buscarContexto(an, customInfo) {
   // Pergunta de uma palavra so nao tem contexto suficiente para escolher um
   // bloco com seguranca — melhor cair na intencao ou no chamado.
   if (an.tokens.length < 2) return null;
-  let melhor = null, score = 0;
-  for (const b of _blocos(customInfo)) {
-    const s = _similaridade(an, b);
-    if (s > score) { score = s; melhor = b; }
+  const r = _melhorBloco(an, _blocos(customInfo));
+  return r && r.score >= 0.45 ? r : null;
+}
+
+// O que o admin ESCREVEU (bloco que nao existe no texto padrao) e a palavra
+// final dele — diferente do texto padrao, que so repete o que as intencoes ja
+// respondem melhor formatado.
+function blocosProprios(config) {
+  const padrao = new Set(_blocos((config && config.base_padrao) || '').map(normalizar));
+  const texto = [config && config.custom_info, config && config.base_prompt].filter(Boolean).join('\n\n');
+  return _blocos(texto).filter(b => !padrao.has(normalizar(b)));
+}
+
+// Pessoas que o admin escreveu no texto da IA: "Ramais da TI: Richard ( 5051 ),
+// Marcio ( 5061 )" ou "Fernanda: 5102". O cadastro de usuarios do Hub costuma
+// estar desatualizado — o que esta escrito aqui vence.
+function pessoasDoTexto(config) {
+  const out = [];
+  for (const b of blocosProprios(config)) {
+    if (!/ramal|ramais|telefone|contato/i.test(_semAcento(b))) continue;
+    const setor = detectarSetor(analisar(b)) || (/\bti\b/i.test(_semAcento(b)) ? 'TI' : '');
+    const re = /([A-ZÀ-Ú][\wÀ-ÿ]+(?:\s+(?:d[aeo]s?\s+)?[A-ZÀ-Ú][\wÀ-ÿ]+)*)\s*[(:—–-]\s*(\d{3,5})\s*\)?/g;
+    let m;
+    while ((m = re.exec(b))) {
+      const nome = m[1].trim();
+      if (/^(ramal|ramais|telefone|contato|ti|hub)$/i.test(nome)) continue;
+      out.push({ nome, ramal: m[2], setor });
+    }
   }
-  return score >= 0.45 ? { texto: _resumirBloco(_soARespostaCadastrada(melhor)), score } : null;
+  return out;
 }
 
 // ─── 5. Catalogo de intencoes ────────────────────────────────────────────────
@@ -835,7 +869,10 @@ const INTENCOES = [
     chaves: ['falar com alguem', 'falar com humano', 'falar com pessoa', 'falar ti', 'falar tecnico', 'atendente', 'pessoa de verdade', 'suporte humano', 'ramal da ti', 'telefone da ti'],
     apoio: ['ti', 'tecnico', 'analista', 'suporte', 'pessoa'],
     resposta: (ctx) => {
-      const ti = _pessoasVisiveis(ctx).filter(u => _mesmoSetor(u.setor, 'TI'));
+      // Ramais escritos pelo admin no texto da IA vencem o cadastro de
+      // usuarios do Hub, que fica desatualizado.
+      const doTexto = (ctx._pessoasTexto || []).filter(p => !p.setor || _mesmoSetor(p.setor, 'TI'));
+      const ti = doTexto.length ? doTexto : _pessoasVisiveis(ctx).filter(u => _mesmoSetor(u.setor, 'TI'));
       const passos = _chamado('a que mais combinar com o problema', 'o que está acontecendo e o seu setor',
         'Se ninguém atender, abre um chamado — fica registrado e alguém pega:');
       if (ti.length) {
@@ -865,7 +902,9 @@ const INTENCOES = [
     bonus: (an) => (detectarSetor(an) ? 1.5 : 0),
     resposta: (ctx, an) => {
       const setor = detectarSetor(an);
-      const usuarios = _pessoasVisiveis(ctx);
+      // O que o admin escreveu no texto da IA vence o cadastro do Hub.
+      const escritos = ctx._pessoasTexto || [];
+      const usuarios = escritos.concat(_pessoasVisiveis(ctx));
       const ondeBuscar = _juntar(
         'Pra ver a lista completa:',
         [
@@ -1371,6 +1410,10 @@ function responder(entrada) {
     if (anAnterior.tokens.length > an.tokens.length) an = anAnterior;
   }
 
+  // Pessoas escritas pelo admin no texto da IA — disponiveis para as intencoes
+  // de contato (vencem o cadastro desatualizado do Hub).
+  ctx._pessoasTexto = pessoasDoTexto(config);
+
   // 2) Intencoes — pontuadas ANTES da resposta rapida de proposito.
   const ranking = pontuar(an, ctx);
 
@@ -1395,6 +1438,24 @@ function responder(entrada) {
   // outro: procedimento especifico da casa ("comanda cortando impressao"),
   // onde a intencao generica de impressora pontua pouco.
   const textoAdmin = [config.custom_info, config.base_prompt].filter(Boolean).join('\n\n');
+
+  // 1.7) O que o admin ESCREVEU (bloco que nao vem do texto padrao) e a
+  // palavra final: se casa bem com a pergunta, vence ate intencao forte —
+  // era isso que faltava para "mudo o texto e a resposta nao muda". So os
+  // alertas graves (golpe/manipulacao) continuam acima.
+  if (an.tokens.length >= 2 && !alertaGrave) {
+    const proprio = _melhorBloco(an, blocosProprios(config));
+    if (proprio && proprio.score >= 0.55) {
+      return {
+        reply: _juntar(proprio.texto, _chamado('a que combina com o assunto',
+          'o que aconteceu e o seu setor', 'Se não for isso ou não resolver, abre um chamado:')),
+        intencao: 'contexto_admin',
+        confianca: Math.min(0.95, 0.5 + proprio.score * 0.4),
+        sugestoes: ['Como abrir um chamado?'],
+      };
+    }
+  }
+
   const intencaoForte = ranking[0] && ranking[0].score >= 4.5;
   if (!intencaoForte) {
     const blocoForte = buscarContexto(an, textoAdmin);
@@ -1546,6 +1607,8 @@ function resumoContexto(ctx = {}) {
 module.exports = {
   responder,
   resumoContexto,
+  pessoasDoTexto,
+  blocosProprios,
   // expostos para teste/calibragem
   normalizar,
   radical,
