@@ -61,8 +61,9 @@ function normalizar(texto) {
     .replace(/[^a-z0-9@.\s]/g, ' ')
     // Letra esticada de teclado ("bom diaa", "oiii", "vlwww", "naaao") volta ao
     // normal: sem isso o fuzzy nao alcanca e a frase inteira vira "nao sei".
+    // A segunda regra e por PALAVRA (fim de token), nao por fim de frase.
     .replace(/([a-z])\1{2,}/g, '$1')
-    .replace(/([a-z])\1$/, '$1')
+    .replace(/([a-z])\1(?=\s|$)/g, '$1')
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -392,15 +393,20 @@ const INTENCOES = [
   },
   {
     id: 'conta_bloqueada',
-    chaves: ['conta bloqueada', 'usuario bloqueado', 'bloqueou', 'travou login', 'acesso negado', 'nao consigo entrar'],
+    prioridade: 5,
+    chaves: ['conta bloqueada', 'usuario bloqueado', 'bloqueou', 'travou login', 'acesso negado',
+      'nao consigo entrar', 'nao consigo logar', 'nao consigo login', 'nao loga', 'nao entra'],
     apoio: ['bloqueado', 'senha', 'login', 'errada', 'invalido'],
     resposta: () => 'Depois de várias tentativas erradas o Hub trava a conta por segurança. Espera alguns minutos e tenta de novo com calma — se continuar travado, abre um chamado em "Acesso / Login" com seu e-mail que a TI destrava na hora.',
     sugestoes: ['Esqueci minha senha', 'Como abrir um chamado?'],
   },
   {
     id: 'primeiro_acesso',
-    chaves: ['primeiro acesso', 'ativar conta', 'criar conta', 'nao tenho login', 'sou novo', 'funcionario novo', 'link de ativacao'],
-    apoio: ['cadastro', 'ativacao', 'conta'],
+    // "nao tenho login" saiu: colapsava para [login] e roubava "nao consigo
+    // logar", que e conta existente travada, nao funcionario novo.
+    chaves: ['primeiro acesso', 'ativar conta', 'criar conta', 'nao tenho cadastro', 'sou novo aqui',
+      'funcionario novo', 'link de ativacao', 'nunca acessei'],
+    apoio: ['cadastro', 'ativacao', 'conta', 'novo'],
     resposta: () => 'Conta nova é a TI que cria: você recebe um link de ativação no e-mail @granmarquise.com.br e define a senha por lá (o link expira, então usa no mesmo dia).\n\nNão recebeu? Pede pro seu gestor abrir um chamado em "Acesso / Login" com seu nome completo, setor e e-mail.',
     sugestoes: ['Requisitos da senha', 'Como abrir um chamado?'],
   },
@@ -484,9 +490,17 @@ const INTENCOES = [
     // perigosa do catalogo quando erra. Por isso o vocabulario generico ("nao
     // abre", "manutencao") virou apoio e so responde se a pessoa citou um
     // sistema do Hub; sem sistema citado, ela sai da disputa.
-    chaves: ['fora do ar', 'sistema caiu', 'instabilidade', 'sistema nao abre', 'sistema fora'],
-    apoio: ['erro', 'travando', 'sistema', 'site', 'pagina', 'nao abre', 'nao carrega', 'em manutencao', 'esta funcionando'],
-    bonus: (an, ctx) => (detectarSistema(an, ctx && ctx.sistemas) ? 1.5 : -2.5),
+    chaves: ['fora do ar', 'sistema caiu', 'instabilidade', 'sistema nao abre', 'sistema fora',
+      'sistema em manutencao', 'sistema funcionando', 'site fora'],
+    apoio: ['erro', 'travando', 'sistema', 'site', 'pagina', 'nao abre', 'nao carrega'],
+    bonus: (an, ctx) => {
+      if (detectarSistema(an, ctx && ctx.sistemas)) return 1.5;
+      // Pergunta generica sobre "o sistema/site/hub" continua valendo; o que
+      // sai da disputa e "nao abre" solto, que antes afirmava manutencao de um
+      // sistema qualquer para quem falava de porta, ar condicionado ou PDF.
+      const generico = ['sistema', 'site', 'hub', 'portal', 'plataforma'].some(t => casaTermo(t, an) >= 0.9);
+      return generico ? 0 : -2.5;
+    },
     resposta: (ctx) => {
       const fora = _listaSistemas(ctx).filter(s => s.status && s.status !== 'no-ar');
       if (fora.length) {
@@ -498,8 +512,9 @@ const INTENCOES = [
   },
   {
     id: 'novidades',
-    chaves: ['novidade', 'novidades', 'o que mudou', 'atualizacao', 'changelog', 'versao nova', 'lancamento'],
-    apoio: ['novo', 'mudou', 'atualizou'],
+    chaves: ['novidade', 'novidades', 'mudou', 'atualizacao', 'changelog', 'versao nova', 'lancamento',
+      'o que mudou no hub', 'sistema novo'],
+    apoio: ['atualizou'],
     resposta: (ctx) => {
       const ups = (ctx.updates || []).filter(u => u && u.titulo).slice(0, 3);
       if (!ups.length) return 'Nenhuma atualização registrada por aqui ainda. Quando sai algo novo, aparece no sino de atualizações do Hub.';
@@ -532,10 +547,11 @@ const INTENCOES = [
   },
   {
     id: 'falar_humano',
+    prioridade: 6,
     chaves: ['falar com alguem', 'falar com humano', 'falar com pessoa', 'falar ti', 'falar tecnico', 'atendente', 'pessoa de verdade', 'suporte humano', 'ramal da ti', 'telefone da ti'],
     apoio: ['ti', 'tecnico', 'analista', 'suporte', 'pessoa'],
     resposta: (ctx) => {
-      const ti = (ctx.usuarios || []).filter(u => u && u.ramal && _mesmoSetor(u.setor, 'TI'));
+      const ti = _pessoasVisiveis(ctx).filter(u => _mesmoSetor(u.setor, 'TI'));
       if (ti.length) {
         return `Fala com a TI direto:\n${ti.slice(0, 4).map(u => `• ${u.nome} — ramal ${u.ramal}`).join('\n')}\n\nSe ninguém atender, abre um chamado que fica registrado e alguém pega.`;
       }
@@ -547,6 +563,7 @@ const INTENCOES = [
   // ── Ramais / pessoas ──
   {
     id: 'ramal',
+    prioridade: 6,
     chaves: ['ramal', 'telefone', 'contato', 'numero de', 'como ligo', 'falar com setor', 'diretorio de ramais'],
     apoio: ['ligar', 'discar', 'numero', 'setor', 'pessoa'],
     // "ramal da manutencao": citar um setor junto com a palavra ramal desempata
@@ -554,9 +571,9 @@ const INTENCOES = [
     bonus: (an) => (detectarSetor(an) ? 1.5 : 0),
     resposta: (ctx, an) => {
       const setor = detectarSetor(an);
-      const usuarios = ctx.usuarios || [];
+      const usuarios = _pessoasVisiveis(ctx);
       if (setor && usuarios.length) {
-        const doSetor = usuarios.filter(u => u && u.ramal && _mesmoSetor(u.setor, setor));
+        const doSetor = usuarios.filter(u => _mesmoSetor(u.setor, setor));
         if (doSetor.length) {
           return `Ramais de ${setor}:\n${doSetor.slice(0, 6).map(u => `• ${u.nome} — ${u.ramal}`).join('\n')}\n\nA lista completa fica no Contatos Gran Marquise, dentro do Hub.`;
         }
@@ -619,8 +636,10 @@ const INTENCOES = [
   },
   {
     id: 'hardware',
-    chaves: ['mouse', 'teclado', 'monitor', 'headset', 'cabo', 'equipamento novo', 'computador novo', 'periferico'],
-    apoio: ['quebrado', 'parou', 'nao funciona', 'trocar', 'hardware'],
+    prioridade: 4,
+    chaves: ['mouse', 'teclado', 'monitor', 'headset', 'cabo', 'equipamento novo', 'computador novo',
+      'periferico', 'camera', 'webcam', 'microfone', 'carregador', 'fonte', 'bateria'],
+    apoio: ['quebrado', 'parou', 'nao funciona', 'trocar', 'hardware', 'notebook'],
     resposta: () => 'Equipamento quebrado ou pedido de novo: chamado em "Hardware". Diz o que é, o que acontece (ou por que precisa), o setor e a etiqueta de patrimônio se tiver.\n\nPedido de equipamento novo passa pela aprovação do seu gestor — vale já avisar ele.',
     sugestoes: ['Como abrir um chamado?'],
   },
@@ -643,6 +662,23 @@ const INTENCOES = [
     sugestoes: ['Esqueci minha senha', 'Como abrir um chamado?'],
   },
 
+  // Relato generico e CURTO ("nao funciona", "travou", "deu erro"): chutar um
+  // diagnostico aqui e pior do que perguntar. Em frase longa a intencao
+  // especifica tem mais termos e ganha ("a camera do notebook nao funciona").
+  {
+    id: 'ambiguo',
+    soCurta: true,
+    prioridade: 3,
+    // Se a pessoa nomeou a coisa, nao ha o que perguntar — quem responde e a
+    // intencao especifica ("meu mouse parou de funcionar").
+    veto: ['computador', 'notebook', 'impressora', 'mouse', 'teclado', 'monitor', 'camera',
+      'internet', 'wifi', 'rede', 'sistema', 'email', 'senha', 'telefone', 'ramal', 'site'],
+    chaves: ['nao funciona', 'nao esta funcionando', 'nao abre', 'nao vai', 'nao carrega',
+      'deu erro', 'travou tudo', 'parou de funcionar', 'nao ta indo', 'deu problema'],
+    resposta: () => 'O que exatamente não está funcionando? Me diz o equipamento ou o sistema que eu já te falo o caminho certo.',
+    sugestoes: ['Meu computador está lento', 'Problema na impressora', 'Problema de internet'],
+  },
+
   // ── Fora do escopo da TI ──
   // Sem esta intencao, "desconto de funcionario" e "brigada de incendio" caiam
   // em respostas de TI absurdas por colisao de radical. Aqui a recusa e
@@ -653,6 +689,7 @@ const INTENCOES = [
     chaves: ['ferias', 'folga', 'escala', 'holerite', 'contracheque', 'salario', 'ponto', 'banco de horas',
       'uniforme', 'vale transporte', 'vale refeicao', 'atestado', 'demissao', 'admissao', 'beneficio',
       'refeitorio', 'buffet', 'cardapio', 'refeicao', 'treinamento', 'brigada', 'incendio',
+      'restaurante', 'desconto', 'comida',
       'hospede', 'quarto', 'apartamento', 'check in', 'check out', 'enxoval', 'amenities',
       'ar condicionado', 'lampada', 'vazamento', 'chuveiro', 'elevador', 'obra'],
     apoio: ['rh', 'recursos humanos', 'governanca', 'desconto', 'beneficios'],
@@ -710,6 +747,15 @@ function _mesmoSetor(cadastrado, canonico) {
   if (!a || !b) return false;
   if (a === b) return true;
   return radical(a.split(' ')[0]) === radical(b.split(' ')[0]);
+}
+
+// Defesa em profundidade: hoje o server ja entrega `usuarios: []` para sessao
+// anonima, mas quem imprime nome/ramal e este arquivo — entao a checagem mora
+// aqui tambem. Um chamador novo (script, teste, outro endpoint) nao consegue
+// vazar diretorio por esquecer a regra.
+function _pessoasVisiveis(ctx) {
+  if (!ctx || !ctx.usuario) return [];
+  return (ctx.usuarios || []).filter(u => u && u.ramal && u.nome);
 }
 
 function _procurarPessoa(an, usuarios) {
@@ -807,6 +853,9 @@ const ROTULOS = {
   software: 'Instalar um programa',
   hardware: 'Equipamento com defeito',
   falar_humano: 'Falar com alguém do TI',
+  seguranca: 'Recebi algo suspeito',
+  urgente: 'É urgente',
+  email_corporativo: 'Problema no e-mail',
 };
 
 // ─── 7. Motor ────────────────────────────────────────────────────────────────
@@ -908,14 +957,34 @@ function responder(entrada) {
         sugestoes: ['Como abrir um chamado?'],
       };
     }
-    // Mensagem com dois assuntos ("a impressora nao imprime E esqueci a senha")
-    // ou empate tecnico: o segundo assunto volta como sugestao em vez de ser
-    // engolido. So entra quem passou do limiar por conta propria.
+    // Mensagem com dois assuntos ("a impressora nao imprime E esqueci a senha").
+    const outro = ranking.find(c => c !== cand && c.score >= Math.max(LIMIAR, limiar));
+    // Assunto grave (phishing, urgencia com hospede) ou pedido direto de
+    // contato nao pode virar chip de sugestao: se pontuou forte, entra ANTES
+    // da resposta principal em vez de ser engolido.
+    if (outro && (outro.intencao.prioridade || 0) >= 6 && outro.score >= 4.5) {
+      const grave = outro.intencao.resposta(ctx, an);
+      if (grave) {
+        return {
+          reply: `${grave}\n\nSobre a outra parte: ${txt}`,
+          intencao: outro.intencao.id,
+          confianca: _conf(outro.score),
+          sugestoes: (outro.intencao.sugestoes || []).slice(0, 3),
+        };
+      }
+    }
     const sug = [];
-    const segundo = ranking.find(c => c !== cand && c.score >= Math.max(LIMIAR, limiar) && ROTULOS[c.intencao.id]);
-    if (segundo) sug.push(ROTULOS[segundo.intencao.id]);
+    if (outro && ROTULOS[outro.intencao.id]) sug.push(ROTULOS[outro.intencao.id]);
     for (const s of (cand.intencao.sugestoes || [])) if (!sug.includes(s)) sug.push(s);
-    return { reply: txt, intencao: cand.intencao.id, confianca: _conf(cand.score), sugestoes: sug.slice(0, 3) };
+    const proximo = ranking.find(c => c !== cand);
+    return {
+      reply: txt,
+      intencao: cand.intencao.id,
+      // Confianca desconta a proximidade do 2o colocado: score alto com empate
+      // e' menos confiavel que score alto isolado.
+      confianca: _conf(cand.score, proximo ? proximo.score : 0),
+      sugestoes: sug.slice(0, 3),
+    };
   }
 
   // 3) Base de conhecimento escrita pelo admin (recuperada por similaridade).
@@ -933,8 +1002,10 @@ function responder(entrada) {
   };
 }
 
-function _conf(score) {
-  return Math.min(0.98, Math.round((score / (score + 2.5)) * 100) / 100);
+function _conf(score, scoreSegundo = 0) {
+  const base = score / (score + 2.5);
+  const desconto = score > 0 ? Math.min(0.4, (scoreSegundo / score) * 0.4) : 0;
+  return Math.max(0, Math.min(0.98, Math.round(base * (1 - desconto) * 100) / 100));
 }
 
 // Resumo curto do que o motor sabe — usado para ancorar o LLM quando ha chave.
