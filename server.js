@@ -49,6 +49,7 @@ const sitePerm = require('./src/site-permissions');
 // por padrao (BACKUP_ENGINE=legacy); nao altera nenhum comportamento
 // existente enquanto a flag nao for setada.
 const backupAdapter = require('./src/backup-adapter');
+const assistente = require('./src/assistente');
 
 const HUB_DATA_TMP = HUB_DATA_FILE + '.tmp';
 
@@ -2249,7 +2250,28 @@ app.get('/api/admin/ai-config', requireAdmin, (req, res) => {
 
 app.get('/api/admin/ai-preview', requireAdmin, (req, res) => {
   const aiCfg = readData().ai_config || {};
-  res.json({ ok: true, prompt: buildSystemPrompt(aiCfg.custom_info || '', aiCfg.quick_replies || []) });
+  const contexto = _contextoAssistente(req);
+  res.json({
+    ok: true,
+    prompt: buildSystemPrompt(aiCfg.custom_info || '', aiCfg.quick_replies || [], assistente.resumoContexto(contexto)),
+  });
+});
+
+// Banco de testes do assistente: o admin manda a pergunta e ve qual intencao o
+// motor escolheu e com que confianca — sem isso, calibrar quick_replies e
+// contexto adicional e tentativa e erro no chat de producao.
+app.post('/api/admin/ai-testar', requireAdmin, (req, res) => {
+  const { pergunta } = req.body || {};
+  if (!pergunta || !String(pergunta).trim()) {
+    return res.status(400).json({ ok: false, erro: 'Escreva uma pergunta.' });
+  }
+  const aiCfg = readData().ai_config || {};
+  const r = assistente.responder({
+    mensagens: [{ role: 'user', content: String(pergunta).slice(0, 800) }],
+    contexto: _contextoAssistente(req),
+    config: aiCfg,
+  });
+  res.json({ ok: true, ...r });
 });
 
 // Atualizações — GET deve ficar antes do catch-all SPA.
@@ -2650,8 +2672,13 @@ app.delete('/api/admin/updates/:id', requireAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
-// ─── Assistente de TI (IA via Groq, chave no Fly secret) ────────────────────
+// ─── Assistente de TI ────────────────────────────────────────────────────────
+// O motor local (src/assistente.js) responde sempre; se houver GROQ_API_KEY o
+// LLM entra por cima, ancorado no MESMO contexto vivo que o motor usa, e o
+// motor vira a rede de seguranca.
 const AI_BASE_PROMPT = `Você é o assistente de TI do Gran Marquise. Responda de forma direta, curta e humana — como um colega de TI que sabe a resposta. Sem introduções, sem "Olá!", sem enrolação. Português brasileiro informal. Máximo 2 parágrafos curtos. Se não souber, diga e mande abrir chamado.
+
+Regras rígidas: nunca invente ramal, nome de pessoa, prazo ou procedimento que não esteja no contexto abaixo. Se o dado não estiver aqui, diga que não tem e mande abrir chamado.
 
 Sistemas disponíveis no Hub (hub-granmarquise.fly.dev):
 
@@ -2665,8 +2692,11 @@ Acesso ao Hub: e-mail @granmarquise.com.br + senha (mín. 8 chars com maiúscula
 
 Solicitar acesso a sistema → chamado TI categoria "Permissão de Acesso". Para qualquer problema que não conseguir resolver → chamado TI.`;
 
-function buildSystemPrompt(customInfo, quickReplies) {
+function buildSystemPrompt(customInfo, quickReplies, resumoVivo) {
   let prompt = AI_BASE_PROMPT;
+  if (resumoVivo && resumoVivo.trim()) {
+    prompt += `\n\n## Estado atual do Hub (dado real, use isto e nada além disto)\n${resumoVivo.trim()}`;
+  }
   if (Array.isArray(quickReplies) && quickReplies.length > 0) {
     const qrText = quickReplies
       .map(qr => `- Palavras-chave: [${qr.keywords}]\n  Resposta sugerida: ${qr.reply}`)
@@ -2694,44 +2724,63 @@ app.put('/api/admin/ai-config', requireAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
-// Resposta inteligente sem API — usa quick_replies do admin + padrões integrados de TI
-function smartReply(userMessage, customInfo, quickReplies) {
-  const msg = (userMessage || '').toLowerCase();
+// Contexto vivo entregue ao motor. Dado de PESSOA (nome, setor, ramal) so entra
+// com sessao valida: /api/ai-chat e publica de proposito (o widget aparece antes
+// do login) e sem esse corte o chat viraria um dump do diretorio interno.
+function _contextoAssistente(req) {
+  const data = readData();
+  const payload = _sessaoHubPayload(req);
+  const ctx = {
+    usuario: null,
+    sistemas: (data.sistemas || DEFAULT_SISTEMAS).map(s => ({
+      id: s.id, nome: s.nome, url: s.url, status: s.status,
+      categoria: s.categoria, descricao: s.descricao,
+    })),
+    sistemasLiberados: [],
+    usuarios: [],
+    updates: (data.updates || []).slice(0, 5),
+  };
+  if (!payload || !payload.email) return ctx;
 
-  for (const qr of (quickReplies || [])) {
-    const kws = String(qr.keywords || '').split(',').map(k => k.trim().toLowerCase()).filter(Boolean);
-    if (kws.some(k => k && msg.includes(k))) return qr.reply;
+  const u = (data.users || []).find(x => sitePerm._norm(x.email) === sitePerm._norm(payload.email));
+  ctx.usuario = {
+    email: payload.email,
+    nome: (u && u.nome) || payload.nome || '',
+    tipo: payload.tipo || 'usuario',
+    setor: (u && u.setor) || '',
+    ramal: (u && u.ramal) || '',
+  };
+  try {
+    ctx.sistemasLiberados = getUserSistemas(payload.email, payload.tipo, payload.is_master);
+  } catch { ctx.sistemasLiberados = Array.isArray(payload.sistemas) ? payload.sistemas : []; }
+  ctx.usuarios = (data.users || [])
+    .filter(x => x && x.ramal && x.nome)
+    .map(x => ({ nome: x.nome, setor: x.setor || '', ramal: x.ramal }));
+  return ctx;
+}
+
+// Limite simples por IP: o endpoint e publico e cada mensagem le o hub_data.
+const _aiHits = new Map();
+function _limiteAiChat(req) {
+  const ip = req.headers['fly-client-ip'] || req.ip || 'desconhecido';
+  const agora = Date.now();
+  const janela = _aiHits.get(ip) || [];
+  const recentes = janela.filter(t => agora - t < 60000);
+  recentes.push(agora);
+  _aiHits.set(ip, recentes);
+  if (_aiHits.size > 500) { // poda preguicosa
+    for (const [k, v] of _aiHits) if (!v.some(t => agora - t < 60000)) _aiHits.delete(k);
   }
-
-  if (/chamado|suporte|ticket|abrir chamado/.test(msg))
-    return 'No Hub, entra no "Chamados TI" → "Novo Chamado" → preenche setor, descreve o problema e manda. A gente responde em até 2h úteis.';
-  if (/senha|login|entrar|bloqueado|esqueci|acesso negado/.test(msg))
-    return 'Clica em "Esqueci minha senha" na tela de login e usa o e-mail @granmarquise.com.br. Checa o spam também. Se ainda não funcionar, abre um chamado em "Acesso / Login".';
-  if (/ramal|telefone|contato|ligar|falar com/.test(msg))
-    return 'Acessa o Diretório de Ramais no Hub — busca por nome ou setor e já aparece o ramal. Mais rápido do que ligar pra recepção perguntar.';
-  if (/impressora|toner|periférico|mouse|teclado|monitor|scanner/.test(msg))
-    return 'Abre um chamado em "Impressora / Periférico". Coloca o modelo do equipamento e onde ele fica (andar e setor) — assim a gente vai direto lá.';
-  if (/rede|internet|wifi|wi-fi|conexão|lento|sem internet/.test(msg))
-    return 'Abre um chamado em "Rede / Internet". Descreve o setor afetado e se tá acontecendo em todos os computadores ou só em um.';
-  if (/spa|pesquisa|satisfação|massagem|terapeuta|anamnese/.test(msg))
-    return 'A Pesquisa do SPA tem acesso restrito à equipe do SPA e TI. Pra pedir acesso, abre um chamado em "Permissão de Acesso".';
-  if (/acesso|permissão|liberar|instalar|software/.test(msg))
-    return 'Abre um chamado em "Permissão de Acesso" ou "Software" explicando o que precisa e por quê. A gente analisa e libera.';
-  if (/hub|central|sistemas|portal/.test(msg))
-    return 'O Hub (hub-granmarquise.fly.dev) centraliza tudo. Entra com seu @granmarquise.com.br e aparece só o que você tem acesso.';
-  if (/obrigad|valeu|ótimo|perfeito|entendi|blz|ok/.test(msg))
-    return 'Boa! Qualquer outra coisa é só chamar.';
-
-  if (customInfo && customInfo.trim())
-    return `${customInfo.trim()}\n\nQualquer outra dúvida, abre um chamado de TI.`;
-
-  return 'Não tenho essa informação aqui. Abre um chamado no Sistema de Chamados — a equipe responde em até 2h úteis.';
+  return recentes.length <= 30;
 }
 
 app.post('/api/ai-chat', async (req, res) => {
   const { messages } = req.body || {};
   if (!Array.isArray(messages) || messages.length === 0) {
     return res.status(400).json({ ok: false, erro: 'messages inválido.' });
+  }
+  if (!_limiteAiChat(req)) {
+    return res.status(429).json({ ok: false, erro: 'Muitas mensagens seguidas. Espera um minutinho.' });
   }
 
   const safeMessages = messages.slice(-10).map(m => ({
@@ -2740,16 +2789,23 @@ app.post('/api/ai-chat', async (req, res) => {
   }));
 
   const aiCfg = readData().ai_config || {};
+  const contexto = _contextoAssistente(req);
+  const local = assistente.responder({ mensagens: safeMessages, contexto, config: aiCfg });
 
-  // Se GROQ_API_KEY configurada: usa LLM completo, cai no smartReply se falhar
+  // Com chave: LLM ancorado no mesmo contexto; sem chave (padrao hoje), o motor
+  // local ja e a resposta final.
   if (GROQ_API_KEY) {
     try {
-      const systemPrompt = buildSystemPrompt(aiCfg.custom_info || '', aiCfg.quick_replies || []);
+      const systemPrompt = buildSystemPrompt(
+        aiCfg.custom_info || '',
+        aiCfg.quick_replies || [],
+        assistente.resumoContexto(contexto)
+      );
       const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_API_KEY}` },
         body: JSON.stringify({
-          model: 'llama-3.1-8b-instant',
+          model: process.env.GROQ_MODEL || 'llama-3.1-8b-instant',
           messages: [{ role: 'system', content: systemPrompt }, ...safeMessages],
           max_tokens: 400,
           temperature: 0.4
@@ -2758,15 +2814,19 @@ app.post('/api/ai-chat', async (req, res) => {
       const data = await resp.json();
       if (resp.ok) {
         const reply = data.choices?.[0]?.message?.content?.trim() || '';
-        if (reply) return res.json({ ok: true, reply, source: 'llm' });
+        if (reply) return res.json({ ok: true, reply, source: 'llm', sugestoes: local.sugestoes });
       }
     } catch {}
   }
 
-  // Fallback (padrão sem chave): respostas inteligentes locais
-  const lastUser = safeMessages.filter(m => m.role === 'user').slice(-1)[0]?.content || '';
-  const reply = smartReply(lastUser, aiCfg.custom_info || '', aiCfg.quick_replies || []);
-  res.json({ ok: true, reply, source: 'local' });
+  res.json({
+    ok: true,
+    reply: local.reply,
+    source: 'local',
+    intencao: local.intencao,
+    confianca: local.confianca,
+    sugestoes: local.sugestoes,
+  });
 });
 
 // ─── Webhook de deploy (chamado pelo CI de cada satélite) ────────────────────

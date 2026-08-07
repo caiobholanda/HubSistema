@@ -210,8 +210,11 @@ function detectarSistema(an, sistemas) {
       else candidatos.push({ id: s.id, peso: w * 1.2 });
     }
   }
+  // Corte alto de proposito: citar sistema exige casar o apelido de verdade
+  // (1.0) ou uma frase inteira com um erro (0.84). Fuzzy de palavra solta (0.6)
+  // nao entra — senao qualquer palavra de 6 letras "vira" um sistema.
   candidatos.sort((a, b) => b.peso - a.peso);
-  return candidatos[0] && candidatos[0].peso >= 0.6 ? candidatos[0].id : null;
+  return candidatos[0] && candidatos[0].peso >= 0.8 ? candidatos[0].id : null;
 }
 
 function detectarSetor(an) {
@@ -239,16 +242,19 @@ function _blocos(customInfo) {
     .slice(0, 60);
 }
 
+// Cobertura da PERGUNTA ponderada por tamanho de palavra: casar "mangostin"
+// (9 letras) vale muito mais que casar "horas". Comprimento é um proxy barato de
+// raridade — sem corpus nao da pra calcular IDF de verdade aqui.
 function _similaridade(an, texto) {
   const alvo = new Set(_tokens(texto).map(radical));
   if (alvo.size === 0 || an.conjunto.size === 0) return 0;
-  let inter = 0;
-  for (const r of an.conjunto) {
-    if (alvo.has(r)) inter += 1;
-    else { for (const a of alvo) if (_pareceIgual(a, r)) { inter += 0.6; break; } }
+  let casado = 0, total = 0;
+  for (const r of an.radicais) {
+    total += r.length;
+    if (alvo.has(r)) casado += r.length;
+    else { for (const a of alvo) if (_pareceIgual(a, r)) { casado += r.length * 0.6; break; } }
   }
-  // Cobertura da pergunta pesa mais que o tamanho do bloco.
-  return inter / Math.sqrt(an.conjunto.size * Math.min(alvo.size, 40));
+  return total === 0 ? 0 : casado / total;
 }
 
 function buscarQuickReply(an, quickReplies) {
@@ -271,7 +277,7 @@ function buscarContexto(an, customInfo) {
     const s = _similaridade(an, b);
     if (s > score) { score = s; melhor = b; }
   }
-  return score >= 0.34 ? { texto: melhor, score } : null;
+  return score >= 0.4 ? { texto: melhor, score } : null;
 }
 
 // ─── 5. Catalogo de intencoes ────────────────────────────────────────────────
@@ -374,8 +380,10 @@ const INTENCOES = [
   // ── Sistemas / permissoes ──
   {
     id: 'meus_sistemas',
-    chaves: ['quais sistemas tenho acesso', 'meus sistemas', 'sistemas disponiveis', 'o que tenho acesso', 'que sistemas existem', 'lista de sistemas'],
-    apoio: ['sistema', 'acesso', 'liberado', 'disponivel', 'hub'],
+    // Exige uma pista de ENUMERACAO ("quais", "meus", "lista"): sem isso,
+    // "como acesso o sistema X" cairia aqui em vez de falar do sistema X.
+    chaves: ['quais sistemas', 'meus sistemas', 'sistemas disponiveis', 'sistemas liberados', 'que sistemas existem', 'lista de sistemas', 'todos os sistemas'],
+    apoio: ['liberado', 'disponivel', 'permissao', 'acesso'],
     resposta: (ctx) => {
       const todos = _listaSistemas(ctx);
       if (todos.length === 0) return null;
@@ -480,8 +488,8 @@ const INTENCOES = [
   },
   {
     id: 'falar_humano',
-    chaves: ['falar com alguem', 'falar com humano', 'atendente', 'pessoa de verdade', 'quero suporte humano', 'ramal da ti', 'telefone da ti'],
-    apoio: ['ti', 'tecnico', 'analista', 'suporte'],
+    chaves: ['falar com alguem', 'falar com humano', 'falar com pessoa', 'falar ti', 'falar tecnico', 'atendente', 'pessoa de verdade', 'suporte humano', 'ramal da ti', 'telefone da ti'],
+    apoio: ['ti', 'tecnico', 'analista', 'suporte', 'pessoa'],
     resposta: (ctx) => {
       const ti = (ctx.usuarios || []).filter(u => u.ramal && _mesmoSetor(u.setor, 'TI'));
       if (ti.length) {
@@ -617,7 +625,7 @@ function _procurarPessoa(an, usuarios) {
     let s = 0;
     for (const p of partes) {
       if (p.length < 3) continue;
-      const w = _peso(radical(p), an);
+      const w = _peso(p, an);
       if (w > s) s = w;
     }
     if (s > score) { score = s; melhor = u; }

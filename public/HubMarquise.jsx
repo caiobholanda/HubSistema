@@ -7691,7 +7691,7 @@ function AIChatWidget({ isMobile }) {
   }
 
   const C = HUB_PALETTE;
-  const showSuggestions = msgs.length <= 2;
+  const showSuggestions = suggestions.length > 0 && !typing;
 
   return (
     <>
@@ -7774,7 +7774,7 @@ function AIChatWidget({ isMobile }) {
         {/* Suggestions */}
         {showSuggestions && (
           <div style={{ padding: '6px 12px', display: 'flex', gap: 6, flexWrap: 'wrap', borderTop: `1px solid ${C.champanhe}14`, flexShrink: 0 }}>
-            {SUGGESTIONS.map(s => (
+            {suggestions.map(s => (
               <button key={s} onClick={() => send(s)} style={{ background: `${C.champanhe}14`, border: `1px solid ${C.champanhe}2e`, color: C.champanhe, fontSize: 11, padding: '4px 10px', borderRadius: 99, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500, whiteSpace: 'nowrap', transition: 'background 150ms', lineHeight: 1.5 }}>
                 {s}
               </button>
