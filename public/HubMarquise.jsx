@@ -1287,6 +1287,7 @@ function AssistenteIAPanel({ isMobile }) {
   const [loadErr, setLoadErr] = useState(false);
   const debounceRef = useRef(null);
   const readyRef = useRef(false);
+  const basePromptRef = useRef('');
 
   function carregarConfig() {
     setLoading(true); setLoadErr(false); readyRef.current = false;
@@ -1294,7 +1295,7 @@ function AssistenteIAPanel({ isMobile }) {
     fetch('/api/admin/ai-config', { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
       .then(d => {
-        if (d.ok) { const bp = d.config.base_prompt || ''; setBasePrompt(bp); setLocalBaseEdit(bp); setCustomInfo(d.config.custom_info || ''); setQuickReplies(d.config.quick_replies || []); }
+        if (d.ok) { const bp = d.config.base_prompt || ''; basePromptRef.current = bp; setBasePrompt(bp); setLocalBaseEdit(bp); setCustomInfo(d.config.custom_info || ''); setQuickReplies(d.config.quick_replies || []); }
         else setLoadErr(true);
       })
       .catch(() => setLoadErr(true))
@@ -1323,9 +1324,9 @@ function AssistenteIAPanel({ isMobile }) {
     if (!readyRef.current) return;
     if (debounceRef.current) clearTimeout(debounceRef.current);
     setSavedAt(null); setSaveErr('');
-    debounceRef.current = setTimeout(() => save(customInfo, quickReplies, basePrompt), 1200);
+    debounceRef.current = setTimeout(() => save(customInfo, quickReplies, basePromptRef.current), 1200);
     return () => clearTimeout(debounceRef.current);
-  }, [customInfo, quickReplies, basePrompt]);
+  }, [customInfo, quickReplies]); // basePrompt excluído: muda só via confirmarSalvarBase, não via auto-save
 
   function commitAddQR() {
     if (!qrForm.keywords.trim() || !qrForm.reply.trim()) { setQrError('Preencha palavras-chave e resposta.'); return; }
@@ -1344,9 +1345,8 @@ function AssistenteIAPanel({ isMobile }) {
   async function confirmarSalvarBase() {
     setConfirmSavePrompt(false);
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    readyRef.current = false;
+    basePromptRef.current = localBaseEdit;
     setBasePrompt(localBaseEdit);
-    setTimeout(() => { readyRef.current = true; }, 50);
     await save(customInfo, quickReplies, localBaseEdit);
   }
 
