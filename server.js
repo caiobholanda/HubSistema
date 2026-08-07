@@ -2248,6 +2248,10 @@ app.get('/api/admin/ai-config', requireAdmin, (req, res) => {
   res.json({ ok: true, config: data.ai_config || { custom_info: '', quick_replies: [], base_prompt: '' } });
 });
 
+app.get('/api/admin/ai-default-prompt', requireAdmin, (req, res) => {
+  res.json({ ok: true, prompt: AI_BASE_PROMPT });
+});
+
 app.get('/api/admin/ai-preview', requireAdmin, (req, res) => {
   const aiCfg = readData().ai_config || {};
   const contexto = _contextoAssistente(req);
@@ -2706,6 +2710,10 @@ function buildSystemPrompt(customInfo, quickReplies, resumoVivo, basePrompt) {
   if (customInfo && customInfo.trim()) {
     prompt += `\n\n## Informações Adicionais (contexto atual do hotel — priorize)\n${customInfo.trim()}`;
   }
+  // Trava anti-invencao SEMPRE por ultimo e fora do campo editavel: um master
+  // que substitui o prompt base nao pode, sem querer, apagar a unica regra que
+  // impede o modelo de inventar ramal, nome de pessoa ou prazo.
+  prompt += '\n\n## Regra inviolável\nNunca invente ramal, nome de pessoa, prazo, senha ou procedimento que não esteja escrito acima. Se o dado não estiver aqui, diga que não tem e mande abrir chamado de TI.';
   return prompt;
 }
 
@@ -2734,17 +2742,17 @@ function _contextoAssistente(req, dataPronto) {
   const payload = _sessaoHubPayload(req);
   const ctx = {
     usuario: null,
-    sistemas: (data.sistemas || DEFAULT_SISTEMAS).map(s => ({
+    sistemas: (data.sistemas || DEFAULT_SISTEMAS).filter(Boolean).map(s => ({
       id: s.id, nome: s.nome, url: s.url, status: s.status,
       categoria: s.categoria, descricao: s.descricao,
     })),
     sistemasLiberados: [],
     usuarios: [],
-    updates: (data.updates || []).slice(0, 5),
+    updates: (data.updates || []).filter(Boolean).slice(0, 5),
   };
   if (!payload || !payload.email) return ctx;
 
-  const u = (data.users || []).find(x => sitePerm._norm(x.email) === sitePerm._norm(payload.email));
+  const u = (data.users || []).find(x => x && sitePerm._norm(x.email) === sitePerm._norm(payload.email));
   ctx.usuario = {
     email: payload.email,
     nome: (u && u.nome) || payload.nome || '',
@@ -2755,9 +2763,15 @@ function _contextoAssistente(req, dataPronto) {
   try {
     ctx.sistemasLiberados = getUserSistemas(payload.email, payload.tipo, payload.is_master);
   } catch { ctx.sistemasLiberados = Array.isArray(payload.sistemas) ? payload.sistemas : []; }
-  ctx.usuarios = (data.users || [])
-    .filter(x => x && x.ramal && x.nome)
-    .map(x => ({ nome: x.nome, setor: x.setor || '', ramal: x.ramal }));
+  // Diretorio de pessoas so para quem ja tem o sistema de Contatos liberado.
+  // "ramais" NAO e acessoPadrao: sem esta trava, o chat seria o unico jeito de
+  // um usuario comum sem essa permissao puxar nome+setor+ramal de todo mundo.
+  const podeVerRamais = payload.tipo === 'admin' || !!payload.is_master
+    || ctx.sistemasLiberados.includes('ramais');
+  ctx.usuarios = podeVerRamais
+    ? (data.users || []).filter(x => x && x.ramal && x.nome)
+        .map(x => ({ nome: x.nome, setor: x.setor || '', ramal: x.ramal }))
+    : [];
   return ctx;
 }
 
@@ -2772,12 +2786,20 @@ function _limiteAiChat(req, payload) {
   const teto = porEmail ? 30 : 60;
   const agora = Date.now();
   const recentes = (_aiHits.get(chave) || []).filter(t => agora - t < 60000);
+  if (recentes.length >= teto) { // ja estourou: nao empilha mais (senao o flood se auto-alimenta)
+    _aiHits.set(chave, recentes);
+    return false;
+  }
   recentes.push(agora);
   _aiHits.set(chave, recentes);
-  if (_aiHits.size > 500) { // poda preguicosa
-    for (const [k, v] of _aiHits) if (!v.some(t => agora - t < 60000)) _aiHits.delete(k);
+  // Teto absoluto: sob flood de IPs distintos a poda por "sem hit recente" nao
+  // remove nada e o Map cresceria sem limite. Map preserva ordem de insercao,
+  // entao descartar as chaves mais antigas equivale a um LRU pobre.
+  if (_aiHits.size > 2000) {
+    let sobrando = _aiHits.size - 1000;
+    for (const k of _aiHits.keys()) { if (sobrando-- <= 0) break; _aiHits.delete(k); }
   }
-  return recentes.length <= teto;
+  return true;
 }
 
 app.post('/api/ai-chat', async (req, res) => {
@@ -2819,9 +2841,9 @@ app.post('/api/ai-chat', async (req, res) => {
           temperature: 0.4
         })
       });
-      const data = await resp.json();
+      const respJson = await resp.json(); // nao chamar de `data`: sombreia o readData() acima
       if (resp.ok) {
-        const reply = data.choices?.[0]?.message?.content?.trim() || '';
+        const reply = respJson.choices?.[0]?.message?.content?.trim() || '';
         if (reply) return res.json({ ok: true, reply, source: 'llm', sugestoes: local.sugestoes });
       }
     } catch {}
