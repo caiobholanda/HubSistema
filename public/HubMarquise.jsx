@@ -7219,6 +7219,214 @@ function HubDecoration() {
   return <div ref={ref} style={{ position: 'absolute', right: 0, top: 0, width: 1, height: 600, background: `linear-gradient(180deg, transparent 0%, ${HUB_PALETTE.champanhe}66 30%, ${HUB_PALETTE.champanhe}10 100%)`, pointerEvents: 'none' }} />;
 }
 
+// ─── AI Chat Widget ───────────────────────────────────────────────────────────
+
+function AIChatWidget({ isMobile }) {
+  const [open, setOpen] = useState(false);
+  const [msgs, setMsgs] = useState([
+    { id: 0, from: 'bot', text: 'Olá! Sou o assistente de TI do Gran Marquise. Posso ajudar com dúvidas sobre os sistemas, senhas e chamados.' }
+  ]);
+  const [input, setInput] = useState('');
+  const [typing, setTyping] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const msgsEnd = useRef(null);
+  const inputRef = useRef(null);
+  const idRef = useRef(10);
+
+  useEffect(() => { const t = setTimeout(() => setMounted(true), 800); return () => clearTimeout(t); }, []);
+  useEffect(() => { if (open && inputRef.current) setTimeout(() => inputRef.current && inputRef.current.focus(), 220); }, [open]);
+  useEffect(() => { if (msgsEnd.current) msgsEnd.current.scrollIntoView({ behavior: 'smooth' }); }, [msgs, typing]);
+
+  const SUGGESTIONS = ['Como abrir um chamado?', 'Esqueci minha senha', 'Quais sistemas tenho acesso?'];
+
+  function reply(text) {
+    const t = text.toLowerCase();
+    if (/chamado|suporte|ticket|problema/.test(t))
+      return 'Para abrir um chamado: acesse o Sistema de Chamados TI, clique em "Novo Chamado" e descreva o problema. A equipe responde em até 2 horas úteis.';
+    if (/senha|login|acesso|entrar|bloqueado/.test(t))
+      return 'Use "Esqueci minha senha" na tela de login. Verifique a caixa de spam. Se não funcionar, abra um chamado com a categoria "Acesso / Login".';
+    if (/sistema|permissão|liberar/.test(t))
+      return 'Seus sistemas liberados aparecem aqui no Hub. Para solicitar acesso a um novo sistema, abra um chamado com a categoria "Permissão de Acesso".';
+    if (/pesquisa|satisfação|spa|massagem/.test(t))
+      return 'A Pesquisa de Satisfação do SPA coleta feedback de clientes após os atendimentos. Acesse pelo Hub ou fale com o TI para treinamento.';
+    if (/ramal|telefone|contato|setor|departamento/.test(t))
+      return 'O Diretório de Ramais reúne todos os contatos internos do hotel. Busque por nome ou setor na listagem.';
+    if (/impressora|toner|periférico|mouse|teclado/.test(t))
+      return 'Para periféricos ou toneres, abra um chamado com a categoria "Impressora / Periférico" e informe o modelo e a localização.';
+    if (/obrigad|valeu|ótimo|perfeito|entendi/.test(t))
+      return 'Disponha! Qualquer coisa, pode chamar. 👋';
+    return 'Para questões específicas, abra um chamado no Sistema de Chamados TI — a equipe responde em até 2 horas úteis.';
+  }
+
+  function send(text) {
+    const txt = text.trim();
+    if (!txt || typing) return;
+    setMsgs(prev => [...prev, { id: ++idRef.current, from: 'user', text: txt }]);
+    setInput('');
+    if (inputRef.current) { inputRef.current.style.height = 'auto'; }
+    setTyping(true);
+    setTimeout(() => {
+      setTyping(false);
+      setMsgs(prev => [...prev, { id: ++idRef.current, from: 'bot', text: reply(txt) }]);
+    }, 900 + Math.random() * 600);
+  }
+
+  const C = HUB_PALETTE;
+  const showSuggestions = msgs.length <= 2;
+
+  return (
+    <>
+      <style>{`
+        @keyframes aic-in { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes aic-dot { 0%,60%,100% { transform:translateY(0); } 30% { transform:translateY(-4px); } }
+        @keyframes aic-ring { 0% { transform:scale(1); opacity:.55; } 100% { transform:scale(1.6); opacity:0; } }
+      `}</style>
+
+      {/* Panel */}
+      <div role="dialog" aria-label="Assistente de TI" style={{
+        position: 'fixed',
+        bottom: isMobile ? 0 : 88,
+        right: isMobile ? 0 : 24,
+        width: isMobile ? '100%' : 360,
+        maxHeight: isMobile ? '72dvh' : 500,
+        background: C.noiteAlt,
+        border: `1px solid ${C.champanhe}33`,
+        borderRadius: isMobile ? '20px 20px 0 0' : 16,
+        boxShadow: '0 24px 64px rgba(0,0,0,.45), 0 4px 16px rgba(0,0,0,.2)',
+        display: 'flex',
+        flexDirection: 'column',
+        zIndex: 8999,
+        transform: open ? 'translateY(0) scale(1)' : `translateY(${isMobile ? '24px' : '16px'}) scale(0.97)`,
+        opacity: open ? 1 : 0,
+        pointerEvents: open ? 'auto' : 'none',
+        transition: `transform 280ms ${HUB_EASE}, opacity 200ms ease`,
+        overflow: 'hidden',
+      }}>
+        {/* Header */}
+        <div style={{ padding: '12px 16px', background: C.noite, display: 'flex', alignItems: 'center', gap: 10, borderBottom: `1px solid ${C.champanhe}1e`, flexShrink: 0 }}>
+          <div style={{ width: 36, height: 36, borderRadius: '50%', background: `linear-gradient(135deg, ${C.champanhe} 0%, ${C.dourado} 100%)`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+              <path d="M12 2l2.09 6.41H21l-5.47 3.98 2.09 6.41L12 14.82l-5.62 4.04 2.09-6.41L2.96 8.41H9.91L12 2z" fill={C.noite} />
+            </svg>
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: C.marfim, letterSpacing: '0.02em', lineHeight: 1.2 }}>Assistente TI</div>
+            <div style={{ fontSize: 11, color: C.areiaDim, display: 'flex', alignItems: 'center', gap: 5, marginTop: 1 }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', display: 'inline-block', flexShrink: 0 }} />
+              Online · Gran Marquise
+            </div>
+          </div>
+          <button onClick={() => setOpen(false)} aria-label="Fechar" style={{ background: 'none', border: 'none', color: C.areiaDim, cursor: 'pointer', padding: 6, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'color 150ms' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+          </button>
+        </div>
+
+        {/* Messages */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '14px 14px 8px', display: 'flex', flexDirection: 'column', gap: 8, minHeight: 0, scrollBehavior: 'smooth' }}>
+          {msgs.map(m => (
+            <div key={m.id} style={{
+              maxWidth: '86%',
+              alignSelf: m.from === 'user' ? 'flex-end' : 'flex-start',
+              background: m.from === 'user'
+                ? `linear-gradient(135deg, ${C.champanhe} 0%, ${C.dourado} 100%)`
+                : `${C.champanhe}18`,
+              border: m.from === 'bot' ? `1px solid ${C.champanhe}22` : 'none',
+              color: m.from === 'user' ? C.noite : C.marfim,
+              padding: '8px 12px',
+              borderRadius: m.from === 'user' ? '13px 13px 3px 13px' : '13px 13px 13px 3px',
+              fontSize: 13,
+              lineHeight: 1.55,
+              fontWeight: m.from === 'user' ? 500 : 400,
+              animation: 'aic-in 200ms ease',
+            }}>
+              {m.text}
+            </div>
+          ))}
+          {typing && (
+            <div style={{ alignSelf: 'flex-start', background: `${C.champanhe}18`, border: `1px solid ${C.champanhe}22`, borderRadius: '13px 13px 13px 3px', padding: '10px 14px', display: 'flex', gap: 5, alignItems: 'center', animation: 'aic-in 200ms ease' }}>
+              {[0, 1, 2].map(i => (
+                <span key={i} style={{ width: 6, height: 6, borderRadius: '50%', background: C.champanhe, display: 'block', animation: `aic-dot .9s ease-in-out infinite`, animationDelay: `${i * 0.15}s` }} />
+              ))}
+            </div>
+          )}
+          <div ref={msgsEnd} />
+        </div>
+
+        {/* Suggestions */}
+        {showSuggestions && (
+          <div style={{ padding: '6px 12px', display: 'flex', gap: 6, flexWrap: 'wrap', borderTop: `1px solid ${C.champanhe}14`, flexShrink: 0 }}>
+            {SUGGESTIONS.map(s => (
+              <button key={s} onClick={() => send(s)} style={{ background: `${C.champanhe}14`, border: `1px solid ${C.champanhe}2e`, color: C.champanhe, fontSize: 11, padding: '4px 10px', borderRadius: 99, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500, whiteSpace: 'nowrap', transition: 'background 150ms', lineHeight: 1.5 }}>
+                {s}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Input */}
+        <div style={{ padding: '10px 12px', borderTop: `1px solid ${C.champanhe}1e`, display: 'flex', gap: 8, alignItems: 'flex-end', flexShrink: 0 }}>
+          <textarea
+            ref={inputRef}
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onInput={e => { e.target.style.height = 'auto'; e.target.style.height = Math.min(e.target.scrollHeight, 88) + 'px'; }}
+            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(input); } }}
+            placeholder="Escreva sua dúvida..."
+            rows={1}
+            style={{ flex: 1, background: `${C.champanhe}0e`, border: `1.5px solid ${C.champanhe}2e`, borderRadius: 10, padding: '8px 11px', fontSize: 13, fontFamily: 'inherit', color: C.marfim, resize: 'none', outline: 'none', maxHeight: 88, lineHeight: 1.45, transition: 'border-color 150ms', overflow: 'hidden' }}
+          />
+          <button
+            onClick={() => send(input)}
+            disabled={!input.trim() || typing}
+            aria-label="Enviar"
+            style={{ width: 36, height: 36, flexShrink: 0, border: 'none', background: `linear-gradient(135deg, ${C.champanhe} 0%, ${C.dourado} 100%)`, color: C.noite, borderRadius: 10, cursor: input.trim() && !typing ? 'pointer' : 'not-allowed', opacity: input.trim() && !typing ? 1 : 0.38, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'opacity 150ms' }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13M22 2L15 22 11 13 2 9l20-7z" /></svg>
+          </button>
+        </div>
+      </div>
+
+      {/* Badge Button */}
+      {mounted && (
+        <div style={{ position: 'fixed', bottom: isMobile ? 20 : 24, right: isMobile ? 20 : 24, zIndex: 9000 }}>
+          {!open && (
+            <span style={{ position: 'absolute', inset: -4, borderRadius: '50%', border: `1.5px solid ${C.champanhe}`, animation: 'aic-ring 2.4s ease-out infinite', pointerEvents: 'none' }} />
+          )}
+          <button
+            onClick={() => setOpen(v => !v)}
+            aria-label={open ? 'Fechar assistente de TI' : 'Abrir assistente de TI'}
+            title="Assistente de TI"
+            style={{
+              width: 52,
+              height: 52,
+              borderRadius: '50%',
+              border: 'none',
+              background: `linear-gradient(135deg, ${C.champanhe} 0%, ${C.dourado} 100%)`,
+              color: C.noite,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: `0 4px 20px ${C.champanhe}55, 0 2px 8px rgba(0,0,0,.28)`,
+              transform: open ? 'scale(0.9) rotate(90deg)' : 'scale(1) rotate(0deg)',
+              transition: `transform 260ms ${HUB_EASE}, box-shadow 200ms ease`,
+              position: 'relative',
+            }}
+          >
+            {open ? (
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+            ) : (
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                <path d="M12 2l2.09 6.41H21l-5.47 3.98 2.09 6.41L12 14.82l-5.62 4.04 2.09-6.41L2.96 8.41H9.91L12 2z" fill="currentColor" />
+              </svg>
+            )}
+          </button>
+        </div>
+      )}
+    </>
+  );
+}
+
 // ─── Root ─────────────────────────────────────────────────────────────────────
 
 function HubMarquise() {
@@ -7570,6 +7778,7 @@ function HubMarquise() {
             }}
             onClose={() => setNewUpdateOpen(false)}
           />}
+          <AIChatWidget isMobile={isMobile} />
         </>
       )}
     </div>

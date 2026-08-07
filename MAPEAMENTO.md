@@ -1,6 +1,6 @@
 # HubSistemas — Mapeamento Arquitetural
 
-> Gerado por 50+ agentes em 2026-07-07. Última atualização: 2026-07-17 (10 atualizações de contas).
+> Gerado por 50+ agentes em 2026-07-07. Última atualização: 2026-08-07 (AIChatWidget adicionado).
 
 **URL produção:** hub-granmarquise.fly.dev  
 **Stack:** Node.js + Express 4 / React 18 UMD + Babel standalone (sem build)  
@@ -15,7 +15,7 @@ HubSistemas/
 ├── server.js               # ~1306 linhas — servidor completo
 ├── public/
 │   ├── index.html          # shell HTML + window.onerror handler (sem React ErrorBoundary)
-│   └── HubMarquise.jsx     # ~4224 linhas — toda a UI React
+│   └── HubMarquise.jsx     # ~7760 linhas — toda a UI React (incl. AIChatWidget)
 ├── src/
 │   ├── permissions.js      # diffPermissoes, fail-closed
 │   ├── site-permissions.js # PAPEIS_VALIDOS, MIGRATION_SEED, _norm()
