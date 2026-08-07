@@ -637,7 +637,8 @@ const INTENCOES = [
   },
   {
     id: 'rede',
-    chaves: ['internet', 'wifi', 'rede', 'sem conexao', 'sem internet', 'internet lenta', 'cabo de rede', 'sinal'],
+    chaves: ['internet', 'wifi', 'rede', 'sem conexao', 'sem internet', 'internet lenta', 'cabo de rede',
+      'sinal', 'perdeu a conexao', 'caiu a conexao', 'sem sinal', 'fora da rede'],
     apoio: ['conectar', 'conexao', 'lento', 'caindo', 'desconecta'],
     resposta: () => 'Testa primeiro se é só no seu computador ou no setor inteiro (pergunta pro colega do lado). Se for só no seu: tira e recoloca o cabo de rede / desconecta e reconecta o wifi.\n\nContinua? Chamado em "Rede / Internet" dizendo o setor, se é em um ou em vários computadores e desde quando. Isso muda totalmente o diagnóstico.',
     sugestoes: ['Qual a senha do wifi?', 'Como abrir um chamado?'],
@@ -663,7 +664,8 @@ const INTENCOES = [
     familia: 'equipamento',
     prioridade: 4,
     chaves: ['mouse', 'teclado', 'monitor', 'headset', 'cabo', 'equipamento novo', 'computador novo',
-      'periferico', 'camera', 'webcam', 'microfone', 'carregador', 'fonte', 'bateria'],
+      'periferico', 'camera', 'webcam', 'microfone', 'carregador', 'fonte', 'bateria',
+      'tablet', 'leitor', 'leitor de cartao', 'catraca', 'relogio de ponto', 'nobreak'],
     apoio: ['quebrado', 'parou', 'nao funciona', 'trocar', 'hardware', 'notebook'],
     resposta: () => 'Equipamento quebrado ou pedido de novo: chamado em "Hardware". Diz o que é, o que acontece (ou por que precisa), o setor e a etiqueta de patrimônio se tiver.\n\nPedido de equipamento novo passa pela aprovação do seu gestor — vale já avisar ele.',
     sugestoes: ['Como abrir um chamado?'],
@@ -848,26 +850,22 @@ function pontuar(an, ctx) {
     if (it.veto && it.veto.some(v => casaTermo(v, an) >= 0.9)) continue;
 
     let score = 0;
-    // Um mesmo radical so pontua uma vez por intencao: "obrigado" e "obrigada"
-    // sao o mesmo termo e somavam em dobro, passando do limiar sozinhos.
-    const jaContou = new Set();
-    for (const c of (it.chaves || [])) {
-      const w = casaTermo(c, an);
-      if (w <= 0) continue;
-      const id = _tokens(c).map(radical).join('§');
-      if (jaContou.has(id)) continue;
-      jaContou.add(id);
-      const p = _pesoTermo(c, true) * w;
-      score = it.somaMax ? Math.max(score, p) : score + p;
-    }
-    for (const a of (it.apoio || [])) {
-      const w = casaTermo(a, an);
-      if (w <= 0) continue;
-      const id = _tokens(a).map(radical).join('§');
-      if (jaContou.has(id)) continue;
-      jaContou.add(id);
-      score += _pesoTermo(a, false) * w;
-    }
+    // Cada radical pontua UMA vez por intencao. Sem isso "obrigado"+"obrigada"
+    // somavam em dobro, e "nao tenho login" + "sem login" + apoio "login"
+    // empilhavam tres vezes a mesma evidencia — foi assim que "nao consigo
+    // logar" virou "primeiro acesso".
+    const contados = new Set();
+    const somar = (termo, forte) => {
+      const w = casaTermo(termo, an);
+      if (w <= 0) return;
+      const rads = _tokens(termo).map(radical);
+      if (rads.length && rads.every(r => contados.has(r))) return;
+      for (const r of rads) contados.add(r);
+      const p = _pesoTermo(termo, forte) * w;
+      score = (forte && it.somaMax) ? Math.max(score, p) : score + p;
+    };
+    for (const c of (it.chaves || [])) somar(c, true);
+    for (const a of (it.apoio || [])) somar(a, false);
     // Falar do sistema X é o assunto mais generico do catalogo: entra na
     // disputa, mas perde de uma intencao especifica ("ramal", "abrir chamado")
     // que tenha casado uma chave forte.
@@ -1017,20 +1015,25 @@ function responder(entrada) {
     const candidatos = ranking.filter(c => c !== cand
       && c.score >= Math.max(LIMIAR, limiar)
       && !(cand.intencao.familia && c.intencao.familia === cand.intencao.familia));
-    // Entre os assuntos restantes, o mais grave/especifico primeiro.
-    const outro = candidatos.slice().sort((a, b) =>
-      ((b.intencao.prioridade || 0) - (a.intencao.prioridade || 0)) || (b.score - a.score))[0];
+    const porGravidade = (a, b) =>
+      ((b.intencao.prioridade || 0) - (a.intencao.prioridade || 0)) || (b.score - a.score);
+    const outro = candidatos.slice().sort(porGravidade)[0];
     // Assunto grave (phishing, urgencia com hospede) ou pedido direto de
     // contato nao pode virar chip de sugestao: se pontuou forte, entra ANTES
-    // da resposta principal em vez de ser engolido.
-    if (outro && (outro.intencao.prioridade || 0) >= 6 && outro.score >= 4.5) {
-      const grave = outro.intencao.resposta(ctx, an);
+    // da resposta principal. Filtra ANTES de ordenar — ordenar primeiro fazia
+    // um candidato prioritario porem fraco (urgente 3.0) bloquear o forte
+    // (falar_humano 4.5) e a mensagem perdia o ramal pedido.
+    const elegivel = candidatos
+      .filter(c => (c.intencao.prioridade || 0) >= 6 && c.score >= 4.5)
+      .sort(porGravidade)[0];
+    if (elegivel) {
+      const grave = elegivel.intencao.resposta(ctx, an);
       if (grave) {
         return {
           reply: `${grave}\n\nSobre a outra parte: ${txt}`,
-          intencao: outro.intencao.id,
-          confianca: _conf(outro.score),
-          sugestoes: (outro.intencao.sugestoes || []).slice(0, 3),
+          intencao: elegivel.intencao.id,
+          confianca: _conf(elegivel.score),
+          sugestoes: (elegivel.intencao.sugestoes || []).slice(0, 3),
         };
       }
     }
@@ -1049,7 +1052,9 @@ function responder(entrada) {
   }
 
   // 3) Base de conhecimento escrita pelo admin (recuperada por similaridade).
-  const bloco = buscarContexto(an, config.custom_info);
+  // `base_prompt` entra junto: como nao existe LLM, o que o admin escreve la e
+  // conhecimento consultavel, nao instrucao para um modelo.
+  const bloco = buscarContexto(an, [config.custom_info, config.base_prompt].filter(Boolean).join('\n\n'));
   if (bloco) {
     return { reply: bloco.texto, intencao: 'contexto_admin', confianca: Math.min(0.95, 0.5 + bloco.score * 0.4), sugestoes: ['Como abrir um chamado?'] };
   }

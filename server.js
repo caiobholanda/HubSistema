@@ -13,7 +13,6 @@ const PESQUISA_URL = process.env.PESQUISA_URL || 'https://pesquisa-satisfacao.fl
 const DIRETORIO_URL = process.env.DIRETORIO_URL || 'https://diretorio-ramais-granmarquise.fly.dev';
 const GESTAO_URL = process.env.GESTAO_URL || 'https://gestao-qualidade-granmarquise.fly.dev';
 const HUB_URL = process.env.HUB_URL || 'https://hub-granmarquise.fly.dev';
-const GROQ_API_KEY = process.env.GROQ_API_KEY || '';
 const DATA_DIR = path.join(__dirname, 'data');
 const HUB_DATA_FILE = path.join(DATA_DIR, 'hub_data.json');
 const AVATARES_DIR = path.join(DATA_DIR, 'avatares');
@@ -2249,7 +2248,7 @@ app.get('/api/admin/ai-config', requireAdmin, (req, res) => {
 });
 
 app.get('/api/admin/ai-default-prompt', requireAdmin, (req, res) => {
-  res.json({ ok: true, prompt: AI_BASE_PROMPT });
+  res.json({ ok: true, prompt: TEXTO_BASE_PADRAO });
 });
 
 app.get('/api/admin/ai-preview', requireAdmin, (req, res) => {
@@ -2257,7 +2256,7 @@ app.get('/api/admin/ai-preview', requireAdmin, (req, res) => {
   const contexto = _contextoAssistente(req);
   res.json({
     ok: true,
-    prompt: buildSystemPrompt(aiCfg.custom_info || '', aiCfg.quick_replies || [], assistente.resumoContexto(contexto), aiCfg.base_prompt || ''),
+    prompt: montarBaseConhecimento(aiCfg.custom_info || '', aiCfg.quick_replies || [], assistente.resumoContexto(contexto), aiCfg.base_prompt || ''),
   });
 });
 
@@ -2677,44 +2676,45 @@ app.delete('/api/admin/updates/:id', requireAdmin, (req, res) => {
 });
 
 // ─── Assistente de TI ────────────────────────────────────────────────────────
-// O motor local (src/assistente.js) responde sempre; se houver GROQ_API_KEY o
-// LLM entra por cima, ancorado no MESMO contexto vivo que o motor usa, e o
-// motor vira a rede de seguranca.
-const AI_BASE_PROMPT = `Você é o assistente de TI do Gran Marquise. Responda de forma direta, curta e humana — como um colega de TI que sabe a resposta. Sem introduções, sem "Olá!", sem enrolação. Português brasileiro informal. Máximo 2 parágrafos curtos. Se não souber, diga e mande abrir chamado.
+// Nao existe chamada a LLM aqui, por decisao de projeto. Quem responde e o motor
+// de intencoes em src/assistente.js. Logo, isto NAO e um "prompt": e a base de
+// conhecimento em texto que o motor consulta por similaridade quando nenhuma
+// intencao interna cobre a pergunta.
+const TEXTO_BASE_PADRAO = `Hub Gran Marquise (hub-granmarquise.fly.dev) — porta de entrada dos sistemas do hotel. Login com e-mail @granmarquise.com.br; cada pessoa vê só o que está liberado pra ela.
 
-Regras rígidas: nunca invente ramal, nome de pessoa, prazo ou procedimento que não esteja no contexto abaixo. Se o dado não estiver aqui, diga que não tem e mande abrir chamado.
+Chamados TI (sistema-chamados-granmarquise.fly.dev): todos os setores usam. Abrir em "Novo Chamado" — setor, descrição e prioridade. Resposta em até 2h úteis. Categorias: Impressora/Periférico, Acesso/Login, Permissão de Acesso, Rede/Internet, Hardware, Software.
 
-Sistemas disponíveis no Hub (hub-granmarquise.fly.dev):
+Contatos Gran Marquise (diretorio-ramais-granmarquise.fly.dev): ramal de qualquer setor ou colaborador, busca por nome.
 
-1. Chamados TI (sistema-chamados-granmarquise.fly.dev) — todos os setores usam. Abrir: login → "Novo Chamado" → setor + descrição + prioridade. Resposta em até 2h úteis. Categorias: Impressora/Periférico, Acesso/Login, Rede/Internet, Hardware, Software.
+Gestão de SPA (pesquisa-satisfacao.fly.dev): acesso restrito à equipe do Spa e à TI. Atendimentos, escalas de profissionais e anamnese.
 
-2. Diretório de Ramais (diretorio-ramais-granmarquise.fly.dev) — ramal de qualquer setor ou colaborador, busca por nome.
+Senha do Hub: mínimo 8 caracteres com maiúscula, minúscula, número e símbolo. Esqueceu a senha: "Esqueci minha senha" na tela de login e conferir o spam; se o link não chegar, chamado em "Acesso / Login".
 
-3. Pesquisa de Satisfação SPA (pesquisa-satisfacao.fly.dev) — acesso restrito à equipe do SPA e TI. Gestão de atendimentos, escalas, anamnese.
+Acesso a um sistema novo: chamado na categoria "Permissão de Acesso", dizendo qual sistema e por quê.`;
 
-Acesso ao Hub: e-mail @granmarquise.com.br + senha (mín. 8 chars com maiúscula, número e símbolo). Esqueceu a senha → "Esqueci minha senha" na tela de login → checar spam. Se não funcionar → chamado TI "Acesso/Login".
-
-Solicitar acesso a sistema → chamado TI categoria "Permissão de Acesso". Para qualquer problema que não conseguir resolver → chamado TI.`;
-
-function buildSystemPrompt(customInfo, quickReplies, resumoVivo, basePrompt) {
-  let prompt = (basePrompt && basePrompt.trim()) ? basePrompt.trim() : AI_BASE_PROMPT;
+// Dump legivel do que o assistente REALMENTE sabe — usado pela aba do admin.
+// Serve para o admin conferir o efeito do que cadastrou, nao para alimentar
+// modelo nenhum.
+function montarBaseConhecimento(customInfo, quickReplies, resumoVivo, basePrompt) {
+  let txt = '# Assistente do Hub — base de conhecimento local\n'
+    + '# Nenhuma API externa e nenhuma chave: quem responde é o motor de intenções\n'
+    + '# do próprio Hub (src/assistente.js). O texto abaixo é o que ele consulta.\n\n'
+    + '## Texto base\n'
+    + ((basePrompt && basePrompt.trim()) ? basePrompt.trim() : TEXTO_BASE_PADRAO);
   if (resumoVivo && resumoVivo.trim()) {
-    prompt += `\n\n## Estado atual do Hub (dado real, use isto e nada além disto)\n${resumoVivo.trim()}`;
+    txt += `\n\n## Estado atual do Hub (lido do banco a cada pergunta)\n${resumoVivo.trim()}`;
   }
   if (Array.isArray(quickReplies) && quickReplies.length > 0) {
-    const qrText = quickReplies
-      .map(qr => `- Palavras-chave: [${qr.keywords}]\n  Resposta sugerida: ${qr.reply}`)
-      .join('\n');
-    prompt += `\n\n## Respostas Prioritárias (use como referência ao identificar as palavras-chave)\n${qrText}`;
+    txt += `\n\n## Respostas rápidas (têm prioridade sobre qualquer resposta interna)\n${
+      quickReplies.map(qr => `- Palavras-chave: [${qr.keywords}]\n  Resposta: ${qr.reply}`).join('\n')}`;
   }
   if (customInfo && customInfo.trim()) {
-    prompt += `\n\n## Informações Adicionais (contexto atual do hotel — priorize)\n${customInfo.trim()}`;
+    txt += `\n\n## Contexto adicional (consultado por similaridade com a pergunta)\n${customInfo.trim()}`;
   }
-  // Trava anti-invencao SEMPRE por ultimo e fora do campo editavel: um master
-  // que substitui o prompt base nao pode, sem querer, apagar a unica regra que
-  // impede o modelo de inventar ramal, nome de pessoa ou prazo.
-  prompt += '\n\n## Regra inviolável\nNunca invente ramal, nome de pessoa, prazo, senha ou procedimento que não esteja escrito acima. Se o dado não estiver aqui, diga que não tem e mande abrir chamado de TI.';
-  return prompt;
+  txt += `\n\n## Sempre valem\n- Não inventa ramal, nome, prazo ou procedimento que não esteja aqui.\n`
+    + `- Dado de pessoa (nome, setor, ramal) só sai para quem está logado e tem o Contatos liberado.\n`
+    + `- O que ele não souber vira "abre um chamado", nunca um palpite.`;
+  return txt;
 }
 
 app.put('/api/admin/ai-config', requireAdmin, (req, res) => {
@@ -2802,7 +2802,10 @@ function _limiteAiChat(req, payload) {
   return true;
 }
 
-app.post('/api/ai-chat', async (req, res) => {
+// Assistente 100% local, por decisao de projeto: nao existe chave de API aqui e
+// nao deve existir. Toda a inteligencia mora em src/assistente.js — versionada,
+// testavel e sem depender da conta de ninguem.
+app.post('/api/ai-chat', (req, res) => {
   const { messages } = req.body || {};
   if (!Array.isArray(messages) || messages.length === 0) {
     return res.status(400).json({ ok: false, erro: 'messages inválido.' });
@@ -2820,34 +2823,6 @@ app.post('/api/ai-chat', async (req, res) => {
   const aiCfg = data.ai_config || {};
   const contexto = _contextoAssistente(req, data);
   const local = assistente.responder({ mensagens: safeMessages, contexto, config: aiCfg });
-
-  // Com chave: LLM ancorado no mesmo contexto; sem chave (padrao hoje), o motor
-  // local ja e a resposta final.
-  if (GROQ_API_KEY) {
-    try {
-      const systemPrompt = buildSystemPrompt(
-        aiCfg.custom_info || '',
-        aiCfg.quick_replies || [],
-        assistente.resumoContexto(contexto),
-        aiCfg.base_prompt || ''
-      );
-      const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_API_KEY}` },
-        body: JSON.stringify({
-          model: process.env.GROQ_MODEL || 'llama-3.1-8b-instant',
-          messages: [{ role: 'system', content: systemPrompt }, ...safeMessages],
-          max_tokens: 400,
-          temperature: 0.4
-        })
-      });
-      const respJson = await resp.json(); // nao chamar de `data`: sombreia o readData() acima
-      if (resp.ok) {
-        const reply = respJson.choices?.[0]?.message?.content?.trim() || '';
-        if (reply) return res.json({ ok: true, reply, source: 'llm', sugestoes: local.sugestoes });
-      }
-    } catch {}
-  }
 
   res.json({
     ok: true,

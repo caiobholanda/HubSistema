@@ -1570,7 +1570,7 @@ function AssistenteIAPanel({ isMobile }) {
             {isMaster && <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', background: `${C.champanhe}18`, border: `1px solid ${C.champanhe}44`, color: C.champanhe, padding: '1px 7px' }}>editável</span>}
           </div>
           <div style={{ fontFamily: BODY, fontSize: 14, color: C.areia, lineHeight: 1.5 }}>
-            {isMaster ? 'Prompt base enviado à IA. Edite e salve para personalizar o comportamento.' : 'Exatamente o que a IA recebe antes de cada resposta — base + configurações salvas'}
+            {isMaster ? 'Texto base que o assistente consulta ao responder. É conteúdo, não instrução: o Hub não usa IA externa nem chave de API.' : 'Exatamente o que o assistente conhece — texto base + o que foi configurado aqui'}
           </div>
         </div>
 
@@ -1584,7 +1584,7 @@ function AssistenteIAPanel({ isMobile }) {
                 <textarea
                   value={localBaseEdit}
                   onChange={e => setLocalBaseEdit(e.target.value.slice(0, 10000))}
-                  placeholder="Digite o prompt base da IA aqui..."
+                  placeholder="Escreva aqui o que o assistente deve saber sobre o hotel e os sistemas..."
                   style={{ flex: 1, minHeight: 320, background: `${C.champanhe}0e`, border: `1px solid ${C.champanhe}35`, borderLeft: 'none', color: C.marfim, fontFamily: MONO, fontSize: 12, lineHeight: 1.8, padding: '16px 18px', resize: 'vertical', outline: 'none', letterSpacing: '0.025em', boxSizing: 'border-box' }}
                 />
               </div>
@@ -1602,7 +1602,7 @@ function AssistenteIAPanel({ isMobile }) {
                     style={{ background: !hasChanges ? `${C.champanhe}33` : C.champanhe, color: '#0d0905', fontFamily: MONO, fontSize: 11, letterSpacing: '0.22em', textTransform: 'uppercase', padding: '9px 20px', border: 'none', cursor: !hasChanges ? 'default' : 'pointer', opacity: !hasChanges ? 0.45 : 1, transition: 'all 200ms' }}
                     onMouseEnter={e => { if (hasChanges) e.currentTarget.style.background = '#b8694f'; }}
                     onMouseLeave={e => { if (hasChanges) e.currentTarget.style.background = C.champanhe; }}
-                  >Salvar prompt base</button>
+                  >Salvar texto base</button>
                 </div>
               </div>
             </div>
@@ -1661,7 +1661,7 @@ function AssistenteIAPanel({ isMobile }) {
         document.body
       )}
 
-      {/* Modal confirmar salvar prompt base */}
+      {/* Modal confirmar salvar texto base */}
       {confirmSavePrompt && ReactDOM.createPortal(
         <div
           style={{ position: 'fixed', inset: 0, zIndex: 400, background: 'rgba(8,5,3,0.52)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
@@ -1681,7 +1681,7 @@ function AssistenteIAPanel({ isMobile }) {
               </div>
               {/* título */}
               <div style={{ fontFamily: SERIF, fontWeight: 300, fontStyle: 'italic', fontSize: isMobile ? 22 : 28, color: C.marfim, letterSpacing: '-0.01em', lineHeight: 1.2, marginBottom: 16 }}>
-                Substituir o prompt base?
+                Substituir o texto base?
               </div>
               {/* corpo */}
               <p style={{ fontFamily: BODY, fontSize: 14, color: C.areia, lineHeight: 1.72, margin: '0 0 10px' }}>
@@ -1704,7 +1704,7 @@ function AssistenteIAPanel({ isMobile }) {
                   style={{ background: C.champanhe, color: '#0d0905', fontFamily: MONO, fontSize: 11, letterSpacing: '0.22em', textTransform: 'uppercase', padding: '11px 28px', border: 'none', cursor: 'pointer', transition: 'background 150ms' }}
                   onMouseEnter={e => { e.currentTarget.style.background = '#b3623f'; }}
                   onMouseLeave={e => { e.currentTarget.style.background = C.champanhe; }}
-                >Salvar prompt base</button>
+                >Salvar texto base</button>
               </div>
             </div>
           </div>
