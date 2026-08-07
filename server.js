@@ -2245,7 +2245,7 @@ app.delete('/api/admin/tipos-cortesia/:id', requireAdmin, (req, res) => {
 // Assistente IA — GET deve ficar antes do catch-all SPA.
 app.get('/api/admin/ai-config', requireAdmin, (req, res) => {
   const data = readData();
-  res.json({ ok: true, config: data.ai_config || { custom_info: '', quick_replies: [] } });
+  res.json({ ok: true, config: data.ai_config || { custom_info: '', quick_replies: [], base_prompt: '' } });
 });
 
 app.get('/api/admin/ai-preview', requireAdmin, (req, res) => {
@@ -2253,7 +2253,7 @@ app.get('/api/admin/ai-preview', requireAdmin, (req, res) => {
   const contexto = _contextoAssistente(req);
   res.json({
     ok: true,
-    prompt: buildSystemPrompt(aiCfg.custom_info || '', aiCfg.quick_replies || [], assistente.resumoContexto(contexto)),
+    prompt: buildSystemPrompt(aiCfg.custom_info || '', aiCfg.quick_replies || [], assistente.resumoContexto(contexto), aiCfg.base_prompt || ''),
   });
 });
 
@@ -2692,8 +2692,8 @@ Acesso ao Hub: e-mail @granmarquise.com.br + senha (mín. 8 chars com maiúscula
 
 Solicitar acesso a sistema → chamado TI categoria "Permissão de Acesso". Para qualquer problema que não conseguir resolver → chamado TI.`;
 
-function buildSystemPrompt(customInfo, quickReplies, resumoVivo) {
-  let prompt = AI_BASE_PROMPT;
+function buildSystemPrompt(customInfo, quickReplies, resumoVivo, basePrompt) {
+  let prompt = (basePrompt && basePrompt.trim()) ? basePrompt.trim() : AI_BASE_PROMPT;
   if (resumoVivo && resumoVivo.trim()) {
     prompt += `\n\n## Estado atual do Hub (dado real, use isto e nada além disto)\n${resumoVivo.trim()}`;
   }
@@ -2710,15 +2710,17 @@ function buildSystemPrompt(customInfo, quickReplies, resumoVivo) {
 }
 
 app.put('/api/admin/ai-config', requireAdmin, (req, res) => {
-  const { custom_info, quick_replies } = req.body || {};
+  const { custom_info, quick_replies, base_prompt } = req.body || {};
   const data = readData();
+  const prev = data.ai_config || {};
   data.ai_config = {
     custom_info: String(custom_info || '').slice(0, 2500),
     quick_replies: Array.isArray(quick_replies) ? quick_replies.slice(0, 50).map(qr => ({
       id: Number(qr.id) || Date.now(),
       keywords: String(qr.keywords || '').slice(0, 200),
       reply: String(qr.reply || '').slice(0, 1000)
-    })) : []
+    })) : [],
+    base_prompt: req.hubUser.is_master ? String(base_prompt || '').slice(0, 10000) : (prev.base_prompt || '')
   };
   writeData(data);
   res.json({ ok: true });
@@ -2727,8 +2729,8 @@ app.put('/api/admin/ai-config', requireAdmin, (req, res) => {
 // Contexto vivo entregue ao motor. Dado de PESSOA (nome, setor, ramal) so entra
 // com sessao valida: /api/ai-chat e publica de proposito (o widget aparece antes
 // do login) e sem esse corte o chat viraria um dump do diretorio interno.
-function _contextoAssistente(req) {
-  const data = readData();
+function _contextoAssistente(req, dataPronto) {
+  const data = dataPronto || readData();
   const payload = _sessaoHubPayload(req);
   const ctx = {
     usuario: null,
@@ -2759,19 +2761,23 @@ function _contextoAssistente(req) {
   return ctx;
 }
 
-// Limite simples por IP: o endpoint e publico e cada mensagem le o hub_data.
+// Limite por mensagem: o endpoint e publico e cada mensagem le o hub_data.
+// A chave e o EMAIL quando ha sessao — o hotel inteiro sai pelo mesmo IP
+// publico, entao limitar so por IP puniria todo mundo por causa de um. Sem
+// sessao (tela de login) sobra o IP, com teto mais folgado pelo mesmo motivo.
 const _aiHits = new Map();
-function _limiteAiChat(req) {
-  const ip = req.headers['fly-client-ip'] || req.ip || 'desconhecido';
+function _limiteAiChat(req, payload) {
+  const porEmail = payload && payload.email;
+  const chave = porEmail ? `u:${payload.email}` : `ip:${req.headers['fly-client-ip'] || req.ip || 'desconhecido'}`;
+  const teto = porEmail ? 30 : 60;
   const agora = Date.now();
-  const janela = _aiHits.get(ip) || [];
-  const recentes = janela.filter(t => agora - t < 60000);
+  const recentes = (_aiHits.get(chave) || []).filter(t => agora - t < 60000);
   recentes.push(agora);
-  _aiHits.set(ip, recentes);
+  _aiHits.set(chave, recentes);
   if (_aiHits.size > 500) { // poda preguicosa
     for (const [k, v] of _aiHits) if (!v.some(t => agora - t < 60000)) _aiHits.delete(k);
   }
-  return recentes.length <= 30;
+  return recentes.length <= teto;
 }
 
 app.post('/api/ai-chat', async (req, res) => {
@@ -2779,7 +2785,7 @@ app.post('/api/ai-chat', async (req, res) => {
   if (!Array.isArray(messages) || messages.length === 0) {
     return res.status(400).json({ ok: false, erro: 'messages inválido.' });
   }
-  if (!_limiteAiChat(req)) {
+  if (!_limiteAiChat(req, _sessaoHubPayload(req))) {
     return res.status(429).json({ ok: false, erro: 'Muitas mensagens seguidas. Espera um minutinho.' });
   }
 
@@ -2788,8 +2794,9 @@ app.post('/api/ai-chat', async (req, res) => {
     content: String(m.content || '').slice(0, 800)
   }));
 
-  const aiCfg = readData().ai_config || {};
-  const contexto = _contextoAssistente(req);
+  const data = readData(); // uma leitura por mensagem: config + contexto saem daqui
+  const aiCfg = data.ai_config || {};
+  const contexto = _contextoAssistente(req, data);
   const local = assistente.responder({ mensagens: safeMessages, contexto, config: aiCfg });
 
   // Com chave: LLM ancorado no mesmo contexto; sem chave (padrao hoje), o motor
@@ -2799,7 +2806,8 @@ app.post('/api/ai-chat', async (req, res) => {
       const systemPrompt = buildSystemPrompt(
         aiCfg.custom_info || '',
         aiCfg.quick_replies || [],
-        assistente.resumoContexto(contexto)
+        assistente.resumoContexto(contexto),
+        aiCfg.base_prompt || ''
       );
       const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',

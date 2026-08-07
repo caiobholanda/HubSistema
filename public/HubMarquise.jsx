@@ -1264,6 +1264,8 @@ function AssistenteQRForm({ form, setForm, error, isEdit, onSave, onCancel }) {
 }
 
 function AssistenteIAPanel({ isMobile }) {
+  const isMaster = !!parseJwt(localStorage.getItem('hub_sso_token') || '').is_master;
+  const [basePrompt, setBasePrompt] = useState('');
   const [customInfo, setCustomInfo] = useState('');
   const [quickReplies, setQuickReplies] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -1290,7 +1292,7 @@ function AssistenteIAPanel({ isMobile }) {
     fetch('/api/admin/ai-config', { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
       .then(d => {
-        if (d.ok) { setCustomInfo(d.config.custom_info || ''); setQuickReplies(d.config.quick_replies || []); }
+        if (d.ok) { setBasePrompt(d.config.base_prompt || ''); setCustomInfo(d.config.custom_info || ''); setQuickReplies(d.config.quick_replies || []); }
         else setLoadErr(true);
       })
       .catch(() => setLoadErr(true))
@@ -1299,14 +1301,14 @@ function AssistenteIAPanel({ isMobile }) {
 
   useEffect(() => { carregarConfig(); }, []);
 
-  async function save(ci, qr) {
+  async function save(ci, qr, bp) {
     setSaving(true); setSaveErr(''); setSavedAt(null);
     try {
       const token = localStorage.getItem('hub_sso_token');
       const r = await fetch('/api/admin/ai-config', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ custom_info: ci, quick_replies: qr })
+        body: JSON.stringify({ custom_info: ci, quick_replies: qr, base_prompt: bp })
       });
       const d = await r.json();
       if (d.ok) setSavedAt(new Date());
@@ -1319,9 +1321,9 @@ function AssistenteIAPanel({ isMobile }) {
     if (!readyRef.current) return;
     if (debounceRef.current) clearTimeout(debounceRef.current);
     setSavedAt(null); setSaveErr('');
-    debounceRef.current = setTimeout(() => save(customInfo, quickReplies), 1200);
+    debounceRef.current = setTimeout(() => save(customInfo, quickReplies, basePrompt), 1200);
     return () => clearTimeout(debounceRef.current);
-  }, [customInfo, quickReplies]);
+  }, [customInfo, quickReplies, basePrompt]);
 
   function commitAddQR() {
     if (!qrForm.keywords.trim() || !qrForm.reply.trim()) { setQrError('Preencha palavras-chave e resposta.'); return; }
@@ -1392,6 +1394,43 @@ function AssistenteIAPanel({ isMobile }) {
         </p>
       </div>
 
+      {/* 00 · Prompt Base — somente master */}
+      {isMaster && (
+        <div style={{ marginBottom: 44, paddingBottom: 32, borderBottom: `1px solid ${C.champanhe}30` }}>
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+              <div style={{ fontFamily: MONO, fontSize: 11, letterSpacing: '0.3em', textTransform: 'uppercase', color: '#E07A5FAA' }}>00 · Prompt Base</div>
+              <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', background: '#E07A5F22', border: '1px solid #E07A5F55', color: '#E07A5F', padding: '1px 7px' }}>master only</span>
+            </div>
+            <div style={{ fontFamily: BODY, fontSize: 14, color: C.areia, lineHeight: 1.5 }}>
+              Prompt base completo enviado à IA. Editar isto substitui o prompt padrão do sistema — use com cuidado.
+            </div>
+          </div>
+          <div style={{ display: 'flex' }}>
+            <div style={{ width: 3, flexShrink: 0, background: `linear-gradient(180deg, #E07A5F99 0%, #E07A5F22 100%)` }} />
+            <textarea
+              value={basePrompt}
+              onChange={e => setBasePrompt(e.target.value.slice(0, 10000))}
+              placeholder={`Deixe vazio para usar o prompt padrão do sistema.\n\nO prompt padrão instrui a IA a: responder como colega de TI, em português informal, sem enrolação, máximo 2 parágrafos. Inclui info dos sistemas disponíveis no Hub.`}
+              style={{ flex: 1, minHeight: 240, background: '#E07A5F08', border: '1px solid #E07A5F30', borderLeft: 'none', color: C.marfim, fontFamily: MONO, fontSize: 13, lineHeight: 1.75, padding: '14px 16px', resize: 'vertical', outline: 'none', letterSpacing: '0.025em', boxSizing: 'border-box' }}
+            />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 7 }}>
+            <span style={{ fontFamily: MONO, fontSize: 12, color: basePrompt.length > 9000 ? '#E07A5F' : C.areia, letterSpacing: '0.08em' }}>
+              {basePrompt.length}/10000{basePrompt.length === 0 && ' · usando prompt padrão'}
+            </span>
+            {basePrompt.length > 0 && (
+              <button
+                onClick={() => setBasePrompt('')}
+                style={{ background: 'none', border: 'none', color: '#E07A5F99', fontFamily: MONO, fontSize: 11, letterSpacing: '0.15em', textTransform: 'uppercase', cursor: 'pointer', padding: '2px 6px', transition: 'color 150ms' }}
+                onMouseEnter={e => { e.currentTarget.style.color = '#E07A5F'; }}
+                onMouseLeave={e => { e.currentTarget.style.color = '#E07A5F99'; }}
+              >✕ Voltar ao padrão</button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* 01 · Contexto Adicional */}
       <div style={{ marginBottom: 44 }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
@@ -1425,17 +1464,24 @@ function AssistenteIAPanel({ isMobile }) {
             style={{ flex: 1, minHeight: 155, background: `${C.champanhe}0e`, border: `1px solid ${C.champanhe}35`, borderLeft: 'none', color: C.marfim, fontFamily: MONO, fontSize: 13, lineHeight: 1.75, padding: '14px 16px', resize: 'vertical', outline: 'none', letterSpacing: '0.025em', boxSizing: 'border-box' }}
           />
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 7 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 7, flexWrap: 'wrap', gap: 8 }}>
           <div style={{ fontFamily: MONO, fontSize: 12, color: C.areia, letterSpacing: '0.08em', lineHeight: 1.5 }}>
             Use marcadores (·) para listar itens. Limpe este campo quando não for mais necessário.
           </div>
-          <button
-            onClick={() => setCustomInfo('· Impressora do 3º andar em manutenção até sexta (11/08)\n· Novo ramal da Recepção: 5001\n· Rede nos quartos 301–320 instável esta semana\n· Para urgências fora do horário: (85) 9xxxx-xxxx')}
-            style={{ background: 'none', border: `1px solid ${C.champanhe}33`, color: C.champanhe, fontFamily: MONO, fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', padding: '6px 12px', cursor: 'pointer', flexShrink: 0, marginLeft: 16, transition: 'background 150ms' }}
-            onMouseEnter={e => { e.currentTarget.style.background = `${C.champanhe}12`; }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'none'; }}
-            title="Inserir textos de exemplo para editar"
-          >↓ Usar exemplos</button>
+          <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+            <button
+              onClick={() => setCustomInfo('· Impressora do 3º andar em manutenção até sexta (11/08)\n· Novo ramal da Recepção: 5001\n· Rede nos quartos 301–320 instável esta semana\n· Para urgências fora do horário: (85) 9xxxx-xxxx')}
+              style={{ background: 'none', border: `1px solid ${C.champanhe}33`, color: C.champanhe, fontFamily: MONO, fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', padding: '6px 12px', cursor: 'pointer', transition: 'background 150ms' }}
+              onMouseEnter={e => { e.currentTarget.style.background = `${C.champanhe}12`; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'none'; }}
+              title="Inserir textos de exemplo para editar"
+            >↓ Usar exemplos</button>
+            <button
+              onClick={() => { if (debounceRef.current) clearTimeout(debounceRef.current); save(customInfo, quickReplies, basePrompt); }}
+              disabled={saving}
+              style={{ background: saving ? `${C.champanhe}55` : C.champanhe, color: C.noite, fontFamily: MONO, fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', padding: '6px 16px', border: 'none', cursor: saving ? 'not-allowed' : 'pointer', transition: 'background 200ms' }}
+            >{saving ? 'Salvando...' : '✓ Salvar'}</button>
+          </div>
         </div>
       </div>
 
@@ -7757,6 +7803,10 @@ function AIChatWidget({ isMobile }) {
               lineHeight: 1.55,
               fontWeight: m.from === 'user' ? 500 : 400,
               animation: 'aic-in 200ms ease',
+              // As respostas vêm com quebra de linha e lista (• item) — sem isso
+              // tudo colapsa num parágrafo único.
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
             }}>
               {m.text}
             </div>
