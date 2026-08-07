@@ -15,35 +15,34 @@ const _EXPANSOES = {
   n: 'nao', naum: 'nao', nn: 'nao', num: 'nao', ss: 'sim',
   blz: 'beleza', vlw: 'valeu', obg: 'obrigado', obgd: 'obrigado', brigado: 'obrigado',
   pfv: 'por favor', pfvr: 'por favor', pf: 'por favor',
-  hj: 'hoje', amanha: 'amanha', agr: 'agora', dps: 'depois',
+  agr: 'agora', dps: 'depois',
   msg: 'mensagem', add: 'adicionar', config: 'configuracao', info: 'informacao',
   pc: 'computador', cpu: 'computador', note: 'notebook', maquina: 'computador',
   impressao: 'imprimir', printer: 'impressora', print: 'imprimir',
-  net: 'internet', wi: 'wifi', fi: 'wifi', rede: 'rede',
-  ti: 'ti', sistema: 'sistema', app: 'aplicativo',
-  senha: 'senha', pass: 'senha', password: 'senha', login: 'login', logar: 'login',
-  chamado: 'chamado', ticket: 'chamado', helpdesk: 'chamado', suporte: 'suporte',
-  fone: 'telefone', tel: 'telefone', num: 'numero',
-  gm: 'granmarquise', hotel: 'hotel',
-  eh: 'e', ta: 'esta', tah: 'esta', to: 'estou', tow: 'estou', tava: 'estava',
-  cade: 'onde', ond: 'onde', comu: 'como', komo: 'como',
+  net: 'internet', wi: 'wifi', fi: 'wifi',
+  app: 'aplicativo', pass: 'senha', password: 'senha', logar: 'login',
+  ticket: 'chamado', helpdesk: 'chamado',
+  fone: 'telefone', tel: 'telefone',
+  gm: 'granmarquise',
+  eh: 'e', ta: 'esta', tah: 'esta', to: 'estou', tow: 'estou',
+  cade: 'onde', ond: 'onde', komo: 'como', kd: 'onde',
 };
 
-// Palavras sem carga semantica — saem antes da pontuacao para nao inflar score.
+// Stoplist ENXUTA de proposito: num classificador de chamados "como/qual/onde"
+// sao ruido, mas aqui elas SAO a intencao ("como faco", "onde fica"). O mesmo
+// vale para negacao ("nao consigo"), possessivo ("meu ramal") e "voce".
 const _STOPWORDS = new Set([
   'a', 'o', 'as', 'os', 'um', 'uma', 'uns', 'umas', 'de', 'do', 'da', 'dos', 'das',
   'em', 'no', 'na', 'nos', 'nas', 'por', 'pelo', 'pela', 'para', 'pra', 'pro',
   'com', 'sem', 'sob', 'sobre', 'ate', 'apos', 'entre', 'e', 'ou', 'mas', 'porem',
-  'que', 'quem', 'qual', 'quais', 'quando', 'onde', 'como', 'porque', 'porqu',
-  'eu', 'tu', 'ele', 'ela', 'nos', 'voce', 'voces', 'eles', 'elas', 'me', 'te', 'se',
-  'meu', 'minha', 'meus', 'minhas', 'seu', 'sua', 'seus', 'suas', 'nosso', 'nossa',
-  'este', 'esta', 'esse', 'essa', 'isso', 'isto', 'aquilo', 'aquele', 'aquela',
-  'ser', 'estar', 'ter', 'haver', 'ir', 'fazer', 'poder', 'dever',
-  'sou', 'sao', 'era', 'foi', 'vai', 'vou', 'estou', 'esta', 'tem', 'tenho', 'ha',
+  'que', 'eu', 'tu', 'ele', 'ela', 'eles', 'elas', 'me', 'te', 'lhe', 'se',
+  'seu', 'sua', 'seus', 'suas', 'nosso', 'nossa', 'dele', 'dela',
+  'este', 'esta', 'esse', 'essa', 'aquele', 'aquela',
+  'ser', 'estar', 'ter', 'haver', 'sou', 'sao', 'era', 'foi', 'vai', 'vou',
+  'estou', 'tem', 'tenho', 'ha', 'sendo', 'estava', 'fica',
   'ja', 'ainda', 'mais', 'menos', 'muito', 'pouco', 'todo', 'toda', 'todos', 'todas',
-  'aqui', 'ali', 'la', 'agora', 'hoje', 'sempre', 'nunca', 'so', 'tambem', 'entao',
-  'ao', 'aos', 'as', 'dele', 'dela', 'num', 'numa', 'pelos', 'pelas', 'quer',
-  'favor', 'oi', 'ola', 'bom', 'boa', 'dia', 'tarde', 'noite',
+  'aqui', 'ali', 'la', 'sempre', 'nunca', 'so', 'tambem', 'entao', 'assim',
+  'ao', 'aos', 'numa', 'pelos', 'pelas', 'favor', 'ne',
 ]);
 
 // Lixo de teste — quem testa o chat digita "teste teste teste".
@@ -158,10 +157,31 @@ const APELIDOS_SISTEMA = {
   'hub': ['hub', 'portal', 'central', 'hub marquise', 'pagina inicial'],
 };
 
+// Setores reais do Gran Marquise (mesma lista de locais usada pelo analisador de
+// equipamentos do sistema-chamados) — canonico -> como a equipe fala.
 const SETORES_CONHECIDOS = [
-  'ti', 'recepcao', 'governanca', 'manutencao', 'reservas', 'eventos', 'financeiro',
-  'rh', 'marketing', 'alimentos e bebidas', 'cozinha', 'restaurante', 'spa',
-  'lavanderia', 'seguranca', 'compras', 'gerencia', 'comercial', 'qualidade',
+  ['TI', ['ti', 'tecnologia da informacao', 'informatica', 'suporte tecnico']],
+  ['Recepcao', ['recepcao', 'front desk', 'check in', 'check out']],
+  ['Governanca', ['governanca', 'camareira', 'arrumacao']],
+  ['Manutencao', ['manutencao', 'predial']],
+  ['Reservas', ['reservas', 'central de reservas']],
+  ['Eventos', ['eventos', 'convencoes', 'banquetes']],
+  ['Financeiro', ['financeiro', 'controladoria', 'contas a pagar', 'contas a receber']],
+  ['Recursos Humanos', ['recursos humanos', 'rh', 'departamento pessoal']],
+  ['Marketing', ['marketing', 'comunicacao']],
+  ['Comercial', ['comercial', 'vendas']],
+  ['Cozinha', ['cozinha', 'confeitaria', 'padaria', 'nutricao']],
+  ['Restaurante', ['restaurante', 'mangostin', 'mucuripe', 'room service', 'lobby bar', 'rooftop']],
+  ['Spa', ['spa', 'occitane', 'gran spa']],
+  ['Lavanderia', ['lavanderia', 'rouparia']],
+  ['Seguranca', ['seguranca', 'portaria', 'mensageria']],
+  ['Almoxarifado', ['almoxarifado', 'compras', 'estoque']],
+  ['Gerencia', ['gerencia', 'gerencia geral', 'diretoria']],
+  ['Qualidade', ['qualidade']],
+  ['Concierge', ['concierge']],
+  ['Estacionamento', ['estacionamento', 'transportes']],
+  ['Fitness', ['fitness', 'academia', 'piscina']],
+  ['CPD', ['cpd', 'datacenter', 'sala de servidores']],
 ];
 
 function detectarSistema(an, sistemas) {
@@ -189,9 +209,12 @@ function detectarSistema(an, sistemas) {
 
 function detectarSetor(an) {
   let melhor = null, peso = 0;
-  for (const s of SETORES_CONHECIDOS) {
-    const w = casaTermo(s, an);
-    if (w > peso) { peso = w; melhor = s; }
+  for (const [canonico, apelidos] of SETORES_CONHECIDOS) {
+    for (const ap of apelidos) {
+      // Apelido composto ("sala de servidores") vale mais que palavra solta.
+      const w = casaTermo(ap, an) * (_tokens(ap).length > 1 ? 1.3 : 1);
+      if (w > peso) { peso = w; melhor = canonico; }
+    }
   }
   return peso >= 0.6 ? melhor : null;
 }
@@ -453,7 +476,7 @@ const INTENCOES = [
     chaves: ['falar com alguem', 'falar com humano', 'atendente', 'pessoa de verdade', 'quero suporte humano', 'ramal da ti', 'telefone da ti'],
     apoio: ['ti', 'tecnico', 'analista', 'suporte'],
     resposta: (ctx) => {
-      const ti = (ctx.usuarios || []).filter(u => normalizar(u.setor || '') === 'ti' && u.ramal);
+      const ti = (ctx.usuarios || []).filter(u => u.ramal && _mesmoSetor(u.setor, 'TI'));
       if (ti.length) {
         return `Fala com a TI direto:\n${ti.slice(0, 4).map(u => `• ${u.nome} — ramal ${u.ramal}`).join('\n')}\n\nSe ninguém atender, abre um chamado que fica registrado e alguém pega.`;
       }
@@ -471,10 +494,11 @@ const INTENCOES = [
       const setor = detectarSetor(an);
       const usuarios = ctx.usuarios || [];
       if (setor && usuarios.length) {
-        const doSetor = usuarios.filter(u => normalizar(u.setor || '').startsWith(setor.slice(0, 5)) && u.ramal);
+        const doSetor = usuarios.filter(u => u.ramal && _mesmoSetor(u.setor, setor));
         if (doSetor.length) {
-          return `Ramais de ${setor.toUpperCase()}:\n${doSetor.slice(0, 6).map(u => `• ${u.nome} — ${u.ramal}`).join('\n')}\n\nA lista completa fica no Contatos Gran Marquise, dentro do Hub.`;
+          return `Ramais de ${setor}:\n${doSetor.slice(0, 6).map(u => `• ${u.nome} — ${u.ramal}`).join('\n')}\n\nA lista completa fica no Contatos Gran Marquise, dentro do Hub.`;
         }
+        return `Não achei ninguém de ${setor} com ramal cadastrado aqui. Abre o "Contatos Gran Marquise" no Hub e busca pelo setor — lá a lista é completa e atualizada.`;
       }
       if (usuarios.length && !setor) {
         const nome = _procurarPessoa(an, usuarios);
@@ -568,6 +592,15 @@ const INTENCOES = [
   },
 ];
 
+// O setor no cadastro vem sem padrao ("Recepcao", "recepção", "RECEPÇÃO").
+function _mesmoSetor(cadastrado, canonico) {
+  const a = normalizar(cadastrado || '');
+  const b = normalizar(canonico || '');
+  if (!a || !b) return false;
+  if (a === b) return true;
+  return radical(a.split(' ')[0]) === radical(b.split(' ')[0]);
+}
+
 function _procurarPessoa(an, usuarios) {
   let melhor = null, score = 0;
   for (const u of usuarios) {
@@ -602,10 +635,13 @@ function pontuar(an, ctx) {
       const w = casaTermo(a, an);
       if (w > 0) score += (_tokens(a).length > 1 ? 1.6 : 1) * w;
     }
+    // Falar do sistema X é o assunto mais generico do catalogo: entra na
+    // disputa, mas perde de uma intencao especifica ("ramal", "abrir chamado")
+    // que tenha casado uma chave forte.
     if (it.exigeSistema) {
       const id = detectarSistema(an, ctx.sistemas);
       if (!id) continue;
-      score += 3.2;
+      score += 2.7;
     }
     if (score > 0) ranking.push({ intencao: it, score });
   }
@@ -614,6 +650,27 @@ function pontuar(an, ctx) {
 }
 
 const LIMIAR = 2.6;
+
+// Como oferecer cada assunto de volta ao usuario quando ele ficou em segundo lugar.
+const ROTULOS = {
+  senha_esqueci: 'Esqueci minha senha',
+  senha_trocar: 'Requisitos da senha',
+  conta_bloqueada: 'Minha conta está bloqueada',
+  primeiro_acesso: 'Primeiro acesso ao Hub',
+  meus_sistemas: 'Quais sistemas tenho acesso?',
+  pedir_acesso: 'Como pedir acesso a um sistema?',
+  status_sistemas: 'Algum sistema fora do ar?',
+  abrir_chamado: 'Como abrir um chamado?',
+  acompanhar_chamado: 'Como acompanho meu chamado?',
+  ramal: 'Achar um ramal',
+  impressora: 'Problema na impressora',
+  rede: 'Problema de internet',
+  senha_wifi: 'Qual a senha do wifi?',
+  computador_lento: 'Meu computador está lento',
+  software: 'Instalar um programa',
+  hardware: 'Equipamento com defeito',
+  falar_humano: 'Falar com alguém do TI',
+};
 
 // ─── 7. Motor ────────────────────────────────────────────────────────────────
 
@@ -689,7 +746,7 @@ function responder(entrada) {
     const sug = [...(cand.intencao.sugestoes || [])];
     // Empate técnico: oferece o outro assunto como sugestão em vez de errar calado.
     const segundo = ranking.find(c => c !== cand && c.score >= LIMIAR && cand.score - c.score < 1.2);
-    if (segundo && segundo.intencao.rotulo) sug.push(segundo.intencao.rotulo);
+    if (segundo && ROTULOS[segundo.intencao.id]) sug.unshift(ROTULOS[segundo.intencao.id]);
     return { reply: txt, intencao: cand.intencao.id, confianca: _conf(cand.score), sugestoes: sug.slice(0, 3) };
   }
 
