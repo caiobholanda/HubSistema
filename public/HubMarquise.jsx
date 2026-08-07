@@ -1353,7 +1353,7 @@ function AssistenteIAPanel({ isMobile }) {
     <div style={{ padding: isMobile ? '24px 18px' : '32px 48px', maxWidth: 860 }}>
 
       {/* Cabeçalho */}
-      <div style={{ marginBottom: 36, paddingBottom: 20, borderBottom: `1px solid ${C.champanhe}1e` }}>
+      <div style={{ marginBottom: 36, paddingBottom: 20, borderBottom: `1px solid ${C.champanhe}44` }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={C.champanhe} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
@@ -1363,7 +1363,7 @@ function AssistenteIAPanel({ isMobile }) {
         <h2 style={{ fontFamily: SERIF, fontWeight: 300, fontStyle: 'italic', fontSize: isMobile ? 24 : 34, color: C.marfim, letterSpacing: '-0.02em', margin: '0 0 8px' }}>
           Base de Conhecimento da IA
         </h2>
-        <p style={{ fontFamily: BODY, fontSize: 14, color: C.areiaDim, lineHeight: 1.55, margin: 0 }}>
+        <p style={{ fontFamily: BODY, fontSize: 14, color: C.areia, lineHeight: 1.55, margin: 0 }}>
           O que você configurar aqui é injetado diretamente no contexto da IA antes de cada resposta.
         </p>
       </div>
@@ -1373,7 +1373,7 @@ function AssistenteIAPanel({ isMobile }) {
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
           <div>
             <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: C.champanhe, marginBottom: 4 }}>01 · Contexto Adicional</div>
-            <div style={{ fontFamily: BODY, fontSize: 13, color: C.areiaDim, lineHeight: 1.5 }}>
+            <div style={{ fontFamily: BODY, fontSize: 13, color: C.areia, lineHeight: 1.5 }}>
               Informações temporárias ou procedimentos que a IA deve conhecer agora
             </div>
           </div>
@@ -1381,28 +1381,28 @@ function AssistenteIAPanel({ isMobile }) {
             {customInfo.length > 0 && (
               <button
                 onClick={() => setCustomInfo('')}
-                style={{ background: 'none', border: 'none', color: C.areiaDim, fontFamily: MONO, fontSize: 9, letterSpacing: '0.15em', textTransform: 'uppercase', cursor: 'pointer', padding: '2px 6px', opacity: 0.7, transition: 'opacity 150ms' }}
-                onMouseEnter={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.color = '#E07A5F'; }}
-                onMouseLeave={e => { e.currentTarget.style.opacity = '0.7'; e.currentTarget.style.color = C.areiaDim; }}
+                style={{ background: 'none', border: 'none', color: C.areia, fontFamily: MONO, fontSize: 9, letterSpacing: '0.15em', textTransform: 'uppercase', cursor: 'pointer', padding: '2px 6px', transition: 'color 150ms' }}
+                onMouseEnter={e => { e.currentTarget.style.color = '#E07A5F'; }}
+                onMouseLeave={e => { e.currentTarget.style.color = C.areia; }}
                 title="Limpar campo"
               >✕ Limpar</button>
             )}
-            <span style={{ fontFamily: MONO, fontSize: 10, color: customInfo.length > 2200 ? '#E07A5F' : C.areiaDim, letterSpacing: '0.08em' }}>
+            <span style={{ fontFamily: MONO, fontSize: 10, color: customInfo.length > 2200 ? '#E07A5F' : C.areia, letterSpacing: '0.08em' }}>
               {customInfo.length}/2500
             </span>
           </div>
         </div>
         <div style={{ display: 'flex' }}>
-          <div style={{ width: 3, flexShrink: 0, background: `linear-gradient(180deg, ${C.champanhe}99 0%, ${C.champanhe}22 100%)` }} />
+          <div style={{ width: 3, flexShrink: 0, background: `linear-gradient(180deg, ${C.champanhe}cc 0%, ${C.champanhe}33 100%)` }} />
           <textarea
             value={customInfo}
             onChange={e => setCustomInfo(e.target.value.slice(0, 2500))}
             placeholder={'Exemplos:\n· Impressora do 3º andar em manutenção até sexta (11/08)\n· Novo ramal da Recepção: 5001\n· Rede nos quartos 301–320 instável esta semana\n· Para urgências fora do horário: (85) 9xxxx-xxxx'}
-            style={{ flex: 1, minHeight: 155, background: `${C.champanhe}06`, border: `1px solid ${C.champanhe}1a`, borderLeft: 'none', color: C.marfim, fontFamily: MONO, fontSize: 12, lineHeight: 1.75, padding: '14px 16px', resize: 'vertical', outline: 'none', letterSpacing: '0.025em', boxSizing: 'border-box' }}
+            style={{ flex: 1, minHeight: 155, background: `${C.champanhe}0e`, border: `1px solid ${C.champanhe}35`, borderLeft: 'none', color: C.marfim, fontFamily: MONO, fontSize: 12, lineHeight: 1.75, padding: '14px 16px', resize: 'vertical', outline: 'none', letterSpacing: '0.025em', boxSizing: 'border-box' }}
           />
         </div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 7 }}>
-          <div style={{ fontFamily: MONO, fontSize: 10, color: C.areiaDim, letterSpacing: '0.08em', opacity: 0.65, lineHeight: 1.5 }}>
+          <div style={{ fontFamily: MONO, fontSize: 10, color: C.areia, letterSpacing: '0.08em', lineHeight: 1.5 }}>
             Use marcadores (·) para listar itens. Limpe este campo quando não for mais necessário.
           </div>
           <button
@@ -1420,14 +1420,14 @@ function AssistenteIAPanel({ isMobile }) {
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
           <div>
             <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: C.champanhe, marginBottom: 4 }}>02 · Respostas Rápidas</div>
-            <div style={{ fontFamily: BODY, fontSize: 13, color: C.areiaDim, lineHeight: 1.5 }}>
+            <div style={{ fontFamily: BODY, fontSize: 13, color: C.areia, lineHeight: 1.5 }}>
               Pares palavras-chave → resposta que a IA prioriza ao identificar a pergunta
             </div>
           </div>
           {!addingQR && editingQR === null && (
             <button
               onClick={() => { setAddingQR(true); setQrForm({ keywords: '', reply: '' }); setQrError(''); setSavedAt(null); }}
-              style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'none', border: `1px solid ${C.champanhe}44`, color: C.champanhe, fontFamily: MONO, fontSize: 9, letterSpacing: '0.25em', textTransform: 'uppercase', padding: '8px 14px', cursor: 'pointer', flexShrink: 0, marginLeft: 20, marginTop: 2, transition: 'background 150ms' }}
+              style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'none', border: `1px solid ${C.champanhe}66`, color: C.champanhe, fontFamily: MONO, fontSize: 9, letterSpacing: '0.25em', textTransform: 'uppercase', padding: '8px 14px', cursor: 'pointer', flexShrink: 0, marginLeft: 20, marginTop: 2, transition: 'background 150ms' }}
               onMouseEnter={e => { e.currentTarget.style.background = `${C.champanhe}14`; }}
               onMouseLeave={e => { e.currentTarget.style.background = 'none'; }}
             >+ Adicionar</button>
@@ -1435,7 +1435,7 @@ function AssistenteIAPanel({ isMobile }) {
         </div>
 
         {quickReplies.length === 0 && !addingQR && (
-          <div style={{ border: `1px dashed ${C.areiaDim}28`, padding: '28px 20px', textAlign: 'center', fontFamily: MONO, fontSize: 10, color: C.areiaDim, letterSpacing: '0.15em' }}>
+          <div style={{ border: `1px dashed ${C.areia}44`, padding: '28px 20px', textAlign: 'center', fontFamily: MONO, fontSize: 10, color: C.areia, letterSpacing: '0.15em' }}>
             Nenhuma resposta rápida configurada
           </div>
         )}
@@ -1443,28 +1443,28 @@ function AssistenteIAPanel({ isMobile }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {quickReplies.map((qr, idx) => (
             <div key={qr.id}>
-              <div style={{ background: editingQR === qr.id ? `${C.champanhe}0c` : `${C.champanhe}06`, border: `1px solid ${editingQR === qr.id ? C.champanhe + '44' : C.champanhe + '16'}`, padding: '13px 14px', display: 'flex', gap: 12, alignItems: 'flex-start', transition: 'all 200ms' }}>
+              <div style={{ background: editingQR === qr.id ? `${C.champanhe}14` : `${C.champanhe}0a`, border: `1px solid ${editingQR === qr.id ? C.champanhe + '66' : C.champanhe + '30'}`, padding: '13px 14px', display: 'flex', gap: 12, alignItems: 'flex-start', transition: 'all 200ms' }}>
                 <span style={{ fontFamily: MONO, fontSize: 10, color: C.champanhe, letterSpacing: '0.12em', flexShrink: 0, paddingTop: 2 }}>{String(idx + 1).padStart(2, '0')}</span>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 7 }}>
                     {qr.keywords.split(',').map(k => k.trim()).filter(Boolean).map((k, ki) => (
-                      <span key={ki} style={{ background: `${C.champanhe}18`, border: `1px solid ${C.champanhe}30`, color: C.champanhe, fontFamily: MONO, fontSize: 9, padding: '2px 9px', letterSpacing: '0.08em' }}>{k}</span>
+                      <span key={ki} style={{ background: `${C.champanhe}28`, border: `1px solid ${C.champanhe}55`, color: C.champanhe, fontFamily: MONO, fontSize: 9, padding: '2px 9px', letterSpacing: '0.08em' }}>{k}</span>
                     ))}
                   </div>
-                  <div style={{ fontFamily: BODY, fontSize: 13, color: C.areia, lineHeight: 1.55 }}>{qr.reply}</div>
+                  <div style={{ fontFamily: BODY, fontSize: 13, color: C.marfim, lineHeight: 1.55 }}>{qr.reply}</div>
                 </div>
                 <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
                   <button
                     onClick={() => { setEditingQR(qr.id); setQrForm({ keywords: qr.keywords, reply: qr.reply }); setAddingQR(false); setQrError(''); }}
-                    style={{ background: 'none', border: `1px solid ${C.areiaDim}2e`, color: C.areiaDim, fontFamily: MONO, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', padding: '5px 10px', cursor: 'pointer', transition: 'all 150ms' }}
-                    onMouseEnter={e => { e.currentTarget.style.color = C.marfim; e.currentTarget.style.borderColor = C.areiaDim + '66'; }}
-                    onMouseLeave={e => { e.currentTarget.style.color = C.areiaDim; e.currentTarget.style.borderColor = C.areiaDim + '2e'; }}
+                    style={{ background: 'none', border: `1px solid ${C.areia}55`, color: C.areia, fontFamily: MONO, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', padding: '5px 10px', cursor: 'pointer', transition: 'all 150ms' }}
+                    onMouseEnter={e => { e.currentTarget.style.color = C.marfim; e.currentTarget.style.borderColor = C.areia; }}
+                    onMouseLeave={e => { e.currentTarget.style.color = C.areia; e.currentTarget.style.borderColor = C.areia + '55'; }}
                   >Editar</button>
                   <button
                     onClick={() => setDeletingId(qr.id)}
-                    style={{ background: 'none', border: '1px solid #E07A5F2e', color: '#E07A5F77', fontFamily: MONO, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', padding: '5px 10px', cursor: 'pointer', transition: 'all 150ms' }}
-                    onMouseEnter={e => { e.currentTarget.style.color = '#E07A5F'; e.currentTarget.style.borderColor = '#E07A5F66'; }}
-                    onMouseLeave={e => { e.currentTarget.style.color = '#E07A5F77'; e.currentTarget.style.borderColor = '#E07A5F2e'; }}
+                    style={{ background: 'none', border: '1px solid #E07A5F55', color: '#E07A5FAA', fontFamily: MONO, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', padding: '5px 10px', cursor: 'pointer', transition: 'all 150ms' }}
+                    onMouseEnter={e => { e.currentTarget.style.color = '#E07A5F'; e.currentTarget.style.borderColor = '#E07A5F'; }}
+                    onMouseLeave={e => { e.currentTarget.style.color = '#E07A5FAA'; e.currentTarget.style.borderColor = '#E07A5F55'; }}
                   >Excluir</button>
                 </div>
               </div>
@@ -1487,11 +1487,11 @@ function AssistenteIAPanel({ isMobile }) {
       </div>
 
       {/* 03 · Contexto Completo */}
-      <div style={{ marginBottom: 40, paddingTop: 32, borderTop: `1px solid ${C.champanhe}14` }}>
+      <div style={{ marginBottom: 40, paddingTop: 32, borderTop: `1px solid ${C.champanhe}30` }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: showPreview ? 16 : 0 }}>
           <div>
             <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: C.champanhe, marginBottom: 4 }}>03 · Contexto Completo da IA</div>
-            <div style={{ fontFamily: BODY, fontSize: 13, color: C.areiaDim, lineHeight: 1.5 }}>
+            <div style={{ fontFamily: BODY, fontSize: 13, color: C.areia, lineHeight: 1.5 }}>
               Exatamente o que a IA recebe antes de cada resposta — base + configurações salvas
             </div>
           </div>
@@ -1521,8 +1521,8 @@ function AssistenteIAPanel({ isMobile }) {
         </div>
         {showPreview && previewText && (
           <div style={{ position: 'relative' }}>
-            <div style={{ position: 'absolute', top: 10, right: 10, fontFamily: MONO, fontSize: 8, color: C.areiaDim, letterSpacing: '0.2em', textTransform: 'uppercase', opacity: 0.6 }}>somente leitura</div>
-            <pre style={{ margin: 0, background: `${C.champanhe}05`, border: `1px solid ${C.champanhe}18`, color: C.areia, fontFamily: MONO, fontSize: 11, lineHeight: 1.75, padding: '18px 16px', paddingRight: 80, overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 420, overflowY: 'auto' }}>
+            <div style={{ position: 'absolute', top: 10, right: 10, fontFamily: MONO, fontSize: 8, color: C.areia, letterSpacing: '0.2em', textTransform: 'uppercase' }}>somente leitura</div>
+            <pre style={{ margin: 0, background: `${C.champanhe}0a`, border: `1px solid ${C.champanhe}30`, color: C.areia, fontFamily: MONO, fontSize: 11, lineHeight: 1.75, padding: '18px 16px', paddingRight: 80, overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 420, overflowY: 'auto' }}>
               {previewText}
             </pre>
           </div>
@@ -1530,7 +1530,7 @@ function AssistenteIAPanel({ isMobile }) {
       </div>
 
       {/* Salvar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 18, paddingTop: 24, borderTop: `1px solid ${C.champanhe}18` }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 18, paddingTop: 24, borderTop: `1px solid ${C.champanhe}44` }}>
         <button
           onClick={save}
           disabled={saving}
