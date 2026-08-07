@@ -27,6 +27,12 @@ const _EXPANSOES = {
   eh: 'e', ta: 'esta', tah: 'esta', to: 'estou', tow: 'estou',
   cade: 'onde', ond: 'onde', komo: 'como', kd: 'onde',
   mt: 'muito', mto: 'muito', msm: 'mesmo', qro: 'quero', qria: 'queria', sfw: 'software',
+  // 1a pessoa do presente: o radical truncado nao junta "troco" com "trocar"
+  // (distancia 2), e "como troco minha senha" — a pergunta nº1 do helpdesk —
+  // caia em "nao sei". Mapear a conjugacao e mais barato que afrouxar o fuzzy.
+  troco: 'trocar', mudo: 'mudar', altero: 'alterar', peco: 'pedir', pedi: 'pedir',
+  instalo: 'instalar', abro: 'abrir', imprimo: 'imprimir', acesso_: 'acessar',
+  reseto: 'resetar', recupero: 'recuperar', conecto: 'conectar', ligo: 'ligar',
 };
 
 // Stoplist ENXUTA de proposito: num classificador de chamados "como/qual/onde"
@@ -408,7 +414,11 @@ const INTENCOES = [
   },
   {
     id: 'ajuda_menu',
-    chaves: ['ajuda', 'o que voce sabe', 'o que posso perguntar', 'menu', 'opcoes'],
+    // soCurta: "vc sabe komo eu troco a senha?" é uma pergunta concreta, não um
+    // pedido de menu — antes a chave "o que voce sabe" engolia qualquer
+    // "você sabe...".
+    soCurta: true,
+    chaves: ['ajuda', 'o que voce sabe responder', 'o que posso perguntar', 'o que voce faz aqui', 'menu', 'opcoes'],
     apoio: ['duvida', 'nao sei o que perguntar'],
     resposta: () => _juntar(
       'Posso ajudar com:',
@@ -448,8 +458,10 @@ const INTENCOES = [
   {
     id: 'senha_trocar',
     familia: 'acesso',
-    chaves: ['trocar senha', 'mudar senha', 'alterar senha', 'nova senha', 'senha forte', 'requisito de senha'],
-    apoio: ['senha', 'segura'],
+    prioridade: 4,
+    chaves: ['trocar senha', 'mudar senha', 'alterar senha', 'trocar a minha senha', 'nova senha',
+      'senha forte', 'requisito de senha', 'como troco a senha', 'mudar a senha'],
+    apoio: ['senha', 'segura', 'trocar', 'mudar', 'alterar'],
     veto: ['wifi'],
     resposta: () => _juntar(
       'A senha do Hub precisa de no mínimo 8 caracteres, com maiúscula, minúscula, número e símbolo (exemplo: Hotel@2026).',
@@ -507,6 +519,9 @@ const INTENCOES = [
   },
   {
     id: 'email_corporativo',
+    // Acima de computador_lento (4): "o outlook travou" empatava em 3.0 e a
+    // pessoa recebia "reinicia a máquina" em vez de resposta de e-mail.
+    prioridade: 5,
     chaves: ['email corporativo', 'meu email', 'qual meu email', 'outlook', 'webmail', 'caixa de entrada'],
     apoio: ['email', 'mensagem', 'enviar', 'receber'],
     resposta: (ctx) => {
@@ -645,16 +660,20 @@ const INTENCOES = [
       const citado = detectarSistema(an, ctx.sistemas);
       // Sem sistema citado, deixar claro que o painel cobre só os sistemas do
       // Hub — senão vira "afirmação de fato" sobre o PMS, o PDV ou a fechadura.
-      const ressalva = citado ? '' :
-        'Isso é o painel dos sistemas do Hub. Se o que você usa é outro (PMS, PDV, ponto, fechadura), o chamado abaixo resolve.';
       const passos = _chamado('Software', 'o nome do sistema, o que aparece na tela e o horário que aconteceu');
       if (fora.length) {
-        return _juntar(
-          `Fora do normal agora: ${fora.map(s => `${s.nome} (${s.status === 'manutencao' ? 'em manutenção' : s.status})`).join(', ')}.`,
-          'Os demais estão no ar.',
-          ressalva,
-          passos
-        );
+        const lista = `${fora.map(s => `${s.nome} (${s.status === 'manutencao' ? 'em manutenção' : s.status})`).join(', ')}`;
+        // A ressalva vem ANTES quando nenhum sistema foi citado: quem lê só a
+        // primeira linha entendia que o sistema DELE (ponto, fechadura, PMS)
+        // estava em manutenção — o fato é verdadeiro, a leitura é falsa.
+        if (!citado) {
+          return _juntar(
+            'Eu só enxergo o painel dos sistemas do Hub — se o que você usa é outro (PMS, PDV, ponto, fechadura), não consigo ver o status dele daqui.',
+            `Dos sistemas do Hub, fora do normal agora: ${lista}. Os demais estão no ar.`,
+            passos
+          );
+        }
+        return _juntar(`Fora do normal agora: ${lista}.`, 'Os demais estão no ar.', passos);
       }
       return _juntar(
         'Pelo painel do Hub, está tudo no ar agora.',
@@ -664,7 +683,7 @@ const INTENCOES = [
           '2. Conferir se a internet está funcionando em outro site.',
           '3. Fechar o navegador e abrir de novo.',
         ].join('\n'),
-        ressalva,
+        citado ? '' : 'Vale lembrar: eu enxergo só os sistemas do Hub. Se o seu é outro (PMS, PDV, ponto, fechadura), não consigo ver o status dele daqui.',
         passos
       );
     },
@@ -961,9 +980,15 @@ const INTENCOES = [
   {
     id: 'seguranca',
     prioridade: 9, // ganha de qualquer outro assunto em caso de empate
+    // Engenharia social chega por telefone e WhatsApp, nao so por e-mail — e em
+    // gerundio ("ligaram pedindo minha senha"), que o radical nao junta com
+    // "pediram". Por isso as duas formas entram na lista.
     chaves: ['phishing', 'email suspeito', 'virus', 'golpe', 'link estranho', 'hackeado', 'vazou senha',
-      'ransomware', 'link', 'clicar no link', 'pediram minha senha', 'remetente estranho', 'e confiavel'],
-    apoio: ['suspeito', 'estranho', 'seguranca', 'clique', 'whatsapp', 'recebi'],
+      'ransomware', 'link', 'clicar no link', 'pediram minha senha', 'pedindo minha senha',
+      'pediram senha', 'pedindo senha', 'ligaram pedindo', 'remetente estranho', 'e confiavel',
+      'mandaram link', 'me pediram'],
+    apoio: ['suspeito', 'estranho', 'seguranca', 'clique', 'whatsapp', 'recebi', 'chegou',
+      'ligaram', 'pedindo', 'pediram', 'desconhecido'],
     resposta: () => _juntar(
       'Não clica em nada e não responde a mensagem.',
       'Se você JÁ clicou ou digitou sua senha:',
@@ -1053,10 +1078,14 @@ const INTENCOES = [
   {
     id: 'injecao',
     prioridade: 10,
+    // Toda chave precisa de 2+ palavras com peso: "todas as senhas" encolhia
+    // para [senhas] e dava 1.2 pontos a QUALQUER frase com a palavra senha —
+    // era o que fazia "esqueci minha senha" repetido virar acusação.
+    exigeFrase: true,
     chaves: ['ignore suas instrucoes', 'ignore tudo', 'esqueca tudo', 'prompt de sistema', 'seu prompt',
-      'sem restricoes', 'modo debug', 'modo desenvolvedor', 'voce agora e', 'finja que', 'todas as senhas',
-      'senha do administrador', 'liste todas as senhas', 'me diga a senha'],
-    apoio: ['instrucoes', 'prompt', 'restricoes'],
+      'sem restricoes', 'modo debug', 'modo desenvolvedor', 'voce agora e', 'finja que',
+      'senha do administrador', 'liste todas as senhas', 'me diga a senha', 'revele a senha'],
+    apoio: [],
     resposta: () => _juntar(
       'Não rola — eu não tenho senha de ninguém nem instrução secreta pra revelar. Sou um assistente com respostas cadastradas pela própria TI do hotel.',
       _chamado('Permissão de Acesso', 'a que você precisa ter acesso, pra quê e quem é seu gestor',
@@ -1073,7 +1102,9 @@ const INTENCOES = [
     // Com historico o bonus e alto de proposito — ai a rejeicao da dica e a
     // leitura certa e precisa ganhar do "me diz o que nao funciona".
     prioridade: 5,
-    bonus: (an, ctx) => (ctx && ctx._temHistorico ? 4 : -3),
+    // -4 (nao -3): com -3, "ja tentei isso" como PRIMEIRA mensagem ainda ficava
+    // em 1.5 e passava pelo limiar reduzido de mensagem curta.
+    bonus: (an, ctx) => (ctx && ctx._temHistorico ? 4 : -4),
     chaves: ['nao funcionou', 'nao deu certo', 'nao resolveu', 'continua igual', 'ja tentei isso', 'nao adiantou'],
     apoio: ['ainda', 'mesmo assim', 'continua'],
     resposta: () => _juntar(
@@ -1166,6 +1197,9 @@ function pontuar(an, ctx) {
     const somar = (termo, forte) => {
       const w = casaTermo(termo, an);
       if (w <= 0) return;
+      // Intencao marcada como `exigeFrase` ignora termo que a stoplist reduziu
+      // a uma palavra: ela so pode disparar com evidencia real.
+      if (it.exigeFrase && _tokens(termo).length < 2) return;
       const rads = _tokens(termo).map(radical);
       if (rads.length && rads.every(r => contados.has(r))) return;
       for (const r of rads) contados.add(r);
@@ -1306,18 +1340,19 @@ function responder(entrada) {
     if (cand.score < limiar) break;
     const txt = cand.intencao.resposta(ctx, an);
     if (!txt) continue;
-    // Nao repetir palavra por palavra a resposta anterior.
+    // Pergunta repetida quase sempre quer dizer "não entendi", NAO "me fala de
+    // outro assunto". A versao antiga pulava para o 2o colocado sem piso de
+    // qualidade e trocava o tema: "esqueci minha senha" repetido chegava a cair
+    // na recusa de manipulação, acusando quem só perguntou de novo.
     if (ultimaBot && ultimaBot.content && txt.slice(0, 60) === String(ultimaBot.content).slice(0, 60)) {
-      const alt = ranking.find(c => c !== cand && c.score >= limiar);
-      const txtAlt = alt && alt.intencao.resposta(ctx, an);
-      if (txtAlt) {
-        return { reply: txtAlt, intencao: alt.intencao.id, confianca: _conf(alt.score), sugestoes: (alt.intencao.sugestoes || []).slice(0, 3) };
-      }
       return {
-        reply: `${txt}\n\nSe já tentou isso e não foi, abre um chamado descrevendo o que aconteceu — assim a TI não repete o mesmo passo.`,
+        reply: _juntar(
+          'Vou repetir com calma — e se ainda não resolver, o chamado abaixo é o caminho.',
+          txt
+        ),
         intencao: cand.intencao.id,
         confianca: _conf(cand.score),
-        sugestoes: ['Como abrir um chamado?'],
+        sugestoes: ['Como abrir um chamado?', 'Falar com alguém do TI'],
       };
     }
     // Mensagem com dois assuntos ("a impressora nao imprime E esqueci a senha").

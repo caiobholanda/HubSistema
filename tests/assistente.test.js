@@ -216,18 +216,67 @@ test('follow-up curto herda o assunto da pergunta anterior', () => {
   assert.strictEqual(r.intencao, 'senha_esqueci');
 });
 
-test('nao repete a mesma resposta duas vezes seguidas', () => {
-  const primeira = perguntar('esqueci minha senha');
-  const r = IA.responder({
-    mensagens: [
-      { role: 'user', content: 'esqueci minha senha' },
-      { role: 'assistant', content: primeira.reply },
-      { role: 'user', content: 'esqueci minha senha' },
-    ],
-    contexto: CTX,
-    config: {},
-  });
-  assert.notStrictEqual(r.reply, primeira.reply);
+// REGRESSAO: repetir a pergunta quer dizer "nao entendi", nao "muda de
+// assunto". A versao antiga pulava para o 2o colocado sem piso e chegava a
+// responder a recusa de manipulação para quem só perguntou de novo.
+test('pergunta repetida reforca a MESMA resposta, nao troca de assunto', () => {
+  const casos = ['esqueci minha senha', 'recebi um email suspeito', 'qual a senha do wifi?',
+    'meu computador esta lento', 'quais sistemas tenho acesso?', 'como abrir um chamado?'];
+  for (const f of casos) {
+    const primeira = perguntar(f);
+    const r = IA.responder({
+      mensagens: [
+        { role: 'user', content: f },
+        { role: 'assistant', content: primeira.reply },
+        { role: 'user', content: f },
+      ],
+      contexto: CTX,
+      config: {},
+    });
+    assert.strictEqual(r.intencao, primeira.intencao, `${f}: virou ${r.intencao}`);
+    assert.notStrictEqual(r.reply, primeira.reply, f);
+  }
+});
+
+// REGRESSAO: a chave "todas as senhas" encolhia para [senhas] e dava pontos a
+// qualquer frase com a palavra senha.
+test('recusa de manipulacao nao dispara em pergunta comum sobre senha', () => {
+  for (const f of ['esqueci minha senha', 'quero trocar a senha', 'qual a senha do wifi?', 'minha senha expirou']) {
+    assert.notStrictEqual(perguntar(f).intencao, 'injecao', f);
+  }
+});
+
+test('entende a conjugacao que a equipe digita, nao so o infinitivo', () => {
+  const casos = [
+    ['senha_trocar', 'como troco minha senha'],
+    ['senha_trocar', 'como mudo minha senha'],
+    ['senha_trocar', 'vc sabe komo eu troco a senha?'],
+    ['pedir_acesso', 'como peco acesso a um sistema'],
+    ['abrir_chamado', 'onde eu abro um chamado'],
+  ];
+  for (const [esperado, f] of casos) assert.strictEqual(perguntar(f).intencao, esperado, f);
+});
+
+test('engenharia social por telefone e whatsapp tambem e seguranca', () => {
+  for (const f of ['chegou um whatsapp pedindo minha senha dizendo que era do RH',
+    'ligaram pedindo minha senha', 'mandaram um link estranho no whatsapp']) {
+    assert.strictEqual(perguntar(f).intencao, 'seguranca', f);
+  }
+});
+
+test('programa nomeado ganha da lentidao generica', () => {
+  assert.strictEqual(perguntar('o outlook travou').intencao, 'email_corporativo');
+});
+
+test('"ja tentei isso" na primeira mensagem nao vira rejeicao de dica', () => {
+  assert.notStrictEqual(perguntar('ja tentei isso').intencao, 'nao_resolveu');
+});
+
+// REGRESSAO: a lista de status abria afirmando manutenção de um sistema do Hub
+// para quem perguntou de um sistema que o Hub nem enxerga (ponto, PMS, PDV).
+test('status nao induz a ler manutencao de sistema que o Hub nao enxerga', () => {
+  const r = perguntar('o sistema de ponto esta fora do ar?');
+  assert.match(r.reply.split('\n')[0], /s(ó|o) enxergo o painel dos sistemas do Hub/i);
 });
 
 test('"nao funcionou" encaminha para chamado em vez de repetir a dica', () => {
