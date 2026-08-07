@@ -26,6 +26,7 @@ const _EXPANSOES = {
   gm: 'granmarquise',
   eh: 'e', ta: 'esta', tah: 'esta', to: 'estou', tow: 'estou',
   cade: 'onde', ond: 'onde', komo: 'como', kd: 'onde',
+  mt: 'muito', mto: 'muito', msm: 'mesmo', qro: 'quero', qria: 'queria', sfw: 'software',
 };
 
 // Stoplist ENXUTA de proposito: num classificador de chamados "como/qual/onde"
@@ -45,9 +46,10 @@ const _STOPWORDS = new Set([
   'ao', 'aos', 'numa', 'pelos', 'pelas', 'favor', 'ne',
 ]);
 
-// Lixo de teste — quem testa o chat digita "teste teste teste". Digito NAO entra
+// Lixo de teste — quem testa o chat digita "teste teste teste". Formas exatas,
+// nao prefixo: "test*" tambem comeria "testemunha" e "testar". Digito NAO entra
 // aqui: "ramal 5001" e "andar 12" sao informacao.
-const _RUIDO = /^(test\w*|x{3,}|(asdf|qwer|zxcv)+|a{3,}|z{3,}|lorem|ipsum|abc|[.@]+)$/;
+const _RUIDO = /^(tst|test|teste|testes|testando|testado|x{3,}|(asdf|qwer|zxcv)+|a{3,}|z{3,}|lorem|ipsum|abc|[.@]+)$/;
 
 function _semAcento(s) {
   return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -57,11 +59,17 @@ function normalizar(texto) {
   return _semAcento(texto)
     .toLowerCase()
     .replace(/[^a-z0-9@.\s]/g, ' ')
+    // Letra esticada de teclado ("bom diaa", "oiii", "vlwww", "naaao") volta ao
+    // normal: sem isso o fuzzy nao alcanca e a frase inteira vira "nao sei".
+    .replace(/([a-z])\1{2,}/g, '$1')
+    .replace(/([a-z])\1$/, '$1')
     .replace(/\s+/g, ' ')
     .trim();
 }
 
-// Corta plural e sufixos comuns; trunca em 6 para casar "configuracao"/"configurar".
+// Corta plural e sufixos comuns. Trunca em 8, nao em 6: com 6, "funcionario",
+// "funcionando" e "funciona" viravam o mesmo "funcio" e uma pergunta de RH
+// ("desconto de funcionario") era respondida como status de sistema.
 function radical(t) {
   let r = String(t || '');
   if (r.length > 4) {
@@ -69,15 +77,26 @@ function radical(t) {
          .replace(/(mente|acao|ando|endo|indo|ador|ivel|avel|ismo|ista)$/, '')
          .replace(/s$/, '');
   }
-  return r.slice(0, 6);
+  return r.slice(0, 8);
 }
 
+// Os ~500 termos do catalogo sao re-tokenizados a cada mensagem; como sao
+// strings constantes, o resultado e memoizado. O teto evita que texto de
+// usuario (variavel) encha a memoria.
+const _CACHE_TOKENS = new Map();
+
 function _tokens(texto) {
-  return normalizar(texto)
+  const chave = String(texto || '');
+  const memo = _CACHE_TOKENS.get(chave);
+  if (memo) return memo;
+  const saida = normalizar(chave)
     .split(' ')
     .filter(Boolean)
     .map(t => _EXPANSOES[t] || t)
-    .filter(t => t.length > 1 && !_STOPWORDS.has(t) && !_RUIDO.test(t));
+    // Digito de 1 char fica ("3 andar", "sala 5"); letra solta nao.
+    .filter(t => (t.length > 1 || /\d/.test(t)) && !_STOPWORDS.has(t) && !_RUIDO.test(t));
+  if (_CACHE_TOKENS.size < 4000) _CACHE_TOKENS.set(chave, saida);
+  return saida;
 }
 
 // Levenshtein com corte: so interessa saber se a distancia cabe no limite.
@@ -203,6 +222,7 @@ function detectarSistema(an, sistemas) {
   }
   // Nome cadastrado do sistema tambem conta (admin pode renomear).
   for (const s of (sistemas || [])) {
+    if (!s || !s.id) continue;
     const w = casaTermo(s.nome || '', an);
     if (w > 0) {
       const ja = candidatos.find(c => c.id === s.id);
@@ -257,18 +277,37 @@ function _similaridade(an, texto) {
   return total === 0 ? 0 : casado / total;
 }
 
+// Fuzzy estrito para palavra-chave do admin: 1 erro E mesma letra inicial.
+// Sem a inicial, "serial" casava com "ferias" (distancia 2) e o usuario recebia
+// a resposta cadastrada de férias com cara de resposta oficial.
+function _casaEstrito(palavra, an) {
+  const p = normalizar(palavra);
+  if (!p) return 0;
+  if (an.conjunto.has(radical(p))) return 1;
+  for (const t of an.tokens) {
+    if (t[0] === p[0] && Math.abs(t.length - p.length) <= 1 && _distancia(t, p, 1) <= 1) return 0.9;
+  }
+  return 0;
+}
+
 function buscarQuickReply(an, quickReplies) {
   let melhor = null, score = 0;
   for (const qr of (quickReplies || [])) {
+    if (!qr || !qr.reply) continue;
     const kws = String(qr.keywords || '').split(',').map(k => k.trim()).filter(Boolean);
     let s = 0;
     for (const k of kws) {
-      const w = casaTermo(k, an) * (_tokens(k).length > 1 ? 1.5 : 1);
+      const partes = _tokens(k);
+      const w = partes.length > 1 ? casaTermo(k, an) * 1.5 : _casaEstrito(partes[0] || k, an);
       if (w > s) s = w;
     }
     if (s > score) { score = s; melhor = qr; }
   }
-  return score >= 0.6 ? { reply: melhor.reply, score } : null;
+  // Corte alto: 0.6 e exatamente o valor de um match POR ERRO DE DIGITACAO, e
+  // com ele "serial" disparava a resposta cadastrada para "ferias" (distancia 2)
+  // com cara de resposta oficial. Palavra solta agora exige acerto exato; frase
+  // (peso 1.5) ainda tolera um erro.
+  return score >= 0.85 ? { reply: melhor.reply, score } : null;
 }
 
 function buscarContexto(an, customInfo) {
@@ -287,7 +326,7 @@ const URL_HUB = 'hub-granmarquise.fly.dev';
 function _listaSistemas(ctx) {
   const libs = new Set(ctx.sistemasLiberados || []);
   return (ctx.sistemas || [])
-    .filter(s => s && s.status !== 'inativo')
+    .filter(s => s && s.nome && s.status !== 'inativo')
     .map(s => ({ ...s, liberado: libs.has(s.id) }));
 }
 
@@ -441,8 +480,13 @@ const INTENCOES = [
   },
   {
     id: 'status_sistemas',
-    chaves: ['fora do ar', 'esta no ar', 'sistema caiu', 'nao abre', 'nao carrega', 'esta funcionando', 'instabilidade', 'manutencao'],
-    apoio: ['erro', 'lento', 'travando', 'sistema', 'site', 'pagina'],
+    // Intencao que AFIRMA um fato ("o sistema X esta em manutencao") — a mais
+    // perigosa do catalogo quando erra. Por isso o vocabulario generico ("nao
+    // abre", "manutencao") virou apoio e so responde se a pessoa citou um
+    // sistema do Hub; sem sistema citado, ela sai da disputa.
+    chaves: ['fora do ar', 'sistema caiu', 'instabilidade', 'sistema nao abre', 'sistema fora'],
+    apoio: ['erro', 'travando', 'sistema', 'site', 'pagina', 'nao abre', 'nao carrega', 'em manutencao', 'esta funcionando'],
+    bonus: (an, ctx) => (detectarSistema(an, ctx && ctx.sistemas) ? 1.5 : -2.5),
     resposta: (ctx) => {
       const fora = _listaSistemas(ctx).filter(s => s.status && s.status !== 'no-ar');
       if (fora.length) {
@@ -457,7 +501,7 @@ const INTENCOES = [
     chaves: ['novidade', 'novidades', 'o que mudou', 'atualizacao', 'changelog', 'versao nova', 'lancamento'],
     apoio: ['novo', 'mudou', 'atualizou'],
     resposta: (ctx) => {
-      const ups = (ctx.updates || []).slice(0, 3);
+      const ups = (ctx.updates || []).filter(u => u && u.titulo).slice(0, 3);
       if (!ups.length) return 'Nenhuma atualização registrada por aqui ainda. Quando sai algo novo, aparece no sino de atualizações do Hub.';
       return `Últimas atualizações:\n${ups.map(u => `• ${u.sistemaNome || u.sistemaId}: ${u.titulo}`).join('\n')}\n\nO histórico completo fica no sino de atualizações, no topo do Hub.`;
     },
@@ -491,7 +535,7 @@ const INTENCOES = [
     chaves: ['falar com alguem', 'falar com humano', 'falar com pessoa', 'falar ti', 'falar tecnico', 'atendente', 'pessoa de verdade', 'suporte humano', 'ramal da ti', 'telefone da ti'],
     apoio: ['ti', 'tecnico', 'analista', 'suporte', 'pessoa'],
     resposta: (ctx) => {
-      const ti = (ctx.usuarios || []).filter(u => u.ramal && _mesmoSetor(u.setor, 'TI'));
+      const ti = (ctx.usuarios || []).filter(u => u && u.ramal && _mesmoSetor(u.setor, 'TI'));
       if (ti.length) {
         return `Fala com a TI direto:\n${ti.slice(0, 4).map(u => `• ${u.nome} — ramal ${u.ramal}`).join('\n')}\n\nSe ninguém atender, abre um chamado que fica registrado e alguém pega.`;
       }
@@ -505,11 +549,14 @@ const INTENCOES = [
     id: 'ramal',
     chaves: ['ramal', 'telefone', 'contato', 'numero de', 'como ligo', 'falar com setor', 'diretorio de ramais'],
     apoio: ['ligar', 'discar', 'numero', 'setor', 'pessoa'],
+    // "ramal da manutencao": citar um setor junto com a palavra ramal desempata
+    // contra intencoes que compartilham o nome do setor.
+    bonus: (an) => (detectarSetor(an) ? 1.5 : 0),
     resposta: (ctx, an) => {
       const setor = detectarSetor(an);
       const usuarios = ctx.usuarios || [];
       if (setor && usuarios.length) {
-        const doSetor = usuarios.filter(u => u.ramal && _mesmoSetor(u.setor, setor));
+        const doSetor = usuarios.filter(u => u && u.ramal && _mesmoSetor(u.setor, setor));
         if (doSetor.length) {
           return `Ramais de ${setor}:\n${doSetor.slice(0, 6).map(u => `• ${u.nome} — ${u.ramal}`).join('\n')}\n\nA lista completa fica no Contatos Gran Marquise, dentro do Hub.`;
         }
@@ -542,8 +589,9 @@ const INTENCOES = [
   // ── Problemas de TI ──
   {
     id: 'impressora',
-    chaves: ['impressora', 'imprimir', 'toner', 'papel atolado', 'nao imprime', 'scanner', 'digitalizar'],
-    apoio: ['fila de impressao', 'copia', 'multifuncional', 'cartucho'],
+    prioridade: 5,
+    chaves: ['impressora', 'imprimir', 'toner', 'cartucho', 'papel atolado', 'nao imprime', 'scanner', 'digitalizar'],
+    apoio: ['fila de impressao', 'copia', 'multifuncional'],
     resposta: () => 'Antes do chamado, dois testes que resolvem metade dos casos: confere se a impressora está ligada/com papel e manda imprimir de novo (às vezes o trabalho fica preso na fila — clica com o botão direito na impressora → "Ver o que está sendo impresso" → cancela tudo).\n\nSe não voltar, abre chamado em "Impressora / Periférico" dizendo o modelo e onde ela fica (andar e setor) — assim a TI já vai direto no equipamento.',
     sugestoes: ['Como abrir um chamado?', 'Preciso de um toner novo'],
   },
@@ -563,8 +611,9 @@ const INTENCOES = [
   },
   {
     id: 'computador_lento',
-    chaves: ['computador lento', 'pc travando', 'maquina travando', 'lentidao', 'travou', 'congelou', 'nao liga', 'tela azul'],
-    apoio: ['computador', 'notebook', 'lento', 'travando', 'reiniciar', 'desligou'],
+    prioridade: 4,
+    chaves: ['computador lento', 'pc travando', 'maquina travando', 'lentidao', 'travou', 'congelou', 'nao liga', 'tela azul', 'lento'],
+    apoio: ['computador', 'notebook', 'travando', 'reiniciar', 'desligou'],
     resposta: () => 'Primeiro socorro: reinicia a máquina (desligar de vez, não só suspender) e fecha as abas/programas que não estiver usando. Resolve a maioria das lentidões do dia a dia.\n\nSe estiver lento sempre, travando ou não liga, abre chamado em "Hardware" com a etiqueta de patrimônio do equipamento e o setor — a TI já leva peça na mão.',
     sugestoes: ['Como abrir um chamado?', 'Preciso de um computador novo'],
   },
@@ -577,22 +626,68 @@ const INTENCOES = [
   },
   {
     id: 'software',
-    chaves: ['instalar programa', 'instalar software', 'licenca', 'excel', 'word', 'office', 'programa novo', 'atualizar programa'],
-    apoio: ['instalar', 'software', 'programa', 'aplicativo', 'sistema'],
+    prioridade: 4,
+    chaves: ['instalar programa', 'instalar software', 'instalar', 'licenca', 'excel', 'word', 'office',
+      'programa novo', 'atualizar programa', 'pdf', 'navegador', 'chrome', 'planilha', 'adobe', 'whatsapp web'],
+    apoio: ['software', 'programa', 'aplicativo', 'sistema', 'abrir arquivo'],
     resposta: () => 'Instalação de programa é chamado em "Software": diz qual programa, a versão (se souber) e pra que vai usar — algumas licenças são pagas e precisam do ok do gestor.\n\nO computador do hotel é bloqueado pra instalação por conta própria, então nem tenta baixar direto: é a TI que instala remotamente.',
     sugestoes: ['Como abrir um chamado?'],
   },
   {
     id: 'seguranca',
-    chaves: ['phishing', 'email suspeito', 'virus', 'golpe', 'link estranho', 'hackeado', 'vazou senha', 'ransomware'],
-    apoio: ['suspeito', 'estranho', 'seguranca', 'clique'],
+    prioridade: 9, // ganha de qualquer outro assunto em caso de empate
+    chaves: ['phishing', 'email suspeito', 'virus', 'golpe', 'link estranho', 'hackeado', 'vazou senha',
+      'ransomware', 'link', 'clicar no link', 'pediram minha senha', 'remetente estranho', 'e confiavel'],
+    apoio: ['suspeito', 'estranho', 'seguranca', 'clique', 'whatsapp', 'recebi'],
     resposta: () => 'Não clica em nada e não responde. Se já clicou ou digitou senha: troca a senha agora e abre chamado marcando urgente — quanto mais rápido a TI souber, menor o estrago.\n\nRegra de bolso: banco, hotel e TI nunca pedem senha por e-mail ou WhatsApp.',
     sugestoes: ['Esqueci minha senha', 'Como abrir um chamado?'],
+  },
+
+  // ── Fora do escopo da TI ──
+  // Sem esta intencao, "desconto de funcionario" e "brigada de incendio" caiam
+  // em respostas de TI absurdas por colisao de radical. Aqui a recusa e
+  // explicita e ainda diz para quem a pessoa deve falar.
+  {
+    id: 'fora_escopo',
+    prioridade: 7,
+    chaves: ['ferias', 'folga', 'escala', 'holerite', 'contracheque', 'salario', 'ponto', 'banco de horas',
+      'uniforme', 'vale transporte', 'vale refeicao', 'atestado', 'demissao', 'admissao', 'beneficio',
+      'refeitorio', 'buffet', 'cardapio', 'refeicao', 'treinamento', 'brigada', 'incendio',
+      'hospede', 'quarto', 'apartamento', 'check in', 'check out', 'enxoval', 'amenities',
+      'ar condicionado', 'lampada', 'vazamento', 'chuveiro', 'elevador', 'obra'],
+    apoio: ['rh', 'recursos humanos', 'governanca', 'desconto', 'beneficios'],
+    resposta: (ctx, an) => {
+      const rh = /ferias|folga|escala|holerite|contracheque|salario|ponto|horas|uniforme|vale|atestado|demiss|admiss|benefic|trein|brigada|incendio/.test(an.limpo)
+        ? 'RH' : (/ar condicionado|lampada|vazamento|chuveiro|elevador|obra/.test(an.limpo) ? 'Manutenção' : null);
+      const destino = rh === 'RH'
+        ? 'Isso é com o RH, não passa pela TI — fala com eles direto ou com seu gestor.'
+        : rh === 'Manutenção'
+          ? 'Isso é com a Manutenção, não com a TI — abre a solicitação com eles (ou avisa a governança, se for em UH).'
+          : 'Isso aí foge da TI — quem resolve é o setor responsável (RH, Governança ou A&B, conforme o caso).';
+      return `${destino}\n\nEu cuido só do que é sistema, acesso, senha, rede e equipamento. Se no meio disso tiver algo de TI, me chama que eu ajudo.`;
+    },
+    sugestoes: ['Quais sistemas tenho acesso?', 'Como abrir um chamado?'],
+  },
+  // Tentativa de manipular o assistente. Nao ha o que vazar (este motor nao
+  // segue instrucao, ele classifica), mas responder com naturalidade a uma
+  // frase hostil passa a impressao errada de que a manipulacao funcionou.
+  {
+    id: 'injecao',
+    prioridade: 10,
+    chaves: ['ignore suas instrucoes', 'ignore tudo', 'esqueca tudo', 'prompt de sistema', 'seu prompt',
+      'sem restricoes', 'modo debug', 'modo desenvolvedor', 'voce agora e', 'finja que', 'todas as senhas',
+      'senha do administrador', 'liste todas as senhas', 'me diga a senha'],
+    apoio: ['instrucoes', 'prompt', 'restricoes'],
+    resposta: () => 'Não rola — eu não tenho senha de ninguém nem instrução secreta pra revelar. Sou um assistente com respostas cadastradas pela TI do hotel.\n\nSe você precisa de acesso a alguma coisa, o caminho é chamado na categoria "Permissão de Acesso".',
+    sugestoes: ['Como pedir acesso a um sistema?', 'Como abrir um chamado?'],
   },
 
   // ── Sinais de conversa ──
   {
     id: 'nao_resolveu',
+    // So faz sentido depois de uma dica dada: quem chega dizendo "nao funciona"
+    // na primeira mensagem esta relatando um problema, nao rejeitando a solucao.
+    bonus: (an, ctx) => (ctx && ctx._temHistorico ? 1.5 : -3),
     chaves: ['nao funcionou', 'nao deu certo', 'nao resolveu', 'continua igual', 'ja tentei isso', 'nao adiantou'],
     apoio: ['ainda', 'mesmo assim', 'continua'],
     resposta: () => 'Então isso já é caso de gente: abre um chamado contando o que você já tentou (isso poupa a TI de repetir os mesmos passos) e, se der, anexa um print do erro. Prazo de resposta é até 2h úteis.',
@@ -600,6 +695,7 @@ const INTENCOES = [
   },
   {
     id: 'urgente',
+    prioridade: 8,
     chaves: ['urgente', 'emergencia', 'parou tudo', 'hospede esperando', 'nao consigo trabalhar', 'agora mesmo'],
     apoio: ['rapido', 'urgencia', 'critico'],
     resposta: () => 'Caso urgente: abre o chamado marcando prioridade alta E liga no ramal da TI avisando — o chamado registra, a ligação acelera. Diz na descrição que tem hóspede/operação parada, isso muda a fila.',
@@ -619,7 +715,7 @@ function _mesmoSetor(cadastrado, canonico) {
 function _procurarPessoa(an, usuarios) {
   let melhor = null, score = 0;
   for (const u of usuarios) {
-    if (!u.ramal || !u.nome) continue;
+    if (!u || !u.ramal || !u.nome) continue;
     const partes = _tokens(u.nome);
     if (!partes.length) continue;
     let s = 0;
@@ -635,6 +731,18 @@ function _procurarPessoa(an, usuarios) {
 
 // ─── 6. Pontuacao ────────────────────────────────────────────────────────────
 
+// Peso de um termo do catalogo. Frase com 2+ tokens uteis e o sinal mais forte.
+// Frase que a stoplist reduz a UM token ("sou novo" -> [novo], "esta no ar" ->
+// [ar]) vale como apoio: senao a palavra "novo" sozinha daria 3 pontos a
+// "primeiro acesso" e "ar" daria 3 a "status de sistema".
+function _pesoTermo(termo, forte) {
+  const uteis = _tokens(termo).length;
+  const cruas = normalizar(termo).split(' ').filter(Boolean).length;
+  if (uteis > 1) return forte ? 4.5 : 1.6;
+  if (cruas > 1) return forte ? 1.2 : 0.6;
+  return forte ? 3 : 1;
+}
+
 function pontuar(an, ctx) {
   const ranking = [];
   for (const it of INTENCOES) {
@@ -642,13 +750,24 @@ function pontuar(an, ctx) {
     if (it.veto && it.veto.some(v => casaTermo(v, an) >= 0.9)) continue;
 
     let score = 0;
+    // Um mesmo radical so pontua uma vez por intencao: "obrigado" e "obrigada"
+    // sao o mesmo termo e somavam em dobro, passando do limiar sozinhos.
+    const jaContou = new Set();
     for (const c of (it.chaves || [])) {
       const w = casaTermo(c, an);
-      if (w > 0) score += (_tokens(c).length > 1 ? 4.5 : 3) * w;
+      if (w <= 0) continue;
+      const id = _tokens(c).map(radical).join('§');
+      if (jaContou.has(id)) continue;
+      jaContou.add(id);
+      score += _pesoTermo(c, true) * w;
     }
     for (const a of (it.apoio || [])) {
       const w = casaTermo(a, an);
-      if (w > 0) score += (_tokens(a).length > 1 ? 1.6 : 1) * w;
+      if (w <= 0) continue;
+      const id = _tokens(a).map(radical).join('§');
+      if (jaContou.has(id)) continue;
+      jaContou.add(id);
+      score += _pesoTermo(a, false) * w;
     }
     // Falar do sistema X é o assunto mais generico do catalogo: entra na
     // disputa, mas perde de uma intencao especifica ("ramal", "abrir chamado")
@@ -658,9 +777,12 @@ function pontuar(an, ctx) {
       if (!id) continue;
       score += 2.7;
     }
-    if (score > 0) ranking.push({ intencao: it, score });
+    if (score > 0 && typeof it.bonus === 'function') score += it.bonus(an, ctx);
+    if (score > 0) ranking.push({ intencao: it, score, prio: it.prioridade || 0 });
   }
-  ranking.sort((a, b) => b.score - a.score);
+  // Empate era decidido pela ordem de declaracao do array — por isso "toner
+  // novo" caia em "primeiro acesso". Assunto mais especifico/grave desempata.
+  ranking.sort((a, b) => (b.score - a.score) || (b.prio - a.prio));
   return ranking;
 }
 
@@ -699,6 +821,11 @@ function _ehFollowUp(an) {
   return FOLLOWUPS.some(f => casaTermo(f, an) >= 0.9);
 }
 
+function _temAssuntoProprio(an, ctx) {
+  const r = pontuar(an, ctx);
+  return r.length > 0 && r[0].score >= LIMIAR;
+}
+
 /**
  * @param {object} entrada
  * @param {Array<{role:string,content:string}>} entrada.mensagens histórico (a última é a do usuário)
@@ -708,7 +835,9 @@ function _ehFollowUp(an) {
  */
 function responder(entrada) {
   const { mensagens = [], contexto = {}, config = {} } = entrada || {};
-  const ctx = contexto || {};
+  const ctx = { ...(contexto || {}) };
+  // "nao funcionou" so e rejeicao de dica se ja houve dica.
+  ctx._temHistorico = mensagens.some(m => m && m.role === 'assistant');
   const usuarias = mensagens.filter(m => m.role === 'user');
   const ultima = usuarias.length ? usuarias[usuarias.length - 1].content : '';
   const anteriorTxt = usuarias.length > 1 ? usuarias[usuarias.length - 2].content : '';
@@ -726,8 +855,10 @@ function responder(entrada) {
     };
   }
 
-  // Follow-up curto ("e como faço?") herda o assunto da pergunta anterior.
-  if (_ehFollowUp(an) && anteriorTxt) {
+  // Follow-up curto ("e como faço?") herda o assunto da pergunta anterior — mas
+  // SO se a mensagem nova nao se sustenta sozinha. Sem esse teste, "como abro
+  // chamado" logo depois de uma resposta sobre senha era respondido como senha.
+  if (_ehFollowUp(an) && anteriorTxt && !_temAssuntoProprio(an, ctx)) {
     const anAnterior = analisar(`${anteriorTxt} ${ultima}`);
     if (anAnterior.tokens.length > an.tokens.length) an = anAnterior;
   }
@@ -740,16 +871,35 @@ function responder(entrada) {
 
   // 2) Intencoes.
   const ranking = pontuar(an, ctx);
+
+  // Mensagem de uma ou duas palavras ("senha", "suporte", "permissao"): nenhuma
+  // palavra de apoio sozinha alcanca o limiar normal, e o assistente antigo
+  // respondia essas. Aqui o limiar cai — e, quando varios assuntos empatam,
+  // perguntar qual e' melhor do que chutar um.
+  const curta = an.tokens.length <= 3;
+  const limiar = curta ? 1.0 : LIMIAR;
+  if (curta && ranking.length > 1 && ranking[0].score < LIMIAR) {
+    const empatados = ranking.filter(c => ranking[0].score - c.score < 0.3 && ROTULOS[c.intencao.id]);
+    if (empatados.length >= 2) {
+      return {
+        reply: 'Sobre isso eu ajudo com mais de uma coisa — qual delas é?',
+        intencao: 'esclarecer',
+        confianca: 0.3,
+        sugestoes: empatados.slice(0, 3).map(c => ROTULOS[c.intencao.id]),
+      };
+    }
+  }
+
   for (const cand of ranking) {
-    if (cand.score < LIMIAR) break;
+    if (cand.score < limiar) break;
     const txt = cand.intencao.resposta(ctx, an);
     if (!txt) continue;
     // Nao repetir palavra por palavra a resposta anterior.
     if (ultimaBot && ultimaBot.content && txt.slice(0, 60) === String(ultimaBot.content).slice(0, 60)) {
-      const alt = ranking.find(c => c !== cand && c.score >= LIMIAR);
+      const alt = ranking.find(c => c !== cand && c.score >= limiar);
       const txtAlt = alt && alt.intencao.resposta(ctx, an);
       if (txtAlt) {
-        return { reply: txtAlt, intencao: alt.intencao.id, confianca: _conf(alt.score), sugestoes: alt.intencao.sugestoes || [] };
+        return { reply: txtAlt, intencao: alt.intencao.id, confianca: _conf(alt.score), sugestoes: (alt.intencao.sugestoes || []).slice(0, 3) };
       }
       return {
         reply: `${txt}\n\nSe já tentou isso e não foi, abre um chamado descrevendo o que aconteceu — assim a TI não repete o mesmo passo.`,
@@ -758,17 +908,20 @@ function responder(entrada) {
         sugestoes: ['Como abrir um chamado?'],
       };
     }
-    const sug = [...(cand.intencao.sugestoes || [])];
-    // Empate técnico: oferece o outro assunto como sugestão em vez de errar calado.
-    const segundo = ranking.find(c => c !== cand && c.score >= LIMIAR && cand.score - c.score < 1.2);
-    if (segundo && ROTULOS[segundo.intencao.id]) sug.unshift(ROTULOS[segundo.intencao.id]);
+    // Mensagem com dois assuntos ("a impressora nao imprime E esqueci a senha")
+    // ou empate tecnico: o segundo assunto volta como sugestao em vez de ser
+    // engolido. So entra quem passou do limiar por conta propria.
+    const sug = [];
+    const segundo = ranking.find(c => c !== cand && c.score >= Math.max(LIMIAR, limiar) && ROTULOS[c.intencao.id]);
+    if (segundo) sug.push(ROTULOS[segundo.intencao.id]);
+    for (const s of (cand.intencao.sugestoes || [])) if (!sug.includes(s)) sug.push(s);
     return { reply: txt, intencao: cand.intencao.id, confianca: _conf(cand.score), sugestoes: sug.slice(0, 3) };
   }
 
   // 3) Base de conhecimento escrita pelo admin (recuperada por similaridade).
   const bloco = buscarContexto(an, config.custom_info);
   if (bloco) {
-    return { reply: bloco.texto, intencao: 'contexto_admin', confianca: 0.5 + bloco.score, sugestoes: ['Como abrir um chamado?'] };
+    return { reply: bloco.texto, intencao: 'contexto_admin', confianca: Math.min(0.95, 0.5 + bloco.score * 0.4), sugestoes: ['Como abrir um chamado?'] };
   }
 
   // 4) Nao sei — mas ainda assim aponta o caminho certo.

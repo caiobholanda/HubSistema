@@ -117,6 +117,16 @@ test('responde ramal pelo setor usando o cadastro real', () => {
   assert.match(r.reply, /5003/);
 });
 
+// REGRESSAO: "manutencao" e nome de setor E palavra de status de sistema. Com
+// "manutencao" como chave solta de status_sistemas, "ramal da manutencao"
+// respondia sobre o painel de sistemas.
+test('nome de setor nao rouba a pergunta para status de sistema', () => {
+  const ctx = { ...CTX, usuarios: [...USUARIOS, { nome: 'Joao Silva', setor: 'Manutencao', ramal: '5040' }] };
+  assert.strictEqual(perguntar('qual o ramal da manutencao', ctx).intencao, 'ramal');
+  assert.match(perguntar('qual o ramal da manutencao', ctx).reply, /5040/);
+  assert.strictEqual(perguntar('o sistema esta em manutencao?', ctx).intencao, 'status_sistemas');
+});
+
 test('responde ramal por nome de pessoa', () => {
   const r = perguntar('qual o ramal da Carla?');
   assert.match(r.reply, /5003/);
@@ -225,6 +235,12 @@ test('"nao funcionou" encaminha para chamado em vez de repetir a dica', () => {
   assert.strictEqual(r.intencao, 'nao_resolveu');
 });
 
+test('mensagem com dois assuntos oferece o segundo como sugestao', () => {
+  const r = perguntar('a impressora da recepcao nao imprime e tambem esqueci minha senha');
+  assert.strictEqual(r.intencao, 'impressora');
+  assert.ok(r.sugestoes.includes('Esqueci minha senha'), JSON.stringify(r.sugestoes));
+});
+
 test('mensagem sem conteudo pede o que a pessoa precisa', () => {
   for (const lixo of ['teste', '???', '...', 'asdfasdf']) {
     const r = perguntar(lixo);
@@ -233,13 +249,64 @@ test('mensagem sem conteudo pede o que a pessoa precisa', () => {
 });
 
 test('sempre devolve string nao vazia e sugestoes utilizaveis', () => {
-  const frases = ['oi', 'esqueci a senha', 'xyzzy plugh', 'impressora', 'ramal da ti'];
+  // Config preenchida de proposito: sem ela os caminhos quick_reply e
+  // contexto_admin nunca eram exercitados e a confiança podia passar de 1.
+  const config = {
+    quick_replies: [{ id: 1, keywords: 'toner', reply: 'Toner novo se pede no almoxarifado.' }],
+    custom_info: 'O restaurante Mangostin funciona das 12h as 15h.',
+  };
+  const frases = ['oi', 'esqueci a senha', 'xyzzy plugh', 'impressora', 'ramal da ti',
+    'senha', 'toner', 'mangostin', 'que horas abre o mangostin', 'nao consigo'];
   for (const f of frases) {
-    const r = perguntar(f);
-    assert.ok(typeof r.reply === 'string' && r.reply.trim().length > 0, f);
-    assert.ok(Array.isArray(r.sugestoes) && r.sugestoes.length <= 4, f);
-    assert.ok(r.confianca >= 0 && r.confianca <= 1, f);
+    for (const cfg of [{}, config]) {
+      const r = perguntar(f, CTX, cfg);
+      assert.ok(typeof r.reply === 'string' && r.reply.trim().length > 0, f);
+      assert.ok(Array.isArray(r.sugestoes) && r.sugestoes.length <= 3, `${f}: ${JSON.stringify(r.sugestoes)}`);
+      assert.ok(r.confianca >= 0 && r.confianca <= 1, `${f}: confianca ${r.confianca}`);
+    }
   }
+});
+
+// REGRESSAO: o motor antigo respondia mensagem de uma palavra ("senha",
+// "suporte"). Com o limiar unico elas viravam "nao sei".
+test('mensagem de uma palavra nao cai no desconhecido', () => {
+  for (const f of ['senha', 'suporte', 'permissao', 'impressora', 'wifi', 'chamado']) {
+    const r = perguntar(f);
+    assert.notStrictEqual(r.intencao, 'desconhecido', f);
+    if (r.intencao === 'esclarecer') assert.ok(r.sugestoes.length >= 2, f);
+  }
+});
+
+// REGRESSAO: "como abro chamado" logo depois de uma resposta sobre senha era
+// fundido com a pergunta anterior e respondido como senha.
+test('pergunta nova com assunto proprio nao e tratada como follow-up', () => {
+  const hist = [
+    { role: 'user', content: 'esqueci minha senha' },
+    { role: 'assistant', content: 'Na tela de login do Hub clica em "Esqueci minha senha"...' },
+  ];
+  assert.strictEqual(perguntar('como abro chamado', CTX, {}, hist).intencao, 'abrir_chamado');
+  assert.strictEqual(perguntar('e como faco?', CTX, {}, hist).intencao, 'senha_esqueci');
+});
+
+// REGRESSAO: com corte 0.6, "serial" disparava a resposta cadastrada de "ferias".
+test('resposta rapida do admin nao dispara em palavra so parecida', () => {
+  const config = { quick_replies: [{ id: 1, keywords: 'ferias, folga', reply: 'Ferias se pede no RH.' }] };
+  for (const f of ['serial', 'folgado', 'feira']) {
+    assert.notStrictEqual(perguntar(f, CTX, config).intencao, 'quick_reply', f);
+  }
+  assert.strictEqual(perguntar('quero tirar ferias', CTX, config).intencao, 'quick_reply');
+});
+
+test('contexto invalido nao derruba o motor', () => {
+  const ruim = { sistemas: [null, { id: 'x' }], sistemasLiberados: null, usuarios: [null], updates: [null] };
+  for (const f of ['quais sistemas tenho acesso', 'teve novidade?', 'qual o ramal da ti', 'oi']) {
+    assert.ok(IA.responder({ mensagens: [{ role: 'user', content: f }], contexto: ruim, config: {} }).reply, f);
+  }
+});
+
+test('palavra que so comeca com "test" nao e tratada como lixo', () => {
+  assert.ok(IA.analisar('testemunha').tokens.includes('testemunha'));
+  assert.strictEqual(IA.analisar('teste').tokens.length, 0);
 });
 
 test('nao quebra com entrada invalida', () => {
