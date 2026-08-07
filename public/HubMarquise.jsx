@@ -1279,9 +1279,11 @@ function AssistenteIAPanel({ isMobile }) {
   const [previewText, setPreviewText] = useState('');
   const [previewLoading, setPreviewLoading] = useState(false);
   const [loadErr, setLoadErr] = useState(false);
+  const debounceRef = useRef(null);
+  const readyRef = useRef(false);
 
   function carregarConfig() {
-    setLoading(true); setLoadErr(false);
+    setLoading(true); setLoadErr(false); readyRef.current = false;
     const token = localStorage.getItem('hub_sso_token');
     fetch('/api/admin/ai-config', { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
@@ -1290,19 +1292,19 @@ function AssistenteIAPanel({ isMobile }) {
         else setLoadErr(true);
       })
       .catch(() => setLoadErr(true))
-      .finally(() => setLoading(false));
+      .finally(() => { setLoading(false); setTimeout(() => { readyRef.current = true; }, 0); });
   }
 
   useEffect(() => { carregarConfig(); }, []);
 
-  async function save() {
+  async function save(ci, qr) {
     setSaving(true); setSaveErr(''); setSavedAt(null);
     try {
       const token = localStorage.getItem('hub_sso_token');
       const r = await fetch('/api/admin/ai-config', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ custom_info: customInfo, quick_replies: quickReplies })
+        body: JSON.stringify({ custom_info: ci, quick_replies: qr })
       });
       const d = await r.json();
       if (d.ok) setSavedAt(new Date());
@@ -1310,6 +1312,14 @@ function AssistenteIAPanel({ isMobile }) {
     } catch { setSaveErr('Erro de conexão.'); }
     finally { setSaving(false); }
   }
+
+  useEffect(() => {
+    if (!readyRef.current) return;
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    setSavedAt(null); setSaveErr('');
+    debounceRef.current = setTimeout(() => save(customInfo, quickReplies), 1200);
+    return () => clearTimeout(debounceRef.current);
+  }, [customInfo, quickReplies]);
 
   function commitAddQR() {
     if (!qrForm.keywords.trim() || !qrForm.reply.trim()) { setQrError('Preencha palavras-chave e resposta.'); return; }
@@ -1529,21 +1539,25 @@ function AssistenteIAPanel({ isMobile }) {
         )}
       </div>
 
-      {/* Salvar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 18, paddingTop: 24, borderTop: `1px solid ${C.champanhe}44` }}>
-        <button
-          onClick={save}
-          disabled={saving}
-          style={{ background: saving ? `${C.champanhe}77` : C.champanhe, color: C.noite, fontFamily: MONO, fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', padding: '12px 28px', border: 'none', cursor: saving ? 'not-allowed' : 'pointer', transition: 'background 200ms' }}
-        >
-          {saving ? 'Salvando...' : 'Salvar Configurações'}
-        </button>
-        {savedAt && !saveErr && (
+      {/* Auto-save status */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingTop: 20, borderTop: `1px solid ${C.champanhe}44`, minHeight: 40 }}>
+        {saving && (
+          <span style={{ fontFamily: MONO, fontSize: 10, color: C.areia, letterSpacing: '0.15em' }}>● Salvando...</span>
+        )}
+        {!saving && savedAt && !saveErr && (
           <span style={{ fontFamily: MONO, fontSize: 10, color: '#62A852', letterSpacing: '0.12em' }}>
-            ✓ Salvo às {savedAt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+            ✓ Salvo automaticamente às {savedAt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
           </span>
         )}
-        {saveErr && <span style={{ fontFamily: MONO, fontSize: 10, color: '#E07A5F', letterSpacing: '0.1em' }}>{saveErr}</span>}
+        {!saving && saveErr && (
+          <span style={{ fontFamily: MONO, fontSize: 10, color: '#E07A5F', letterSpacing: '0.1em' }}>
+            ✗ {saveErr} —{' '}
+            <button onClick={() => save(customInfo, quickReplies)} style={{ background: 'none', border: 'none', color: C.champanhe, fontFamily: MONO, fontSize: 10, cursor: 'pointer', textDecoration: 'underline', padding: 0 }}>tentar novamente</button>
+          </span>
+        )}
+        {!saving && !savedAt && !saveErr && (
+          <span style={{ fontFamily: MONO, fontSize: 10, color: `${C.areia}66`, letterSpacing: '0.12em' }}>Salvo automaticamente ao editar</span>
+        )}
       </div>
 
       {/* Modal confirmar exclusão */}
@@ -1553,7 +1567,7 @@ function AssistenteIAPanel({ isMobile }) {
           <div style={{ background: C.noite, border: `1px solid ${C.areiaDim}33`, padding: isMobile ? '24px 20px' : '32px 36px', maxWidth: 420, width: '100%', boxShadow: '0 24px 64px rgba(0,0,0,0.6)' }}>
             <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.35em', textTransform: 'uppercase', color: '#E07A5F', marginBottom: 14 }}>Confirmar exclusão</div>
             <p style={{ fontFamily: BODY, fontSize: 14, color: C.areia, lineHeight: 1.65, margin: '0 0 24px' }}>
-              Remover esta resposta rápida? A exclusão só é aplicada após clicar em Salvar.
+              Remover esta resposta rápida? A exclusão será salva automaticamente.
             </p>
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={() => removeQR(deletingId)} style={{ background: '#E07A5F1a', border: '1px solid #E07A5F55', color: '#E07A5F', fontFamily: MONO, fontSize: 9, letterSpacing: '0.25em', textTransform: 'uppercase', padding: '10px 20px', cursor: 'pointer' }}>Remover</button>
