@@ -336,6 +336,35 @@ function _nomeCurto(ctx) {
   return n ? String(n).split(' ')[0] : '';
 }
 
+// ─── Formato das respostas ───────────────────────────────────────────────────
+// Toda resposta segue a mesma forma: o que a pessoa pode tentar agora, e depois
+// o caminho do chamado numerado. Blocos separados por linha em branco — texto
+// corrido de 5 linhas no balao do chat ninguem le.
+
+// Passo a passo do chamado. Sempre os mesmos 4 passos, mudando so a categoria e
+// o que escrever: repeticao aqui e' boa, a pessoa decora o caminho.
+function _chamado(categoria, oQueEscrever, abertura) {
+  return [
+    abertura || 'Se não resolver, abre um chamado:',
+    '',
+    '1. No Hub, abre o card "Chamados TI" e clica em "Novo Chamado".',
+    `2. Escolhe a categoria "${categoria}".`,
+    `3. Escreve ${oQueEscrever}.`,
+    '4. Envia. A TI responde em até 2h úteis.',
+  ].join('\n');
+}
+
+// Junta os blocos com linha em branco entre eles, ignorando os vazios.
+// (nome diferente de `_blocos`, que ja existe e fatia o texto do admin)
+function _juntar(...partes) {
+  return partes.filter(p => p && String(p).trim()).join('\n\n');
+}
+
+// Lista com marcador, um item por linha.
+function _lista(itens) {
+  return itens.map(i => `• ${i}`).join('\n');
+}
+
 // Cada intencao: `chaves` (peso 3), `apoio` (peso 1), `frases` (peso 4),
 // `veto` (zera se aparecer). `resposta(ctx, an)` pode retornar null para
 // desistir e deixar a proxima intencao responder.
@@ -347,7 +376,11 @@ const INTENCOES = [
     soCurta: true,
     resposta: (ctx) => {
       const n = _nomeCurto(ctx);
-      return `${n ? `Oi, ${n}!` : 'Oi!'} Sou o assistente de TI do Hub. Posso ajudar com senha, acesso a sistema, chamado, ramal e o que estiver pegando no seu computador.`;
+      return _juntar(
+        `${n ? `Oi, ${n}!` : 'Oi!'} Sou o assistente de TI do Hub.`,
+        'Posso ajudar com senha, acesso a sistema, ramal, impressora, internet e o que estiver pegando no computador.',
+        'Me conta o que está acontecendo. Se preferir já abrir um chamado, é só pedir que eu te passo o passo a passo.'
+      );
     },
     sugestoes: ['Quais sistemas tenho acesso?', 'Esqueci minha senha', 'Como abrir um chamado?'],
   },
@@ -356,21 +389,39 @@ const INTENCOES = [
     chaves: ['obrigado', 'obrigada', 'valeu', 'agradecido', 'grato'],
     apoio: ['perfeito', 'otimo', 'show', 'beleza', 'entendi', 'ajudou', 'resolveu'],
     soCurta: true,
-    resposta: () => 'Boa! Qualquer outra coisa é só chamar.',
+    resposta: () => _juntar(
+      'Boa! Qualquer outra coisa é só chamar.',
+      'Se o problema voltar, me pede o passo a passo do chamado que eu te mando.'
+    ),
     sugestoes: [],
   },
   {
     id: 'quem_e_voce',
     chaves: ['quem e voce', 'o que voce faz', 'voce e um robo', 'voce e humano', 'como funciona voce'],
     apoio: ['assistente', 'bot', 'robo', 'inteligencia artificial'],
-    resposta: () => 'Sou o assistente do Hub — rodo aqui dentro mesmo, com o que a TI cadastrou sobre os sistemas do hotel. Sei explicar acesso, senha, chamado, ramal e os sistemas do Hub. O que eu não souber, te mando pro chamado com a categoria certa.',
+    resposta: () => _juntar(
+      'Sou o assistente do Hub — rodo aqui dentro mesmo, com o que a equipe de TI cadastrou sobre os sistemas do hotel.',
+      'Sei explicar acesso, senha, ramal, impressora, internet e como abrir chamado.',
+      'O que eu não souber vira chamado, e eu te mostro o passo a passo de como abrir.'
+    ),
     sugestoes: ['O que você sabe responder?', 'Falar com alguém do TI'],
   },
   {
     id: 'ajuda_menu',
     chaves: ['ajuda', 'o que voce sabe', 'o que posso perguntar', 'menu', 'opcoes'],
     apoio: ['duvida', 'nao sei o que perguntar'],
-    resposta: () => 'Posso ajudar com:\n• Senha e login no Hub (esqueci, bloqueou, primeiro acesso)\n• Quais sistemas você tem acesso e como pedir mais\n• Abrir e acompanhar chamado de TI\n• Achar ramal de pessoa ou setor\n• Impressora, rede/wifi, computador lento, e-mail\n\nManda a dúvida do jeito que vier que eu entendo.',
+    resposta: () => _juntar(
+      'Posso ajudar com:',
+      _lista([
+        'Senha e login no Hub (esqueci, bloqueou, primeiro acesso)',
+        'Quais sistemas você tem acesso e como pedir mais',
+        'Abrir e acompanhar chamado de TI',
+        'Achar ramal de pessoa ou setor',
+        'Impressora, internet, computador lento, e-mail',
+      ]),
+      'Manda a dúvida do jeito que vier que eu entendo.',
+      'E se já quiser abrir um chamado, me pede "abrir chamado" que eu te passo os passos.'
+    ),
     sugestoes: ['Quais sistemas tenho acesso?', 'Esqueci minha senha', 'Qual o ramal da recepção?'],
   },
 
@@ -381,7 +432,17 @@ const INTENCOES = [
     chaves: ['esqueci senha', 'recuperar senha', 'resetar senha', 'redefinir senha', 'nao lembro senha', 'perdi senha'],
     apoio: ['senha', 'login', 'entrar', 'acessar'],
     veto: ['wifi', 'internet'],
-    resposta: () => `Na tela de login do Hub clica em "Esqueci minha senha" e usa seu e-mail @granmarquise.com.br — chega um link no e-mail (olha o spam/lixo eletrônico, costuma cair lá).\n\nSe o link não chegar em uns minutos, abre um chamado na categoria "Acesso / Login" que a TI reseta na mão.`,
+    resposta: () => _juntar(
+      'Dá pra resolver sozinho, leva 1 minuto:',
+      [
+        '1. Na tela de login do Hub, clica em "Esqueci minha senha".',
+        '2. Digita seu e-mail @granmarquise.com.br.',
+        '3. Abre o link que chega no e-mail (confere o spam, costuma cair lá).',
+        '4. Cria a senha nova.',
+      ].join('\n'),
+      _chamado('Acesso / Login', 'seu e-mail e que o link de redefinição não chegou',
+        'Se o link não chegar em uns minutos, abre um chamado:')
+    ),
     sugestoes: ['Minha conta está bloqueada', 'Como abrir um chamado?'],
   },
   {
@@ -390,7 +451,16 @@ const INTENCOES = [
     chaves: ['trocar senha', 'mudar senha', 'alterar senha', 'nova senha', 'senha forte', 'requisito de senha'],
     apoio: ['senha', 'segura'],
     veto: ['wifi'],
-    resposta: () => 'A senha do Hub precisa de no mínimo 8 caracteres com maiúscula, minúscula, número e símbolo (ex: Hotel@2026).\n\nPra trocar, usa "Esqueci minha senha" na tela de login — o link do e-mail deixa você definir a nova.',
+    resposta: () => _juntar(
+      'A senha do Hub precisa de no mínimo 8 caracteres, com maiúscula, minúscula, número e símbolo (exemplo: Hotel@2026).',
+      'Pra trocar:',
+      [
+        '1. Na tela de login do Hub, clica em "Esqueci minha senha".',
+        '2. Usa seu e-mail @granmarquise.com.br.',
+        '3. Pelo link que chega no e-mail você define a senha nova.',
+      ].join('\n'),
+      _chamado('Acesso / Login', 'que precisa trocar a senha e não conseguiu pelo link')
+    ),
     sugestoes: ['Esqueci minha senha', 'Primeiro acesso ao Hub'],
   },
   {
@@ -400,7 +470,17 @@ const INTENCOES = [
     chaves: ['conta bloqueada', 'usuario bloqueado', 'bloqueou', 'travou login', 'acesso negado',
       'nao consigo entrar', 'nao consigo logar', 'nao consigo login', 'nao loga', 'nao entra'],
     apoio: ['bloqueado', 'senha', 'login', 'errada', 'invalido'],
-    resposta: () => 'Depois de várias tentativas erradas o Hub trava a conta por segurança. Espera alguns minutos e tenta de novo com calma — se continuar travado, abre um chamado em "Acesso / Login" com seu e-mail que a TI destrava na hora.',
+    resposta: () => _juntar(
+      'Depois de várias tentativas erradas, o Hub trava a conta por segurança. Quase sempre destrava sozinho.',
+      'Tenta assim:',
+      [
+        '1. Espera uns 15 minutos sem tentar entrar de novo.',
+        '2. Entra com calma, conferindo maiúscula e minúscula da senha.',
+        '3. Se não lembrar a senha, usa "Esqueci minha senha" na tela de login.',
+      ].join('\n'),
+      _chamado('Acesso / Login', 'seu e-mail e que a conta está bloqueada',
+        'Se continuar travado, abre um chamado:')
+    ),
     sugestoes: ['Esqueci minha senha', 'Como abrir um chamado?'],
   },
   {
@@ -413,7 +493,16 @@ const INTENCOES = [
       'sem login', 'nunca entrei', 'nunca acessei', 'sou novo aqui', 'sou nova aqui',
       'funcionario novo', 'funcionaria nova', 'link de ativacao', 'fui contratado', 'fui contratada'],
     apoio: ['cadastro', 'ativacao', 'conta', 'novo', 'nova', 'login'],
-    resposta: () => 'Conta nova é a TI que cria: você recebe um link de ativação no e-mail @granmarquise.com.br e define a senha por lá (o link expira, então usa no mesmo dia).\n\nNão recebeu? Pede pro seu gestor abrir um chamado em "Acesso / Login" com seu nome completo, setor e e-mail.',
+    resposta: () => _juntar(
+      'Conta nova quem cria é a TI. Funciona assim:',
+      [
+        '1. Você recebe um link de ativação no e-mail @granmarquise.com.br.',
+        '2. Abre o link e define sua senha (o link expira, então usa no mesmo dia).',
+        '3. Pronto, já entra no Hub com esse e-mail e senha.',
+      ].join('\n'),
+      _chamado('Acesso / Login', 'seu nome completo, setor e e-mail, dizendo que é primeiro acesso',
+        'Não recebeu o link? Aí é chamado — pode ser você ou seu gestor que abre:')
+    ),
     sugestoes: ['Requisitos da senha', 'Como abrir um chamado?'],
   },
   {
@@ -422,8 +511,16 @@ const INTENCOES = [
     apoio: ['email', 'mensagem', 'enviar', 'receber'],
     resposta: (ctx) => {
       const e = ctx.usuario && ctx.usuario.email;
-      const base = e ? `Você está logado como ${e}.\n\n` : '';
-      return `${base}O login do Hub é sempre o e-mail @granmarquise.com.br. Problema no e-mail em si (não recebe, não envia, Outlook pedindo senha) é chamado na categoria "Software" — descreve a mensagem de erro que aparece.`;
+      return _juntar(
+        e ? `Você está logado como ${e}. O login do Hub é sempre o e-mail @granmarquise.com.br.`
+          : 'O login do Hub é sempre o e-mail @granmarquise.com.br.',
+        'Se o problema é no e-mail em si (não recebe, não envia, Outlook pedindo senha), tenta primeiro:',
+        [
+          '1. Fecha o Outlook por completo e abre de novo.',
+          '2. Confere se a internet está funcionando em outro site.',
+        ].join('\n'),
+        _chamado('Software', 'o que acontece e a mensagem de erro exata que aparece na tela')
+      );
     },
     sugestoes: ['Como abrir um chamado?', 'Esqueci minha senha'],
   },
@@ -440,16 +537,28 @@ const INTENCOES = [
       const todos = _listaSistemas(ctx);
       if (todos.length === 0) return null;
       if (!ctx.usuario) {
-        return `O Hub reúne: ${todos.map(s => s.nome).join(', ')}.\n\nEntra com seu e-mail @granmarquise.com.br que eu te digo exatamente quais estão liberados pra você — cada um aparece no Hub só pra quem tem permissão.`;
+        return _juntar(
+          `O Hub reúne: ${todos.map(s => s.nome).join(', ')}.`,
+          'Entra com seu e-mail @granmarquise.com.br que eu te digo exatamente quais estão liberados pra você — cada um aparece no Hub só pra quem tem permissão.'
+        );
       }
       const lib = todos.filter(s => s.liberado);
       const nao = todos.filter(s => !s.liberado);
+      const pedir = _chamado('Permissão de Acesso', 'qual sistema você precisa, pra quê e quem é seu gestor',
+        'Pra liberar o que falta, abre um chamado:');
       if (lib.length === 0) {
-        return `Não achei nenhum sistema liberado pro seu usuário ainda. Pede pro seu gestor abrir um chamado em "Permissão de Acesso" dizendo quais você precisa: ${nao.map(s => s.nome).join(', ')}.`;
+        return _juntar(
+          'Não achei nenhum sistema liberado pro seu usuário ainda.',
+          `Os que existem hoje: ${nao.map(s => s.nome).join(', ')}.`,
+          pedir
+        );
       }
-      let txt = `Você tem acesso a:\n${lib.map(s => `• ${s.nome} — ${s.descricao || s.categoria || ''}`.trim()).join('\n')}`;
-      if (nao.length) txt += `\n\nSem acesso hoje: ${nao.map(s => s.nome).join(', ')}. Pra liberar, chamado em "Permissão de Acesso".`;
-      return txt;
+      return _juntar(
+        'Você tem acesso a:',
+        _lista(lib.map(s => `${s.nome}${s.descricao ? ` — ${s.descricao}` : ''}`)),
+        nao.length ? `Sem acesso hoje: ${nao.map(s => s.nome).join(', ')}.` : '',
+        nao.length ? pedir : 'Precisando de mais algum, me avisa que eu te passo o passo a passo do chamado.'
+      );
     },
     sugestoes: ['Como pedir acesso a um sistema?', 'Algum sistema fora do ar?'],
   },
@@ -458,7 +567,12 @@ const INTENCOES = [
     familia: 'sistema',
     chaves: ['pedir acesso', 'solicitar acesso', 'liberar acesso', 'permissao de acesso', 'nao tenho permissao', 'liberar sistema'],
     apoio: ['acesso', 'permissao', 'liberar', 'autorizar'],
-    resposta: () => 'Acesso a sistema sai por chamado na categoria "Permissão de Acesso": diz qual sistema, pra quê você precisa e quem é seu gestor (a TI confirma com ele antes de liberar).\n\nAssim que liberar, o sistema aparece sozinho no seu Hub — não precisa nem sair e entrar de novo.',
+    resposta: () => _juntar(
+      'Acesso a sistema sai por chamado — é rápido.',
+      _chamado('Permissão de Acesso', 'qual sistema você precisa, pra quê vai usar e quem é seu gestor',
+        'Faz assim:'),
+      'A TI confirma com o seu gestor e libera. Assim que liberar, o sistema aparece sozinho no seu Hub — não precisa nem sair e entrar de novo.'
+    ),
     sugestoes: ['Como abrir um chamado?', 'Quais sistemas tenho acesso?'],
   },
   {
@@ -471,7 +585,12 @@ const INTENCOES = [
       const id = detectarSistema(an, ctx.sistemas);
       if (!id) return null;
       if (id === 'hub') {
-        return `O Hub (${URL_HUB}) é a porta de entrada: você entra uma vez com o e-mail @granmarquise.com.br e de lá abre os outros sistemas sem digitar senha de novo. Aparece só o que está liberado pro seu usuário.`;
+        return _juntar(
+          `O Hub (${URL_HUB}) é a porta de entrada dos sistemas do hotel.`,
+          'Você entra uma vez com o e-mail @granmarquise.com.br e de lá abre os outros sistemas sem digitar senha de novo. Aparece só o que está liberado pro seu usuário.',
+          _chamado('Acesso / Login', 'o que você não está conseguindo fazer no Hub',
+            'Se algo não abrir pra você, abre um chamado:')
+        );
       }
       const s = (ctx.sistemas || []).find(x => x.id === id);
       if (!s) return null;
@@ -479,17 +598,27 @@ const INTENCOES = [
       const partes = [`${s.nome}${s.descricao ? ` — ${s.descricao}` : ''}`];
       if (s.status && s.status !== 'no-ar') {
         partes.push(s.status === 'manutencao'
-          ? 'No momento está em manutenção; se precisar com urgência, abre um chamado que a TI avisa quando voltar.'
+          ? 'No momento ele está em manutenção. Se precisar com urgência, abre um chamado que a TI avisa assim que voltar.'
           : 'Esse sistema está inativo no momento.');
       }
-      if (ctx.usuario) {
-        partes.push(liberado
-          ? `Você já tem acesso: abre pelo card no Hub (${URL_HUB}) — o login vai junto, não pede senha de novo.`
-          : `Você ainda não tem acesso. Pra liberar, chamado na categoria "Permissão de Acesso" dizendo que precisa do ${s.nome}.`);
+      if (ctx.usuario && liberado) {
+        partes.push('Como abrir:');
+        partes.push([
+          `1. Entra no Hub (${URL_HUB}).`,
+          `2. Clica no card "${s.nome}".`,
+          '3. Pronto — o login vai junto, não pede senha de novo.',
+        ].join('\n'));
+        partes.push(_chamado('Acesso / Login', `que o ${s.nome} não abre e o que aparece na tela`));
+      } else if (ctx.usuario) {
+        partes.push('Você ainda não tem acesso a ele.');
+        partes.push(_chamado('Permissão de Acesso', `que precisa do ${s.nome}, pra quê e quem é seu gestor`,
+          'Pra liberar, abre um chamado:'));
       } else {
-        partes.push(`Acessa pelo card no Hub (${URL_HUB}) — o acesso é liberado por setor/função.`);
+        partes.push(`Ele é aberto pelo card no Hub (${URL_HUB}), e o acesso é liberado por setor/função.`);
+        partes.push(_chamado('Permissão de Acesso', `que precisa do ${s.nome} e pra quê`,
+          'Se você não vê o card, abre um chamado:'));
       }
-      return partes.join('\n\n');
+      return _juntar(...partes);
     },
     sugestoes: ['Como pedir acesso a um sistema?', 'Quais sistemas tenho acesso?'],
   },
@@ -514,15 +643,30 @@ const INTENCOES = [
     resposta: (ctx, an) => {
       const fora = _listaSistemas(ctx).filter(s => s.status && s.status !== 'no-ar');
       const citado = detectarSistema(an, ctx.sistemas);
+      // Sem sistema citado, deixar claro que o painel cobre só os sistemas do
+      // Hub — senão vira "afirmação de fato" sobre o PMS, o PDV ou a fechadura.
+      const ressalva = citado ? '' :
+        'Isso é o painel dos sistemas do Hub. Se o que você usa é outro (PMS, PDV, ponto, fechadura), o chamado abaixo resolve.';
+      const passos = _chamado('Software', 'o nome do sistema, o que aparece na tela e o horário que aconteceu');
       if (fora.length) {
-        // Sem sistema citado, deixar claro que o painel cobre só os sistemas do
-        // Hub — senão vira "afirmação de fato" sobre o PMS, o PDV ou a fechadura.
-        const ressalva = citado
-          ? 'Se ainda assim não abrir pra você, abre um chamado com print da tela e o horário.'
-          : 'Isso é o painel dos sistemas do Hub. Se o que você usa é outro (PMS, PDV, ponto, fechadura), abre um chamado dizendo o nome do sistema e o que aparece na tela.';
-        return `Fora do normal agora: ${fora.map(s => `${s.nome} (${s.status === 'manutencao' ? 'em manutenção' : s.status})`).join(', ')}. Os demais estão no ar.\n\n${ressalva}`;
+        return _juntar(
+          `Fora do normal agora: ${fora.map(s => `${s.nome} (${s.status === 'manutencao' ? 'em manutenção' : s.status})`).join(', ')}.`,
+          'Os demais estão no ar.',
+          ressalva,
+          passos
+        );
       }
-      return 'Pelo painel do Hub está tudo no ar agora. Se mesmo assim não abre pra você, tenta atualizar a página (Ctrl+F5) e conferir a internet — persistindo, abre um chamado com print da tela e o horário.';
+      return _juntar(
+        'Pelo painel do Hub, está tudo no ar agora.',
+        'Se mesmo assim não abre pra você, tenta:',
+        [
+          '1. Atualizar a página com Ctrl+F5.',
+          '2. Conferir se a internet está funcionando em outro site.',
+          '3. Fechar o navegador e abrir de novo.',
+        ].join('\n'),
+        ressalva,
+        passos
+      );
     },
     sugestoes: ['Como abrir um chamado?', 'Minha internet está lenta'],
   },
@@ -533,8 +677,20 @@ const INTENCOES = [
     apoio: ['atualizou'],
     resposta: (ctx) => {
       const ups = (ctx.updates || []).filter(u => u && u.titulo).slice(0, 3);
-      if (!ups.length) return 'Nenhuma atualização registrada por aqui ainda. Quando sai algo novo, aparece no sino de atualizações do Hub.';
-      return `Últimas atualizações:\n${ups.map(u => `• ${u.sistemaNome || u.sistemaId}: ${u.titulo}`).join('\n')}\n\nO histórico completo fica no sino de atualizações, no topo do Hub.`;
+      const fecho = 'Se alguma mudança atrapalhou seu trabalho, me fala que eu te passo o passo a passo do chamado.';
+      if (!ups.length) {
+        return _juntar(
+          'Nenhuma atualização registrada por aqui ainda.',
+          'Quando sai algo novo, aparece no sino de atualizações, no topo do Hub.',
+          fecho
+        );
+      }
+      return _juntar(
+        'Últimas atualizações:',
+        _lista(ups.map(u => `${u.sistemaNome || u.sistemaId}: ${u.titulo}`)),
+        'O histórico completo fica no sino de atualizações, no topo do Hub.',
+        fecho
+      );
     },
     sugestoes: ['Quais sistemas tenho acesso?'],
   },
@@ -545,7 +701,16 @@ const INTENCOES = [
     familia: 'chamado',
     chaves: ['abrir chamado', 'novo chamado', 'como abro chamado', 'solicitar suporte', 'chamar ti', 'registrar problema'],
     apoio: ['chamado', 'suporte', 'ajuda', 'problema', 'ti'],
-    resposta: () => 'No Hub abre o card "Chamados TI" → botão "Novo Chamado" → escolhe a categoria, descreve o problema e manda. Prazo de resposta: até 2h úteis.\n\nDica que acelera: diz onde você está (andar/setor), o que aparece na tela e desde quando acontece. Com print resolve mais rápido ainda.',
+    resposta: () => _juntar(
+      'É rápido, são 4 passos:',
+      [
+        '1. No Hub, abre o card "Chamados TI" e clica em "Novo Chamado".',
+        '2. Escolhe a categoria (Impressora, Acesso/Login, Rede, Hardware, Software...).',
+        '3. Descreve o problema: onde você está (andar e setor), o que aparece na tela e desde quando acontece.',
+        '4. Envia. A TI responde em até 2h úteis.',
+      ].join('\n'),
+      'Duas dicas que aceleram: anexa um print da tela e, se for equipamento, coloca a etiqueta de patrimônio.'
+    ),
     sugestoes: ['Como acompanho meu chamado?', 'Quais categorias existem?'],
   },
   {
@@ -553,7 +718,15 @@ const INTENCOES = [
     familia: 'chamado',
     chaves: ['acompanhar chamado', 'status do chamado', 'meu chamado', 'ja abri chamado', 'chamado sem resposta', 'demorando'],
     apoio: ['chamado', 'aberto', 'resposta', 'andamento', 'prazo'],
-    resposta: () => 'Entra em "Chamados TI" no Hub — seus chamados ficam listados com o status (aberto, em andamento, resolvido) e o histórico de respostas.\n\nSe passou de 2h úteis sem retorno e é urgente, responde dentro do próprio chamado marcando como urgente ou liga pro ramal da TI.',
+    resposta: () => _juntar(
+      'Pra ver como está o seu:',
+      [
+        '1. No Hub, abre o card "Chamados TI".',
+        '2. Seus chamados aparecem na lista com o status (aberto, em andamento, resolvido).',
+        '3. Clica no chamado pra ler o histórico de respostas da TI.',
+      ].join('\n'),
+      'Passou de 2h úteis sem retorno e é urgente? Responde dentro do próprio chamado marcando como urgente e liga no ramal da TI avisando.'
+    ),
     sugestoes: ['Como abrir um chamado?', 'Qual o ramal da TI?'],
   },
   {
@@ -561,7 +734,19 @@ const INTENCOES = [
     familia: 'chamado',
     chaves: ['categoria de chamado', 'quais categorias', 'que categoria escolho', 'tipo de chamado'],
     apoio: ['categoria', 'chamado', 'classificar'],
-    resposta: () => 'As categorias que a TI usa: Impressora/Periférico, Acesso/Login, Permissão de Acesso, Rede/Internet, Hardware e Software.\n\nNa dúvida escolhe a mais próxima e explica direito na descrição — a TI reclassifica se precisar.',
+    resposta: () => _juntar(
+      'As categorias que a TI usa são estas:',
+      _lista([
+        'Impressora / Periférico — impressora, scanner, toner',
+        'Acesso / Login — senha, conta bloqueada, primeiro acesso',
+        'Permissão de Acesso — liberar um sistema pra você',
+        'Rede / Internet — sem internet, wifi, lentidão de rede',
+        'Hardware — computador, mouse, teclado, monitor, tablet',
+        'Software — programa, Office, e-mail, sistema travando',
+      ]),
+      'Na dúvida, escolhe a mais próxima e explica direito na descrição — a TI reclassifica se precisar.',
+      _chamado('a que mais combinar', 'o problema, o setor e desde quando acontece', 'Na hora de abrir:')
+    ),
     sugestoes: ['Como abrir um chamado?'],
   },
   {
@@ -572,10 +757,19 @@ const INTENCOES = [
     apoio: ['ti', 'tecnico', 'analista', 'suporte', 'pessoa'],
     resposta: (ctx) => {
       const ti = _pessoasVisiveis(ctx).filter(u => _mesmoSetor(u.setor, 'TI'));
+      const passos = _chamado('a que mais combinar com o problema', 'o que está acontecendo e o seu setor',
+        'Se ninguém atender, abre um chamado — fica registrado e alguém pega:');
       if (ti.length) {
-        return `Fala com a TI direto:\n${ti.slice(0, 4).map(u => `• ${u.nome} — ramal ${u.ramal}`).join('\n')}\n\nSe ninguém atender, abre um chamado que fica registrado e alguém pega.`;
+        return _juntar(
+          'Fala com a TI direto:',
+          _lista(ti.slice(0, 4).map(u => `${u.nome} — ramal ${u.ramal}`)),
+          passos
+        );
       }
-      return 'Pra falar com uma pessoa da TI: procura o ramal da TI no Contatos Gran Marquise (dentro do Hub) ou abre um chamado — chamado é mais garantido porque fica registrado e alguém sempre pega.';
+      return _juntar(
+        'Pra falar com uma pessoa da TI, procura o ramal do setor no "Contatos Gran Marquise", dentro do Hub.',
+        passos
+      );
     },
     sugestoes: ['Como abrir um chamado?'],
   },
@@ -593,18 +787,33 @@ const INTENCOES = [
     resposta: (ctx, an) => {
       const setor = detectarSetor(an);
       const usuarios = _pessoasVisiveis(ctx);
+      const ondeBuscar = _juntar(
+        'Pra ver a lista completa:',
+        [
+          '1. No Hub, abre o card "Contatos Gran Marquise".',
+          '2. Busca pelo nome da pessoa ou pelo setor.',
+          '3. O ramal aparece do lado do nome.',
+        ].join('\n')
+      );
+      const chamadoRamal = _chamado('Acesso / Login', 'de quem é o ramal que você procura e o setor',
+        'Se o ramal estiver errado ou faltando lá, abre um chamado:');
+
       if (setor && usuarios.length) {
         const doSetor = usuarios.filter(u => _mesmoSetor(u.setor, setor));
         if (doSetor.length) {
-          return `Ramais de ${setor}:\n${doSetor.slice(0, 6).map(u => `• ${u.nome} — ${u.ramal}`).join('\n')}\n\nA lista completa fica no Contatos Gran Marquise, dentro do Hub.`;
+          return _juntar(`Ramais de ${setor}:`, _lista(doSetor.slice(0, 6).map(u => `${u.nome} — ${u.ramal}`)), ondeBuscar);
         }
-        return `Não achei ninguém de ${setor} com ramal cadastrado aqui. Abre o "Contatos Gran Marquise" no Hub e busca pelo setor — lá a lista é completa e atualizada.`;
+        return _juntar(`Não achei ninguém de ${setor} com ramal cadastrado aqui.`, ondeBuscar, chamadoRamal);
       }
       if (usuarios.length && !setor) {
         const nome = _procurarPessoa(an, usuarios);
-        if (nome) return `${nome.nome}${nome.setor ? ` (${nome.setor})` : ''} — ramal ${nome.ramal}.`;
+        if (nome) return _juntar(`${nome.nome}${nome.setor ? ` (${nome.setor})` : ''} — ramal ${nome.ramal}.`, ondeBuscar);
       }
-      return `Abre o "Contatos Gran Marquise" no Hub e busca pelo nome da pessoa ou pelo setor — já aparece o ramal. É mais rápido que ligar pra recepção perguntar.${ctx.usuario ? '' : '\n\n(Entra no Hub com seu e-mail pra eu poder consultar o ramal direto aqui.)'}`;
+      return _juntar(
+        ondeBuscar,
+        ctx.usuario ? '' : 'Entra no Hub com seu e-mail que eu consigo consultar o ramal direto aqui na conversa.',
+        chamadoRamal
+      );
     },
     sugestoes: ['Qual o ramal da TI?', 'Como abrir um chamado?'],
   },
@@ -620,7 +829,12 @@ const INTENCOES = [
       if (u.setor) linhas.push(`Setor: ${u.setor}`);
       if (u.ramal) linhas.push(`Ramal: ${u.ramal}`);
       linhas.push(`Perfil: ${u.tipo === 'admin' ? 'administrador' : 'usuário'}`);
-      return `${linhas.join('\n')}\n\nSe algo aí estiver errado (setor, ramal, nome), abre um chamado que a TI corrige no cadastro.`;
+      return _juntar(
+        'Seu cadastro no Hub:',
+        _lista(linhas),
+        _chamado('Acesso / Login', 'qual dado está errado e qual é o correto',
+          'Se algum dado estiver errado, abre um chamado:')
+      );
     },
     sugestoes: ['Quais sistemas tenho acesso?', 'Como abrir um chamado?'],
   },
@@ -632,7 +846,16 @@ const INTENCOES = [
     prioridade: 5,
     chaves: ['impressora', 'imprimir', 'toner', 'cartucho', 'papel atolado', 'nao imprime', 'scanner', 'digitalizar'],
     apoio: ['fila de impressao', 'copia', 'multifuncional'],
-    resposta: () => 'Antes do chamado, dois testes que resolvem metade dos casos: confere se a impressora está ligada/com papel e manda imprimir de novo (às vezes o trabalho fica preso na fila — clica com o botão direito na impressora → "Ver o que está sendo impresso" → cancela tudo).\n\nSe não voltar, abre chamado em "Impressora / Periférico" dizendo o modelo e onde ela fica (andar e setor) — assim a TI já vai direto no equipamento.',
+    resposta: () => _juntar(
+      'Dois testes rápidos resolvem metade dos casos:',
+      [
+        '1. Confere se a impressora está ligada, com papel e sem luz vermelha piscando.',
+        '2. Limpa a fila: clica com o botão direito na impressora → "Ver o que está sendo impresso" → cancela tudo.',
+        '3. Manda imprimir de novo.',
+      ].join('\n'),
+      _chamado('Impressora / Periférico', 'o modelo da impressora e onde ela fica (andar e setor)',
+        'Se não voltar, abre um chamado:')
+    ),
     sugestoes: ['Como abrir um chamado?', 'Preciso de um toner novo'],
   },
   {
@@ -640,14 +863,30 @@ const INTENCOES = [
     chaves: ['internet', 'wifi', 'rede', 'sem conexao', 'sem internet', 'internet lenta', 'cabo de rede',
       'sinal', 'perdeu a conexao', 'caiu a conexao', 'sem sinal', 'fora da rede'],
     apoio: ['conectar', 'conexao', 'lento', 'caindo', 'desconecta'],
-    resposta: () => 'Testa primeiro se é só no seu computador ou no setor inteiro (pergunta pro colega do lado). Se for só no seu: tira e recoloca o cabo de rede / desconecta e reconecta o wifi.\n\nContinua? Chamado em "Rede / Internet" dizendo o setor, se é em um ou em vários computadores e desde quando. Isso muda totalmente o diagnóstico.',
+    resposta: () => _juntar(
+      'Antes de mais nada, descobre se é só com você:',
+      [
+        '1. Pergunta pro colega do lado se a internet dele está funcionando.',
+        '2. Se for só no seu: tira e recoloca o cabo de rede (ou desconecta e reconecta o wifi).',
+        '3. Reinicia o computador e testa de novo.',
+      ].join('\n'),
+      _chamado('Rede / Internet', 'o setor, se está em um ou em vários computadores e desde quando começou',
+        'Se continuar, abre um chamado:'),
+      'Dizer se é um ou vários computadores muda totalmente o diagnóstico — não esquece essa parte.'
+    ),
     sugestoes: ['Qual a senha do wifi?', 'Como abrir um chamado?'],
   },
   {
     id: 'senha_wifi',
     chaves: ['senha do wifi', 'senha da rede', 'senha wifi', 'conectar no wifi', 'rede de hospede'],
     apoio: ['wifi', 'senha', 'rede'],
-    resposta: () => 'A senha do wifi corporativo não fica publicada aqui — abre um chamado em "Rede / Internet" ou pergunta no ramal da TI que passam na hora.\n\nSe for pra hóspede, a rede de visitantes tem senha própria e a recepção informa no check-in.',
+    resposta: () => _juntar(
+      'A senha do wifi corporativo não fica publicada aqui, por segurança.',
+      'Dois caminhos: liga no ramal da TI, que passam na hora, ou abre um chamado.',
+      _chamado('Rede / Internet', 'qual aparelho você precisa conectar e o seu setor',
+        'Pelo chamado é assim:'),
+      'Se for pra hóspede, a rede de visitantes tem senha própria e quem informa é a recepção, no check-in.'
+    ),
     sugestoes: ['Minha internet está lenta', 'Qual o ramal da TI?'],
   },
   {
@@ -656,7 +895,16 @@ const INTENCOES = [
     prioridade: 4,
     chaves: ['computador lento', 'pc travando', 'maquina travando', 'lentidao', 'travou', 'congelou', 'nao liga', 'tela azul', 'lento'],
     apoio: ['computador', 'notebook', 'travando', 'reiniciar', 'desligou'],
-    resposta: () => 'Primeiro socorro: reinicia a máquina (desligar de vez, não só suspender) e fecha as abas/programas que não estiver usando. Resolve a maioria das lentidões do dia a dia.\n\nSe estiver lento sempre, travando ou não liga, abre chamado em "Hardware" com a etiqueta de patrimônio do equipamento e o setor — a TI já leva peça na mão.',
+    resposta: () => _juntar(
+      'Primeiro socorro, resolve a maioria das lentidões do dia a dia:',
+      [
+        '1. Fecha as abas e programas que você não está usando agora.',
+        '2. Reinicia a máquina — desligar de vez, não só suspender.',
+        '3. Espera ela subir por completo antes de abrir os sistemas.',
+      ].join('\n'),
+      _chamado('Hardware', 'a etiqueta de patrimônio do equipamento, o setor e se ele trava sempre ou de vez em quando',
+        'Se continuar lento, travando ou não ligar, abre um chamado:')
+    ),
     sugestoes: ['Como abrir um chamado?', 'Preciso de um computador novo'],
   },
   {
@@ -667,7 +915,16 @@ const INTENCOES = [
       'periferico', 'camera', 'webcam', 'microfone', 'carregador', 'fonte', 'bateria',
       'tablet', 'leitor', 'leitor de cartao', 'catraca', 'relogio de ponto', 'nobreak'],
     apoio: ['quebrado', 'parou', 'nao funciona', 'trocar', 'hardware', 'notebook'],
-    resposta: () => 'Equipamento quebrado ou pedido de novo: chamado em "Hardware". Diz o que é, o que acontece (ou por que precisa), o setor e a etiqueta de patrimônio se tiver.\n\nPedido de equipamento novo passa pela aprovação do seu gestor — vale já avisar ele.',
+    resposta: () => _juntar(
+      'Vale testar antes, leva 1 minuto:',
+      [
+        '1. Tira o cabo do equipamento e coloca de novo (se for sem fio, troca a pilha).',
+        '2. Testa em outra entrada USB ou em outro computador.',
+      ].join('\n'),
+      _chamado('Hardware', 'qual é o equipamento, o que acontece, o setor e a etiqueta de patrimônio se tiver',
+        'Não voltou, ou é pedido de equipamento novo? Abre um chamado:'),
+      'Pedido de equipamento novo passa pela aprovação do seu gestor — vale já avisar ele.'
+    ),
     sugestoes: ['Como abrir um chamado?'],
   },
   {
@@ -681,9 +938,23 @@ const INTENCOES = [
     // e' resposta errada com categoria certa.
     resposta: (ctx, an) => {
       if (/trav|fech|perdi|perdeu|sumiu|corromp|nao salva|congel/.test(an.limpo)) {
-        return 'Antes de tudo: reabre o programa — Office e navegador costumam oferecer a recuperação automática do arquivo (o Excel abre um painel "Documentos recuperados" à esquerda). Vale olhar também em Arquivo → Informações → Gerenciar Pasta de Trabalho.\n\nSe o arquivo não voltar ou o programa travar sempre, abre chamado em "Software" dizendo o programa, o nome do arquivo e onde ele estava salvo — se estiver em rede, dá pra buscar versão anterior.';
+        return _juntar(
+          'Calma que na maioria das vezes o arquivo volta:',
+          [
+            '1. Abre o programa de novo — o Office costuma mostrar um painel "Documentos recuperados" do lado esquerdo.',
+            '2. Se não aparecer, vai em Arquivo → Informações → Gerenciar Pasta de Trabalho.',
+            '3. Se o arquivo ficava numa pasta de rede, dá pra buscar versão anterior — a TI faz isso.',
+          ].join('\n'),
+          _chamado('Software', 'o nome do programa, o nome do arquivo e em que pasta ele estava salvo',
+            'Se o arquivo não voltar ou o programa travar sempre, abre um chamado:')
+        );
       }
-      return 'Instalação de programa é chamado em "Software": diz qual programa, a versão (se souber) e pra que vai usar — algumas licenças são pagas e precisam do ok do gestor.\n\nO computador do hotel é bloqueado pra instalação por conta própria, então nem tenta baixar direto: é a TI que instala remotamente.';
+      return _juntar(
+        'O computador do hotel é bloqueado pra instalação por conta própria — quem instala é a TI, remotamente. Então nem precisa baixar nada.',
+        _chamado('Software', 'qual programa você precisa, a versão (se souber) e pra quê vai usar',
+          'Pra pedir, abre um chamado:'),
+        'Algumas licenças são pagas e precisam do ok do seu gestor — se for o caso, a TI confirma com ele.'
+      );
     },
     sugestoes: ['Como abrir um chamado?'],
   },
@@ -693,7 +964,18 @@ const INTENCOES = [
     chaves: ['phishing', 'email suspeito', 'virus', 'golpe', 'link estranho', 'hackeado', 'vazou senha',
       'ransomware', 'link', 'clicar no link', 'pediram minha senha', 'remetente estranho', 'e confiavel'],
     apoio: ['suspeito', 'estranho', 'seguranca', 'clique', 'whatsapp', 'recebi'],
-    resposta: () => 'Não clica em nada e não responde. Se já clicou ou digitou senha: troca a senha agora e abre chamado marcando urgente — quanto mais rápido a TI souber, menor o estrago.\n\nRegra de bolso: banco, hotel e TI nunca pedem senha por e-mail ou WhatsApp.',
+    resposta: () => _juntar(
+      'Não clica em nada e não responde a mensagem.',
+      'Se você JÁ clicou ou digitou sua senha:',
+      [
+        '1. Troca sua senha agora, pelo "Esqueci minha senha" na tela de login.',
+        '2. Não desliga o computador — a TI pode precisar ver o que aconteceu.',
+        '3. Avisa a TI na hora, pelo ramal, e abre o chamado logo em seguida.',
+      ].join('\n'),
+      _chamado('Software', 'o que você recebeu, por onde veio (e-mail, WhatsApp) e se chegou a clicar ou digitar a senha',
+        'O chamado é assim — marca como urgente:'),
+      'Regra de bolso: banco, hotel e TI nunca pedem senha por e-mail ou WhatsApp.'
+    ),
     sugestoes: ['Esqueci minha senha', 'Como abrir um chamado?'],
   },
 
@@ -717,7 +999,12 @@ const INTENCOES = [
     bonus: (an, ctx) => (detectarSistema(an, ctx && ctx.sistemas) ? -5 : 0),
     chaves: ['nao funciona', 'nao esta funcionando', 'nao abre', 'nao vai', 'nao carrega',
       'deu erro', 'travou tudo', 'parou de funcionar', 'nao ta indo', 'deu problema'],
-    resposta: () => 'O que exatamente não está funcionando? Me diz o equipamento ou o sistema que eu já te falo o caminho certo.',
+    resposta: () => _juntar(
+      'O que exatamente não está funcionando?',
+      'Me diz o equipamento ou o sistema (computador, impressora, internet, e-mail, um sistema do Hub) que eu já te falo o caminho certo.',
+      _chamado('a que mais combinar com o problema', 'o que não está funcionando, o seu setor e desde quando',
+        'Se preferir ir direto pro chamado:')
+    ),
     sugestoes: ['Meu computador está lento', 'Problema na impressora', 'Problema de internet'],
   },
 
@@ -752,7 +1039,11 @@ const INTENCOES = [
         : rh === 'Manutenção'
           ? 'Isso é com a Manutenção, não com a TI — abre a solicitação com eles (ou avisa a governança, se for em UH).'
           : 'Isso aí foge da TI — quem resolve é o setor responsável (RH, Governança ou A&B, conforme o caso).';
-      return `${destino}\n\nEu cuido só do que é sistema, acesso, senha, rede e equipamento. Se no meio disso tiver algo de TI, me chama que eu ajudo.`;
+      return _juntar(
+        destino,
+        'Eu cuido só do que é sistema, acesso, senha, rede e equipamento.',
+        'Se no meio disso tiver algo de TI (um sistema que não abre, um computador travado), me chama que eu te passo a solução e o passo a passo do chamado.'
+      );
     },
     sugestoes: ['Quais sistemas tenho acesso?', 'Como abrir um chamado?'],
   },
@@ -766,7 +1057,11 @@ const INTENCOES = [
       'sem restricoes', 'modo debug', 'modo desenvolvedor', 'voce agora e', 'finja que', 'todas as senhas',
       'senha do administrador', 'liste todas as senhas', 'me diga a senha'],
     apoio: ['instrucoes', 'prompt', 'restricoes'],
-    resposta: () => 'Não rola — eu não tenho senha de ninguém nem instrução secreta pra revelar. Sou um assistente com respostas cadastradas pela TI do hotel.\n\nSe você precisa de acesso a alguma coisa, o caminho é chamado na categoria "Permissão de Acesso".',
+    resposta: () => _juntar(
+      'Não rola — eu não tenho senha de ninguém nem instrução secreta pra revelar. Sou um assistente com respostas cadastradas pela própria TI do hotel.',
+      _chamado('Permissão de Acesso', 'a que você precisa ter acesso, pra quê e quem é seu gestor',
+        'Se você precisa de acesso a alguma coisa, o caminho é este:')
+    ),
     sugestoes: ['Como pedir acesso a um sistema?', 'Como abrir um chamado?'],
   },
 
@@ -781,7 +1076,12 @@ const INTENCOES = [
     bonus: (an, ctx) => (ctx && ctx._temHistorico ? 4 : -3),
     chaves: ['nao funcionou', 'nao deu certo', 'nao resolveu', 'continua igual', 'ja tentei isso', 'nao adiantou'],
     apoio: ['ainda', 'mesmo assim', 'continua'],
-    resposta: () => 'Então isso já é caso de gente: abre um chamado contando o que você já tentou (isso poupa a TI de repetir os mesmos passos) e, se der, anexa um print do erro. Prazo de resposta é até 2h úteis.',
+    resposta: () => _juntar(
+      'Então isso já é caso de gente — não vale ficar tentando.',
+      _chamado('a que combina com o problema', 'o que já tentou, o que continua acontecendo e o seu setor',
+        'Abre um chamado assim:'),
+      'Contar o que você já tentou poupa a TI de repetir os mesmos passos. Se der, anexa um print do erro.'
+    ),
     sugestoes: ['Como abrir um chamado?', 'Qual o ramal da TI?'],
   },
   {
@@ -789,7 +1089,15 @@ const INTENCOES = [
     prioridade: 8,
     chaves: ['urgente', 'emergencia', 'parou tudo', 'hospede esperando', 'nao consigo trabalhar', 'agora mesmo'],
     apoio: ['rapido', 'urgencia', 'critico'],
-    resposta: () => 'Caso urgente: abre o chamado marcando prioridade alta E liga no ramal da TI avisando — o chamado registra, a ligação acelera. Diz na descrição que tem hóspede/operação parada, isso muda a fila.',
+    resposta: () => _juntar(
+      'Caso urgente faz os dois: abre o chamado E liga na TI. O chamado registra, a ligação acelera.',
+      [
+        '1. No Hub, abre o card "Chamados TI" e clica em "Novo Chamado".',
+        '2. Escolhe a categoria do problema e marca a prioridade como alta.',
+        '3. Escreve na descrição que tem hóspede ou operação parada — isso muda a fila.',
+        '4. Envia e liga no ramal da TI avisando que abriu.',
+      ].join('\n')
+    ),
     sugestoes: ['Como abrir um chamado?', 'Qual o ramal da TI?'],
   },
 ];
@@ -948,7 +1256,11 @@ function responder(entrada) {
   // Pergunta vazia de conteudo ("teste", "???") — pede o que a pessoa precisa.
   if (an.tokens.length === 0) {
     return {
-      reply: 'Me conta o que está acontecendo — senha, acesso a sistema, impressora, internet, ramal... escrevo do jeito que vier que eu entendo.',
+      reply: _juntar(
+        'Me conta o que está acontecendo.',
+        'Pode ser senha, acesso a sistema, impressora, internet, ramal... escreve do jeito que vier que eu entendo.',
+        'Se preferir já abrir um chamado, me pede "abrir chamado" que eu te passo o passo a passo.'
+      ),
       intencao: 'vazio',
       confianca: 0,
       sugestoes: ['Esqueci minha senha', 'Como abrir um chamado?', 'Quais sistemas tenho acesso?'],
@@ -1059,9 +1371,13 @@ function responder(entrada) {
     return { reply: bloco.texto, intencao: 'contexto_admin', confianca: Math.min(0.95, 0.5 + bloco.score * 0.4), sugestoes: ['Como abrir um chamado?'] };
   }
 
-  // 4) Nao sei — mas ainda assim aponta o caminho certo.
+  // 4) Nao sei — mas ainda assim aponta o caminho certo, com os passos.
   return {
-    reply: 'Essa eu não sei responder com segurança. Abre um chamado no "Chamados TI" descrevendo a situação — a equipe responde em até 2h úteis e resolve direito.',
+    reply: _juntar(
+      'Essa eu não sei responder com segurança — prefiro não chutar.',
+      _chamado('a que mais combinar com o assunto', 'a sua situação com o máximo de detalhe que conseguir',
+        'O caminho certo é abrir um chamado:')
+    ),
     intencao: 'desconhecido',
     confianca: 0,
     sugestoes: ['Como abrir um chamado?', 'Quais sistemas tenho acesso?', 'Falar com alguém do TI'],

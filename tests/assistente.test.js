@@ -148,7 +148,7 @@ test('meus dados vem do cadastro do proprio usuario', () => {
 test('fala do sistema citado pelo apelido e informa se tem acesso', () => {
   const comAcesso = perguntar('como acesso o sistema de chamados?');
   assert.match(comAcesso.reply, /Chamados TI/);
-  assert.match(comAcesso.reply, /j(á|a) tem acesso/i);
+  assert.match(comAcesso.reply, /Clica no card "Chamados TI"/);
 
   const semAcesso = perguntar('para que serve o spa?');
   assert.match(semAcesso.reply, /Gest(ã|a)o de SPA/);
@@ -351,6 +351,30 @@ test('nao quebra com entrada invalida', () => {
 });
 
 // ─── Normalizacao ────────────────────────────────────────────────────────────
+
+// O balão do chat é estreito: resposta em bloco único vira parede de texto.
+// Toda resposta de procedimento tem que vir em parágrafos e oferecer o chamado.
+test('respostas vem em paragrafos e sempre oferecem o caminho do chamado', () => {
+  const perguntas = ['esqueci minha senha', 'a impressora nao imprime', 'estou sem internet',
+    'meu computador esta lento', 'como pedir acesso a um sistema', 'meu mouse parou',
+    'recebi um email suspeito', 'nao funciona', 'qual a taxa de ocupacao do hotel'];
+  for (const p of perguntas) {
+    const r = perguntar(p);
+    assert.ok(r.reply.includes('\n\n'), `sem parágrafos: ${p}`);
+    assert.match(r.reply, /Chamados TI|chamado/i, `não oferece chamado: ${p}`);
+    // Nenhum parágrafo gigante: quebra a leitura no celular.
+    for (const bloco of r.reply.split('\n\n')) {
+      assert.ok(bloco.length <= 320, `bloco longo demais em "${p}": ${bloco.slice(0, 60)}...`);
+    }
+  }
+});
+
+test('o passo a passo do chamado e sempre numerado e com a categoria', () => {
+  const r = perguntar('a impressora nao imprime');
+  assert.match(r.reply, /1\. No Hub, abre o card "Chamados TI"/);
+  assert.match(r.reply, /2\. Escolhe a categoria "Impressora \/ Periférico"/);
+  assert.match(r.reply, /4\. Envia\. A TI responde em até 2h úteis\./);
+});
 
 test('normalizacao tira acento, caixa e pontuacao', () => {
   assert.strictEqual(IA.normalizar('Não CONSIGO acessar!!! (urgente)'), 'nao consigo acessar urgente');
