@@ -1381,6 +1381,7 @@ function AssistenteIAPanel({ isMobile }) {
   }
 
   const C = HUB_PALETTE;
+  const isDark = C.noite === HUB_THEMES.dark.noite;
   const MONO = "'JetBrains Mono', monospace";
   const SERIF = "'Helvetica Neue', Helvetica, Arial, sans-serif";
 
@@ -1664,11 +1665,24 @@ function AssistenteIAPanel({ isMobile }) {
       {/* Modal confirmar salvar texto base */}
       {confirmSavePrompt && ReactDOM.createPortal(
         <div
-          style={{ position: 'fixed', inset: 0, zIndex: 400, background: 'rgba(8,5,3,0.52)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 400,
+            background: isDark ? 'rgba(8,5,3,0.52)' : 'rgba(32,44,40,0.38)',
+            backdropFilter: 'blur(10px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24
+          }}
           onClick={e => { if (e.target === e.currentTarget) setConfirmSavePrompt(false); }}
         >
-          <div style={{ background: '#110c08', border: `1px solid ${C.champanhe}55`, maxWidth: 500, width: '100%', boxShadow: `0 0 0 1px ${C.champanhe}14, 0 40px 100px rgba(0,0,0,0.85)`, overflow: 'hidden' }}>
-            {/* barra dourada topo */}
+          <div style={{
+            background: isDark ? '#110c08' : C.noite,
+            border: `1px solid ${C.champanhe}${isDark ? '55' : '66'}`,
+            maxWidth: 500, width: '100%',
+            boxShadow: isDark
+              ? `0 0 0 1px ${C.champanhe}14, 0 40px 100px rgba(0,0,0,0.85)`
+              : `0 0 0 1px ${C.champanhe}22, 0 24px 64px rgba(32,44,40,0.22)`,
+            overflow: 'hidden'
+          }}>
+            {/* barra champanhe topo */}
             <div style={{ height: 2, background: `linear-gradient(90deg, transparent 0%, ${C.champanhe} 40%, ${C.champanhe} 60%, transparent 100%)` }} />
             <div style={{ padding: isMobile ? '28px 24px 26px' : '38px 44px 34px' }}>
               {/* label */}
@@ -1687,21 +1701,21 @@ function AssistenteIAPanel({ isMobile }) {
               <p style={{ fontFamily: BODY, fontSize: 14, color: C.areia, lineHeight: 1.72, margin: '0 0 10px' }}>
                 Isso vai substituir o texto base que define como a IA se comporta em <em style={{ color: C.marfim }}>todas</em> as respostas. O efeito é imediato.
               </p>
-              <p style={{ fontFamily: BODY, fontSize: 13, color: `${C.areia}77`, lineHeight: 1.6, margin: '0 0 30px' }}>
+              <p style={{ fontFamily: BODY, fontSize: 13, color: isDark ? `${C.areia}77` : `${C.areiaDim}cc`, lineHeight: 1.6, margin: '0 0 30px' }}>
                 Deixe o campo vazio e salve para voltar ao comportamento padrão. O contexto adicional e as respostas rápidas continuam funcionando normalmente.
               </p>
-              <div style={{ height: 1, background: `linear-gradient(90deg, ${C.champanhe}33, transparent)`, marginBottom: 26 }} />
+              <div style={{ height: 1, background: `linear-gradient(90deg, ${C.champanhe}${isDark ? '33' : '55'}, transparent)`, marginBottom: 26 }} />
               {/* botões */}
               <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
                 <button
                   onClick={() => setConfirmSavePrompt(false)}
-                  style={{ background: 'none', border: `1px solid ${C.areia}55`, color: C.areia, fontFamily: MONO, fontSize: 11, letterSpacing: '0.22em', textTransform: 'uppercase', padding: '11px 22px', cursor: 'pointer', transition: 'all 150ms' }}
+                  style={{ background: 'none', border: `1px solid ${C.areia}${isDark ? '55' : '88'}`, color: C.areia, fontFamily: MONO, fontSize: 11, letterSpacing: '0.22em', textTransform: 'uppercase', padding: '11px 22px', cursor: 'pointer', transition: 'all 150ms' }}
                   onMouseEnter={e => { e.currentTarget.style.borderColor = C.areia; e.currentTarget.style.color = C.marfim; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = `${C.areia}55`; e.currentTarget.style.color = C.areia; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = `${C.areia}${isDark ? '55' : '88'}`; e.currentTarget.style.color = C.areia; }}
                 >Cancelar</button>
                 <button
                   onClick={confirmarSalvarBase}
-                  style={{ background: C.champanhe, color: '#0d0905', fontFamily: MONO, fontSize: 11, letterSpacing: '0.22em', textTransform: 'uppercase', padding: '11px 28px', border: 'none', cursor: 'pointer', transition: 'background 150ms' }}
+                  style={{ background: C.champanhe, color: isDark ? '#0d0905' : '#fff', fontFamily: MONO, fontSize: 11, letterSpacing: '0.22em', textTransform: 'uppercase', padding: '11px 28px', border: 'none', cursor: 'pointer', transition: 'background 150ms' }}
                   onMouseEnter={e => { e.currentTarget.style.background = '#b3623f'; }}
                   onMouseLeave={e => { e.currentTarget.style.background = C.champanhe; }}
                 >Salvar texto base</button>
@@ -7780,7 +7794,9 @@ function AIChatWidget({ isMobile }) {
         from: 'bot',
         text: d.ok ? d.reply : (d.erro || 'Não consegui responder agora. Tente novamente.')
       }]);
-      setSuggestions(Array.isArray(d.sugestoes) && d.sugestoes.length ? d.sugestoes : []);
+      // Num erro (429, falha) a resposta não traz sugestões — mantém as
+      // anteriores em vez de zerar os atalhos na cara do usuário.
+      if (d.ok) setSuggestions(Array.isArray(d.sugestoes) ? d.sugestoes : []);
     } catch {
       setTyping(false);
       setMsgs(prev => [...prev, { id: ++idRef.current, from: 'bot', text: 'Erro de conexão. Verifique sua internet e tente novamente.' }]);
@@ -7848,18 +7864,30 @@ function AIChatWidget({ isMobile }) {
                 : `${C.champanhe}18`,
               border: m.from === 'bot' ? `1px solid ${C.champanhe}22` : 'none',
               color: m.from === 'user' ? C.noite : C.marfim,
-              padding: '8px 12px',
+              padding: m.from === 'user' ? '8px 12px' : '11px 13px',
               borderRadius: m.from === 'user' ? '13px 13px 3px 13px' : '13px 13px 13px 3px',
               fontSize: 13,
-              lineHeight: 1.55,
+              lineHeight: 1.6,
               fontWeight: m.from === 'user' ? 500 : 400,
               animation: 'aic-in 200ms ease',
-              // As respostas vêm com quebra de linha e lista (• item) — sem isso
-              // tudo colapsa num parágrafo único.
-              whiteSpace: 'pre-wrap',
               wordBreak: 'break-word',
             }}>
-              {m.text}
+              {/* A resposta vem em blocos separados por linha em branco. Cada
+                  bloco vira um parágrafo com respiro; dentro dele, as linhas
+                  (passos numerados, itens de lista) são preservadas. Sem isso
+                  o balão vira uma parede de texto. */}
+              {String(m.text).split('\n\n').map((bloco, i, todos) => (
+                <div key={i} style={{
+                  whiteSpace: 'pre-wrap',
+                  marginBottom: i === todos.length - 1 ? 0 : 10,
+                  // Passo a passo e listas ficam levemente recuados e mais
+                  // arejados que o texto corrido.
+                  paddingLeft: /^\s*(\d\.|•)/.test(bloco) ? 2 : 0,
+                  lineHeight: /^\s*(\d\.|•)/.test(bloco) ? 1.75 : 1.6,
+                }}>
+                  {bloco}
+                </div>
+              ))}
             </div>
           ))}
           {typing && (
