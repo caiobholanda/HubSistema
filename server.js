@@ -2640,7 +2640,7 @@ app.delete('/api/admin/updates/:id', requireAdmin, (req, res) => {
 });
 
 // ─── Assistente de TI (IA via Groq, chave no Fly secret) ────────────────────
-const AI_SYSTEM_PROMPT = `Você é o assistente de TI do Hotel Gran Marquise (Fortaleza, CE). Responda APENAS sobre os sistemas de TI internos do hotel. Seja direto, didático e específico. Português brasileiro. Máximo 3 parágrafos curtos. Se não souber, oriente a abrir um chamado de TI.
+const AI_BASE_PROMPT = `Você é o assistente de TI do Hotel Gran Marquise (Fortaleza, CE). Responda APENAS sobre os sistemas de TI internos do hotel. Seja direto, didático e específico. Português brasileiro. Máximo 3 parágrafos curtos. Se não souber, oriente a abrir um chamado de TI.
 
 ## Hub Gran Marquise
 Central de acesso: https://hub-granmarquise.fly.dev
@@ -2674,6 +2674,40 @@ Painel admin: https://pesquisa-satisfacao.fly.dev/admin | Acesso terapeuta: http
 - Problema com hardware/periférico: chamado TI → categoria "Impressora / Periférico" → informar modelo e localização.
 - Qualquer dúvida não coberta acima: oriente a abrir um chamado de TI.`;
 
+function buildSystemPrompt(customInfo, quickReplies) {
+  let prompt = AI_BASE_PROMPT;
+  if (Array.isArray(quickReplies) && quickReplies.length > 0) {
+    const qrText = quickReplies
+      .map(qr => `- Palavras-chave: [${qr.keywords}]\n  Resposta sugerida: ${qr.reply}`)
+      .join('\n');
+    prompt += `\n\n## Respostas Prioritárias (use como referência ao identificar as palavras-chave)\n${qrText}`;
+  }
+  if (customInfo && customInfo.trim()) {
+    prompt += `\n\n## Informações Adicionais (contexto atual do hotel — priorize)\n${customInfo.trim()}`;
+  }
+  return prompt;
+}
+
+app.get('/api/admin/ai-config', requireAdmin, (req, res) => {
+  const data = readData();
+  res.json({ ok: true, config: data.ai_config || { custom_info: '', quick_replies: [] } });
+});
+
+app.put('/api/admin/ai-config', requireAdmin, (req, res) => {
+  const { custom_info, quick_replies } = req.body || {};
+  const data = readData();
+  data.ai_config = {
+    custom_info: String(custom_info || '').slice(0, 2500),
+    quick_replies: Array.isArray(quick_replies) ? quick_replies.slice(0, 50).map(qr => ({
+      id: Number(qr.id) || Date.now(),
+      keywords: String(qr.keywords || '').slice(0, 200),
+      reply: String(qr.reply || '').slice(0, 1000)
+    })) : []
+  };
+  writeData(data);
+  res.json({ ok: true });
+});
+
 app.post('/api/ai-chat', async (req, res) => {
   if (!GROQ_API_KEY) return res.json({ ok: false, erro: 'Assistente não configurado. Contate o TI.' });
 
@@ -2687,13 +2721,16 @@ app.post('/api/ai-chat', async (req, res) => {
     content: String(m.content || '').slice(0, 800)
   }));
 
+  const aiCfg = readData().ai_config || {};
+  const systemPrompt = buildSystemPrompt(aiCfg.custom_info || '', aiCfg.quick_replies || []);
+
   try {
     const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_API_KEY}` },
       body: JSON.stringify({
         model: 'llama-3.1-8b-instant',
-        messages: [{ role: 'system', content: AI_SYSTEM_PROMPT }, ...safeMessages],
+        messages: [{ role: 'system', content: systemPrompt }, ...safeMessages],
         max_tokens: 400,
         temperature: 0.4
       })

@@ -1216,13 +1216,279 @@ function LiberacaoPanel({ sistemaId, sistemaNome, isMobile, users, acessoPadrao,
 
 // ─── Admin Panel ──────────────────────────────────────────────────────────────
 
+// ─── Assistente IA — Painel Admin ────────────────────────────────────────────
+
+function AssistenteQRForm({ form, setForm, error, isEdit, onSave, onCancel }) {
+  const C = HUB_PALETTE;
+  const MONO = "'JetBrains Mono', monospace";
+  const SERIF = "'Helvetica Neue', Helvetica, Arial, sans-serif";
+  return (
+    <div style={{ marginTop: 6, background: `${C.champanhe}08`, border: `1px solid ${C.champanhe}2a`, borderTop: 'none', padding: '18px 18px 14px' }}>
+      <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: C.champanhe, marginBottom: 14 }}>
+        {isEdit ? 'Editar Resposta' : 'Nova Resposta Rápida'}
+      </div>
+      <div style={{ marginBottom: 12 }}>
+        <label style={{ display: 'block', fontFamily: MONO, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: C.areiaDim, marginBottom: 6 }}>
+          Palavras-chave (separadas por vírgula)
+        </label>
+        <input
+          value={form.keywords}
+          onChange={e => setForm(f => ({ ...f, keywords: e.target.value }))}
+          placeholder="ex: wifi, internet, senha wifi"
+          style={{ width: '100%', background: `${C.champanhe}07`, border: `1px solid ${C.champanhe}22`, color: C.marfim, fontFamily: MONO, fontSize: 12, padding: '9px 12px', outline: 'none', letterSpacing: '0.03em', boxSizing: 'border-box' }}
+        />
+      </div>
+      <div style={{ marginBottom: error ? 10 : 14 }}>
+        <label style={{ display: 'block', fontFamily: MONO, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: C.areiaDim, marginBottom: 6 }}>
+          Resposta <span style={{ color: C.areiaDim, opacity: 0.6, fontSize: 9 }}>({form.reply.length}/1000)</span>
+        </label>
+        <textarea
+          value={form.reply}
+          onChange={e => setForm(f => ({ ...f, reply: e.target.value.slice(0, 1000) }))}
+          placeholder="Texto que a IA usará como referência para responder..."
+          rows={3}
+          style={{ width: '100%', background: `${C.champanhe}07`, border: `1px solid ${C.champanhe}22`, color: C.marfim, fontFamily: MONO, fontSize: 12, padding: '9px 12px', resize: 'vertical', outline: 'none', letterSpacing: '0.03em', lineHeight: 1.65, boxSizing: 'border-box' }}
+        />
+      </div>
+      {error && <div style={{ fontFamily: MONO, fontSize: 10, color: '#E07A5F', letterSpacing: '0.1em', marginBottom: 10 }}>{error}</div>}
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button onClick={onSave} style={{ background: C.champanhe, color: C.noite, fontFamily: MONO, fontSize: 9, letterSpacing: '0.25em', textTransform: 'uppercase', padding: '9px 18px', border: 'none', cursor: 'pointer' }}>
+          {isEdit ? 'Atualizar' : 'Adicionar'}
+        </button>
+        <button onClick={onCancel} style={{ background: 'none', border: `1px solid ${C.areiaDim}33`, color: C.areiaDim, fontFamily: MONO, fontSize: 9, letterSpacing: '0.25em', textTransform: 'uppercase', padding: '9px 16px', cursor: 'pointer' }}>
+          Cancelar
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function AssistenteIAPanel({ isMobile }) {
+  const [customInfo, setCustomInfo] = useState('');
+  const [quickReplies, setQuickReplies] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [savedAt, setSavedAt] = useState(null);
+  const [saveErr, setSaveErr] = useState('');
+  const [addingQR, setAddingQR] = useState(false);
+  const [editingQR, setEditingQR] = useState(null);
+  const [qrForm, setQrForm] = useState({ keywords: '', reply: '' });
+  const [qrError, setQrError] = useState('');
+  const [deletingId, setDeletingId] = useState(null);
+
+  useEffect(() => {
+    const token = localStorage.getItem('hub_sso_token');
+    fetch('/api/admin/ai-config', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json())
+      .then(d => {
+        if (d.ok) { setCustomInfo(d.config.custom_info || ''); setQuickReplies(d.config.quick_replies || []); }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  async function save() {
+    setSaving(true); setSaveErr(''); setSavedAt(null);
+    try {
+      const token = localStorage.getItem('hub_sso_token');
+      const r = await fetch('/api/admin/ai-config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ custom_info: customInfo, quick_replies: quickReplies })
+      });
+      const d = await r.json();
+      if (d.ok) setSavedAt(new Date());
+      else setSaveErr(d.erro || 'Erro ao salvar.');
+    } catch { setSaveErr('Erro de conexão.'); }
+    finally { setSaving(false); }
+  }
+
+  function commitAddQR() {
+    if (!qrForm.keywords.trim() || !qrForm.reply.trim()) { setQrError('Preencha palavras-chave e resposta.'); return; }
+    setQuickReplies(prev => [...prev, { id: Date.now(), keywords: qrForm.keywords.trim(), reply: qrForm.reply.trim() }]);
+    setQrForm({ keywords: '', reply: '' }); setQrError(''); setAddingQR(false);
+  }
+
+  function commitEditQR() {
+    if (!qrForm.keywords.trim() || !qrForm.reply.trim()) { setQrError('Preencha palavras-chave e resposta.'); return; }
+    setQuickReplies(prev => prev.map(q => q.id === editingQR ? { ...q, keywords: qrForm.keywords.trim(), reply: qrForm.reply.trim() } : q));
+    setEditingQR(null); setQrForm({ keywords: '', reply: '' }); setQrError('');
+  }
+
+  function removeQR(id) { setQuickReplies(prev => prev.filter(q => q.id !== id)); setDeletingId(null); }
+
+  const C = HUB_PALETTE;
+  const MONO = "'JetBrains Mono', monospace";
+  const SERIF = "'Helvetica Neue', Helvetica, Arial, sans-serif";
+
+  if (loading) return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 260, fontFamily: MONO, fontSize: 11, color: C.areiaDim, letterSpacing: '0.2em' }}>
+      Carregando...
+    </div>
+  );
+
+  return (
+    <div style={{ padding: isMobile ? '24px 18px' : '32px 48px', maxWidth: 860 }}>
+
+      {/* Cabeçalho */}
+      <div style={{ marginBottom: 36, paddingBottom: 20, borderBottom: `1px solid ${C.champanhe}1e` }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={C.champanhe} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+          <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.35em', textTransform: 'uppercase', color: C.champanhe }}>Assistente · Configuração</span>
+        </div>
+        <h2 style={{ fontFamily: SERIF, fontWeight: 300, fontSize: isMobile ? 20 : 26, color: C.marfim, letterSpacing: '-0.01em', margin: '0 0 6px' }}>
+          Base de Conhecimento da IA
+        </h2>
+        <p style={{ fontFamily: MONO, fontSize: 11, color: C.areiaDim, letterSpacing: '0.04em', lineHeight: 1.65, margin: 0 }}>
+          O que você configurar aqui é injetado diretamente no contexto da IA antes de cada resposta.
+        </p>
+      </div>
+
+      {/* 01 · Contexto Adicional */}
+      <div style={{ marginBottom: 44 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
+          <div>
+            <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: C.champanhe, marginBottom: 4 }}>01 · Contexto Adicional</div>
+            <div style={{ fontFamily: SERIF, fontStyle: 'italic', fontSize: 13, color: C.areia, fontWeight: 300, lineHeight: 1.5 }}>
+              Informações temporárias ou procedimentos que a IA deve conhecer agora
+            </div>
+          </div>
+          <span style={{ fontFamily: MONO, fontSize: 10, color: customInfo.length > 2200 ? '#E07A5F' : C.areiaDim, letterSpacing: '0.08em', flexShrink: 0, marginLeft: 20, marginTop: 2 }}>
+            {customInfo.length}/2500
+          </span>
+        </div>
+        <div style={{ display: 'flex' }}>
+          <div style={{ width: 3, flexShrink: 0, background: `linear-gradient(180deg, ${C.champanhe}99 0%, ${C.champanhe}22 100%)` }} />
+          <textarea
+            value={customInfo}
+            onChange={e => setCustomInfo(e.target.value.slice(0, 2500))}
+            placeholder={'Exemplos:\n· Impressora do 3º andar em manutenção até sexta (11/08)\n· Novo ramal da Recepção: 5001\n· Rede nos quartos 301–320 instável esta semana\n· Para urgências fora do horário: (85) 9xxxx-xxxx'}
+            style={{ flex: 1, minHeight: 155, background: `${C.champanhe}06`, border: `1px solid ${C.champanhe}1a`, borderLeft: 'none', color: C.marfim, fontFamily: MONO, fontSize: 12, lineHeight: 1.75, padding: '14px 16px', resize: 'vertical', outline: 'none', letterSpacing: '0.025em', boxSizing: 'border-box' }}
+          />
+        </div>
+        <div style={{ fontFamily: MONO, fontSize: 10, color: C.areiaDim, letterSpacing: '0.08em', marginTop: 7, opacity: 0.65, lineHeight: 1.5 }}>
+          Use marcadores (·) para listar itens. Limpe este campo quando não for mais necessário.
+        </div>
+      </div>
+
+      {/* 02 · Respostas Rápidas */}
+      <div style={{ marginBottom: 40 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
+          <div>
+            <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: C.champanhe, marginBottom: 4 }}>02 · Respostas Rápidas</div>
+            <div style={{ fontFamily: SERIF, fontStyle: 'italic', fontSize: 13, color: C.areia, fontWeight: 300, lineHeight: 1.5 }}>
+              Pares palavras-chave → resposta que a IA prioriza ao identificar a pergunta
+            </div>
+          </div>
+          {!addingQR && editingQR === null && (
+            <button
+              onClick={() => { setAddingQR(true); setQrForm({ keywords: '', reply: '' }); setQrError(''); setSavedAt(null); }}
+              style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'none', border: `1px solid ${C.champanhe}44`, color: C.champanhe, fontFamily: MONO, fontSize: 9, letterSpacing: '0.25em', textTransform: 'uppercase', padding: '8px 14px', cursor: 'pointer', flexShrink: 0, marginLeft: 20, marginTop: 2, transition: 'background 150ms' }}
+              onMouseEnter={e => { e.currentTarget.style.background = `${C.champanhe}14`; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'none'; }}
+            >+ Adicionar</button>
+          )}
+        </div>
+
+        {quickReplies.length === 0 && !addingQR && (
+          <div style={{ border: `1px dashed ${C.areiaDim}28`, padding: '28px 20px', textAlign: 'center', fontFamily: MONO, fontSize: 10, color: C.areiaDim, letterSpacing: '0.15em' }}>
+            Nenhuma resposta rápida configurada
+          </div>
+        )}
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {quickReplies.map((qr, idx) => (
+            <div key={qr.id}>
+              <div style={{ background: editingQR === qr.id ? `${C.champanhe}0c` : `${C.champanhe}06`, border: `1px solid ${editingQR === qr.id ? C.champanhe + '44' : C.champanhe + '16'}`, padding: '13px 14px', display: 'flex', gap: 12, alignItems: 'flex-start', transition: 'all 200ms' }}>
+                <span style={{ fontFamily: MONO, fontSize: 10, color: C.champanhe, letterSpacing: '0.12em', flexShrink: 0, paddingTop: 2 }}>{String(idx + 1).padStart(2, '0')}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 7 }}>
+                    {qr.keywords.split(',').map(k => k.trim()).filter(Boolean).map((k, ki) => (
+                      <span key={ki} style={{ background: `${C.champanhe}18`, border: `1px solid ${C.champanhe}30`, color: C.champanhe, fontFamily: MONO, fontSize: 9, padding: '2px 9px', letterSpacing: '0.08em' }}>{k}</span>
+                    ))}
+                  </div>
+                  <div style={{ fontFamily: SERIF, fontSize: 13, color: C.areia, fontWeight: 300, lineHeight: 1.55 }}>{qr.reply}</div>
+                </div>
+                <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
+                  <button
+                    onClick={() => { setEditingQR(qr.id); setQrForm({ keywords: qr.keywords, reply: qr.reply }); setAddingQR(false); setQrError(''); }}
+                    style={{ background: 'none', border: `1px solid ${C.areiaDim}2e`, color: C.areiaDim, fontFamily: MONO, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', padding: '5px 10px', cursor: 'pointer', transition: 'all 150ms' }}
+                    onMouseEnter={e => { e.currentTarget.style.color = C.marfim; e.currentTarget.style.borderColor = C.areiaDim + '66'; }}
+                    onMouseLeave={e => { e.currentTarget.style.color = C.areiaDim; e.currentTarget.style.borderColor = C.areiaDim + '2e'; }}
+                  >Editar</button>
+                  <button
+                    onClick={() => setDeletingId(qr.id)}
+                    style={{ background: 'none', border: '1px solid #E07A5F2e', color: '#E07A5F77', fontFamily: MONO, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', padding: '5px 10px', cursor: 'pointer', transition: 'all 150ms' }}
+                    onMouseEnter={e => { e.currentTarget.style.color = '#E07A5F'; e.currentTarget.style.borderColor = '#E07A5F66'; }}
+                    onMouseLeave={e => { e.currentTarget.style.color = '#E07A5F77'; e.currentTarget.style.borderColor = '#E07A5F2e'; }}
+                  >Excluir</button>
+                </div>
+              </div>
+              {editingQR === qr.id && (
+                <AssistenteQRForm form={qrForm} setForm={setQrForm} error={qrError} isEdit={true}
+                  onSave={commitEditQR}
+                  onCancel={() => { setEditingQR(null); setQrForm({ keywords: '', reply: '' }); setQrError(''); }} />
+              )}
+            </div>
+          ))}
+        </div>
+
+        {addingQR && (
+          <div style={{ marginTop: quickReplies.length > 0 ? 6 : 0 }}>
+            <AssistenteQRForm form={qrForm} setForm={setQrForm} error={qrError} isEdit={false}
+              onSave={commitAddQR}
+              onCancel={() => { setAddingQR(false); setQrForm({ keywords: '', reply: '' }); setQrError(''); }} />
+          </div>
+        )}
+      </div>
+
+      {/* Salvar */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 18, paddingTop: 24, borderTop: `1px solid ${C.champanhe}18` }}>
+        <button
+          onClick={save}
+          disabled={saving}
+          style={{ background: saving ? `${C.champanhe}77` : C.champanhe, color: C.noite, fontFamily: MONO, fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', padding: '12px 28px', border: 'none', cursor: saving ? 'not-allowed' : 'pointer', transition: 'background 200ms' }}
+        >
+          {saving ? 'Salvando...' : 'Salvar Configurações'}
+        </button>
+        {savedAt && !saveErr && (
+          <span style={{ fontFamily: MONO, fontSize: 10, color: '#62A852', letterSpacing: '0.12em' }}>
+            ✓ Salvo às {savedAt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+          </span>
+        )}
+        {saveErr && <span style={{ fontFamily: MONO, fontSize: 10, color: '#E07A5F', letterSpacing: '0.1em' }}>{saveErr}</span>}
+      </div>
+
+      {/* Modal confirmar exclusão */}
+      {deletingId !== null && ReactDOM.createPortal(
+        <div style={{ position: 'fixed', inset: 0, zIndex: 310, background: 'rgba(0,0,0,0.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+          onClick={e => { if (e.target === e.currentTarget) setDeletingId(null); }}>
+          <div style={{ background: C.noite, border: `1px solid ${C.areiaDim}33`, padding: isMobile ? '24px 20px' : '32px 36px', maxWidth: 420, width: '100%', boxShadow: '0 24px 64px rgba(0,0,0,0.6)' }}>
+            <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.35em', textTransform: 'uppercase', color: '#E07A5F', marginBottom: 14 }}>Confirmar exclusão</div>
+            <p style={{ fontFamily: SERIF, fontSize: 14, color: C.areia, fontWeight: 300, lineHeight: 1.65, margin: '0 0 24px' }}>
+              Remover esta resposta rápida? A exclusão só é aplicada após clicar em Salvar.
+            </p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => removeQR(deletingId)} style={{ background: '#E07A5F1a', border: '1px solid #E07A5F55', color: '#E07A5F', fontFamily: MONO, fontSize: 9, letterSpacing: '0.25em', textTransform: 'uppercase', padding: '10px 20px', cursor: 'pointer' }}>Remover</button>
+              <button onClick={() => setDeletingId(null)} style={{ background: 'none', border: `1px solid ${C.areiaDim}33`, color: C.areiaDim, fontFamily: MONO, fontSize: 9, letterSpacing: '0.25em', textTransform: 'uppercase', padding: '10px 20px', cursor: 'pointer' }}>Cancelar</button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+}
+
 function HubAdmin({ onClose, hubSystems, setHubSystems }) {
   const isMobile = useWindowWidth() < 768;
   const isPhone = useWindowWidth() < 480;
   const [aba, _setAba] = useState(() => {
     try {
       const v = sessionStorage.getItem('hub_admin_aba');
-      return ['contas', 'setores', 'links', 'historico', 'feriados', 'ausencias', 'aptos', 'cortesias', 'urnas'].includes(v) ? v : 'contas';
+      return ['contas', 'setores', 'links', 'historico', 'feriados', 'ausencias', 'aptos', 'cortesias', 'urnas', 'assistente'].includes(v) ? v : 'contas';
     } catch { return 'contas'; }
   });
   const setAba = (v) => { try { sessionStorage.setItem('hub_admin_aba', v); } catch {} _setAba(v); };
@@ -1432,6 +1698,7 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
     { id: 'cortesias', label: 'Cortesias' },
     { id: 'urnas', label: 'Urnas' },
     { id: 'historico', label: 'Histórico' },
+    { id: 'assistente', label: 'Assistente IA' },
   ];
 
   return (
@@ -1707,6 +1974,9 @@ function HubAdmin({ onClose, hubSystems, setHubSystems }) {
 
         {/* ── Aba Historico ── */}
         {aba === 'historico' && <HistoricoPanel isMobile={isMobile} />}
+
+        {/* ── Aba Assistente IA ── */}
+        {aba === 'assistente' && <AssistenteIAPanel isMobile={isMobile} />}
 
       </div>
       {linkToast && (
