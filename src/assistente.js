@@ -1337,24 +1337,31 @@ function responder(entrada) {
     return { reply: qr.reply, intencao: 'quick_reply', confianca: Math.min(0.99, 0.7 + qr.score * 0.3), sugestoes: [] };
   }
 
-  // 1.5) Texto do admin que casa MUITO bem com a pergunta responde antes das
-  // intencoes internas. Se a TI cadastrou o procedimento exato ("comanda
-  // cortando impressao" -> mudar o formato do papel), a dica generica de
-  // impressora nao pode passar na frente.
-  const textoAdmin = [config.custom_info, config.base_prompt].filter(Boolean).join('\n\n');
-  const blocoForte = buscarContexto(an, textoAdmin);
-  if (blocoForte && blocoForte.score >= 0.7) {
-    return {
-      reply: _juntar(blocoForte.texto, _chamado('a que combina com o problema',
-        'o que aconteceu e o seu setor', 'Se não for isso ou não resolver, abre um chamado:')),
-      intencao: 'contexto_admin',
-      confianca: Math.min(0.95, 0.5 + blocoForte.score * 0.4),
-      sugestoes: ['Como abrir um chamado?'],
-    };
-  }
-
   // 2) Intencoes.
   const ranking = pontuar(an, ctx);
+
+  // 2.5) Texto cadastrado pelo admin que casa MUITO bem com a pergunta passa na
+  // frente — mas so quando nenhuma intencao interna respondeu com folga.
+  //
+  // O texto base do painel repete o que as intencoes ja cobrem (senha, chamado,
+  // sistemas); sem esse piso, "esqueci minha senha" trocava o passo a passo
+  // formatado por um paragrafo solto do texto base. O caso que importa e o
+  // outro: procedimento especifico da casa ("comanda cortando impressao"),
+  // onde a intencao generica de impressora pontua pouco.
+  const textoAdmin = [config.custom_info, config.base_prompt].filter(Boolean).join('\n\n');
+  const intencaoForte = ranking[0] && ranking[0].score >= 4.5;
+  if (!intencaoForte) {
+    const blocoForte = buscarContexto(an, textoAdmin);
+    if (blocoForte && blocoForte.score >= 0.7) {
+      return {
+        reply: _juntar(blocoForte.texto, _chamado('a que combina com o problema',
+          'o que aconteceu e o seu setor', 'Se não for isso ou não resolver, abre um chamado:')),
+        intencao: 'contexto_admin',
+        confianca: Math.min(0.95, 0.5 + blocoForte.score * 0.4),
+        sugestoes: ['Como abrir um chamado?'],
+      };
+    }
+  }
 
   // Mensagem de uma ou duas palavras ("senha", "suporte", "permissao"): nenhuma
   // palavra de apoio sozinha alcanca o limiar normal, e o assistente antigo

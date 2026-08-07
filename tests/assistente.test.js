@@ -210,6 +210,23 @@ test('procedimento cadastrado pelo admin ganha da resposta generica', () => {
   assert.match(r.reply, /Novo Chamado/); // continua oferecendo o chamado
 });
 
+// REGRESSAO (pega em produção): o texto base do painel repete o que as
+// intenções já cobrem. Sem piso, "esqueci minha senha" trocava o passo a passo
+// formatado por um parágrafo solto desse texto.
+test('texto base do admin nao engole a resposta formatada da intencao', () => {
+  const config = {
+    base_prompt: [
+      'Senha do Hub: mínimo 8 caracteres com maiúscula, minúscula, número e símbolo. Esqueceu a senha: "Esqueci minha senha" na tela de login e conferir o spam.',
+      'Chamados TI: todos os setores usam. Abrir em "Novo Chamado" — setor, descrição e prioridade.',
+    ].join('\n\n'),
+  };
+  for (const [esperado, f] of [['senha_esqueci', 'esqueci minha senha'], ['abrir_chamado', 'como abrir um chamado']]) {
+    const r = perguntar(f, CTX, config);
+    assert.strictEqual(r.intencao, esperado, f);
+    assert.match(r.reply, /1\. /, `perdeu o passo a passo: ${f}`);
+  }
+});
+
 // REGRESSAO: "ja tentei isso" batia com esse mesmo bloco só pela palavra
 // "isso" e devolvia procedimento de impressora.
 test('bloco do admin nao responde por casamento de palavra fraca', () => {
