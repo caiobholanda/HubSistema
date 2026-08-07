@@ -1321,6 +1321,8 @@ function AssistenteIAPanel({ isMobile }) {
   const MONO = "'JetBrains Mono', monospace";
   const SERIF = "'Helvetica Neue', Helvetica, Arial, sans-serif";
 
+  const BODY = 'Inter, sans-serif';
+
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 260, fontFamily: MONO, fontSize: 11, color: C.areiaDim, letterSpacing: '0.2em' }}>
       Carregando...
@@ -1338,10 +1340,10 @@ function AssistenteIAPanel({ isMobile }) {
           </svg>
           <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.35em', textTransform: 'uppercase', color: C.champanhe }}>Assistente · Configuração</span>
         </div>
-        <h2 style={{ fontFamily: SERIF, fontWeight: 300, fontSize: isMobile ? 20 : 26, color: C.marfim, letterSpacing: '-0.01em', margin: '0 0 6px' }}>
+        <h2 style={{ fontFamily: SERIF, fontWeight: 300, fontStyle: 'italic', fontSize: isMobile ? 24 : 34, color: C.marfim, letterSpacing: '-0.02em', margin: '0 0 8px' }}>
           Base de Conhecimento da IA
         </h2>
-        <p style={{ fontFamily: MONO, fontSize: 11, color: C.areiaDim, letterSpacing: '0.04em', lineHeight: 1.65, margin: 0 }}>
+        <p style={{ fontFamily: BODY, fontSize: 14, color: C.areiaDim, lineHeight: 1.55, margin: 0 }}>
           O que você configurar aqui é injetado diretamente no contexto da IA antes de cada resposta.
         </p>
       </div>
@@ -1351,7 +1353,7 @@ function AssistenteIAPanel({ isMobile }) {
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
           <div>
             <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: C.champanhe, marginBottom: 4 }}>01 · Contexto Adicional</div>
-            <div style={{ fontFamily: SERIF, fontStyle: 'italic', fontSize: 13, color: C.areia, fontWeight: 300, lineHeight: 1.5 }}>
+            <div style={{ fontFamily: BODY, fontSize: 13, color: C.areiaDim, lineHeight: 1.5 }}>
               Informações temporárias ou procedimentos que a IA deve conhecer agora
             </div>
           </div>
@@ -1387,7 +1389,7 @@ function AssistenteIAPanel({ isMobile }) {
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
           <div>
             <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: C.champanhe, marginBottom: 4 }}>02 · Respostas Rápidas</div>
-            <div style={{ fontFamily: SERIF, fontStyle: 'italic', fontSize: 13, color: C.areia, fontWeight: 300, lineHeight: 1.5 }}>
+            <div style={{ fontFamily: BODY, fontSize: 13, color: C.areiaDim, lineHeight: 1.5 }}>
               Pares palavras-chave → resposta que a IA prioriza ao identificar a pergunta
             </div>
           </div>
@@ -1418,7 +1420,7 @@ function AssistenteIAPanel({ isMobile }) {
                       <span key={ki} style={{ background: `${C.champanhe}18`, border: `1px solid ${C.champanhe}30`, color: C.champanhe, fontFamily: MONO, fontSize: 9, padding: '2px 9px', letterSpacing: '0.08em' }}>{k}</span>
                     ))}
                   </div>
-                  <div style={{ fontFamily: SERIF, fontSize: 13, color: C.areia, fontWeight: 300, lineHeight: 1.55 }}>{qr.reply}</div>
+                  <div style={{ fontFamily: BODY, fontSize: 13, color: C.areia, lineHeight: 1.55 }}>{qr.reply}</div>
                 </div>
                 <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
                   <button
@@ -1476,7 +1478,7 @@ function AssistenteIAPanel({ isMobile }) {
           onClick={e => { if (e.target === e.currentTarget) setDeletingId(null); }}>
           <div style={{ background: C.noite, border: `1px solid ${C.areiaDim}33`, padding: isMobile ? '24px 20px' : '32px 36px', maxWidth: 420, width: '100%', boxShadow: '0 24px 64px rgba(0,0,0,0.6)' }}>
             <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.35em', textTransform: 'uppercase', color: '#E07A5F', marginBottom: 14 }}>Confirmar exclusão</div>
-            <p style={{ fontFamily: SERIF, fontSize: 14, color: C.areia, fontWeight: 300, lineHeight: 1.65, margin: '0 0 24px' }}>
+            <p style={{ fontFamily: BODY, fontSize: 14, color: C.areia, lineHeight: 1.65, margin: '0 0 24px' }}>
               Remover esta resposta rápida? A exclusão só é aplicada após clicar em Salvar.
             </p>
             <div style={{ display: 'flex', gap: 10 }}>
