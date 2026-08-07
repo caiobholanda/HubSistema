@@ -1224,38 +1224,38 @@ function AssistenteQRForm({ form, setForm, error, isEdit, onSave, onCancel }) {
   const SERIF = "'Helvetica Neue', Helvetica, Arial, sans-serif";
   return (
     <div style={{ marginTop: 6, background: `${C.champanhe}08`, border: `1px solid ${C.champanhe}2a`, borderTop: 'none', padding: '18px 18px 14px' }}>
-      <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: C.champanhe, marginBottom: 14 }}>
+      <div style={{ fontFamily: MONO, fontSize: 11, letterSpacing: '0.3em', textTransform: 'uppercase', color: C.champanhe, marginBottom: 14 }}>
         {isEdit ? 'Editar Resposta' : 'Nova Resposta Rápida'}
       </div>
       <div style={{ marginBottom: 12 }}>
-        <label style={{ display: 'block', fontFamily: MONO, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: C.areiaDim, marginBottom: 6 }}>
+        <label style={{ display: 'block', fontFamily: MONO, fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', color: C.areia, marginBottom: 6 }}>
           Palavras-chave (separadas por vírgula)
         </label>
         <input
           value={form.keywords}
           onChange={e => setForm(f => ({ ...f, keywords: e.target.value }))}
           placeholder="ex: wifi, internet, senha wifi"
-          style={{ width: '100%', background: `${C.champanhe}07`, border: `1px solid ${C.champanhe}22`, color: C.marfim, fontFamily: MONO, fontSize: 12, padding: '9px 12px', outline: 'none', letterSpacing: '0.03em', boxSizing: 'border-box' }}
+          style={{ width: '100%', background: `${C.champanhe}07`, border: `1px solid ${C.champanhe}22`, color: C.marfim, fontFamily: MONO, fontSize: 13, padding: '9px 12px', outline: 'none', letterSpacing: '0.03em', boxSizing: 'border-box' }}
         />
       </div>
       <div style={{ marginBottom: error ? 10 : 14 }}>
-        <label style={{ display: 'block', fontFamily: MONO, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: C.areiaDim, marginBottom: 6 }}>
-          Resposta <span style={{ color: C.areiaDim, opacity: 0.6, fontSize: 9 }}>({form.reply.length}/1000)</span>
+        <label style={{ display: 'block', fontFamily: MONO, fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', color: C.areia, marginBottom: 6 }}>
+          Resposta <span style={{ color: C.areia, opacity: 0.6, fontSize: 11 }}>({form.reply.length}/1000)</span>
         </label>
         <textarea
           value={form.reply}
           onChange={e => setForm(f => ({ ...f, reply: e.target.value.slice(0, 1000) }))}
           placeholder="Texto que a IA usará como referência para responder..."
           rows={3}
-          style={{ width: '100%', background: `${C.champanhe}07`, border: `1px solid ${C.champanhe}22`, color: C.marfim, fontFamily: MONO, fontSize: 12, padding: '9px 12px', resize: 'vertical', outline: 'none', letterSpacing: '0.03em', lineHeight: 1.65, boxSizing: 'border-box' }}
+          style={{ width: '100%', background: `${C.champanhe}07`, border: `1px solid ${C.champanhe}22`, color: C.marfim, fontFamily: MONO, fontSize: 13, padding: '9px 12px', resize: 'vertical', outline: 'none', letterSpacing: '0.03em', lineHeight: 1.65, boxSizing: 'border-box' }}
         />
       </div>
-      {error && <div style={{ fontFamily: MONO, fontSize: 10, color: '#E07A5F', letterSpacing: '0.1em', marginBottom: 10 }}>{error}</div>}
+      {error && <div style={{ fontFamily: MONO, fontSize: 11, color: '#E07A5F', letterSpacing: '0.1em', marginBottom: 10 }}>{error}</div>}
       <div style={{ display: 'flex', gap: 8 }}>
-        <button onClick={onSave} style={{ background: C.champanhe, color: C.noite, fontFamily: MONO, fontSize: 9, letterSpacing: '0.25em', textTransform: 'uppercase', padding: '9px 18px', border: 'none', cursor: 'pointer' }}>
+        <button onClick={onSave} style={{ background: C.champanhe, color: C.noite, fontFamily: MONO, fontSize: 11, letterSpacing: '0.25em', textTransform: 'uppercase', padding: '9px 18px', border: 'none', cursor: 'pointer' }}>
           {isEdit ? 'Atualizar' : 'Adicionar'}
         </button>
-        <button onClick={onCancel} style={{ background: 'none', border: `1px solid ${C.areiaDim}33`, color: C.areiaDim, fontFamily: MONO, fontSize: 9, letterSpacing: '0.25em', textTransform: 'uppercase', padding: '9px 16px', cursor: 'pointer' }}>
+        <button onClick={onCancel} style={{ background: 'none', border: `1px solid ${C.areia}66`, color: C.areia, fontFamily: MONO, fontSize: 11, letterSpacing: '0.25em', textTransform: 'uppercase', padding: '9px 16px', cursor: 'pointer' }}>
           Cancelar
         </button>
       </div>
@@ -1342,18 +1342,18 @@ function AssistenteIAPanel({ isMobile }) {
   const BODY = 'Inter, sans-serif';
 
   if (loading) return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 260, fontFamily: MONO, fontSize: 11, color: C.areiaDim, letterSpacing: '0.2em' }}>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 260, fontFamily: MONO, fontSize: 13, color: C.areiaDim, letterSpacing: '0.2em' }}>
       Carregando...
     </div>
   );
 
   if (loadErr) return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 260, gap: 16, padding: 32 }}>
-      <div style={{ fontFamily: MONO, fontSize: 10, color: '#E07A5F', letterSpacing: '0.2em', textTransform: 'uppercase' }}>Erro ao carregar configurações</div>
-      <div style={{ fontFamily: BODY, fontSize: 13, color: C.areiaDim, textAlign: 'center', lineHeight: 1.6 }}>
+      <div style={{ fontFamily: MONO, fontSize: 12, color: '#E07A5F', letterSpacing: '0.2em', textTransform: 'uppercase' }}>Erro ao carregar configurações</div>
+      <div style={{ fontFamily: BODY, fontSize: 14, color: C.areia, textAlign: 'center', lineHeight: 1.6 }}>
         Não foi possível buscar os dados salvos do servidor.<br/>Seus dados estão seguros — tente recarregar.
       </div>
-      <button onClick={carregarConfig} style={{ background: 'none', border: `1px solid ${C.champanhe}55`, color: C.champanhe, fontFamily: MONO, fontSize: 9, letterSpacing: '0.25em', textTransform: 'uppercase', padding: '10px 20px', cursor: 'pointer' }}>
+      <button onClick={carregarConfig} style={{ background: 'none', border: `1px solid ${C.champanhe}55`, color: C.champanhe, fontFamily: MONO, fontSize: 11, letterSpacing: '0.25em', textTransform: 'uppercase', padding: '10px 20px', cursor: 'pointer' }}>
         Tentar novamente
       </button>
     </div>
@@ -1368,12 +1368,12 @@ function AssistenteIAPanel({ isMobile }) {
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={C.champanhe} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
           </svg>
-          <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.35em', textTransform: 'uppercase', color: C.champanhe }}>Assistente · Configuração</span>
+          <span style={{ fontFamily: MONO, fontSize: 11, letterSpacing: '0.35em', textTransform: 'uppercase', color: C.champanhe }}>Assistente · Configuração</span>
         </div>
-        <h2 style={{ fontFamily: SERIF, fontWeight: 300, fontStyle: 'italic', fontSize: isMobile ? 24 : 34, color: C.marfim, letterSpacing: '-0.02em', margin: '0 0 8px' }}>
+        <h2 style={{ fontFamily: SERIF, fontWeight: 300, fontStyle: 'italic', fontSize: isMobile ? 26 : 38, color: C.marfim, letterSpacing: '-0.02em', margin: '0 0 8px' }}>
           Base de Conhecimento da IA
         </h2>
-        <p style={{ fontFamily: BODY, fontSize: 14, color: C.areia, lineHeight: 1.55, margin: 0 }}>
+        <p style={{ fontFamily: BODY, fontSize: 15, color: C.areia, lineHeight: 1.55, margin: 0 }}>
           O que você configurar aqui é injetado diretamente no contexto da IA antes de cada resposta.
         </p>
       </div>
@@ -1382,8 +1382,8 @@ function AssistenteIAPanel({ isMobile }) {
       <div style={{ marginBottom: 44 }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
           <div>
-            <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: C.champanhe, marginBottom: 4 }}>01 · Contexto Adicional</div>
-            <div style={{ fontFamily: BODY, fontSize: 13, color: C.areia, lineHeight: 1.5 }}>
+            <div style={{ fontFamily: MONO, fontSize: 11, letterSpacing: '0.3em', textTransform: 'uppercase', color: C.champanhe, marginBottom: 4 }}>01 · Contexto Adicional</div>
+            <div style={{ fontFamily: BODY, fontSize: 14, color: C.areia, lineHeight: 1.5 }}>
               Informações temporárias ou procedimentos que a IA deve conhecer agora
             </div>
           </div>
@@ -1391,13 +1391,13 @@ function AssistenteIAPanel({ isMobile }) {
             {customInfo.length > 0 && (
               <button
                 onClick={() => setCustomInfo('')}
-                style={{ background: 'none', border: 'none', color: C.areia, fontFamily: MONO, fontSize: 9, letterSpacing: '0.15em', textTransform: 'uppercase', cursor: 'pointer', padding: '2px 6px', transition: 'color 150ms' }}
+                style={{ background: 'none', border: 'none', color: C.areia, fontFamily: MONO, fontSize: 11, letterSpacing: '0.15em', textTransform: 'uppercase', cursor: 'pointer', padding: '2px 6px', transition: 'color 150ms' }}
                 onMouseEnter={e => { e.currentTarget.style.color = '#E07A5F'; }}
                 onMouseLeave={e => { e.currentTarget.style.color = C.areia; }}
                 title="Limpar campo"
               >✕ Limpar</button>
             )}
-            <span style={{ fontFamily: MONO, fontSize: 10, color: customInfo.length > 2200 ? '#E07A5F' : C.areia, letterSpacing: '0.08em' }}>
+            <span style={{ fontFamily: MONO, fontSize: 12, color: customInfo.length > 2200 ? '#E07A5F' : C.areia, letterSpacing: '0.08em' }}>
               {customInfo.length}/2500
             </span>
           </div>
@@ -1408,16 +1408,16 @@ function AssistenteIAPanel({ isMobile }) {
             value={customInfo}
             onChange={e => setCustomInfo(e.target.value.slice(0, 2500))}
             placeholder={'Exemplos:\n· Impressora do 3º andar em manutenção até sexta (11/08)\n· Novo ramal da Recepção: 5001\n· Rede nos quartos 301–320 instável esta semana\n· Para urgências fora do horário: (85) 9xxxx-xxxx'}
-            style={{ flex: 1, minHeight: 155, background: `${C.champanhe}0e`, border: `1px solid ${C.champanhe}35`, borderLeft: 'none', color: C.marfim, fontFamily: MONO, fontSize: 12, lineHeight: 1.75, padding: '14px 16px', resize: 'vertical', outline: 'none', letterSpacing: '0.025em', boxSizing: 'border-box' }}
+            style={{ flex: 1, minHeight: 155, background: `${C.champanhe}0e`, border: `1px solid ${C.champanhe}35`, borderLeft: 'none', color: C.marfim, fontFamily: MONO, fontSize: 13, lineHeight: 1.75, padding: '14px 16px', resize: 'vertical', outline: 'none', letterSpacing: '0.025em', boxSizing: 'border-box' }}
           />
         </div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 7 }}>
-          <div style={{ fontFamily: MONO, fontSize: 10, color: C.areia, letterSpacing: '0.08em', lineHeight: 1.5 }}>
+          <div style={{ fontFamily: MONO, fontSize: 12, color: C.areia, letterSpacing: '0.08em', lineHeight: 1.5 }}>
             Use marcadores (·) para listar itens. Limpe este campo quando não for mais necessário.
           </div>
           <button
             onClick={() => setCustomInfo('· Impressora do 3º andar em manutenção até sexta (11/08)\n· Novo ramal da Recepção: 5001\n· Rede nos quartos 301–320 instável esta semana\n· Para urgências fora do horário: (85) 9xxxx-xxxx')}
-            style={{ background: 'none', border: `1px solid ${C.champanhe}33`, color: C.champanhe, fontFamily: MONO, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', padding: '6px 12px', cursor: 'pointer', flexShrink: 0, marginLeft: 16, transition: 'background 150ms' }}
+            style={{ background: 'none', border: `1px solid ${C.champanhe}33`, color: C.champanhe, fontFamily: MONO, fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', padding: '6px 12px', cursor: 'pointer', flexShrink: 0, marginLeft: 16, transition: 'background 150ms' }}
             onMouseEnter={e => { e.currentTarget.style.background = `${C.champanhe}12`; }}
             onMouseLeave={e => { e.currentTarget.style.background = 'none'; }}
             title="Inserir textos de exemplo para editar"
@@ -1429,15 +1429,15 @@ function AssistenteIAPanel({ isMobile }) {
       <div style={{ marginBottom: 40 }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
           <div>
-            <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: C.champanhe, marginBottom: 4 }}>02 · Respostas Rápidas</div>
-            <div style={{ fontFamily: BODY, fontSize: 13, color: C.areia, lineHeight: 1.5 }}>
+            <div style={{ fontFamily: MONO, fontSize: 11, letterSpacing: '0.3em', textTransform: 'uppercase', color: C.champanhe, marginBottom: 4 }}>02 · Respostas Rápidas</div>
+            <div style={{ fontFamily: BODY, fontSize: 14, color: C.areia, lineHeight: 1.5 }}>
               Pares palavras-chave → resposta que a IA prioriza ao identificar a pergunta
             </div>
           </div>
           {!addingQR && editingQR === null && (
             <button
               onClick={() => { setAddingQR(true); setQrForm({ keywords: '', reply: '' }); setQrError(''); setSavedAt(null); }}
-              style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'none', border: `1px solid ${C.champanhe}66`, color: C.champanhe, fontFamily: MONO, fontSize: 9, letterSpacing: '0.25em', textTransform: 'uppercase', padding: '8px 14px', cursor: 'pointer', flexShrink: 0, marginLeft: 20, marginTop: 2, transition: 'background 150ms' }}
+              style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'none', border: `1px solid ${C.champanhe}66`, color: C.champanhe, fontFamily: MONO, fontSize: 11, letterSpacing: '0.25em', textTransform: 'uppercase', padding: '8px 14px', cursor: 'pointer', flexShrink: 0, marginLeft: 20, marginTop: 2, transition: 'background 150ms' }}
               onMouseEnter={e => { e.currentTarget.style.background = `${C.champanhe}14`; }}
               onMouseLeave={e => { e.currentTarget.style.background = 'none'; }}
             >+ Adicionar</button>
@@ -1445,7 +1445,7 @@ function AssistenteIAPanel({ isMobile }) {
         </div>
 
         {quickReplies.length === 0 && !addingQR && (
-          <div style={{ border: `1px dashed ${C.areia}44`, padding: '28px 20px', textAlign: 'center', fontFamily: MONO, fontSize: 10, color: C.areia, letterSpacing: '0.15em' }}>
+          <div style={{ border: `1px dashed ${C.areia}44`, padding: '28px 20px', textAlign: 'center', fontFamily: MONO, fontSize: 12, color: C.areia, letterSpacing: '0.15em' }}>
             Nenhuma resposta rápida configurada
           </div>
         )}
@@ -1454,25 +1454,25 @@ function AssistenteIAPanel({ isMobile }) {
           {quickReplies.map((qr, idx) => (
             <div key={qr.id}>
               <div style={{ background: editingQR === qr.id ? `${C.champanhe}14` : `${C.champanhe}0a`, border: `1px solid ${editingQR === qr.id ? C.champanhe + '66' : C.champanhe + '30'}`, padding: '13px 14px', display: 'flex', gap: 12, alignItems: 'flex-start', transition: 'all 200ms' }}>
-                <span style={{ fontFamily: MONO, fontSize: 10, color: C.champanhe, letterSpacing: '0.12em', flexShrink: 0, paddingTop: 2 }}>{String(idx + 1).padStart(2, '0')}</span>
+                <span style={{ fontFamily: MONO, fontSize: 12, color: C.champanhe, letterSpacing: '0.12em', flexShrink: 0, paddingTop: 2 }}>{String(idx + 1).padStart(2, '0')}</span>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 7 }}>
                     {qr.keywords.split(',').map(k => k.trim()).filter(Boolean).map((k, ki) => (
-                      <span key={ki} style={{ background: `${C.champanhe}28`, border: `1px solid ${C.champanhe}55`, color: C.champanhe, fontFamily: MONO, fontSize: 9, padding: '2px 9px', letterSpacing: '0.08em' }}>{k}</span>
+                      <span key={ki} style={{ background: `${C.champanhe}28`, border: `1px solid ${C.champanhe}55`, color: C.champanhe, fontFamily: MONO, fontSize: 11, padding: '2px 9px', letterSpacing: '0.08em' }}>{k}</span>
                     ))}
                   </div>
-                  <div style={{ fontFamily: BODY, fontSize: 13, color: C.marfim, lineHeight: 1.55 }}>{qr.reply}</div>
+                  <div style={{ fontFamily: BODY, fontSize: 14, color: C.marfim, lineHeight: 1.55 }}>{qr.reply}</div>
                 </div>
                 <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
                   <button
                     onClick={() => { setEditingQR(qr.id); setQrForm({ keywords: qr.keywords, reply: qr.reply }); setAddingQR(false); setQrError(''); }}
-                    style={{ background: 'none', border: `1px solid ${C.areia}55`, color: C.areia, fontFamily: MONO, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', padding: '5px 10px', cursor: 'pointer', transition: 'all 150ms' }}
+                    style={{ background: 'none', border: `1px solid ${C.areia}55`, color: C.areia, fontFamily: MONO, fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', padding: '5px 10px', cursor: 'pointer', transition: 'all 150ms' }}
                     onMouseEnter={e => { e.currentTarget.style.color = C.marfim; e.currentTarget.style.borderColor = C.areia; }}
                     onMouseLeave={e => { e.currentTarget.style.color = C.areia; e.currentTarget.style.borderColor = C.areia + '55'; }}
                   >Editar</button>
                   <button
                     onClick={() => setDeletingId(qr.id)}
-                    style={{ background: 'none', border: '1px solid #E07A5F55', color: '#E07A5FAA', fontFamily: MONO, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', padding: '5px 10px', cursor: 'pointer', transition: 'all 150ms' }}
+                    style={{ background: 'none', border: '1px solid #E07A5F55', color: '#E07A5FAA', fontFamily: MONO, fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', padding: '5px 10px', cursor: 'pointer', transition: 'all 150ms' }}
                     onMouseEnter={e => { e.currentTarget.style.color = '#E07A5F'; e.currentTarget.style.borderColor = '#E07A5F'; }}
                     onMouseLeave={e => { e.currentTarget.style.color = '#E07A5FAA'; e.currentTarget.style.borderColor = '#E07A5F55'; }}
                   >Excluir</button>
@@ -1500,8 +1500,8 @@ function AssistenteIAPanel({ isMobile }) {
       <div style={{ marginBottom: 40, paddingTop: 32, borderTop: `1px solid ${C.champanhe}30` }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: showPreview ? 16 : 0 }}>
           <div>
-            <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: C.champanhe, marginBottom: 4 }}>03 · Contexto Completo da IA</div>
-            <div style={{ fontFamily: BODY, fontSize: 13, color: C.areia, lineHeight: 1.5 }}>
+            <div style={{ fontFamily: MONO, fontSize: 11, letterSpacing: '0.3em', textTransform: 'uppercase', color: C.champanhe, marginBottom: 4 }}>03 · Contexto Completo da IA</div>
+            <div style={{ fontFamily: BODY, fontSize: 14, color: C.areia, lineHeight: 1.5 }}>
               Exatamente o que a IA recebe antes de cada resposta — base + configurações salvas
             </div>
           </div>
@@ -1519,7 +1519,7 @@ function AssistenteIAPanel({ isMobile }) {
               }
               setShowPreview(v => !v);
             }}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: `1px solid ${C.champanhe}33`, color: C.champanhe, fontFamily: MONO, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', padding: '8px 14px', cursor: 'pointer', flexShrink: 0, marginLeft: 20, transition: 'background 150ms' }}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: `1px solid ${C.champanhe}33`, color: C.champanhe, fontFamily: MONO, fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', padding: '8px 14px', cursor: 'pointer', flexShrink: 0, marginLeft: 20, transition: 'background 150ms' }}
             onMouseEnter={e => { e.currentTarget.style.background = `${C.champanhe}12`; }}
             onMouseLeave={e => { e.currentTarget.style.background = 'none'; }}
           >
@@ -1531,8 +1531,8 @@ function AssistenteIAPanel({ isMobile }) {
         </div>
         {showPreview && previewText && (
           <div style={{ position: 'relative' }}>
-            <div style={{ position: 'absolute', top: 10, right: 10, fontFamily: MONO, fontSize: 8, color: C.areia, letterSpacing: '0.2em', textTransform: 'uppercase' }}>somente leitura</div>
-            <pre style={{ margin: 0, background: `${C.champanhe}0a`, border: `1px solid ${C.champanhe}30`, color: C.areia, fontFamily: MONO, fontSize: 11, lineHeight: 1.75, padding: '18px 16px', paddingRight: 80, overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 420, overflowY: 'auto' }}>
+            <div style={{ position: 'absolute', top: 10, right: 10, fontFamily: MONO, fontSize: 10, color: C.areia, letterSpacing: '0.2em', textTransform: 'uppercase' }}>somente leitura</div>
+            <pre style={{ margin: 0, background: `${C.champanhe}0a`, border: `1px solid ${C.champanhe}30`, color: C.areia, fontFamily: MONO, fontSize: 12, lineHeight: 1.75, padding: '18px 16px', paddingRight: 80, overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 420, overflowY: 'auto' }}>
               {previewText}
             </pre>
           </div>
@@ -1542,21 +1542,21 @@ function AssistenteIAPanel({ isMobile }) {
       {/* Auto-save status */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingTop: 20, borderTop: `1px solid ${C.champanhe}44`, minHeight: 40 }}>
         {saving && (
-          <span style={{ fontFamily: MONO, fontSize: 10, color: C.areia, letterSpacing: '0.15em' }}>● Salvando...</span>
+          <span style={{ fontFamily: MONO, fontSize: 12, color: C.areia, letterSpacing: '0.15em' }}>● Salvando...</span>
         )}
         {!saving && savedAt && !saveErr && (
-          <span style={{ fontFamily: MONO, fontSize: 10, color: '#62A852', letterSpacing: '0.12em' }}>
+          <span style={{ fontFamily: MONO, fontSize: 12, color: '#62A852', letterSpacing: '0.12em' }}>
             ✓ Salvo automaticamente às {savedAt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
           </span>
         )}
         {!saving && saveErr && (
-          <span style={{ fontFamily: MONO, fontSize: 10, color: '#E07A5F', letterSpacing: '0.1em' }}>
+          <span style={{ fontFamily: MONO, fontSize: 12, color: '#E07A5F', letterSpacing: '0.1em' }}>
             ✗ {saveErr} —{' '}
-            <button onClick={() => save(customInfo, quickReplies)} style={{ background: 'none', border: 'none', color: C.champanhe, fontFamily: MONO, fontSize: 10, cursor: 'pointer', textDecoration: 'underline', padding: 0 }}>tentar novamente</button>
+            <button onClick={() => save(customInfo, quickReplies)} style={{ background: 'none', border: 'none', color: C.champanhe, fontFamily: MONO, fontSize: 12, cursor: 'pointer', textDecoration: 'underline', padding: 0 }}>tentar novamente</button>
           </span>
         )}
         {!saving && !savedAt && !saveErr && (
-          <span style={{ fontFamily: MONO, fontSize: 10, color: `${C.areia}66`, letterSpacing: '0.12em' }}>Salvo automaticamente ao editar</span>
+          <span style={{ fontFamily: MONO, fontSize: 12, color: `${C.areia}66`, letterSpacing: '0.12em' }}>Salvo automaticamente ao editar</span>
         )}
       </div>
 
@@ -1565,13 +1565,13 @@ function AssistenteIAPanel({ isMobile }) {
         <div style={{ position: 'fixed', inset: 0, zIndex: 310, background: 'rgba(0,0,0,0.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
           onClick={e => { if (e.target === e.currentTarget) setDeletingId(null); }}>
           <div style={{ background: C.noite, border: `1px solid ${C.areiaDim}33`, padding: isMobile ? '24px 20px' : '32px 36px', maxWidth: 420, width: '100%', boxShadow: '0 24px 64px rgba(0,0,0,0.6)' }}>
-            <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.35em', textTransform: 'uppercase', color: '#E07A5F', marginBottom: 14 }}>Confirmar exclusão</div>
-            <p style={{ fontFamily: BODY, fontSize: 14, color: C.areia, lineHeight: 1.65, margin: '0 0 24px' }}>
+            <div style={{ fontFamily: MONO, fontSize: 11, letterSpacing: '0.35em', textTransform: 'uppercase', color: '#E07A5F', marginBottom: 14 }}>Confirmar exclusão</div>
+            <p style={{ fontFamily: BODY, fontSize: 15, color: C.areia, lineHeight: 1.65, margin: '0 0 24px' }}>
               Remover esta resposta rápida? A exclusão será salva automaticamente.
             </p>
             <div style={{ display: 'flex', gap: 10 }}>
-              <button onClick={() => removeQR(deletingId)} style={{ background: '#E07A5F1a', border: '1px solid #E07A5F55', color: '#E07A5F', fontFamily: MONO, fontSize: 9, letterSpacing: '0.25em', textTransform: 'uppercase', padding: '10px 20px', cursor: 'pointer' }}>Remover</button>
-              <button onClick={() => setDeletingId(null)} style={{ background: 'none', border: `1px solid ${C.areiaDim}33`, color: C.areiaDim, fontFamily: MONO, fontSize: 9, letterSpacing: '0.25em', textTransform: 'uppercase', padding: '10px 20px', cursor: 'pointer' }}>Cancelar</button>
+              <button onClick={() => removeQR(deletingId)} style={{ background: '#E07A5F1a', border: '1px solid #E07A5F55', color: '#E07A5F', fontFamily: MONO, fontSize: 11, letterSpacing: '0.25em', textTransform: 'uppercase', padding: '10px 20px', cursor: 'pointer' }}>Remover</button>
+              <button onClick={() => setDeletingId(null)} style={{ background: 'none', border: `1px solid ${C.areia}66`, color: C.areia, fontFamily: MONO, fontSize: 11, letterSpacing: '0.25em', textTransform: 'uppercase', padding: '10px 20px', cursor: 'pointer' }}>Cancelar</button>
             </div>
           </div>
         </div>,
