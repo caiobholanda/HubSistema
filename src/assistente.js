@@ -258,15 +258,32 @@ function detectarSetor(an) {
 
 // ─── 4. Base de conhecimento do admin (custom_info + quick_replies) ──────────
 
-// custom_info vira blocos recuperaveis: cada paragrafo/linha é um documento e a
-// pergunta recupera o bloco mais parecido — antes, custom_info inteiro era
-// despejado como ultimo recurso, mesmo sem relacao com a pergunta.
+// custom_info vira blocos recuperaveis: cada linha é um documento — MAS itens
+// de lista ficam grudados no cabecalho. Antes, "Horarios do refeitorio:" e
+// "· 07h as 09h" viravam blocos separados: o item curto era descartado e a
+// recuperacao devolvia so o cabecalho, sem a informacao.
 function _blocos(customInfo) {
-  return String(customInfo || '')
-    .split(/\n\s*\n|\n(?=[-•*\d]\s)|\n/)
-    .map(b => b.trim())
-    .filter(b => b.length >= 12)
-    .slice(0, 60);
+  const out = [];
+  let atual = null;
+  for (const bruta of String(customInfo || '').split('\n')) {
+    const l = bruta.trim();
+    if (!l) { if (atual) { out.push(atual); atual = null; } continue; }
+    const ehItem = /^([-•*·–]|\d+[.)])\s*/.test(l);
+    if (atual && (ehItem || atual.endsWith(':'))) { atual += '\n' + l; continue; }
+    if (atual) out.push(atual);
+    atual = l;
+  }
+  if (atual) out.push(atual);
+  return out.filter(b => b.length >= 12).slice(0, 60);
+}
+
+// Bloco recuperado nao pode virar um textao no balao: corta em fim de frase.
+function _resumirBloco(t) {
+  const s = String(t);
+  if (s.length <= 600) return s;
+  const corte = s.slice(0, 600);
+  const p = Math.max(corte.lastIndexOf('. '), corte.lastIndexOf('\n'));
+  return (p > 200 ? corte.slice(0, p + 1) : corte).trim() + ' (…)';
 }
 
 // Cobertura da PERGUNTA ponderada por tamanho de palavra: casar "mangostin"
@@ -304,11 +321,18 @@ function _casaEstrito(palavra, an) {
   return 0;
 }
 
+// Palavra-chave utilizavel: pelo menos um token com 3+ LETRAS. "1", "1+1" e
+// "a" nao qualificam — em producao a keyword "1+1" virou tokens ["1","1"] e
+// QUALQUER mensagem contendo o numero 1 recebia a resposta cadastrada.
+function _keywordUtilizavel(k) {
+  return _tokens(k).some(t => /[a-z]{3,}/.test(t));
+}
+
 function buscarQuickReply(an, quickReplies) {
   let melhor = null, score = 0;
   for (const qr of (quickReplies || [])) {
-    if (!qr || !qr.reply) continue;
-    const kws = String(qr.keywords || '').split(',').map(k => k.trim()).filter(Boolean);
+    if (!qr || !qr.reply || !String(qr.reply).trim()) continue;
+    const kws = String(qr.keywords || '').split(',').map(k => k.trim()).filter(_keywordUtilizavel);
     let s = 0;
     for (const k of kws) {
       const partes = _tokens(k);
@@ -326,12 +350,28 @@ function buscarQuickReply(an, quickReplies) {
 
 // O admin escreve o texto de duas formas: conteudo direto ("O Mangostin abre as
 // 12h") ou no estilo de instrucao ("Quando perguntarem X, responde com esse
-// texto (Y)"). No segundo caso, devolver o bloco inteiro entrega o recado
-// interno para o usuario final — aqui so o Y sai.
+// texto (Y)" / "responda: Y" / "diga que Y"). No segundo caso, devolver o bloco
+// inteiro entrega o recado interno para o usuario final — aqui so o Y sai.
+// E para no fecha-parenteses ou na proxima clausula "Quando/Se": duas
+// instrucoes no mesmo paragrafo vazavam a segunda inteira (inclusive um
+// "nunca passe o segredo do cofre") junto com a primeira.
 function _soARespostaCadastrada(bloco) {
-  const m = String(bloco).match(/respond(?:e|er|a)\s+(?:com\s+)?(?:esse|este|o seguinte)?\s*texto\s*[:(]\s*([\s\S]+?)\s*\)?\s*$/i);
-  const extraido = m && m[1] && m[1].trim();
-  return extraido && extraido.length >= 15 ? extraido : bloco;
+  const s = String(bloco);
+  // So blocos em estilo de instrucao ("Quando/Se/Caso ...") passam pela
+  // extracao: sem essa trava, um conteudo normal contendo "responde" no meio
+  // ("o suporte responde em 2h") seria truncado a partir dali.
+  if (!/^\s*(quando|se|caso)\b/i.test(s)) return s;
+  const m = s.match(/(?:respond\w*|diga\w*(?:\s+que)?|informe?\w*(?:\s+que)?)\s*(?:com\s+)?(?:esse\s+|este\s+|o\s+seguinte\s+)?(?:texto)?\s*(?:[:(]\s*|\s+)([\s\S]+)/i);
+  if (!m) return s;
+  let resto = m[1];
+  const fecha = resto.indexOf(')');
+  if (fecha >= 0) resto = resto.slice(0, fecha);
+  else {
+    const prox = resto.search(/\b(?:quando|se)\b[\s\S]{0,80}?(?:respond|diga|informe)/i);
+    if (prox > 0) resto = resto.slice(0, prox);
+  }
+  const extraido = resto.replace(/[).\s]+$/, '').trim();
+  return extraido.length >= 15 ? extraido : s;
 }
 
 function buscarContexto(an, customInfo) {
@@ -343,7 +383,7 @@ function buscarContexto(an, customInfo) {
     const s = _similaridade(an, b);
     if (s > score) { score = s; melhor = b; }
   }
-  return score >= 0.45 ? { texto: _soARespostaCadastrada(melhor), score } : null;
+  return score >= 0.45 ? { texto: _resumirBloco(_soARespostaCadastrada(melhor)), score } : null;
 }
 
 // ─── 5. Catalogo de intencoes ────────────────────────────────────────────────
@@ -1331,14 +1371,20 @@ function responder(entrada) {
     if (anAnterior.tokens.length > an.tokens.length) an = anAnterior;
   }
 
-  // 1) Resposta rápida cadastrada pelo admin manda em tudo.
+  // 2) Intencoes — pontuadas ANTES da resposta rapida de proposito.
+  const ranking = pontuar(an, ctx);
+
+  // 1) Resposta rápida cadastrada pelo admin manda em (quase) tudo. A excecao
+  // e seguranca/manipulacao: com a keyword "senha" cadastrada, "ligaram
+  // pedindo minha senha" respondia a senha de visitante em vez do alerta de
+  // golpe. Alerta de prioridade maxima nao pode ser suprimido por atalho.
+  const alertaGrave = ranking[0]
+    && (ranking[0].intencao.prioridade || 0) >= 9
+    && ranking[0].score >= LIMIAR;
   const qr = buscarQuickReply(an, config.quick_replies);
-  if (qr) {
+  if (qr && !alertaGrave) {
     return { reply: qr.reply, intencao: 'quick_reply', confianca: Math.min(0.99, 0.7 + qr.score * 0.3), sugestoes: [] };
   }
-
-  // 2) Intencoes.
-  const ranking = pontuar(an, ctx);
 
   // 2.5) Texto cadastrado pelo admin que casa MUITO bem com a pergunta passa na
   // frente — mas so quando nenhuma intencao interna respondeu com folga.

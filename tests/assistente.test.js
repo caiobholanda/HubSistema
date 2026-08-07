@@ -419,6 +419,72 @@ test('pergunta nova com assunto proprio nao e tratada como follow-up', () => {
 });
 
 // REGRESSAO: com corte 0.6, "serial" disparava a resposta cadastrada de "ferias".
+// GRAVE: com a keyword "senha" cadastrada, "ligaram pedindo minha senha"
+// respondia a resposta rapida (ex.: a senha de visitante) em vez do alerta de
+// golpe. Alerta de seguranca nao pode ser suprimido por atalho do admin.
+test('resposta rapida nao suprime alerta de seguranca', () => {
+  const config = { quick_replies: [{ id: 1, keywords: 'senha', reply: 'A senha padrão de visitante é Hotel123.' }] };
+  const r = perguntar('ligaram pedindo minha senha', CTX, config);
+  assert.strictEqual(r.intencao, 'seguranca');
+  assert.doesNotMatch(r.reply, /Hotel123/);
+  // Fora do cenario de golpe, a quick reply continua valendo.
+  assert.strictEqual(perguntar('qual a senha', CTX, config).intencao, 'quick_reply');
+});
+
+test('duas instrucoes no mesmo paragrafo nao vazam a segunda', () => {
+  const config = {
+    custom_info: 'Quando perguntarem da impressora responde com esse texto (Reinicie a impressora e aguarde 1 minuto.) Quando perguntarem do cofre responde com esse texto (Chame o supervisor, nunca passe o segredo do cofre.)',
+  };
+  const r = perguntar('a impressora do salao quebrou de novo', CTX, config);
+  if (r.intencao === 'contexto_admin') {
+    assert.doesNotMatch(r.reply, /cofre|segredo/i);
+    assert.doesNotMatch(r.reply, /responde com esse texto/i);
+  }
+});
+
+test('extracao entende "responda:" e "diga que" alem de "texto (...)"', () => {
+  const casos = [
+    ['Quando perguntarem do estacionamento responda: O convênio com o estacionamento vizinho acabou em julho.', /conv(ê|e)nio com o estacionamento/i],
+    ['Se perguntarem do enxoval diga que O enxoval novo chega na quinta-feira e será distribuído pela governança.', /enxoval novo chega/i],
+  ];
+  for (const [info, esperado] of casos) {
+    const r = perguntar(info.includes('estacionamento') ? 'como funciona o estacionamento pros funcionarios' : 'quando chega o enxoval novo', CTX, { custom_info: info });
+    if (r.intencao === 'contexto_admin') {
+      assert.match(r.reply, esperado);
+      assert.doesNotMatch(r.reply, /quando perguntarem|se perguntarem/i, info.slice(0, 40));
+    }
+  }
+});
+
+test('lista com cabecalho e recuperada inteira, nao so o cabecalho', () => {
+  const config = {
+    custom_info: 'Horários do refeitório dos funcionários:\n· Café: 06h30 às 08h30\n· Almoço: 11h às 14h\n· Jantar: 17h30 às 19h30',
+  };
+  const r = perguntar('qual o horario de almoco no refeitorio dos funcionarios', CTX, config);
+  assert.strictEqual(r.intencao, 'contexto_admin');
+  assert.match(r.reply, /11h às 14h/);
+});
+
+test('bloco gigante do admin sai resumido, nao despejado', () => {
+  const config = { custom_info: 'O procedimento de backup do hotel funciona da seguinte forma detalhada. ' + 'A rotina roda toda madrugada e grava os arquivos importantes. '.repeat(40) };
+  const r = perguntar('como funciona o procedimento de backup do hotel', CTX, config);
+  if (r.intencao === 'contexto_admin') {
+    assert.ok(r.reply.length < 1000, `resposta com ${r.reply.length} chars`);
+  }
+});
+
+// REGRESSAO (producao): a keyword "1+1" cadastrada de brincadeira virava
+// tokens ["1","1"] e QUALQUER mensagem com o numero 1 recebia a resposta.
+test('keyword sem letras (so digito/pontuacao) nunca dispara', () => {
+  const config = { quick_replies: [{ id: 1, keywords: '1+1', reply: 'Marcio peidão' }] };
+  for (const f of ['1', '1+1', 'quero 1 impressora', 'preciso de 1 acesso', 'tenho 1 duvida']) {
+    assert.notStrictEqual(perguntar(f, CTX, config).intencao, 'quick_reply', f);
+  }
+  // Keyword legitima continua funcionando na mesma config.
+  const config2 = { quick_replies: [{ id: 1, keywords: '1+1', reply: 'x' }, { id: 2, keywords: 'toner', reply: 'Pede no almoxarifado.' }] };
+  assert.strictEqual(perguntar('preciso de toner', CTX, config2).intencao, 'quick_reply');
+});
+
 test('resposta rapida do admin nao dispara em palavra so parecida', () => {
   const config = { quick_replies: [{ id: 1, keywords: 'ferias, folga', reply: 'Ferias se pede no RH.' }] };
   for (const f of ['serial', 'folgado', 'feira']) {

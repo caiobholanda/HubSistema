@@ -1287,9 +1287,30 @@ function AssistenteIAPanel({ isMobile }) {
   const [previewText, setPreviewText] = useState('');
   const [previewLoading, setPreviewLoading] = useState(false);
   const [loadErr, setLoadErr] = useState(false);
+  const [testeQ, setTesteQ] = useState('');
+  const [testeR, setTesteR] = useState(null);
+  const [testeLoading, setTesteLoading] = useState(false);
   const debounceRef = useRef(null);
   const readyRef = useRef(false);
   const basePromptRef = useRef('');
+  // Quais campos têm edição ainda não confirmada pelo servidor. O PUT manda SÓ
+  // esses campos (o server faz update parcial) — dois admins com o painel
+  // aberto deixam de apagar o trabalho um do outro.
+  const dirtyRef = useRef(new Set());
+  // Valores mais recentes, legíveis fora do ciclo do React (flush no unmount).
+  const latestRef = useRef({ ci: '', qr: [], bp: '' });
+  // Nº de sequência: só a resposta do save MAIS RECENTE mexe em savedAt/saveErr
+  // (antes, um save lento OK chegava depois de um save novo com erro e o painel
+  // mostrava "✓ Salvo" para um estado que não foi salvo).
+  const saveSeqRef = useRef(0);
+  const prevValsRef = useRef(null);
+
+  useEffect(() => { latestRef.current = { ci: customInfo, qr: quickReplies, bp: basePromptRef.current }; });
+
+  // Palavra-chave que o motor consegue usar: pelo menos uma palavra com 3+
+  // letras. "1+1" cadastrado de brincadeira fazia QUALQUER mensagem com o
+  // número 1 receber a resposta.
+  const kwUtilizavel = k => /[a-zA-ZÀ-ÿ]{3,}/.test(k);
 
   function carregarConfig() {
     setLoading(true); setLoadErr(false); readyRef.current = false;
@@ -1297,7 +1318,17 @@ function AssistenteIAPanel({ isMobile }) {
     fetch('/api/admin/ai-config', { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
       .then(d => {
-        if (d.ok) { const bp = d.config.base_prompt || ''; basePromptRef.current = bp; setBasePrompt(bp); setLocalBaseEdit(bp); setCustomInfo(d.config.custom_info || ''); setQuickReplies(d.config.quick_replies || []); }
+        if (d.ok) {
+          const bp = d.config.base_prompt || '';
+          basePromptRef.current = bp; setBasePrompt(bp);
+          // bp vazio NÃO limpa o textarea: se o texto padrão já chegou do outro
+          // fetch, ele fica (corrida de inicialização deixava o campo vazio com
+          // o botão "Salvar texto base" aceso sem o admin ter tocado em nada).
+          setLocalBaseEdit(prev => bp || prev);
+          setCustomInfo(d.config.custom_info || '');
+          setQuickReplies(d.config.quick_replies || []);
+          dirtyRef.current.clear();
+        }
         else setLoadErr(true);
       })
       .catch(() => setLoadErr(true))
@@ -1321,38 +1352,106 @@ function AssistenteIAPanel({ isMobile }) {
     }
   }, []);
 
-  async function save(ci, qr, bp) {
+  function _corpoDosCampos(campos) {
+    const body = {};
+    if (campos.has('custom_info')) body.custom_info = latestRef.current.ci;
+    if (campos.has('quick_replies')) body.quick_replies = latestRef.current.qr;
+    if (campos.has('base_prompt')) body.base_prompt = latestRef.current.bp;
+    return body;
+  }
+
+  async function save() {
+    const campos = new Set(dirtyRef.current);
+    if (campos.size === 0) return;
+    // Limpa na LARGADA: edição feita durante o voo re-marca o campo e re-arma o
+    // debounce; em caso de falha os campos enviados voltam para a fila.
+    dirtyRef.current.clear();
+    const seq = ++saveSeqRef.current;
     setSaving(true); setSaveErr(''); setSavedAt(null);
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 12000); // requisição pendurada travava o botão em "Salvando..." pra sempre
+    let falhou = false;
     try {
       const token = localStorage.getItem('hub_sso_token');
       const r = await fetch('/api/admin/ai-config', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ custom_info: ci, quick_replies: qr, base_prompt: bp })
+        body: JSON.stringify(_corpoDosCampos(campos)),
+        signal: ctrl.signal,
       });
       const d = await r.json();
+      if (seq !== saveSeqRef.current) return; // resposta velha: um save mais novo já está no ar
       if (d.ok) setSavedAt(new Date());
-      else setSaveErr(d.erro || 'Erro ao salvar.');
-    } catch { setSaveErr('Erro de conexão.'); }
-    finally { setSaving(false); }
+      else { falhou = true; setSaveErr(d.erro || 'Erro ao salvar.'); }
+    } catch {
+      if (seq !== saveSeqRef.current) return;
+      falhou = true; setSaveErr('Erro de conexão.');
+    } finally {
+      clearTimeout(timer);
+      if (seq === saveSeqRef.current) setSaving(false);
+      if (falhou) for (const c of campos) dirtyRef.current.add(c);
+    }
   }
 
   useEffect(() => {
-    if (!readyRef.current) return;
+    if (!readyRef.current) { prevValsRef.current = { ci: customInfo, qr: quickReplies }; return; }
+    const prev = prevValsRef.current || { ci: customInfo, qr: quickReplies };
+    if (prev.ci !== customInfo) dirtyRef.current.add('custom_info');
+    if (prev.qr !== quickReplies) dirtyRef.current.add('quick_replies');
+    prevValsRef.current = { ci: customInfo, qr: quickReplies };
     if (debounceRef.current) clearTimeout(debounceRef.current);
     setSavedAt(null); setSaveErr('');
-    debounceRef.current = setTimeout(() => save(customInfo, quickReplies, basePromptRef.current), 1200);
+    debounceRef.current = setTimeout(save, 1200);
     return () => clearTimeout(debounceRef.current);
   }, [customInfo, quickReplies]); // basePrompt excluído: muda só via confirmarSalvarBase, não via auto-save
 
+  // Trocar de aba do admin (ou fechar o painel) dentro da janela de 1,2s
+  // descartava a edição em silêncio: o debounce era cancelado e o PUT nunca
+  // saía. keepalive deixa o navegador terminar o envio mesmo desmontando.
+  useEffect(() => () => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (dirtyRef.current.size === 0) return;
+    const token = localStorage.getItem('hub_sso_token');
+    try {
+      fetch('/api/admin/ai-config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(_corpoDosCampos(dirtyRef.current)),
+        keepalive: true,
+      }).catch(() => {});
+    } catch {}
+  }, []);
+
+  function _validarQR() {
+    if (!qrForm.keywords.trim() || !qrForm.reply.trim()) { setQrError('Preencha palavras-chave e resposta.'); return false; }
+    if (!qrForm.keywords.split(',').some(k => kwUtilizavel(k.trim()))) {
+      setQrError('Inclua ao menos uma palavra-chave com 3+ letras — só número ou símbolo dispara em qualquer mensagem.');
+      return false;
+    }
+    // Keyword repetida em outra entrada: a primeira da lista vence em silêncio
+    // e o admin acha que "corrigiu" criando uma entrada nova.
+    const novas = qrForm.keywords.split(',').map(k => k.trim().toLowerCase()).filter(Boolean);
+    for (const q of quickReplies) {
+      if (q.id === editingQR) continue;
+      const deleQ = q.keywords.split(',').map(k => k.trim().toLowerCase()).filter(Boolean);
+      const rep = novas.find(k => deleQ.includes(k));
+      if (rep) { setQrError(`"${rep}" já está em outra resposta rápida — edite aquela ou use outra palavra.`); return false; }
+    }
+    return true;
+  }
+
+  function _novoQRId(prev) {
+    return prev.reduce((m, q) => Math.max(m, Number(q.id) || 0), Date.now()) + 1;
+  }
+
   function commitAddQR() {
-    if (!qrForm.keywords.trim() || !qrForm.reply.trim()) { setQrError('Preencha palavras-chave e resposta.'); return; }
-    setQuickReplies(prev => [...prev, { id: Date.now(), keywords: qrForm.keywords.trim(), reply: qrForm.reply.trim() }]);
+    if (!_validarQR()) return;
+    setQuickReplies(prev => [...prev, { id: _novoQRId(prev), keywords: qrForm.keywords.trim(), reply: qrForm.reply.trim() }]);
     setQrForm({ keywords: '', reply: '' }); setQrError(''); setAddingQR(false);
   }
 
   function commitEditQR() {
-    if (!qrForm.keywords.trim() || !qrForm.reply.trim()) { setQrError('Preencha palavras-chave e resposta.'); return; }
+    if (!_validarQR()) return;
     setQuickReplies(prev => prev.map(q => q.id === editingQR ? { ...q, keywords: qrForm.keywords.trim(), reply: qrForm.reply.trim() } : q));
     setEditingQR(null); setQrForm({ keywords: '', reply: '' }); setQrError('');
   }
@@ -1364,14 +1463,38 @@ function AssistenteIAPanel({ isMobile }) {
     setEditingBase(false);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     basePromptRef.current = localBaseEdit;
+    latestRef.current.bp = localBaseEdit;
     setBasePrompt(localBaseEdit);
-    await save(customInfo, quickReplies, localBaseEdit);
+    dirtyRef.current.add('base_prompt');
+    await save();
+  }
+
+  async function testarPergunta() {
+    const q = testeQ.trim();
+    if (!q || testeLoading) return;
+    setTesteLoading(true); setTesteR(null);
+    // Garante que o teste roda contra o que está na tela, não contra o estado
+    // de antes do debounce.
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    await save();
+    try {
+      const token = localStorage.getItem('hub_sso_token');
+      const r = await fetch('/api/admin/ai-testar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ pergunta: q }),
+      });
+      const d = await r.json();
+      setTesteR(d.ok ? d : { erro: d.erro || 'Erro ao testar.' });
+    } catch { setTesteR({ erro: 'Erro de conexão.' }); }
+    finally { setTesteLoading(false); }
   }
 
   function addKeyword(qrId) {
     const kw = newKwText.trim();
     setAddingKwToId(null); setNewKwText('');
     if (!kw) return;
+    if (!kwUtilizavel(kw)) return; // "1", "!!" etc. nunca disparariam ou disparariam demais
     setQuickReplies(prev => prev.map(q => {
       if (q.id !== qrId) return q;
       const existing = q.keywords.split(',').map(k => k.trim()).filter(Boolean);
@@ -1459,10 +1582,10 @@ function AssistenteIAPanel({ isMobile }) {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 7, flexWrap: 'wrap', gap: 8 }}>
           <div style={{ fontFamily: MONO, fontSize: 12, color: C.areia, letterSpacing: '0.08em', lineHeight: 1.5 }}>
-            Use marcadores (·) para listar itens. Limpe este campo quando não for mais necessário.
+            Um assunto por linha, com a informação completa (linhas muito curtas são ignoradas). Limpe quando não for mais necessário.
           </div>
           <button
-            onClick={() => { if (debounceRef.current) clearTimeout(debounceRef.current); save(customInfo, quickReplies, basePromptRef.current); }}
+            onClick={() => { if (debounceRef.current) clearTimeout(debounceRef.current); dirtyRef.current.add('custom_info'); save(); }}
             disabled={saving}
             style={{ background: saving ? `${C.champanhe}55` : C.champanhe, color: C.noite, fontFamily: MONO, fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', padding: '6px 16px', border: 'none', cursor: saving ? 'not-allowed' : 'pointer', transition: 'background 200ms', flexShrink: 0 }}
           >{saving ? 'Salvando...' : '✓ Salvar'}</button>
@@ -1501,9 +1624,15 @@ function AssistenteIAPanel({ isMobile }) {
                 <span style={{ fontFamily: MONO, fontSize: 12, color: C.champanhe, letterSpacing: '0.12em', flexShrink: 0, paddingTop: 2 }}>{String(idx + 1).padStart(2, '0')}</span>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 7, alignItems: 'center' }}>
-                    {qr.keywords.split(',').map(k => k.trim()).filter(Boolean).map((k, ki) => (
-                      <span key={ki} title={k} style={{ background: `${C.champanhe}28`, border: `1px solid ${C.champanhe}55`, color: C.champanhe, fontFamily: MONO, fontSize: 11, padding: '2px 9px', letterSpacing: '0.08em', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'inline-block' }}>{k}</span>
-                    ))}
+                    {qr.keywords.split(',').map(k => k.trim()).filter(Boolean).map((k, ki) => {
+                      const ok = kwUtilizavel(k);
+                      return (
+                        <span key={ki} title={ok ? k : `"${k}" é ignorada: precisa de uma palavra com 3+ letras`} style={{ background: ok ? `${C.champanhe}28` : '#E07A5F1a', border: `1px solid ${ok ? C.champanhe + '55' : '#E07A5F66'}`, color: ok ? C.champanhe : '#E07A5F', fontFamily: MONO, fontSize: 11, padding: '2px 9px', letterSpacing: '0.08em', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'inline-block', textDecoration: ok ? 'none' : 'line-through' }}>{k}</span>
+                      );
+                    })}
+                    {!qr.keywords.split(',').some(k => kwUtilizavel(k.trim())) && (
+                      <span style={{ fontFamily: MONO, fontSize: 10, color: '#E07A5F', letterSpacing: '0.1em', textTransform: 'uppercase' }}>⚠ nunca dispara — adicione uma palavra com 3+ letras</span>
+                    )}
                     {editingQR !== qr.id && (
                       addingKwToId === qr.id ? (
                         <input
@@ -1623,6 +1752,49 @@ function AssistenteIAPanel({ isMobile }) {
         )}
       </div>
 
+      {/* 04 · Testar pergunta */}
+      <div style={{ marginBottom: 40, paddingTop: 32, borderTop: `1px solid ${C.champanhe}30` }}>
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontFamily: MONO, fontSize: 11, letterSpacing: '0.3em', textTransform: 'uppercase', color: C.champanhe, marginBottom: 4 }}>04 · Testar Pergunta</div>
+          <div style={{ fontFamily: BODY, fontSize: 14, color: C.areia, lineHeight: 1.5 }}>
+            Veja o que o assistente responderia agora, sem precisar abrir o chat — usa o que você acabou de configurar
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input
+            value={testeQ}
+            onChange={e => setTesteQ(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') testarPergunta(); }}
+            placeholder="ex: minha comanda esta cortando a impressão"
+            style={{ flex: 1, background: `${C.champanhe}0e`, border: `1px solid ${C.champanhe}35`, color: C.marfim, fontFamily: MONO, fontSize: 13, padding: '10px 14px', outline: 'none', letterSpacing: '0.025em', boxSizing: 'border-box' }}
+          />
+          <button
+            onClick={testarPergunta}
+            disabled={!testeQ.trim() || testeLoading}
+            style={{ background: (!testeQ.trim() || testeLoading) ? `${C.champanhe}55` : C.champanhe, color: C.noite, fontFamily: MONO, fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', padding: '6px 18px', border: 'none', cursor: (!testeQ.trim() || testeLoading) ? 'not-allowed' : 'pointer', flexShrink: 0 }}
+          >{testeLoading ? 'Testando...' : 'Testar'}</button>
+        </div>
+        {testeR && (
+          <div style={{ marginTop: 10, background: `${C.champanhe}0a`, border: `1px solid ${C.champanhe}30`, padding: '14px 16px' }}>
+            {testeR.erro ? (
+              <div style={{ fontFamily: MONO, fontSize: 12, color: '#E07A5F', letterSpacing: '0.1em' }}>✗ {testeR.erro}</div>
+            ) : (
+              <>
+                <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 10 }}>
+                  <span style={{ fontFamily: MONO, fontSize: 11, color: C.champanhe, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+                    assunto: {testeR.intencao === 'quick_reply' ? 'resposta rápida' : testeR.intencao === 'contexto_admin' ? 'contexto adicional' : testeR.intencao}
+                  </span>
+                  <span style={{ fontFamily: MONO, fontSize: 11, color: C.areia, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+                    confiança: {Math.round((testeR.confianca || 0) * 100)}%
+                  </span>
+                </div>
+                <div style={{ fontFamily: BODY, fontSize: 14, color: C.marfim, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{testeR.reply}</div>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* Auto-save status */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingTop: 20, borderTop: `1px solid ${C.champanhe}44`, minHeight: 40 }}>
         {saving && (
@@ -1636,10 +1808,13 @@ function AssistenteIAPanel({ isMobile }) {
         {!saving && saveErr && (
           <span style={{ fontFamily: MONO, fontSize: 12, color: '#E07A5F', letterSpacing: '0.1em' }}>
             ✗ {saveErr} —{' '}
-            <button onClick={() => save(customInfo, quickReplies, basePrompt)} style={{ background: 'none', border: 'none', color: C.champanhe, fontFamily: MONO, fontSize: 12, cursor: 'pointer', textDecoration: 'underline', padding: 0 }}>tentar novamente</button>
+            <button onClick={() => save()} style={{ background: 'none', border: 'none', color: C.champanhe, fontFamily: MONO, fontSize: 12, cursor: 'pointer', textDecoration: 'underline', padding: 0 }}>tentar novamente</button>
           </span>
         )}
-        {!saving && !savedAt && !saveErr && (
+        {!saving && !savedAt && !saveErr && dirtyRef.current.size > 0 && (
+          <span style={{ fontFamily: MONO, fontSize: 12, color: C.champanhe, letterSpacing: '0.12em' }}>● Alterações pendentes — salvando em instantes...</span>
+        )}
+        {!saving && !savedAt && !saveErr && dirtyRef.current.size === 0 && (
           <span style={{ fontFamily: MONO, fontSize: 12, color: `${C.areia}66`, letterSpacing: '0.12em' }}>Salvo automaticamente ao editar</span>
         )}
       </div>

@@ -2272,7 +2272,7 @@ app.post('/api/admin/ai-testar', requireAdmin, (req, res) => {
   const r = assistente.responder({
     mensagens: [{ role: 'user', content: String(pergunta).slice(0, 800) }],
     contexto: _contextoAssistente(req),
-    config: aiCfg,
+    config: _configComPadrao(aiCfg),
   });
   res.json({ ok: true, ...r });
 });
@@ -2680,6 +2680,16 @@ app.delete('/api/admin/updates/:id', requireAdmin, (req, res) => {
 // de intencoes em src/assistente.js. Logo, isto NAO e um "prompt": e a base de
 // conhecimento em texto que o motor consulta por similaridade quando nenhuma
 // intencao interna cobre a pergunta.
+// O painel exibe o texto padrao como "o que o assistente consulta" — entao ele
+// PRECISA chegar ao motor quando o admin nao escreveu um proprio. Sem isso a
+// tela mentia: mostrava o padrao como ativo e o motor nunca o recebia.
+function _configComPadrao(aiCfg) {
+  const cfg = aiCfg || {};
+  return (cfg.base_prompt && cfg.base_prompt.trim())
+    ? cfg
+    : { ...cfg, base_prompt: TEXTO_BASE_PADRAO };
+}
+
 const TEXTO_BASE_PADRAO = `Hub Gran Marquise (hub-granmarquise.fly.dev) — porta de entrada dos sistemas do hotel. Login com e-mail @granmarquise.com.br; cada pessoa vê só o que está liberado pra ela.
 
 Chamados TI (sistema-chamados-granmarquise.fly.dev): todos os setores usam. Abrir em "Novo Chamado" — setor, descrição e prioridade. Resposta em até 2h úteis. Categorias: Impressora/Periférico, Acesso/Login, Permissão de Acesso, Rede/Internet, Hardware, Software.
@@ -2718,20 +2728,41 @@ function montarBaseConhecimento(customInfo, quickReplies, resumoVivo, basePrompt
 }
 
 app.put('/api/admin/ai-config', requireAdmin, (req, res) => {
-  const { custom_info, quick_replies, base_prompt } = req.body || {};
+  const body = req.body || {};
   const data = readData();
   const prev = data.ai_config || {};
-  data.ai_config = {
-    custom_info: String(custom_info || '').slice(0, 2500),
-    quick_replies: Array.isArray(quick_replies) ? quick_replies.slice(0, 50).map(qr => ({
-      id: Number(qr.id) || Date.now(),
-      keywords: String(qr.keywords || '').slice(0, 200),
-      reply: String(qr.reply || '').slice(0, 1000)
-    })) : [],
-    base_prompt: req.hubUser.is_master ? String(base_prompt || '').slice(0, 10000) : (prev.base_prompt || '')
+  // Atualizacao PARCIAL: so os campos presentes no body mudam. Antes o PUT
+  // reescrevia o objeto inteiro — dois admins com o painel aberto se apagavam
+  // mutuamente (o auto-save de um levava o estado velho dos campos do outro).
+  const cfg = {
+    custom_info: typeof prev.custom_info === 'string' ? prev.custom_info : '',
+    quick_replies: Array.isArray(prev.quick_replies) ? prev.quick_replies : [],
+    base_prompt: typeof prev.base_prompt === 'string' ? prev.base_prompt : '',
   };
+  if ('custom_info' in body) cfg.custom_info = String(body.custom_info || '').slice(0, 2500);
+  if ('quick_replies' in body) {
+    const idsUsados = new Set();
+    cfg.quick_replies = (Array.isArray(body.quick_replies) ? body.quick_replies : [])
+      .filter(qr => qr && typeof qr === 'object') // item nulo derrubava o handler com 500
+      .slice(0, 50)
+      .map(qr => {
+        let id = Number(qr.id) || Date.now();
+        while (idsUsados.has(id)) id += 1; // Date.now() repetido no mesmo ms = Editar/Excluir no item errado
+        idsUsados.add(id);
+        return {
+          id,
+          keywords: String(qr.keywords || '').slice(0, 200),
+          reply: String(qr.reply || '').slice(0, 1000).trim(),
+        };
+      })
+      .filter(qr => qr.reply); // resposta vazia nunca dispara — nao ocupa slot
+  }
+  if ('base_prompt' in body && req.hubUser.is_master) {
+    cfg.base_prompt = String(body.base_prompt || '').slice(0, 10000);
+  }
+  data.ai_config = cfg;
   writeData(data);
-  res.json({ ok: true });
+  res.json({ ok: true, config: cfg });
 });
 
 // Contexto vivo entregue ao motor. Dado de PESSOA (nome, setor, ramal) so entra
@@ -2822,7 +2853,7 @@ app.post('/api/ai-chat', (req, res) => {
   const data = readData(); // uma leitura por mensagem: config + contexto saem daqui
   const aiCfg = data.ai_config || {};
   const contexto = _contextoAssistente(req, data);
-  const local = assistente.responder({ mensagens: safeMessages, contexto, config: aiCfg });
+  const local = assistente.responder({ mensagens: safeMessages, contexto, config: _configComPadrao(aiCfg) });
 
   res.json({
     ok: true,
