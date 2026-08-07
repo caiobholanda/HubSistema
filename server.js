@@ -2708,9 +2708,41 @@ app.put('/api/admin/ai-config', requireAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
-app.post('/api/ai-chat', async (req, res) => {
-  if (!GROQ_API_KEY) return res.json({ ok: false, erro: 'Assistente não configurado. Contate o TI.' });
+// Resposta inteligente sem API — usa quick_replies do admin + padrões integrados de TI
+function smartReply(userMessage, customInfo, quickReplies) {
+  const msg = (userMessage || '').toLowerCase();
 
+  for (const qr of (quickReplies || [])) {
+    const kws = String(qr.keywords || '').split(',').map(k => k.trim().toLowerCase()).filter(Boolean);
+    if (kws.some(k => k && msg.includes(k))) return qr.reply;
+  }
+
+  if (/chamado|suporte|ticket|problema|abrir|ajuda/.test(msg))
+    return 'Para abrir um chamado, acesse o Sistema de Chamados TI no Hub, clique em "Novo Chamado" e descreva o problema. Você pode anexar fotos e acompanhar o atendimento. Prazo de resposta: até 2 horas úteis.';
+  if (/senha|login|entrar|bloqueado|esqueci/.test(msg))
+    return 'Para redefinir sua senha, clique em "Esqueci minha senha" na tela de login e informe seu e-mail @granmarquise.com.br. Verifique também a caixa de spam. Problema persistindo? Abra um chamado com a categoria "Acesso / Login".';
+  if (/ramal|telefone|contato|ligar|falar/.test(msg))
+    return 'O Diretório de Ramais está disponível no Hub. Encontre o ramal de qualquer colaborador ou setor com busca por nome ou departamento — sem precisar ligar para a recepção.';
+  if (/impressora|toner|periférico|mouse|teclado|monitor/.test(msg))
+    return 'Abra um chamado de TI com a categoria "Impressora / Periférico". Informe o modelo e a localização (andar e setor) para agilizar o atendimento.';
+  if (/rede|internet|wifi|wi-fi|conexão|lento|sem acesso/.test(msg))
+    return 'Abra um chamado com a categoria "Rede / Internet". Descreva o setor afetado e se o problema ocorre em todos os dispositivos ou apenas em um.';
+  if (/spa|pesquisa|satisfação|massagem|terapeuta|anamnese/.test(msg))
+    return 'A Pesquisa de Satisfação do SPA está no Hub com acesso restrito à equipe do SPA e TI. Para solicitar acesso, abra um chamado com a categoria "Permissão de Acesso".';
+  if (/acesso|permissão|liberar|sistema|instalar|software/.test(msg))
+    return 'Para solicitar acesso a um sistema ou instalação de software, abra um chamado com a categoria "Permissão de Acesso" ou "Software", descrevendo o que precisa e o motivo.';
+  if (/hub|central|sistemas|portal/.test(msg))
+    return 'O Hub Gran Marquise (hub-granmarquise.fly.dev) é a central de acesso a todos os sistemas internos. Faça login com seu e-mail @granmarquise.com.br para ver os sistemas disponíveis para você.';
+  if (/obrigad|valeu|ótimo|perfeito|entendi/.test(msg))
+    return 'Disponha! Se precisar de mais alguma coisa, estou por aqui. 😊';
+
+  if (customInfo && customInfo.trim())
+    return `Com base nas informações atuais do TI:\n\n${customInfo.trim()}\n\nPara dúvidas adicionais, abra um chamado de TI.`;
+
+  return 'Para essa questão, abra um chamado no Sistema de Chamados TI — a equipe atende em até 2 horas úteis. Posso ajudar com: senhas, ramais, impressoras, rede, acesso a sistemas ou abertura de chamados.';
+}
+
+app.post('/api/ai-chat', async (req, res) => {
   const { messages } = req.body || {};
   if (!Array.isArray(messages) || messages.length === 0) {
     return res.status(400).json({ ok: false, erro: 'messages inválido.' });
@@ -2722,26 +2754,33 @@ app.post('/api/ai-chat', async (req, res) => {
   }));
 
   const aiCfg = readData().ai_config || {};
-  const systemPrompt = buildSystemPrompt(aiCfg.custom_info || '', aiCfg.quick_replies || []);
 
-  try {
-    const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_API_KEY}` },
-      body: JSON.stringify({
-        model: 'llama-3.1-8b-instant',
-        messages: [{ role: 'system', content: systemPrompt }, ...safeMessages],
-        max_tokens: 400,
-        temperature: 0.4
-      })
-    });
-    const data = await resp.json();
-    if (!resp.ok) throw new Error(data.error?.message || `Erro ${resp.status}`);
-    const reply = data.choices?.[0]?.message?.content?.trim() || 'Não consegui gerar uma resposta.';
-    res.json({ ok: true, reply });
-  } catch (e) {
-    res.status(500).json({ ok: false, erro: e.message });
+  // Se GROQ_API_KEY configurada: usa LLM completo, cai no smartReply se falhar
+  if (GROQ_API_KEY) {
+    try {
+      const systemPrompt = buildSystemPrompt(aiCfg.custom_info || '', aiCfg.quick_replies || []);
+      const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_API_KEY}` },
+        body: JSON.stringify({
+          model: 'llama-3.1-8b-instant',
+          messages: [{ role: 'system', content: systemPrompt }, ...safeMessages],
+          max_tokens: 400,
+          temperature: 0.4
+        })
+      });
+      const data = await resp.json();
+      if (resp.ok) {
+        const reply = data.choices?.[0]?.message?.content?.trim() || '';
+        if (reply) return res.json({ ok: true, reply, source: 'llm' });
+      }
+    } catch {}
   }
+
+  // Fallback (padrão sem chave): respostas inteligentes locais
+  const lastUser = safeMessages.filter(m => m.role === 'user').slice(-1)[0]?.content || '';
+  const reply = smartReply(lastUser, aiCfg.custom_info || '', aiCfg.quick_replies || []);
+  res.json({ ok: true, reply, source: 'local' });
 });
 
 // ─── Webhook de deploy (chamado pelo CI de cada satélite) ────────────────────
