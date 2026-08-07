@@ -1488,9 +1488,13 @@ function AssistenteIAPanel({ isMobile }) {
                       ) : (
                         <button
                           onClick={() => { setAddingKwToId(qr.id); setNewKwText(''); }}
-                          style={{ background: 'none', border: `1px dashed ${C.champanhe}44`, color: C.champanhe, fontFamily: MONO, fontSize: 10, padding: '2px 8px', cursor: 'pointer', letterSpacing: '0.12em', lineHeight: 1 }}
-                          title="Adicionar palavra-chave"
-                        >+ kw</button>
+                          style={{ background: `${C.champanhe}18`, border: `1px solid ${C.champanhe}77`, color: C.champanhe, fontFamily: MONO, fontSize: 11, padding: '3px 11px', cursor: 'pointer', letterSpacing: '0.1em', lineHeight: 1, display: 'flex', alignItems: 'center', gap: 5, transition: 'background 150ms' }}
+                          onMouseEnter={e => { e.currentTarget.style.background = `${C.champanhe}30`; }}
+                          onMouseLeave={e => { e.currentTarget.style.background = `${C.champanhe}18`; }}
+                        >
+                          <span style={{ fontSize: 14, lineHeight: 1 }}>+</span>
+                          <span>palavra-chave</span>
+                        </button>
                       )
                     )}
                   </div>
