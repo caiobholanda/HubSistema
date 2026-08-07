@@ -7306,7 +7306,7 @@ function AIChatWidget({ isMobile }) {
         <div style={{ padding: '12px 16px', background: C.noite, display: 'flex', alignItems: 'center', gap: 10, borderBottom: `1px solid ${C.champanhe}1e`, flexShrink: 0 }}>
           <div style={{ width: 36, height: 36, borderRadius: '50%', background: `linear-gradient(135deg, ${C.champanhe} 0%, ${C.dourado} 100%)`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-              <path d="M12 2l2.09 6.41H21l-5.47 3.98 2.09 6.41L12 14.82l-5.62 4.04 2.09-6.41L2.96 8.41H9.91L12 2z" fill={C.noite} />
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" fill={C.noite} />
             </svg>
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -7417,7 +7417,7 @@ function AIChatWidget({ isMobile }) {
               <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
             ) : (
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                <path d="M12 2l2.09 6.41H21l-5.47 3.98 2.09 6.41L12 14.82l-5.62 4.04 2.09-6.41L2.96 8.41H9.91L12 2z" fill="currentColor" />
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" fill="currentColor" />
               </svg>
             )}
           </button>
