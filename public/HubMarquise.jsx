@@ -1368,8 +1368,17 @@ function AssistenteIAPanel({ isMobile }) {
             style={{ flex: 1, minHeight: 155, background: `${C.champanhe}06`, border: `1px solid ${C.champanhe}1a`, borderLeft: 'none', color: C.marfim, fontFamily: MONO, fontSize: 12, lineHeight: 1.75, padding: '14px 16px', resize: 'vertical', outline: 'none', letterSpacing: '0.025em', boxSizing: 'border-box' }}
           />
         </div>
-        <div style={{ fontFamily: MONO, fontSize: 10, color: C.areiaDim, letterSpacing: '0.08em', marginTop: 7, opacity: 0.65, lineHeight: 1.5 }}>
-          Use marcadores (·) para listar itens. Limpe este campo quando não for mais necessário.
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 7 }}>
+          <div style={{ fontFamily: MONO, fontSize: 10, color: C.areiaDim, letterSpacing: '0.08em', opacity: 0.65, lineHeight: 1.5 }}>
+            Use marcadores (·) para listar itens. Limpe este campo quando não for mais necessário.
+          </div>
+          <button
+            onClick={() => setCustomInfo('· Impressora do 3º andar em manutenção até sexta (11/08)\n· Novo ramal da Recepção: 5001\n· Rede nos quartos 301–320 instável esta semana\n· Para urgências fora do horário: (85) 9xxxx-xxxx')}
+            style={{ background: 'none', border: `1px solid ${C.champanhe}33`, color: C.champanhe, fontFamily: MONO, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', padding: '6px 12px', cursor: 'pointer', flexShrink: 0, marginLeft: 16, transition: 'background 150ms' }}
+            onMouseEnter={e => { e.currentTarget.style.background = `${C.champanhe}12`; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'none'; }}
+            title="Inserir textos de exemplo para editar"
+          >↓ Usar exemplos</button>
         </div>
       </div>
 
